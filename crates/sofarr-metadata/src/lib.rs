@@ -1,3 +1,3 @@
-//! Metadata providers (TMDB for movies; series provider decided in Phase 5).
+//! Metadata providers: TMDB for movies, TVDB for series (spec D10).
 //!
 //! Implementation: PLAN.md Phase 3.
