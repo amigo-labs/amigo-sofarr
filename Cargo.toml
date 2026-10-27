@@ -1,0 +1,43 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "MIT"
+repository = "https://github.com/amigo-labs/amigo-sofarr"
+publish = false
+
+[workspace.dependencies]
+# Internal crates
+sofarr-parser = { path = "crates/sofarr-parser" }
+sofarr-core = { path = "crates/sofarr-core" }
+sofarr-indexer = { path = "crates/sofarr-indexer" }
+sofarr-metadata = { path = "crates/sofarr-metadata" }
+sofarr-download = { path = "crates/sofarr-download" }
+sofarr-db = { path = "crates/sofarr-db" }
+
+# External crates
+anyhow = "1"
+axum = "0.8"
+clap = { version = "4", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time", "io-util"] }
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

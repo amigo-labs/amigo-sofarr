@@ -1,0 +1,16 @@
+# Ausschnitt für deine bestehende docker-compose.yml.
+# Shadow-Mode: /data wird READ-ONLY gemountet, sofarr kann nichts kaputt machen.
+# Erst in Phase 4 (Grab + Import) wird ":ro" entfernt.
+services:
+  amigo-sofarr:
+    build: ./amigo-sofarr          # oder später: image: ghcr.io/amigo-labs/amigo-sofarr:latest
+    container_name: amigo-sofarr
+    user: "1000:1000"              # gleiche UID/GID wie Radarr/Sonarr
+    ports:
+      - "7676:7676"
+    volumes:
+      - ./sofarr-config:/config
+      - /pfad/zu/data:/data:ro     # gleiches Layout wie bei Radarr (Hardlinks!)
+    environment:
+      RUST_LOG: info
+    restart: unless-stopped

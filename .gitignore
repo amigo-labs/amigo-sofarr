@@ -1,0 +1,6 @@
+/target
+# Secrets & private Daten – niemals committen
+/fixtures/private/
+/config/sofarr.toml
+*.env
+.env*

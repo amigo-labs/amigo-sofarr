@@ -1,0 +1,11 @@
+# amigo-sofarr – Beispielkonfiguration
+# Kopieren nach /config/sofarr.toml (im Container) bzw. per SOFARR_CONFIG angeben.
+# Fehlt die Datei, gelten die Standardwerte unten.
+
+[server]
+bind = "0.0.0.0:7676"
+
+[log]
+# Wird von RUST_LOG überschrieben, falls gesetzt.
+level = "info"      # trace | debug | info | warn | error
+format = "pretty"   # pretty | json
