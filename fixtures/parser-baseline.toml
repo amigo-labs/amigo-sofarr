@@ -1,0 +1,9 @@
+# Parser-Ratchet: Pass-Rate pro Feld in Promille, nur über fixtures/public/.
+# Nicht von Hand pflegen – neu schreiben mit:
+#   SOFARR_UPDATE_BASELINE=1 cargo test -p sofarr-parser --test oracle
+
+[fixtures]
+count = 0
+fingerprint = "fnv1a64:cbf29ce484222325"
+
+[permille]
