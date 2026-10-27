@@ -729,8 +729,9 @@ mod tests {
     #[test]
     fn output_contains_no_secrets() {
         let doc = rendered();
-        for secret in SECRETS {
-            assert!(!doc.contains(secret), "leaked {secret}:\n{doc}");
+        for (i, secret) in SECRETS.iter().enumerate() {
+            // Name the entry by index only: the message must not echo the value.
+            assert!(!doc.contains(secret), "SECRETS[{i}] leaked into the matrix");
         }
     }
 
