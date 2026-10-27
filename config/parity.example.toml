@@ -1,0 +1,18 @@
+# sofarr-parity – Beispielkonfiguration
+# Kopieren nach fixtures/private/parity.toml (gitignored) und Werte eintragen.
+# Enthält API-Keys: niemals committen.
+
+# Höchstens so viele Anfragen pro Sekunde, über alle Hosts zusammen.
+rate_limit_per_sec = 2.0
+
+# Das Orakel: eine laufende Radarr-Instanz.
+[radarr]
+url = "http://localhost:7878"
+api_key = "dein-radarr-api-key"
+
+# Newznab-Indexer für die öffentlichen RSS-Fixtures (beliebig viele Blöcke).
+# url ist der vollständige API-Endpunkt (meist mit /api am Ende).
+[[indexer]]
+url = "https://indexer.example/api"
+api_key = "dein-indexer-api-key"
+categories = [2000]   # Filme; die meisten Indexer liefern die Unterkategorien mit
