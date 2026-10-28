@@ -9,33 +9,33 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 
 | Feature | genutzt in | Phase | Status |
 | --- | --- | --- | --- |
-| Quality Profiles (Cutoff) | radarr: 2 Profile; sonarr: 2 Profile | 2 | offen |
-| Quality Profile: Upgrades erlaubt | radarr: 1 von 2 Profilen; sonarr: 1 von 2 Profilen | 2 | offen |
-| Quality Profile: Quality-Gruppen | radarr: 2 von 2 Profilen; sonarr: 2 von 2 Profilen | 2 | offen |
-| Quality Profile: Custom-Format-Scores | radarr: 1 von 2 Profilen; sonarr: 1 von 2 Profilen | 2 | offen |
-| Quality Profile: Mindest-/Cutoff-Score | radarr: 1 von 2 Profilen; sonarr: 1 von 2 Profilen | 2 | offen |
-| Profil-Sprache: English | radarr: 1 von 2 Profilen | 2 | offen |
-| Profil-Sprache: German | radarr: 1 von 2 Profilen | 2 | offen |
-| Quality: Bluray-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: Bluray-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: HDTV-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: HDTV-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: Remux-2160p | radarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: WEBDL-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: WEBDL-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: WEBRip-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Quality: WEBRip-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | offen |
-| Custom Formats | radarr: 6; sonarr: 5 | 2 | offen |
-| CF-Bedingung: LanguageSpecification | radarr: 5× (negiert 2, Pflicht 5); sonarr: 5× (negiert 2, Pflicht 5) | 2 | offen |
-| CF-Bedingung: ReleaseGroupSpecification | radarr: 1× (negiert 0, Pflicht 1) | 2 | offen |
-| CF-Bedingung: ReleaseTitleSpecification | radarr: 6× (negiert 3, Pflicht 6); sonarr: 6× (negiert 3, Pflicht 6) | 2 | offen |
-| Quality Definitions | radarr: 30; sonarr: 22 | 2 | offen |
-| Indexer-Einstellung: minimumAge | radarr: = 0; sonarr: = 0 | 2 | offen |
-| Indexer-Einstellung: maximumSize | radarr: = 0; sonarr: = 0 | 2 | offen |
-| Indexer-Einstellung: retention | radarr: = 0; sonarr: = 0 | 2 | offen |
+| Quality Profiles (Cutoff) | radarr: 2 Profile; sonarr: 2 Profile | 2 | umgesetzt, im Orakel unbelegt (kein Film mit Datei) |
+| Quality Profile: Upgrades erlaubt | radarr: 1 von 2 Profilen; sonarr: 1 von 2 Profilen | 2 | umgesetzt, im Orakel unbelegt (kein Film mit Datei) |
+| Quality Profile: Quality-Gruppen | radarr: 2 von 2 Profilen; sonarr: 2 von 2 Profilen | 2 | umgesetzt, Release-Orakel ✓ |
+| Quality Profile: Custom-Format-Scores | radarr: 1 von 2 Profilen; sonarr: 1 von 2 Profilen | 2 | umgesetzt, Release-Orakel ✓ |
+| Quality Profile: Mindest-/Cutoff-Score | radarr: 1 von 2 Profilen; sonarr: 1 von 2 Profilen | 2 | umgesetzt; Mindest-Score ✓, Cutoff-Score unbelegt |
+| Profil-Sprache: English | radarr: 1 von 2 Profilen | 2 | umgesetzt, im Orakel unbelegt |
+| Profil-Sprache: German | radarr: 1 von 2 Profilen | 2 | umgesetzt, Release-Orakel ✓ |
+| Quality: Bluray-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: Bluray-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: HDTV-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: HDTV-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: Remux-2160p | radarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: WEBDL-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: WEBDL-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: WEBRip-1080p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Quality: WEBRip-2160p | radarr: erlaubt in 1 von 2 Profilen; sonarr: erlaubt in 1 von 2 Profilen | 2 | umgesetzt (Parse-Orakel ✓) |
+| Custom Formats | radarr: 6; sonarr: 5 | 2 | umgesetzt, Release-Orakel ✓ |
+| CF-Bedingung: LanguageSpecification | radarr: 5× (negiert 2, Pflicht 5); sonarr: 5× (negiert 2, Pflicht 5) | 2 | umgesetzt, Release-Orakel ✓ |
+| CF-Bedingung: ReleaseGroupSpecification | radarr: 1× (negiert 0, Pflicht 1) | 2 | umgesetzt, im Orakel unbelegt |
+| CF-Bedingung: ReleaseTitleSpecification | radarr: 6× (negiert 3, Pflicht 6); sonarr: 6× (negiert 3, Pflicht 6) | 2 | umgesetzt, nur Nicht-Treffer belegt |
+| Quality Definitions | radarr: 30; sonarr: 22 | 2 | umgesetzt, Release-Orakel ✓ |
+| Indexer-Einstellung: minimumAge | radarr: = 0; sonarr: = 0 | 2 | umgesetzt, im Orakel unbelegt (= 0) |
+| Indexer-Einstellung: maximumSize | radarr: = 0; sonarr: = 0 | 2 | umgesetzt, im Orakel unbelegt (= 0) |
+| Indexer-Einstellung: retention | radarr: = 0; sonarr: = 0 | 2 | umgesetzt, im Orakel unbelegt (= 0) |
 | Indexer-Einstellung: preferIndexerFlags | radarr: = false | 2 | offen |
 | Indexer-Einstellung: availabilityDelay | radarr: = 0 | 2 | offen |
-| Indexer-Einstellung: allowHardcodedSubs | radarr: = false | 2 | offen |
+| Indexer-Einstellung: allowHardcodedSubs | radarr: = false | 2 | umgesetzt, Release-Orakel ✓ |
 | Indexer-Einstellung: rssSyncInterval | radarr: = 30; sonarr: = 15 | 3 | offen |
 | Indexer: Newznab | radarr: 2 (1 aktiv, usenet); sonarr: 2 (1 aktiv, usenet) | 3 | offen |
 | Delay Profiles | radarr: 1; sonarr: 1 | 3 | offen |
@@ -49,7 +49,7 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Download-Client-Einstellung: autoRedownloadFailed | radarr: = false; sonarr: = true | 4 | offen |
 | Download-Client-Einstellung: autoRedownloadFailedFromInteractiveSearch | radarr: = false; sonarr: = true | 4 | offen |
 | Download-Client-Einstellung: checkForFinishedDownloadInterval | radarr: = 2 | 4 | offen |
-| Media Management: downloadPropersAndRepacks | radarr: = preferAndUpgrade; sonarr: = preferAndUpgrade | 2 | offen |
+| Media Management: downloadPropersAndRepacks | radarr: = preferAndUpgrade; sonarr: = preferAndUpgrade | 2 | umgesetzt, im Orakel unbelegt (kein Film mit Datei) |
 | Media Management: copyUsingHardlinks | radarr: = true; sonarr: = true | 4 | offen |
 | Media Management: importExtraFiles | radarr: = false; sonarr: = false | 4 | offen |
 | Media Management: autoUnmonitorPreviouslyDownloadedMovies | radarr: = true | 4 | offen |
@@ -99,3 +99,19 @@ Diese Fälle werden aus dem Parity-Diff ausgenommen.
 | Feature | Abweichung | Begründung |
 |---|---|---|
 | Public-Fixtures: `response` | Aus der `/api/v3/parse`-Antwort werden nur `title`, `parsedMovieInfo` und `languages` gespeichert, nicht die komplette Antwort. | Ein Treffer in der Bibliothek liefert ein `movie`-Objekt mit Pfaden und Bibliotheksdaten; die gehören nicht ins öffentliche Repo. Private History-Fixtures bleiben roh. |
+
+## Stand Release-Orakel
+
+`cargo test -p sofarr-parity --test release_oracle` (CI-Ratchet, Baseline
+`fixtures/decision-baseline.toml`) bzw. `cargo run -p sofarr-parity -- diff releases`
+(inkl. privater Fixtures, nur Report).
+
+- 53 öffentliche Releases (3 Filme, alle Profil „1080p“, keiner mit Datei):
+  Quality, Custom Formats, Score, approved und Rejections jeweils 100 %.
+- Belegte Rejections: Film-Zuordnung, Hardcoded Subs, Quality nicht erlaubt,
+  Profil-Sprache, CF-Mindest-Score, zu groß (MB = 1024²).
+- Film-Zuordnung: eigene Regel aus den Fixtures (`sofarr_core::title_match`): gleicher
+  Titel, Titel plus weitere Wörter oder ein Tippfehler pro zehn Buchstaben. Das Jahr
+  entscheidet in den Fixtures nicht (Release 2024 passt zum Film 2025).
+- Unbelegt: Upgrade, Cutoff, Propers (kein Film mit Datei), Profil „Ultra-HD“,
+  Indexer-Limits (alle 0), „zu klein“.

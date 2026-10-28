@@ -139,11 +139,17 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ### 2.6 Decision-Ratchet
 
-- [ ] 🤖 `crates/sofarr-core/tests/release_oracle.rs`: Vergleich pro Feld (approved, Rejections,
-      CFs, Score, Quality), Report wie beim Parser, Baseline `fixtures/decision-baseline.toml`
-      (gleiche Ratchet-Regeln). Ungemappte Orakel-Rejection-Texte erscheinen im Report.
-- [ ] 🤖 `sofarr-parity diff releases`: derselbe Vergleich inkl. privater Fixtures, nur Report.
-- [ ] 🤖 Status in `docs/parity.md` nachziehen.
+- [x] 🤖 `sofarr_parity::diff` + `crates/sofarr-parity/tests/release_oracle.rs`: Vergleich pro
+      Feld (approved, Rejections, CFs, Score, Quality), Report wie beim Parser, Baseline
+      `fixtures/decision-baseline.toml` (gleiche Ratchet-Regeln). Ungemappte
+      Orakel-Rejection-Texte erscheinen im Report. Liegt in `parity` statt in `core`, damit
+      `diff releases` denselben Code nutzt.
+- [x] 🤖 `sofarr-parity diff releases`: derselbe Vergleich inkl. privater Fixtures, nur Report.
+- [x] 🤖 Engine nachziehen: Film-Zuordnung (`unknown_movie`), Hardcoded Subs (Parser +
+      `allowHardcodedSubs`), Größencheck bestätigt (MB = 1024²). Stand: 53/53 in allen Feldern.
+- [x] 🤖 Status in `docs/parity.md` nachziehen.
+- [ ] 👤 Releases für überwachte Filme **mit** Datei sammeln (Upgrade, Cutoff, Propers sind
+      noch unbelegt), außerdem für das Profil „Ultra-HD“.
 
 **Gate Phase 2:**
 
