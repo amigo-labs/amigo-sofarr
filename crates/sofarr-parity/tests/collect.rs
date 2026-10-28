@@ -280,13 +280,14 @@ fn collects_releases_for_monitored_films_and_redacts() {
         "<indexer> sagt nein"
     );
     let text = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
-    for secret in [
+    let secrets = [
         "Geheimer Indexer",
         "geheime-guid",
         "geheim.example",
         "/data/media",
-    ] {
-        assert!(!text.contains(secret), "{secret} leaked");
+    ];
+    for (i, secret) in secrets.iter().enumerate() {
+        assert!(!text.contains(secret), "secrets[{i}] leaked");
     }
 
     let private = lines(&dir.join(releases::PRIVATE_FILE));
