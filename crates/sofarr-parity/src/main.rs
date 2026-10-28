@@ -30,6 +30,9 @@ enum Command {
         /// Welche Quellen gesammelt werden
         #[arg(long, value_enum, default_value_t = SourceArg::All)]
         source: SourceArg,
+        /// Nur mit --source releases: so viele überwachte Filme abfragen (jeder löst eine Indexer-Suche aus)
+        #[arg(long, default_value_t = 5)]
+        movies: usize,
     },
     /// Erzeugt docs/parity.md aus dem Config-Export (scripts/export-arr-config.sh)
     Matrix {
@@ -55,7 +58,10 @@ enum Command {
 enum SourceArg {
     Rss,
     History,
+    /// RSS und History
     All,
+    /// Grab-Entscheidungen (/api/v3/release) für einige überwachte Filme
+    Releases,
 }
 
 fn main() -> ExitCode {
@@ -74,6 +80,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             config,
             fixtures,
             source,
+            movies,
         } => {
             let config = ParityConfig::load(&config)?;
             let http = HttpClient::new(config.rate_limit_per_sec, true);
@@ -81,11 +88,12 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 SourceArg::Rss => collect::Sources::Rss,
                 SourceArg::History => collect::Sources::History,
                 SourceArg::All => collect::Sources::All,
+                SourceArg::Releases => collect::Sources::Releases { movies },
             };
             let summary = collect::run(&config, &http, &fixtures, sources)?;
             println!(
-                "Neue Fixtures: {} öffentlich (RSS), {} privat (History)",
-                summary.rss_new, summary.history_new
+                "Neue Fixtures: {} öffentlich (RSS), {} privat (History), {} Releases",
+                summary.rss_new, summary.history_new, summary.releases_new
             );
             Ok(())
         }

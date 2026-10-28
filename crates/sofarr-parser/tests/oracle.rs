@@ -51,6 +51,12 @@ fn load_dir(dir: &Path) -> Vec<Fixture> {
     let mut files: Vec<PathBuf> = entries
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().is_some_and(|ext| ext == "jsonl"))
+        // Only parse fixtures; release fixtures (`*-release.jsonl`) have another shape.
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.contains("-parse"))
+        })
         .collect();
     files.sort();
 

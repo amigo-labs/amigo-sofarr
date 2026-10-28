@@ -1,5 +1,7 @@
 //! The oracle: a running Radarr instance, queried only through its public HTTP API.
 
+use std::time::Duration;
+
 use anyhow::Context;
 use serde_json::Value;
 
@@ -9,6 +11,8 @@ use crate::{
 };
 
 const HISTORY_PAGE_SIZE: u64 = 250;
+/// A release search queries every indexer and can take a while.
+const SEARCH_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub struct Radarr<'a> {
     http: &'a HttpClient,
@@ -21,11 +25,21 @@ impl<'a> Radarr<'a> {
     }
 
     fn get_json(&self, path: &str, query: &[(&str, &str)]) -> anyhow::Result<Value> {
-        let body = self.http.get(
-            &join(&self.config.url, path),
-            query,
-            &[("X-Api-Key", &self.config.api_key)],
-        )?;
+        self.get_json_with_timeout(path, query, None)
+    }
+
+    fn get_json_with_timeout(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Value> {
+        let url = join(&self.config.url, path);
+        let headers = [("X-Api-Key", self.config.api_key.as_str())];
+        let body = match timeout {
+            Some(timeout) => self.http.get_with_timeout(&url, query, &headers, timeout)?,
+            None => self.http.get(&url, query, &headers)?,
+        };
         serde_json::from_str(&body).with_context(|| format!("Radarr: {path} liefert kein JSON"))
     }
 
@@ -41,6 +55,21 @@ impl<'a> Radarr<'a> {
     /// Raw answer of `/api/v3/parse` for one release title.
     pub fn parse(&self, title: &str) -> anyhow::Result<Value> {
         self.get_json("api/v3/parse", &[("title", title)])
+    }
+
+    /// All films of the library (`/api/v3/movie`).
+    pub fn movies(&self) -> anyhow::Result<Vec<Value>> {
+        match self.get_json("api/v3/movie", &[])? {
+            Value::Array(movies) => Ok(movies),
+            _ => anyhow::bail!("Radarr: movie liefert keine Liste"),
+        }
+    }
+
+    /// Releases found by a search for one film, with Radarr's decision
+    /// (`/api/v3/release?movieId=…`). Triggers a real indexer search.
+    pub fn releases(&self, movie_id: u64) -> anyhow::Result<Value> {
+        let id = movie_id.to_string();
+        self.get_json_with_timeout("api/v3/release", &[("movieId", &id)], Some(SEARCH_TIMEOUT))
     }
 
     /// All `sourceTitle`s of the grab/import history, newest first, without duplicates.

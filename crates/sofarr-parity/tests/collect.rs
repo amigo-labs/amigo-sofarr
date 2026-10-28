@@ -16,6 +16,7 @@ use sofarr_parity::{
     collect::{self, HISTORY_FILE, PUBLIC_FILE, Sources},
     config::ParityConfig,
     http::HttpClient,
+    releases,
 };
 
 const FEED: &str = r#"<?xml version="1.0"?>
@@ -86,6 +87,27 @@ fn start_mock() -> (String, Arc<Mutex<Vec<String>>>) {
                         "languages": [],
                         "movie": {"path": "/data/media/movies/Geheim"}
                     })
+                    .to_string(),
+                ),
+                "/api/v3/movie" => (
+                    "200 OK",
+                    serde_json::json!([
+                        {"id": 1, "title": "Erfunden", "monitored": true, "runtime": 90,
+                         "qualityProfileId": 4, "hasFile": false,
+                         "path": "/data/media/movies/Geheim"},
+                        {"id": 2, "title": "Unbeobachtet", "monitored": false},
+                        {"id": 3, "title": "Zweiter", "monitored": true, "runtime": 100}
+                    ])
+                    .to_string(),
+                ),
+                "/api/v3/release" => (
+                    "200 OK",
+                    serde_json::json!([
+                        {"title": format!("Erfunden.2021.1080p.WEB-DL-{query}"),
+                         "indexer": "Geheimer Indexer", "guid": "geheime-guid",
+                         "downloadUrl": "https://geheim.example/get?apikey=x",
+                         "approved": false, "rejections": ["Geheimer Indexer sagt nein"]}
+                    ])
                     .to_string(),
                 ),
                 _ => ("404 Not Found", "{}".to_owned()),
@@ -222,4 +244,53 @@ fn wrong_radarr_key_is_reported() {
 
     let err = collect::run(&config, &http, &dir, Sources::All).expect_err("401");
     assert!(format!("{err:#}").contains("Orakel"));
+}
+
+#[test]
+fn collects_releases_for_monitored_films_and_redacts() {
+    let (base, log) = start_mock();
+    let dir = fixtures_dir("collect-releases");
+    let http = HttpClient::new(1000.0, false);
+    let config = config(&base, "indexer-key");
+
+    let summary =
+        collect::run(&config, &http, &dir, Sources::Releases { movies: 1 }).expect("first run");
+    assert_eq!(summary.releases_new, 1);
+    assert_eq!(summary.rss_new, 0);
+    // The second run queries the film not covered yet.
+    collect::run(&config, &http, &dir, Sources::Releases { movies: 1 }).expect("second run");
+    let searched: Vec<String> = log
+        .lock()
+        .expect("lock")
+        .iter()
+        .filter(|p| p.starts_with("/api/v3/release"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        searched,
+        ["/api/v3/release?movieId=1", "/api/v3/release?movieId=3"]
+    );
+
+    let public = lines(&dir.join(releases::PUBLIC_FILE));
+    assert_eq!(public.len(), 2);
+    assert_eq!(public[0]["origin"], "release");
+    assert_eq!(public[0]["movie"]["runtime"], 90);
+    assert_eq!(
+        public[0]["response"]["rejections"][0],
+        "<indexer> sagt nein"
+    );
+    let text = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
+    for secret in [
+        "Geheimer Indexer",
+        "geheime-guid",
+        "geheim.example",
+        "/data/media",
+    ] {
+        assert!(!text.contains(secret), "{secret} leaked");
+    }
+
+    let private = lines(&dir.join(releases::PRIVATE_FILE));
+    assert_eq!(private.len(), 2);
+    assert_eq!(private[0]["movie"]["id"], 1);
+    assert_eq!(private[0]["response"]["guid"], "geheime-guid");
 }

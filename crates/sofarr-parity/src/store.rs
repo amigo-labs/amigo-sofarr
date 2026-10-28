@@ -19,6 +19,9 @@ pub struct Record<'a> {
     pub origin: &'a str,
     pub collected_at: String,
     pub oracle: Oracle<'a>,
+    /// The film a release was evaluated for (release fixtures only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub movie: Option<Value>,
     pub response: Value,
 }
 
@@ -132,6 +135,7 @@ mod tests {
                 app: "radarr",
                 version: "0.0.0",
             },
+            movie: None,
             response: serde_json::json!({"ok": true}),
         }
     }

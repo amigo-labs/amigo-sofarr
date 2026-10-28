@@ -130,7 +130,7 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ### 2.5 Release-Orakel
 
-- [ ] 🤖 `sofarr-parity collect --source releases --movies N`: `/api/v3/release?movieId=…` für
+- [x] 🤖 `sofarr-parity collect --source releases --movies N`: `/api/v3/release?movieId=…` für
       überwachte Filme (sparsam, Default 5 Filme pro Lauf). Roh nach
       `fixtures/private/radarr-release.jsonl`, redigiert nach `fixtures/public/radarr-release.jsonl`
       (Titel, Größe, Alter, Quality, approved, Rejections, CFs, Score, Movie-Kontext ohne Pfade;

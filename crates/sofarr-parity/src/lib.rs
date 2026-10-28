@@ -11,4 +11,5 @@ pub mod http;
 pub mod matrix;
 pub mod newznab;
 pub mod radarr;
+pub mod releases;
 pub mod store;

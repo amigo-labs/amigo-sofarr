@@ -10,6 +10,7 @@ use crate::{
     http::{HttpClient, host_of},
     newznab,
     radarr::Radarr,
+    releases,
     store::{Oracle, Record, Store},
 };
 
@@ -26,13 +27,19 @@ const PUBLIC_RESPONSE_KEYS: &[&str] = &["title", "parsedMovieInfo", "languages"]
 pub enum Sources {
     Rss,
     History,
+    /// RSS and history; releases trigger indexer searches and are only collected on request.
     All,
+    /// Grab decisions for this many monitored films.
+    Releases {
+        movies: usize,
+    },
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Summary {
     pub rss_new: usize,
     pub history_new: usize,
+    pub releases_new: usize,
 }
 
 pub fn run(
@@ -80,6 +87,10 @@ pub fn run(
             record_new(&radarr, &mut store, &titles, "history", &version, false)?;
     }
 
+    if let Sources::Releases { movies } = sources {
+        summary.releases_new = releases::collect(&radarr, fixtures, &version, movies)?;
+    }
+
     Ok(summary)
 }
 
@@ -113,6 +124,7 @@ fn record_new(
                 app: "radarr",
                 version,
             },
+            movie: None,
             response: if public {
                 public_response(response)
             } else {
