@@ -32,6 +32,8 @@ const FIELDS: &[&str] = &[
     "languages",
 ];
 const MAX_FAILURES_SHOWN: usize = 20;
+/// Separates title candidates in an expected value; never produced by `normalize`.
+const CANDIDATE_SEP: &str = " | ";
 
 struct Fixture {
     title: String,
@@ -104,9 +106,15 @@ fn expected(field: &str, response: &Value) -> Option<Option<String>> {
     let quality = info.pointer("/quality/quality");
     let revision = info.pointer("/quality/revision");
     Some(match field {
+        // All title candidates; for `A AKA B` the oracle lists `A AKA B`, `A` and `B`.
         "title" => {
-            let titles = info.get("movieTitles")?.as_array()?;
-            titles.first().and_then(non_empty)
+            let titles: Vec<String> = info
+                .get("movieTitles")?
+                .as_array()?
+                .iter()
+                .filter_map(non_empty)
+                .collect();
+            (!titles.is_empty()).then(|| titles.join(CANDIDATE_SEP))
         }
         "year" => {
             let year = info.get("year")?.as_u64()?;
@@ -166,9 +174,22 @@ fn actual(field: &str, parsed: &ParsedRelease) -> Option<String> {
                 .map(|l| normalize(l.name()))
                 .collect();
             names.sort();
-            (!names.is_empty()).then(|| names.join(", "))
+            // The oracle reports `Unknown` when it finds no language.
+            Some(if names.is_empty() {
+                "unknown".to_owned()
+            } else {
+                names.join(", ")
+            })
         }
         _ => unreachable!("unknown field {field}"),
+    }
+}
+
+/// Whether the parser's value matches the oracle's. For titles, any candidate counts.
+fn matches(field: &str, want: &Option<String>, got: &Option<String>) -> bool {
+    match (field, want, got) {
+        ("title", Some(want), Some(got)) => want.split(CANDIDATE_SEP).any(|c| c == got),
+        _ => want == got,
     }
 }
 
@@ -199,7 +220,7 @@ fn evaluate(fixtures: &[Fixture]) -> BTreeMap<&'static str, FieldResult> {
             let got = actual(field, &parsed);
             let result = results.get_mut(field).expect("field is registered");
             result.total += 1;
-            if want == got {
+            if matches(field, &want, &got) {
                 result.pass += 1;
             } else {
                 result.failures.push((fixture.title.clone(), want, got));
@@ -449,6 +470,10 @@ mod harness_tests {
         assert_eq!(get("edition"), Some(None));
         assert_eq!(get("languages"), Some(Some("german".to_owned())));
         assert_eq!(expected("title", &serde_json::json!({})), None);
+        let aka = serde_json::json!({"parsedMovieInfo": {"movieTitles": ["A AKA B", "A", "B"]}});
+        let want = expected("title", &aka).expect("comparable");
+        assert!(matches("title", &want, &Some("b".to_owned())));
+        assert!(!matches("title", &want, &Some("c".to_owned())));
         let sparse = serde_json::json!({"parsedMovieInfo": {"movieTitles": ["X"]}});
         assert_eq!(expected("release_group", &sparse), None);
         assert_eq!(expected("source", &sparse), None);
