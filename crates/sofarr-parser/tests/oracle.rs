@@ -18,7 +18,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sofarr_parser::{ParsedRelease, parse};
+use sofarr_parser::{HardcodedSubs, ParsedRelease, parse};
 
 const FIELDS: &[&str] = &[
     "title",
@@ -30,6 +30,7 @@ const FIELDS: &[&str] = &[
     "edition",
     "release_group",
     "languages",
+    "hardcoded_subs",
 ];
 const MAX_FAILURES_SHOWN: usize = 20;
 /// Separates title candidates in an expected value; never produced by `normalize`.
@@ -51,6 +52,12 @@ fn load_dir(dir: &Path) -> Vec<Fixture> {
     let mut files: Vec<PathBuf> = entries
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().is_some_and(|ext| ext == "jsonl"))
+        // Only parse fixtures; release fixtures (`*-release.jsonl`) have another shape.
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.contains("-parse"))
+        })
         .collect();
     files.sort();
 
@@ -150,6 +157,8 @@ fn expected(field: &str, response: &Value) -> Option<Option<String>> {
             names.sort();
             (!names.is_empty()).then(|| names.join(", "))
         }
+        // The oracle leaves the field out when there are none.
+        "hardcoded_subs" => info.get("hardcodedSubs").and_then(non_empty),
         _ => unreachable!("unknown field {field}"),
     })
 }
@@ -181,6 +190,11 @@ fn actual(field: &str, parsed: &ParsedRelease) -> Option<String> {
                 names.join(", ")
             })
         }
+        // The oracle names untagged burnt-in subtitles `Generic Hardcoded Subs`.
+        "hardcoded_subs" => parsed.hardcoded_subs.as_ref().map(|subs| match subs {
+            HardcodedSubs::Generic => normalize("Generic Hardcoded Subs"),
+            HardcodedSubs::Tagged(tag) => normalize(tag),
+        }),
         _ => unreachable!("unknown field {field}"),
     }
 }

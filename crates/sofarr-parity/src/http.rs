@@ -38,6 +38,17 @@ impl HttpClient {
         query: &[(&str, &str)],
         headers: &[(&str, &str)],
     ) -> anyhow::Result<String> {
+        self.get_with_timeout(url, query, headers, TIMEOUT)
+    }
+
+    /// Like [`Self::get`], for requests that take longer than usual.
+    pub fn get_with_timeout(
+        &self,
+        url: &str,
+        query: &[(&str, &str)],
+        headers: &[(&str, &str)],
+        timeout: Duration,
+    ) -> anyhow::Result<String> {
         self.throttle();
         let host = host_of(url);
         let mut request = self.agent.get(url);
@@ -48,6 +59,9 @@ impl HttpClient {
             request = request.header(*key, *value);
         }
         let mut response = request
+            .config()
+            .timeout_global(Some(timeout))
+            .build()
             .call()
             .with_context(|| format!("Anfrage an {host} fehlgeschlagen"))?;
         response

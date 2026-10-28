@@ -18,14 +18,14 @@ Workspace mit allen Crates (Stubs), `sofarr-server` mit Config, `GET /api/health
 
 ---
 
-## Phase 1 – Parity-Fundament + Parser v0 · **AKTIV**
+## Phase 1 – Parity-Fundament + Parser v0 ✅
 
 Ziel: Ein wachsendes, echtes Orakel-Fixture-Set und ein eigener Parser, der dagegen gemessen wird.
 
 ### 1.1 Config-Export und Parity-Matrix
 
-- [ ] 👤 `scripts/export-arr-config.sh` ausführen → `fixtures/private/config/`
-- [ ] 🤖 `docs/parity.md` aus den Exporten erstellen (Generator fertig: `cargo run -p sofarr-parity -- matrix`;
+- [x] 👤 `scripts/export-arr-config.sh` ausführen → `fixtures/private/config/`
+- [x] 🤖 `docs/parity.md` aus den Exporten erstellen (Generator fertig: `cargo run -p sofarr-parity -- matrix`;
       Gerüst committet – erzeugt wird lokal, weil die Exporte Secrets enthalten): Welche Features nutzt das Setup tatsächlich?
       (Quality Profiles inkl. Cutoff/Upgrade, Custom Formats inkl. verwendeter Bedingungstypen,
       Naming-Tokens, Indexer-Typen, Download-Client, Notifications, Delay Profiles, Tags.)
@@ -51,7 +51,8 @@ Ziel: Ein wachsendes, echtes Orakel-Fixture-Set und ein eigener Parser, der dage
       sauberer Abbruch bei Fehlern ohne halbe Zeilen.
 - [x] 🤖 In `public`-Fixtures keine Indexer-Namen oder URLs (`origin` nur `rss` bzw. `history`).
 - [x] 🤖 Tests: Newznab-XML-Parsing gegen einen **selbst geschriebenen** Beispiel-Feed, Dedupe-Logik.
-- [ ] 👤 Collector regelmäßig laufen lassen (z. B. täglich per Cron/Compose-Job), bis ≥ 1.000 öffentliche Fixtures da sind.
+- [x] 👤 Collector regelmäßig laufen lassen (z. B. täglich per Cron/Compose-Job), bis ≥ 1.000 öffentliche Fixtures da sind.
+      (4.952 Fixtures; Titel 99,8 %, Jahr 99,9 %, Source 99,8 %, Resolution 99,9 %)
 
 Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltree`, `serde_json`, `jiff` oder `time`.
 
@@ -95,15 +96,69 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 
 ---
 
-## Phase 2 – Decision Engine + Release-Orakel
+## Phase 2 – Decision Engine + Release-Orakel · **AKTIV**
 
-- Qualities, Quality Definitions, Quality Profiles, Custom Formats in `sofarr-core`
-  (Umfang laut `docs/parity.md`), Import aus dem Config-Export
-- Rejection-Regeln: nicht erlaubte Quality, Größe, Cutoff erreicht, kein Upgrade, CF-Mindest-Score u. a.
-- `sofarr-parity diff releases`: für Filme der eigenen Bibliothek `/api/v3/release?movieId=…`
-  abfragen (sparsam – das löst echte Indexer-Suchen aus), eigene Decision berechnen, `approved`,
-  Rejections und Score vergleichen
-- **Gate:** keine unerklärten Abweichungen; bewusste Abweichungen in `docs/parity.md`
+Ziel: `sofarr-core` trifft für einen Release dieselbe Grab-Entscheidung wie Radarr –
+gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
+
+### 2.1 Öffentliche Config-Fixtures
+
+- [x] 🤖 `sofarr-parity export-public`: liest `fixtures/private/config/radarr/` und schreibt
+      `qualitydefinition`, `qualityprofile`, `customformat` per **Whitelist** nach
+      `fixtures/public/config/radarr/` (keine Keys, URLs, Pfade, Indexer). Test gegen Fake-Export mit Secrets.
+- [ ] 👤 `export-public` ausführen, Ergebnis prüfen und committen.
+
+### 2.2 Qualities
+
+- [x] 🤖 Benannte Qualities (id, Name, Source, Resolution, Modifier) in `sofarr-core`,
+      nur aus Black-Box-Daten (Parse-Fixtures, Quality Definitions).
+- [x] 🤖 Mapping Parser-Quality → benannte Quality; Orakel-Test gegen die Parse-Fixtures (100 %).
+
+### 2.3 Profile, Definitions, Custom Formats
+
+- [x] 🤖 Domänenmodell + Import aus dem v3-JSON (pure, `thiserror`).
+- [x] 🤖 Custom Formats: `LanguageSpecification`, `ReleaseGroupSpecification`,
+      `ReleaseTitleSpecification` inkl. `negate`/`required`; Score aus dem Profil.
+
+### 2.4 Decision Engine
+
+- [x] 🤖 `decide(…) -> Decision` (approved, Rejections mit permanent/temporär, Quality, CFs, Score);
+      Zeit als Parameter.
+- [x] 🤖 Regeln: Quality nicht erlaubt, Größe (Definition × Laufzeit), Cutoff erreicht, kein Upgrade
+      (Quality → Revision laut `downloadPropersAndRepacks` → CF-Score), CF-Mindest-Score,
+      Profil-Sprache, Indexer-Settings (`maximumSize`, `minimumAge`, `retention`; 0 = aus).
+
+### 2.5 Release-Orakel
+
+- [x] 🤖 `sofarr-parity collect --source releases --movies N`: `/api/v3/release?movieId=…` für
+      überwachte Filme (sparsam, Default 5 Filme pro Lauf). Roh nach
+      `fixtures/private/radarr-release.jsonl`, redigiert nach `fixtures/public/radarr-release.jsonl`
+      (Titel, Größe, Alter, Quality, approved, Rejections, CFs, Score, Movie-Kontext ohne Pfade;
+      **kein** Indexer, keine GUID, keine URLs).
+- [ ] 👤 `collect releases` laufen lassen und public Fixtures committen.
+
+### 2.6 Decision-Ratchet
+
+- [x] 🤖 `sofarr_parity::diff` + `crates/sofarr-parity/tests/release_oracle.rs`: Vergleich pro
+      Feld (approved, Rejections, CFs, Score, Quality), Report wie beim Parser, Baseline
+      `fixtures/decision-baseline.toml` (gleiche Ratchet-Regeln). Ungemappte
+      Orakel-Rejection-Texte erscheinen im Report. Liegt in `parity` statt in `core`, damit
+      `diff releases` denselben Code nutzt.
+- [x] 🤖 `sofarr-parity diff releases`: derselbe Vergleich inkl. privater Fixtures, nur Report.
+- [x] 🤖 Engine nachziehen: Film-Zuordnung (`unknown_movie`), Hardcoded Subs (Parser +
+      `allowHardcodedSubs`), Größencheck bestätigt (MB = 1024²).
+- [x] 🤖 Status in `docs/parity.md` nachziehen.
+- [x] 🤖 Releases für Filme **mit** Datei und für „Ultra-HD“ gesammelt
+      (`collect --source releases --with-file`, `--movie-id`), Upgrade-, Cutoff-, Propers-
+      und Repack-Regeln sowie die Film-Zuordnung (Jahr statt Titel) daraus abgeleitet.
+      Stand: 1.703 Releases, approved 100 %, Rejections 98,4 %; Lücken in `docs/parity.md`.
+
+**Gate Phase 2:**
+
+- Standard-Gates grün (`CLAUDE.md`)
+- Release-Fixtures committet, Baseline committet
+- keine unerklärten Abweichungen; bewusste Abweichungen in `docs/parity.md`
+- 👤 Review: kein Servarr-Code, keine übernommenen Regexes
 
 ## Phase 3 – Bibliothek + Shadow-Mode
 
