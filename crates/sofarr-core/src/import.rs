@@ -355,6 +355,8 @@ struct IndexerSettingsDto {
     maximum_size: u32,
     #[serde(default)]
     retention: u32,
+    #[serde(default)]
+    allow_hardcoded_subs: bool,
 }
 
 #[derive(Deserialize, Default)]
@@ -374,6 +376,7 @@ pub fn settings(raw: &str) -> Result<Settings, ImportError> {
         minimum_age_minutes: dto.indexer.minimum_age,
         maximum_size_mb: dto.indexer.maximum_size,
         retention_days: dto.indexer.retention,
+        allow_hardcoded_subs: dto.indexer.allow_hardcoded_subs,
         propers,
     })
 }
@@ -416,7 +419,8 @@ mod tests {
         ]
     }]"#;
 
-    const SETTINGS: &str = r#"{"indexer": {"minimumAge": 0, "maximumSize": 0, "retention": 0},
+    const SETTINGS: &str = r#"{"indexer": {"minimumAge": 0, "maximumSize": 0, "retention": 0,
+        "allowHardcodedSubs": true},
         "mediaManagement": {"downloadPropersAndRepacks": "doNotUpgrade"}}"#;
 
     #[test]
@@ -447,6 +451,7 @@ mod tests {
             }
         ));
         assert_eq!(config.settings.propers, PropersPolicy::DoNotUpgrade);
+        assert!(config.settings.allow_hardcoded_subs);
     }
 
     #[test]

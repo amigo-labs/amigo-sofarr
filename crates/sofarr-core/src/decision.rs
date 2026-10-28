@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use sofarr_parser::{Language, ParsedRelease, Revision};
+use sofarr_parser::{HardcodedSubs, Language, ParsedRelease, Revision};
 
 use crate::{
     custom_format::{CustomFormatId, ReleaseFacts},
@@ -14,6 +14,7 @@ use crate::{
     profile::QualityProfile,
     quality::{NamedQuality, QualityId},
     settings::PropersPolicy,
+    title_match,
 };
 
 /// A release offered by an indexer.
@@ -28,6 +29,8 @@ pub struct ReleaseInput<'a> {
 /// What is known about the film the release is evaluated for.
 #[derive(Debug, Clone, Default)]
 pub struct MovieContext {
+    /// Title, original title and alternative titles; empty skips the title check.
+    pub titles: Vec<String>,
     /// Runtime in minutes; `0` if unknown (size limits are skipped then).
     pub runtime_minutes: u32,
     pub original_language: Option<Language>,
@@ -59,6 +62,12 @@ impl Decision {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Rejection {
+    /// The release title names another film; no other rule is evaluated then.
+    UnknownMovie,
+    /// The release has burnt-in subtitles and the settings do not allow them.
+    HardcodedSubs {
+        subs: HardcodedSubs,
+    },
     /// The quality is not allowed in the profile.
     QualityNotWanted {
         quality: String,
@@ -112,6 +121,8 @@ impl Rejection {
     /// Stable identifier for reports and the oracle mapping.
     pub fn key(&self) -> &'static str {
         match self {
+            Self::UnknownMovie => "unknown_movie",
+            Self::HardcodedSubs { .. } => "hardcoded_subs",
             Self::QualityNotWanted { .. } => "quality_not_wanted",
             Self::LanguageNotWanted { .. } => "language_not_wanted",
             Self::TooSmall { .. } => "too_small",
@@ -131,6 +142,13 @@ impl fmt::Display for Rejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         const MB: u64 = 1024 * 1024;
         match self {
+            Self::UnknownMovie => f.write_str("Release passt zu keinem Titel des Films"),
+            Self::HardcodedSubs {
+                subs: HardcodedSubs::Generic,
+            } => f.write_str("eingebrannte Untertitel"),
+            Self::HardcodedSubs {
+                subs: HardcodedSubs::Tagged(tag),
+            } => write!(f, "eingebrannte Untertitel ({tag})"),
             Self::QualityNotWanted { quality } => {
                 write!(f, "Quality {quality} ist im Profil nicht erlaubt")
             }
@@ -192,6 +210,15 @@ pub fn decide(
         .catalog()
         .resolve(&parsed.quality)
         .clone();
+    if !movie.titles.is_empty() && !title_match::matches(&parsed.titles, &movie.titles) {
+        return Decision {
+            parsed,
+            quality,
+            custom_formats: Vec::new(),
+            score: 0,
+            rejections: vec![Rejection::UnknownMovie],
+        };
+    }
     let facts = ReleaseFacts {
         title: release.title,
         parsed: &parsed,
@@ -210,6 +237,13 @@ pub fn decide(
         rejections.push(Rejection::QualityNotWanted {
             quality: quality.name.clone(),
         });
+    }
+    if let Some(subs) = parsed
+        .hardcoded_subs
+        .clone()
+        .filter(|_| !config.settings.allow_hardcoded_subs)
+    {
+        rejections.push(Rejection::HardcodedSubs { subs });
     }
     if !profile
         .language
@@ -406,6 +440,7 @@ mod tests {
 
     fn movie(file: Option<ExistingFile>) -> MovieContext {
         MovieContext {
+            titles: vec!["Some Movie".into()],
             runtime_minutes: 100,
             original_language: Some(Language::English),
             file,
@@ -534,6 +569,37 @@ mod tests {
             keys(&config, proper, &movie(Some(file(3, 0)))),
             ["upgrades_not_allowed"]
         );
+    }
+
+    #[test]
+    fn other_film_skips_all_rules() {
+        let config = config();
+        let d = decide(
+            &config,
+            &config.profiles[0],
+            &release("Other.Movie.2020.1080p.BluRay.REMUX.AVC.DTS-HD.MA-GOOD"),
+            &movie(None),
+        );
+        let got: Vec<_> = d.rejections.iter().map(Rejection::key).collect();
+        assert_eq!(got, ["unknown_movie"]);
+        assert_eq!(d.quality.name, "Remux-1080p");
+        assert!(d.custom_formats.is_empty());
+        assert_eq!(d.score, 0);
+        // Without known titles the check is skipped.
+        let unknown = MovieContext {
+            titles: Vec::new(),
+            ..movie(None)
+        };
+        assert!(keys(&config, "Other.Movie.2020.1080p.BluRay.x264-GRP", &unknown).is_empty());
+    }
+
+    #[test]
+    fn hardcoded_subs_follow_the_setting() {
+        let mut config = config();
+        let title = "Some.Movie.2020.SUBBED.1080p.BluRay.x264-GRP";
+        assert_eq!(keys(&config, title, &movie(None)), ["hardcoded_subs"]);
+        config.settings.allow_hardcoded_subs = true;
+        assert!(keys(&config, title, &movie(None)).is_empty());
     }
 
     #[test]

@@ -32,5 +32,7 @@ pub struct Settings {
     pub maximum_size_mb: u32,
     /// Usenet retention in days.
     pub retention_days: u32,
+    /// Whether releases with burnt-in subtitles may be grabbed.
+    pub allow_hardcoded_subs: bool,
     pub propers: PropersPolicy,
 }

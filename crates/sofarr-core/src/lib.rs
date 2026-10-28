@@ -11,6 +11,7 @@ pub mod language;
 pub mod profile;
 pub mod quality;
 pub mod settings;
+pub mod title_match;
 
 pub use custom_format::{CustomFormat, CustomFormatId, ReleaseFacts};
 pub use decision::{Decision, ExistingFile, MovieContext, Rejection, ReleaseInput, decide};
