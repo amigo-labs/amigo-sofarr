@@ -122,9 +122,9 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ### 2.4 Decision Engine
 
-- [ ] 🤖 `decide(…) -> Decision` (approved, Rejections mit permanent/temporär, Quality, CFs, Score);
+- [x] 🤖 `decide(…) -> Decision` (approved, Rejections mit permanent/temporär, Quality, CFs, Score);
       Zeit als Parameter.
-- [ ] 🤖 Regeln: Quality nicht erlaubt, Größe (Definition × Laufzeit), Cutoff erreicht, kein Upgrade
+- [x] 🤖 Regeln: Quality nicht erlaubt, Größe (Definition × Laufzeit), Cutoff erreicht, kein Upgrade
       (Quality → Revision laut `downloadPropersAndRepacks` → CF-Score), CF-Mindest-Score,
       Profil-Sprache, Indexer-Settings (`maximumSize`, `minimumAge`, `retention`; 0 = aus).
 

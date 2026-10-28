@@ -4,6 +4,7 @@
 //! Depends on `sofarr-parser`; must stay free of IO. Implementation: PLAN.md Phase 2.
 
 pub mod custom_format;
+pub mod decision;
 pub mod definition;
 pub mod import;
 pub mod language;
@@ -12,6 +13,7 @@ pub mod quality;
 pub mod settings;
 
 pub use custom_format::{CustomFormat, CustomFormatId, ReleaseFacts};
+pub use decision::{Decision, ExistingFile, MovieContext, Rejection, ReleaseInput, decide};
 pub use definition::{QualityDefinition, QualityDefinitions};
 pub use import::RadarrConfig;
 pub use language::LanguageRef;
