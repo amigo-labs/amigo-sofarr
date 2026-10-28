@@ -14,6 +14,8 @@ use crate::{
 };
 
 pub const PUBLIC_FILE: &str = "public/radarr-parse.jsonl";
+/// Print a progress line after this many oracle requests.
+const PROGRESS_EVERY: usize = 50;
 pub const HISTORY_FILE: &str = "private/radarr-parse-history.jsonl";
 
 /// Top-level keys of a parse answer that may go into public fixtures. Everything else –
@@ -89,10 +91,14 @@ fn record_new(
     version: &str,
     public: bool,
 ) -> anyhow::Result<usize> {
+    let new: Vec<&String> = titles.iter().filter(|t| !store.contains(t)).collect();
+    if !new.is_empty() {
+        eprintln!("  {} neue Titel, frage Radarr …", new.len());
+    }
     let mut added = 0;
-    for title in titles {
-        if store.contains(title) {
-            continue;
+    for (n, title) in new.into_iter().enumerate() {
+        if n > 0 && n % PROGRESS_EVERY == 0 {
+            eprintln!("  … {n} erledigt");
         }
         let response = radarr
             .parse(title)
