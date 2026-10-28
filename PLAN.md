@@ -110,9 +110,9 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ### 2.2 Qualities
 
-- [ ] 🤖 Benannte Qualities (id, Name, Source, Resolution, Modifier) in `sofarr-core`,
+- [x] 🤖 Benannte Qualities (id, Name, Source, Resolution, Modifier) in `sofarr-core`,
       nur aus Black-Box-Daten (Parse-Fixtures, Quality Definitions).
-- [ ] 🤖 Mapping Parser-Quality → benannte Quality; Orakel-Test gegen die Parse-Fixtures (100 %).
+- [x] 🤖 Mapping Parser-Quality → benannte Quality; Orakel-Test gegen die Parse-Fixtures (100 %).
 
 ### 2.3 Profile, Definitions, Custom Formats
 

@@ -48,6 +48,19 @@ pub enum Source {
 }
 
 impl Source {
+    pub const ALL: [Self; 10] = [
+        Self::Unknown,
+        Self::Cam,
+        Self::Telesync,
+        Self::Telecine,
+        Self::Workprint,
+        Self::Dvd,
+        Self::Tv,
+        Self::WebDl,
+        Self::WebRip,
+        Self::BluRay,
+    ];
+
     /// Lower-case identifier, matching the vocabulary of the public Radarr API docs.
     pub fn as_str(self) -> &'static str {
         match self {
@@ -127,6 +140,15 @@ pub enum Modifier {
 }
 
 impl Modifier {
+    pub const ALL: [Self; 6] = [
+        Self::None,
+        Self::Regional,
+        Self::Screener,
+        Self::RawHd,
+        Self::BrDisk,
+        Self::Remux,
+    ];
+
     /// Lower-case identifier, matching the vocabulary of the public Radarr API docs.
     pub fn as_str(self) -> &'static str {
         match self {
