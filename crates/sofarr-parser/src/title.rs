@@ -4,6 +4,7 @@
 use std::ops::Range;
 
 use crate::classify::{Tag, is_unambiguous_strong};
+use crate::model::Language;
 use crate::token::{Sep, Token};
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -34,7 +35,7 @@ pub fn layout(input: &str, tokens: &[Token<'_>], tags: &[Tag]) -> Layout {
     let first_strong = (start + 1..n)
         .find(|&i| is_unambiguous_strong(tokens, tags, i))
         .unwrap_or(n);
-    let year = find_year(tokens, tags, start, first_strong);
+    let year = find_year(tags, start, first_strong);
 
     let mut title_end = match year {
         Some((i, _)) if i < first_strong => i,
@@ -43,20 +44,31 @@ pub fn layout(input: &str, tokens: &[Token<'_>], tags: &[Tag]) -> Layout {
             .unwrap_or(first_strong),
     };
     let year_bounded = matches!(year, Some((i, _)) if i == title_end);
-    // Drop trailing keywords such as editions or languages: always when bracketed
-    // (`Title (Uncut) (1999)`), otherwise only without a year as anchor
-    // (`Title.German.1080p`). Bracketed words stay: `Title (Other Title) 1999`.
+    // Drop trailing keywords from the title. Editions and languages always go
+    // (`Title.GERMAN.2026`, `Title.Directors.Cut.2026`); other keywords only without a
+    // year as anchor, since words like `Web` may belong to a title (`Spinners.Web.2006`).
+    // Bracketed plain words stay: `Title (Other Title) 1999`.
     while title_end > start + 1 {
         let last = title_end - 1;
+        let head = phrase_head(tags, last);
+        // Of the languages only German is cut off: `Johnny.English.2003` keeps its title.
+        let edition_or_language = matches!(
+            tags[head],
+            Tag::Edition | Tag::Language(Language::German) | Tag::DualLanguage
+        );
         let keyword = !matches!(tags[last], Tag::Plain | Tag::Aka | Tag::Year(_));
-        if !(keyword && (tokens[last].bracketed || !year_bounded)) {
+        let removable =
+            edition_or_language || (keyword && (tokens[last].bracketed || !year_bounded));
+        if !removable || head <= start {
             break;
         }
-        title_end -= 1;
+        title_end = if edition_or_language { head } else { last };
     }
 
     let boundary = year.map_or(title_end, |(i, _)| i.max(title_end));
-    let (group, group_tokens) = match trailing_group(tokens, tags, boundary) {
+    let trailing = bracketed_group(input, tokens, tags, boundary)
+        .or_else(|| trailing_group(tokens, tags, boundary));
+    let (group, group_tokens) = match trailing {
         Some(range) => (
             Some(tokens[range.start].start..tokens[range.end - 1].end),
             Some(range),
@@ -92,42 +104,57 @@ fn leading_group(input: &str, tokens: &[Token<'_>], tags: &[Tag]) -> Option<Rang
         .then_some(0..end)
 }
 
-/// Picks the release year: a bracketed year wins, otherwise the right-most year before
-/// the metadata. A year as first title token is never taken, so `1984.1080p` keeps its title.
-fn find_year(
-    tokens: &[Token<'_>],
-    tags: &[Tag],
-    start: usize,
-    first_strong: usize,
-) -> Option<(usize, u16)> {
-    let year_at = |i: usize| match tags[i] {
-        Tag::Year(y) => Some((i, y)),
-        _ => None,
-    };
-    let before: Vec<(usize, u16)> = (start + 1..first_strong).filter_map(year_at).collect();
-    before
-        .iter()
-        .rev()
-        .find(|(i, _)| tokens[*i].bracketed)
-        .or_else(|| before.last())
-        .copied()
-        .or_else(|| (first_strong.max(start + 1)..tokens.len()).find_map(year_at))
+/// First token of the keyword phrase that ends at `i` (`Directors.Cut` → `Directors`).
+fn phrase_head(tags: &[Tag], i: usize) -> usize {
+    let mut head = i;
+    while head > 0 && tags[head] == Tag::Continued {
+        head -= 1;
+    }
+    head
 }
 
-/// `…x264-GROUP`: unrecognised, dash-joined tokens at the end of the name.
-/// `…x264-GROUP`: the last dash-separated token after the metadata, extended backwards
-/// over dash-joined unrecognised tokens (`-D-Z0N3`). Scene words may serve as group
-/// names (`-ATMOS`), and words after the group are ignored (`-Ben.The.Men`).
+/// Picks the release year: the first year before the metadata, unless another year
+/// follows right after it (`Station.2088.2019`). A year as first title token is never
+/// taken, so `1984.1080p` keeps its title. Double features keep the first year
+/// (`First.1968.-.Second.1970`).
+fn find_year(tags: &[Tag], start: usize, first_strong: usize) -> Option<(usize, u16)> {
+    let year_at = |i: usize| match tags.get(i) {
+        Some(Tag::Year(y)) => Some((i, *y)),
+        _ => None,
+    };
+    (start + 1..first_strong)
+        .filter_map(year_at)
+        .find(|(i, _)| year_at(i + 1).is_none())
+        .or_else(|| (first_strong.max(start + 1)..tags.len()).find_map(year_at))
+}
+
+/// `…x264-GROUP`: the last dash-separated token after the metadata. Only the last
+/// segment counts (`-DNU-TAoE` → `TAoE`), scene words may serve as group names
+/// (`-ATMOS`), a numeric suffix is skipped (`-GRP-1`), and words after the group are
+/// ignored (`-Ben.The.Men`). It may sit inside brackets: `(… English.-.GRP)`.
 fn trailing_group(tokens: &[Token<'_>], tags: &[Tag], boundary: usize) -> Option<Range<usize>> {
-    let dashed = |i: usize| i > boundary && !tokens[i].bracketed && tokens[i].sep == Sep::Dash;
-    let last = (boundary + 1..tokens.len())
-        .rev()
-        .find(|&i| dashed(i) && matches!(tags[i], Tag::Plain | Tag::Technical))?;
-    let mut first = last;
-    while first > 0 && dashed(first - 1) && tags[first - 1] == Tag::Plain {
-        first -= 1;
-    }
-    Some(first..last + 1)
+    let numeric = |i: usize| tokens[i].text.bytes().all(|b| b.is_ascii_digit());
+    let last = (boundary + 1..tokens.len()).rev().find(|&i| {
+        tokens[i].sep == Sep::Dash && matches!(tags[i], Tag::Plain | Tag::Technical) && !numeric(i)
+    })?;
+    Some(last..last + 1)
+}
+
+/// `….(2001).[GROUP]`: a single word in square brackets at the very end, attached to
+/// the name with a dot or a closing bracket. Years are not groups.
+fn bracketed_group(
+    input: &str,
+    tokens: &[Token<'_>],
+    tags: &[Tag],
+    boundary: usize,
+) -> Option<Range<usize>> {
+    let last = tokens.len() - 1;
+    let token = &tokens[last];
+    let before = input[..token.start].strip_suffix('[')?;
+    let attached = before.ends_with('.') || before.ends_with(')');
+    let closed = input[token.end..].trim() == "]";
+    (last > boundary && attached && closed && !matches!(tags[last], Tag::Year(_)))
+        .then_some(last..last + 1)
 }
 
 fn split_aka(tags: &[Tag], range: Range<usize>) -> Vec<Range<usize>> {

@@ -34,7 +34,10 @@ pub fn parse(title: &str) -> ParsedRelease {
         ..ParsedRelease::default()
     };
 
-    let in_group = |i: usize| layout.group_tokens.as_ref().is_some_and(|r| r.contains(&i));
+    // A group made of a keyword (`-ATMOS`, `[DVD9]`) still counts as metadata.
+    let in_group = |i: usize| {
+        tags[i] == Tag::Plain && layout.group_tokens.as_ref().is_some_and(|r| r.contains(&i))
+    };
     let metadata: Vec<usize> = (layout.metadata_start..tokens.len())
         .filter(|&i| !in_group(i))
         .collect();
@@ -84,6 +87,14 @@ pub fn parse(title: &str) -> ParsedRelease {
                 release.revision.repack = true;
                 release.revision.version = release.revision.version.max(2);
             }
+            Tag::NumberedFix { repack, version } => {
+                if repack {
+                    release.revision.repack = true;
+                } else {
+                    release.revision.proper = true;
+                }
+                release.revision.version = release.revision.version.max(version);
+            }
             Tag::Version(v) => release.revision.version = release.revision.version.max(v),
             Tag::Real => release.revision.real = release.revision.real.saturating_add(1),
             Tag::Language(language) if !release.languages.contains(&language) => {
@@ -92,12 +103,17 @@ pub fn parse(title: &str) -> ParsedRelease {
             _ => {}
         }
 
-        // The first run of edition keywords, e.g. `Extended.Directors.Cut`.
-        let edition_part = tag == Tag::Edition || (tag == Tag::Continued && !edition.is_empty());
-        if !edition_done && edition_part {
-            edition.push(tokens[i].text);
-        } else if !edition.is_empty() && tag != Tag::Continued {
-            edition_done = true;
+        // The first edition keyword counts, joined only by a following `Remastered` or
+        // `Open Matte` (`Extended.Remastered`); `Remastered.Uncut` is just `Remastered`.
+        if !edition_done {
+            let joins = matches!(tokens[i].key.as_str(), "remastered" | "open");
+            let starts = tag == Tag::Edition && (edition.is_empty() || joins);
+            let continues = tag == Tag::Continued && !edition.is_empty();
+            if starts || continues {
+                edition.push(tokens[i].text);
+            } else if !edition.is_empty() {
+                edition_done = true;
+            }
         }
     }
     if release.quality.source == Source::Unknown
@@ -114,6 +130,16 @@ pub fn parse(title: &str) -> ParsedRelease {
     {
         release.languages.push(Language::Original);
     }
+    // `German.ML` is German, English and the original track.
+    if metadata.iter().any(|&i| tags[i] == Tag::MultiLanguage)
+        && release.languages.contains(&Language::German)
+    {
+        for language in [Language::English, Language::Original] {
+            if !release.languages.contains(&language) {
+                release.languages.push(language);
+            }
+        }
+    }
     if !edition.is_empty() {
         release.edition = Some(edition.join(" "));
     }
@@ -121,6 +147,7 @@ pub fn parse(title: &str) -> ParsedRelease {
 }
 
 /// Audio formats found on Blu-ray discs (prefixes, so `dtshd` or `truehd7` match too).
+/// `DDP` is a streaming format and does not count.
 const DISC_AUDIO: &[&str] = &[
     "lpcm", "pcm", "truehd", "dts", "flac", "ac3", "eac3", "dd", "atmos",
 ];
@@ -138,20 +165,51 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         })
     };
 
+    // DVDs: an untouched disc (`DVD5`, `DVD9`, `DVD-R`) is Radarr's "DVD-R" at 480p,
+    // anything else (`DVDRip`, `DVD.REMUX`) is plain DVD without a resolution.
+    if quality.source == Source::Dvd {
+        // `DVD-9` counts, `DVD 9` does not.
+        let dashed_disc = metadata.iter().any(|&i| {
+            tokens[i].key == "dvd"
+                && tokens.get(i + 1).is_some_and(|next| {
+                    next.sep == token::Sep::Dash && matches!(next.key.as_str(), "5" | "9")
+                })
+        });
+        let disc = dashed_disc
+            || has(&["dvdr", "dvd5", "dvd9"], &[("dvd", "r")])
+            || metadata.iter().any(|&i| {
+                let key = tokens[i].key.as_str();
+                key.ends_with("xdvd5") || key.ends_with("xdvd9")
+            });
+        if disc {
+            quality.modifier = Modifier::Remux;
+            quality.resolution = Resolution::R480;
+        } else {
+            if quality.modifier == Modifier::Remux {
+                quality.modifier = Modifier::None;
+            }
+            quality.resolution = Resolution::Unknown;
+        }
+        return;
+    }
+
     // A remux only exists of a Blu-ray; with another explicit source the word is noise.
     if quality.modifier == Modifier::Remux && quality.source != Source::BluRay {
         quality.modifier = Modifier::None;
     }
 
-    // Untouched Blu-ray video names the disc's codec, encodes name the encoder. With the
-    // disc's audio track listed as well it is a full disc, otherwise a remux. HEVC only
-    // counts for UHD: plenty of HD encodes are labelled HEVC.
+    // Untouched Blu-ray video names the disc's codec, encodes name the encoder. MPEG-2
+    // video is always a full disc; AVC or VC-1 (HEVC only for UHD: plenty of HD encodes
+    // are labelled HEVC) is a full disc with the disc's audio listed, otherwise a remux.
+    // `COMPLETE` marks a full disc as well.
     let uhd = quality.resolution == Resolution::R2160;
-    let disc_codec = has(&["avc", "vc1", "mpeg2"], &[("vc", "1"), ("mpeg", "2")])
-        || (uhd && has(&["hevc"], &[]));
+    let mpeg2 = has(&["mpeg2"], &[("mpeg", "2")]);
+    let disc_codec = mpeg2 || has(&["avc", "vc1"], &[("vc", "1")]) || (uhd && has(&["hevc"], &[]));
     // A rip is an encode by definition, even when it names the codec (`BDRip.HEVC`).
     let encoder = has(
-        &["x264", "x265", "h264", "h265", "bdrip", "brrip"],
+        &[
+            "x264", "x265", "h264", "h265", "bdrip", "brrip", "uhdbdrip", "uhd2bd",
+        ],
         &[
             ("x", "264"),
             ("x", "265"),
@@ -163,18 +221,23 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
     );
     let disc_audio = metadata.iter().any(|&i| {
         let key = tokens[i].key.as_str();
-        DISC_AUDIO.iter().any(|prefix| key.starts_with(prefix))
+        !key.starts_with("ddp") && DISC_AUDIO.iter().any(|prefix| key.starts_with(prefix))
+    });
+    // Streaming audio formats only occur in encodes (`UHD.BluRay.HEVC.DDP`).
+    let encode_audio = metadata.iter().any(|&i| {
+        let key = tokens[i].key.as_str();
+        key.starts_with("ddp") || key.starts_with("aac") || key.starts_with("opus")
     });
     if quality.source == Source::BluRay
         && quality.modifier == Modifier::None
-        && disc_codec
         && !encoder
+        && !encode_audio
     {
-        quality.modifier = if disc_audio {
-            Modifier::BrDisk
-        } else {
-            Modifier::Remux
-        };
+        if has(&["complete"], &[]) || mpeg2 || (disc_codec && disc_audio) {
+            quality.modifier = Modifier::BrDisk;
+        } else if disc_codec {
+            quality.modifier = Modifier::Remux;
+        }
     }
 
     // A full disc counts as 1080p, whatever its actual resolution.
@@ -182,8 +245,8 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         quality.resolution = Resolution::R1080;
     }
 
-    // Web releases below 720p are SD.
-    if matches!(quality.source, Source::WebDl | Source::WebRip)
+    // Web and TV releases below 720p are SD.
+    if matches!(quality.source, Source::WebDl | Source::WebRip | Source::Tv)
         && matches!(
             quality.resolution,
             Resolution::R360 | Resolution::R540 | Resolution::R576
@@ -192,17 +255,34 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         quality.resolution = Resolution::R480;
     }
 
-    // A resolution without any source is treated as a TV capture.
+    // A resolution or an encoder without any source is treated as a TV capture.
     if quality.source == Source::Unknown
         && quality.modifier == Modifier::None
-        && quality.resolution != Resolution::Unknown
+        && (quality.resolution != Resolution::Unknown || encoder)
     {
         quality.source = Source::Tv;
+        if quality.resolution < Resolution::R720 {
+            quality.resolution = Resolution::R480;
+        }
     }
 
-    // Remuxes without a resolution are HD.
-    if quality.modifier == Modifier::Remux && quality.resolution == Resolution::Unknown {
-        quality.resolution = Resolution::R1080;
+    // A Blu-ray without a resolution is 720p, unless it is a rip (`BDRip`), which is SD.
+    let rip = has(&["bdrip", "brrip"], &[("bd", "rip"), ("br", "rip")]);
+    if quality.source == Source::BluRay
+        && quality.modifier == Modifier::None
+        && quality.resolution == Resolution::Unknown
+        && !rip
+    {
+        quality.resolution = Resolution::R720;
+    }
+
+    // Remuxes without a resolution are HD; there are no remuxes below 1080p.
+    if quality.modifier == Modifier::Remux {
+        if quality.resolution == Resolution::Unknown {
+            quality.resolution = Resolution::R1080;
+        } else if quality.resolution < Resolution::R1080 {
+            quality.modifier = Modifier::None;
+        }
     }
 
     // Blu-ray, web and TV releases without a resolution are standard definition.
@@ -288,9 +368,10 @@ mod tests {
     }
 
     #[test]
-    fn group_with_dash_inside() {
+    fn group_is_last_dash_segment() {
+        // Only the last dash segment counts.
         let r = parse("Tin.Harbour.2003.1080p.BluRay.x264-A-TEAM");
-        assert_eq!(r.release_group.as_deref(), Some("A-TEAM"));
+        assert_eq!(r.release_group.as_deref(), Some("TEAM"));
     }
 
     #[test]
@@ -379,8 +460,9 @@ mod tests {
         assert_eq!(r.edition.as_deref(), Some("Directors Cut"));
         assert_eq!(r.title(), Some("Iron Lantern"));
 
+        // Only the first edition keyword counts.
         let r = parse("Iron.Lantern.1994.Extended.Directors.Cut.1080p.BluRay-G");
-        assert_eq!(r.edition.as_deref(), Some("Extended Directors Cut"));
+        assert_eq!(r.edition.as_deref(), Some("Extended"));
 
         let r = parse("Iron Lantern (1994) 30th Anniversary Edition 1080p");
         assert_eq!(r.edition.as_deref(), Some("30th Anniversary Edition"));
@@ -429,11 +511,102 @@ mod tests {
         assert_eq!(r.quality.resolution, Resolution::R480);
         let r = parse("Grey.Harbour.2017.German.DL.WebRip.x264-NEBEL");
         assert_eq!(r.quality.resolution, Resolution::R480);
-        // DVDs and unknown sources keep an unknown resolution.
+        // DVD rips have no resolution, even when one is named.
         let r = parse("Grey.Harbour.2017.DVDRip.x264-NEBEL");
         assert_eq!(r.quality.resolution, Resolution::Unknown);
-        let r = parse("Grey.Harbour.2017.x264-NEBEL");
+        let r = parse("Grey.Harbour.2017.480p.DVDRip.x264-NEBEL");
         assert_eq!(r.quality.resolution, Resolution::Unknown);
+        // An encoder without a source counts as an SD TV capture.
+        let r = parse("Grey.Harbour.2017.x264-NEBEL");
+        assert_eq!(r.quality.source, Source::Tv);
+        assert_eq!(r.quality.resolution, Resolution::R480);
+        // A Blu-ray encode without a resolution is 720p, a rip is SD.
+        let r = parse("Grey.Harbour.2017.BluRay.x264-NEBEL");
+        assert_eq!(r.quality.resolution, Resolution::R720);
+        let r = parse("Grey.Harbour.2017.4K.Remastered.BDRip.x264-NEBEL");
+        assert_eq!(r.quality.resolution, Resolution::R480);
+        assert_eq!(r.edition.as_deref(), Some("Remastered"));
+    }
+
+    #[test]
+    fn dvd_discs() {
+        for input in [
+            "Low.Tide.1977.PAL.DVD9-WATT",
+            "Low Tide 1977 NTSC DVD-9",
+            "Low.Tide.1977.PAL.DVDR-WATT",
+            "Low.Tide.(1977).[2xDVD5]",
+        ] {
+            let r = parse(input);
+            assert_eq!(r.quality.source, Source::Dvd, "{input}");
+            assert_eq!(r.quality.modifier, Modifier::Remux, "{input}");
+            assert_eq!(r.quality.resolution, Resolution::R480, "{input}");
+        }
+        let r = parse("Low.Tide.1977.480i.DVD.REMUX.MPEG-2-WATT");
+        assert_eq!(r.quality.modifier, Modifier::None);
+        assert_eq!(r.quality.resolution, Resolution::Unknown);
+    }
+
+    #[test]
+    fn remux_needs_hd() {
+        let r = parse("Low.Tide.1977.720p.BluRay.AVC.Remux-WATT");
+        assert_eq!(r.quality.modifier, Modifier::None);
+        assert_eq!(r.quality.resolution, Resolution::R720);
+    }
+
+    #[test]
+    fn keywords_before_the_year() {
+        let r = parse("Leiser.Sturm.GERMAN.2019.DL.PAL.DVDR-WIND");
+        assert_eq!(r.title(), Some("Leiser Sturm"));
+        assert_eq!(r.languages, [Language::German, Language::Original]);
+        let r = parse("Leiser.Sturm.Directors.Cut.2019.1080p.WEB-DL.H.264-WIND");
+        assert_eq!(r.title(), Some("Leiser Sturm"));
+        assert_eq!(r.edition.as_deref(), Some("Directors Cut"));
+        // Other languages stay part of the title.
+        let r = parse("Johnny.English.2003.1080p.BluRay.x264-WIND");
+        assert_eq!(r.title(), Some("Johnny English"));
+    }
+
+    #[test]
+    fn first_year_of_a_double_feature() {
+        let r = parse("Dark.Road.1968.-.Bright.Road.1970.1080p.Blu-ray.MPEG-2.LPCM.2.0-WIND");
+        assert_eq!(r.year, Some(1968));
+        assert_eq!(r.title(), Some("Dark Road"));
+    }
+
+    #[test]
+    fn edition_joins_only_remastered_and_open_matte() {
+        let r = parse("Low.Tide.1977.EXTENDED.REMASTERED.1080p.BluRay.x265-WATT");
+        assert_eq!(r.edition.as_deref(), Some("EXTENDED REMASTERED"));
+        let r = parse("Low.Tide.1977.Theatrical.Cut.Open.Matte.1080p.WEB-DL.H.264-WATT");
+        assert_eq!(r.edition.as_deref(), Some("Theatrical Cut Open Matte"));
+        let r = parse("Low.Tide.1977.Remastered.Uncut.1080p.BluRay.x264-WATT");
+        assert_eq!(r.edition.as_deref(), Some("Remastered"));
+    }
+
+    #[test]
+    fn bracketed_and_numeric_groups() {
+        let r = parse("Low.Tide.(1977).[DVD9]");
+        assert_eq!(r.release_group.as_deref(), Some("DVD9"));
+        let r = parse("Low.Tide.(1977).(1080p.WEB-DL.H264.English.-.WATT)");
+        assert_eq!(r.release_group.as_deref(), Some("WATT"));
+        let r = parse("Low.Tide.1977.German.DL.WEB.x264-WATT-1");
+        assert_eq!(r.release_group.as_deref(), Some("WATT"));
+        let r = parse("Low Tide (1977) [1977]");
+        assert_eq!(r.release_group, None);
+    }
+
+    #[test]
+    fn numbered_repack_and_multi_language() {
+        let r = parse("Low.Tide.1977.REPACK2.1080p.BluRay.x264-WATT");
+        assert!(r.revision.repack);
+        assert_eq!(r.revision.version, 3);
+        let r = parse("Low.Tide.1977.German.ML.1080p.WEB.H264-WATT");
+        let mut languages = r.languages.clone();
+        languages.sort();
+        assert_eq!(
+            languages,
+            [Language::English, Language::German, Language::Original]
+        );
     }
 
     #[test]

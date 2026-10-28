@@ -18,12 +18,19 @@ pub enum Tag {
     },
     Proper,
     Repack,
+    /// `REPACK2`, `PROPER3`: a numbered fix; `version` is the resulting revision.
+    NumberedFix {
+        repack: bool,
+        version: u8,
+    },
     Real,
     Version(u8),
     Edition,
     Language(Language),
     /// `DL`: dual language, i.e. the named language plus the original audio track.
     DualLanguage,
+    /// `ML`: multi-language; with German it means German, English and the original.
+    MultiLanguage,
     /// Codec, audio format, streaming service or scene tag: carries no field
     /// but clearly does not belong to the title.
     Technical,
@@ -39,9 +46,11 @@ impl Tag {
             Self::Quality { .. }
                 | Self::Proper
                 | Self::Repack
+                | Self::NumberedFix { .. }
                 | Self::Version(_)
                 | Self::Technical
                 | Self::DualLanguage
+                | Self::MultiLanguage
         )
     }
 }
@@ -96,9 +105,19 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["dvd", "rip"], src(Source::Dvd)),
     (&["dvdrip"], src(Source::Dvd)),
     (&["dvd"], src(Source::Dvd)),
-    (&["dvdr"], src(Source::Dvd)),
-    (&["dvd5"], src(Source::Dvd)),
-    (&["dvd9"], src(Source::Dvd)),
+    // Untouched DVD discs: Radarr's "DVD-R" quality.
+    (&["dvdr"], modi(Modifier::Remux, Source::Dvd)),
+    (&["dvd", "r"], modi(Modifier::Remux, Source::Dvd)),
+    (&["dvd5"], modi(Modifier::Remux, Source::Dvd)),
+    (&["dvd9"], modi(Modifier::Remux, Source::Dvd)),
+    (&["mbluray"], src(Source::BluRay)),
+    (&["uhd2bd"], src(Source::BluRay)),
+    (&["uhdbdrip"], src(Source::BluRay)),
+    (&["full", "bd"], src(Source::BluRay)),
+    (
+        &["complete", "mbluray"],
+        modi(Modifier::BrDisk, Source::BluRay),
+    ),
     (&["cam"], src(Source::Cam)),
     (&["camrip"], src(Source::Cam)),
     (&["hdcam"], src(Source::Cam)),
@@ -179,6 +198,8 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["vff"], Tag::Language(Language::French)),
     (&["vfq"], Tag::Language(Language::French)),
     (&["vf2"], Tag::Language(Language::French)),
+    (&["vf"], Tag::Language(Language::French)),
+    (&["hebdub"], Tag::Language(Language::Hebrew)),
     (&["vfi"], Tag::Language(Language::French)),
     (&["spanish"], Tag::Language(Language::Spanish)),
     (&["castellano"], Tag::Language(Language::Spanish)),
@@ -224,6 +245,9 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["dts", "x"], Tag::Technical),
     (&["aka"], Tag::Aka),
     (&["dl"], Tag::DualLanguage),
+    (&["ml"], Tag::MultiLanguage),
+    (&["restored"], Tag::Edition),
+    (&["collectors"], Tag::Edition),
 ];
 
 /// Single-token technical keywords: codecs, HDR formats, audio, streaming services, scene tags.
@@ -292,7 +316,7 @@ const TECHNICAL: &[&str] = &[
 /// when no year marks the boundary.
 const AMBIGUOUS: &[&str] = &[
     "web", "ts", "tc", "cam", "scr", "dvd", "uhd", "dl", "hc", "md", "ld", "nf", "dv", "dual",
-    "multi", "limited", "internal", "hybrid", "retail", "proper", "real",
+    "ml", "multi", "limited", "internal", "hybrid", "retail", "proper", "real",
 ];
 
 /// Whether token `i` reliably marks the start of the metadata part. Multi-token
@@ -321,6 +345,7 @@ pub fn classify(tokens: &[Token<'_>]) -> Vec<Tag> {
         }
     }
     resolve_real(&mut tags);
+    demote_remaster_resolution(tokens, &mut tags);
     mark_ordinal_editions(tokens, &mut tags);
     tags
 }
@@ -349,6 +374,17 @@ fn classify_single(key: &str) -> Tag {
     }
     if let Some(version) = parse_version(key) {
         return Tag::Version(version);
+    }
+    if let Some(tag) = parse_numbered_fix(key) {
+        return tag;
+    }
+    // `2xDVD5`: several discs of the same kind.
+    if let Some((count, rest)) = key.split_once('x')
+        && !count.is_empty()
+        && count.bytes().all(|b| b.is_ascii_digit())
+        && matches!(rest, "dvd5" | "dvd9")
+    {
+        return modi(Modifier::Remux, Source::Dvd);
     }
     if TECHNICAL.contains(&key) || is_audio_with_channels(key) {
         return Tag::Technical;
@@ -380,6 +416,22 @@ fn parse_resolution(key: &str) -> Option<Resolution> {
     Resolution::from_height(digits.parse().ok()?)
 }
 
+/// `repack2`, `proper3`: version is one more than the number.
+fn parse_numbered_fix(key: &str) -> Option<Tag> {
+    let (repack, digit) = if let Some(d) = key.strip_prefix("repack") {
+        (true, d)
+    } else {
+        (false, key.strip_prefix("proper")?)
+    };
+    match digit.as_bytes() {
+        [d @ b'2'..=b'8'] => Some(Tag::NumberedFix {
+            repack,
+            version: d - b'0' + 1,
+        }),
+        _ => None,
+    }
+}
+
 /// `v2` … `v9`.
 fn parse_version(key: &str) -> Option<u8> {
     let digit = key.strip_prefix('v')?;
@@ -394,9 +446,24 @@ fn is_audio_with_channels(key: &str) -> bool {
     prefix.len() < key.len() && AUDIO_PREFIXES.contains(&prefix)
 }
 
+/// `4K.Remastered` names the restoration, not the release's resolution.
+fn demote_remaster_resolution(tokens: &[Token<'_>], tags: &mut [Tag]) {
+    for i in 0..tokens.len().saturating_sub(1) {
+        if tokens[i].key == "4k" && matches!(tokens[i + 1].key.as_str(), "remastered" | "restored")
+        {
+            tags[i] = Tag::Plain;
+        }
+    }
+}
+
 /// `REAL` only counts next to `PROPER`/`REPACK`; elsewhere it is an ordinary word.
 fn resolve_real(tags: &mut [Tag]) {
-    let is_fix = |t: Option<&Tag>| matches!(t, Some(Tag::Proper | Tag::Repack | Tag::Real));
+    let is_fix = |t: Option<&Tag>| {
+        matches!(
+            t,
+            Some(Tag::Proper | Tag::Repack | Tag::NumberedFix { .. } | Tag::Real)
+        )
+    };
     for i in 0..tags.len() {
         if tags[i] != Tag::Real {
             continue;
@@ -413,7 +480,8 @@ fn resolve_real(tags: &mut [Tag]) {
 /// `25th.Anniversary.Edition`: the ordinal belongs to the edition.
 fn mark_ordinal_editions(tokens: &[Token<'_>], tags: &mut [Tag]) {
     for i in 1..tokens.len() {
-        if tags[i] == Tag::Edition
+        // `10th.Anniversary` counts with or without a following `Edition`.
+        if matches!(tags[i], Tag::Edition | Tag::Plain)
             && tokens[i].key == "anniversary"
             && is_ordinal(&tokens[i - 1].key)
         {
