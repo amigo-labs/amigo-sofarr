@@ -103,7 +103,7 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ### 2.1 Öffentliche Config-Fixtures
 
-- [ ] 🤖 `sofarr-parity export-public`: liest `fixtures/private/config/radarr/` und schreibt
+- [x] 🤖 `sofarr-parity export-public`: liest `fixtures/private/config/radarr/` und schreibt
       `qualitydefinition`, `qualityprofile`, `customformat` per **Whitelist** nach
       `fixtures/public/config/radarr/` (keine Keys, URLs, Pfade, Indexer). Test gegen Fake-Export mit Secrets.
 - [ ] 👤 `export-public` ausführen, Ergebnis prüfen und committen.

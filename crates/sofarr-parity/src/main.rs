@@ -4,7 +4,7 @@
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use sofarr_parity::{collect, config::ParityConfig, http::HttpClient, matrix};
+use sofarr_parity::{collect, config::ParityConfig, export, http::HttpClient, matrix};
 
 #[derive(Parser)]
 #[command(
@@ -38,6 +38,15 @@ enum Command {
         exports: PathBuf,
         /// Zieldatei
         #[arg(long, default_value = "docs/parity.md")]
+        out: PathBuf,
+    },
+    /// Schreibt Quality Definitions, Profile und Custom Formats bereinigt nach fixtures/public/config/
+    ExportPublic {
+        /// Verzeichnis des Config-Exports
+        #[arg(long, default_value = "fixtures/private/config")]
+        exports: PathBuf,
+        /// Zielverzeichnis
+        #[arg(long, default_value = "fixtures/public/config/radarr")]
         out: PathBuf,
     },
 }
@@ -83,6 +92,12 @@ fn run(cli: Cli) -> anyhow::Result<()> {
         Command::Matrix { exports, out } => {
             let rows = matrix::write(&exports, &out)?;
             println!("{} geschrieben ({rows} Features)", out.display());
+            Ok(())
+        }
+        Command::ExportPublic { exports, out } => {
+            for name in export::write(&exports, &out)? {
+                println!("{} geschrieben", out.join(name).display());
+            }
             Ok(())
         }
     }
