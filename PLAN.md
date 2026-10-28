@@ -146,10 +146,12 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
       `diff releases` denselben Code nutzt.
 - [x] 🤖 `sofarr-parity diff releases`: derselbe Vergleich inkl. privater Fixtures, nur Report.
 - [x] 🤖 Engine nachziehen: Film-Zuordnung (`unknown_movie`), Hardcoded Subs (Parser +
-      `allowHardcodedSubs`), Größencheck bestätigt (MB = 1024²). Stand: 53/53 in allen Feldern.
+      `allowHardcodedSubs`), Größencheck bestätigt (MB = 1024²).
 - [x] 🤖 Status in `docs/parity.md` nachziehen.
-- [ ] 👤 Releases für überwachte Filme **mit** Datei sammeln (Upgrade, Cutoff, Propers sind
-      noch unbelegt), außerdem für das Profil „Ultra-HD“.
+- [x] 🤖 Releases für Filme **mit** Datei und für „Ultra-HD“ gesammelt
+      (`collect --source releases --with-file`, `--movie-id`), Upgrade-, Cutoff-, Propers-
+      und Repack-Regeln sowie die Film-Zuordnung (Jahr statt Titel) daraus abgeleitet.
+      Stand: 1.703 Releases, approved 100 %, Rejections 98,4 %; Lücken in `docs/parity.md`.
 
 **Gate Phase 2:**
 
