@@ -8,6 +8,8 @@ use serde::Deserialize;
 pub const DEFAULT_RATE_LIMIT: f64 = 2.0;
 /// Newznab movie category; most indexers include its sub-categories.
 pub const DEFAULT_CATEGORIES: &[u32] = &[2000];
+/// Releases requested per run; indexers cap this at their own maximum.
+pub const DEFAULT_LIMIT: u32 = 200;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +37,8 @@ pub struct IndexerConfig {
     pub api_key: String,
     #[serde(default = "default_categories")]
     pub categories: Vec<u32>,
+    #[serde(default = "default_limit")]
+    pub limit: u32,
 }
 
 fn default_rate_limit() -> f64 {
@@ -43,6 +47,10 @@ fn default_rate_limit() -> f64 {
 
 fn default_categories() -> Vec<u32> {
     DEFAULT_CATEGORIES.to_vec()
+}
+
+fn default_limit() -> u32 {
+    DEFAULT_LIMIT
 }
 
 impl ParityConfig {
@@ -85,6 +93,7 @@ mod tests {
         .expect("valid");
         assert_eq!(config.rate_limit_per_sec, DEFAULT_RATE_LIMIT);
         assert_eq!(config.indexers[0].categories, DEFAULT_CATEGORIES);
+        assert_eq!(config.indexers[0].limit, DEFAULT_LIMIT);
     }
 
     #[test]

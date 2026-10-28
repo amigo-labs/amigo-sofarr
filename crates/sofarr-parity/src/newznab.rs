@@ -42,12 +42,13 @@ pub fn fetch_latest(http: &HttpClient, indexer: &IndexerConfig) -> anyhow::Resul
         .map(u32::to_string)
         .collect::<Vec<_>>()
         .join(",");
+    let limit = indexer.limit.to_string();
     let body = http.get(
         &indexer.url,
         &[
             ("t", "search"),
             ("cat", &categories),
-            ("limit", "100"),
+            ("limit", &limit),
             ("apikey", &indexer.api_key),
         ],
         &[],
