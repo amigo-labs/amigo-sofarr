@@ -8,10 +8,11 @@ pub mod decision;
 pub mod definition;
 pub mod import;
 pub mod language;
+pub mod pattern;
 pub mod profile;
 pub mod quality;
 pub mod settings;
-pub mod title_match;
+mod upgrade;
 
 pub use custom_format::{CustomFormat, CustomFormatId, ReleaseFacts};
 pub use decision::{Decision, ExistingFile, MovieContext, Rejection, ReleaseInput, decide};

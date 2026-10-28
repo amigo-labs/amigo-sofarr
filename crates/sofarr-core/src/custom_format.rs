@@ -10,6 +10,7 @@ use std::fmt;
 use sofarr_parser::{Language, ParsedRelease};
 
 use crate::language::LanguageRef;
+pub use crate::pattern::Pattern;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CustomFormatId(pub u32);
@@ -56,48 +57,13 @@ impl Condition {
     }
 }
 
-/// A case-insensitive regular expression, compared by its source text.
-#[derive(Debug, Clone)]
-pub struct Pattern {
-    source: String,
-    regex: fancy_regex::Regex,
-}
-
-impl Pattern {
-    pub fn new(source: &str) -> Result<Self, Box<fancy_regex::Error>> {
-        let regex = fancy_regex::RegexBuilder::new(source)
-            .case_insensitive(true)
-            .build()
-            .map_err(Box::new)?;
-        Ok(Self {
-            source: source.to_owned(),
-            regex,
-        })
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.source
-    }
-
-    /// Whether the pattern matches; a pattern that fails at runtime does not match.
-    pub fn is_match(&self, text: &str) -> bool {
-        self.regex.is_match(text).unwrap_or(false)
-    }
-}
-
-impl PartialEq for Pattern {
-    fn eq(&self, other: &Self) -> bool {
-        self.source == other.source
-    }
-}
-
-impl Eq for Pattern {}
-
 /// What custom formats are evaluated against.
 #[derive(Debug, Clone, Copy)]
 pub struct ReleaseFacts<'a> {
     pub title: &'a str,
     pub parsed: &'a ParsedRelease,
+    /// Languages of the release (parsed or reported).
+    pub languages: &'a [Language],
     /// Original language of the film, if known.
     pub original_language: Option<Language>,
 }
@@ -106,7 +72,7 @@ impl Specification {
     pub fn matches(&self, release: &ReleaseFacts<'_>) -> bool {
         let hit = match &self.condition {
             Condition::Language { language, except } => {
-                language.matches(&release.parsed.languages, release.original_language) != *except
+                language.matches(release.languages, release.original_language) != *except
             }
             Condition::ReleaseGroup(pattern) => release
                 .parsed
@@ -175,6 +141,7 @@ mod tests {
         cf.matches(&ReleaseFacts {
             title: release_title,
             parsed: &parsed,
+            languages: &parsed.languages,
             original_language: None,
         })
     }

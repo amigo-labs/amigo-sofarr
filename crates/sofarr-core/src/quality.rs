@@ -108,8 +108,21 @@ impl QualityCatalog {
     }
 
     /// The named quality for parsed parts; `Unknown` if no quality has these parts.
+    ///
+    /// Without an exact match, the resolution is ignored when only one quality has this
+    /// source and modifier: the oracle reports `TELESYNC` at 0, 720 and 1080 lines.
     pub fn resolve(&self, parts: &Parts) -> &NamedQuality {
-        self.find(parts).unwrap_or_else(|| self.unknown())
+        self.find(parts)
+            .or_else(|| {
+                let mut same = self.qualities.iter().filter(|q| {
+                    q.id != UNKNOWN
+                        && q.parts.source == parts.source
+                        && q.parts.modifier == parts.modifier
+                });
+                let only = same.next()?;
+                same.next().is_none().then_some(only)
+            })
+            .unwrap_or_else(|| self.unknown())
     }
 
     pub fn unknown(&self) -> &NamedQuality {
@@ -165,6 +178,35 @@ mod tests {
             modifier: Modifier::None,
         };
         assert_eq!(catalog.resolve(&parts).id, UNKNOWN);
+    }
+
+    #[test]
+    fn unique_source_ignores_resolution() {
+        let catalog = QualityCatalog::new(vec![
+            observed_entry((26, "TELESYNC", Source::Telesync, 0, Modifier::None)),
+            observed_entry((3, "WEBDL-1080p", Source::WebDl, 1080, Modifier::None)),
+            observed_entry((5, "WEBDL-720p", Source::WebDl, 720, Modifier::None)),
+        ]);
+        let parts = |source, resolution| Parts {
+            source,
+            resolution,
+            modifier: Modifier::None,
+        };
+        assert_eq!(
+            catalog
+                .resolve(&parts(Source::Telesync, Resolution::R1080))
+                .name,
+            "TELESYNC"
+        );
+        // Several WEB-DL qualities: no guess.
+        assert_eq!(
+            catalog.resolve(&parts(Source::WebDl, Resolution::R480)).id,
+            UNKNOWN
+        );
+        assert_eq!(
+            catalog.resolve(&parts(Source::Cam, Resolution::R720)).id,
+            UNKNOWN
+        );
     }
 
     #[test]
