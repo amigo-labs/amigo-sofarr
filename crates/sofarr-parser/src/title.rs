@@ -43,12 +43,13 @@ pub fn layout(input: &str, tokens: &[Token<'_>], tags: &[Tag]) -> Layout {
             .unwrap_or(first_strong),
     };
     let year_bounded = matches!(year, Some((i, _)) if i == title_end);
-    // Drop trailing bracketed tokens and, without a year as anchor, trailing keywords
-    // such as editions or languages (`Title.German.1080p`).
+    // Drop trailing keywords such as editions or languages: always when bracketed
+    // (`Title (Uncut) (1999)`), otherwise only without a year as anchor
+    // (`Title.German.1080p`). Bracketed words stay: `Title (Other Title) 1999`.
     while title_end > start + 1 {
         let last = title_end - 1;
         let keyword = !matches!(tags[last], Tag::Plain | Tag::Aka | Tag::Year(_));
-        if !(tokens[last].bracketed || (!year_bounded && keyword)) {
+        if !(keyword && (tokens[last].bracketed || !year_bounded)) {
             break;
         }
         title_end -= 1;
@@ -144,7 +145,15 @@ fn split_aka(tags: &[Tag], range: Range<usize>) -> Vec<Range<usize>> {
 /// Turns a token range back into a readable title.
 pub fn title_text(input: &str, tokens: &[Token<'_>], range: Range<usize>) -> Option<String> {
     let mut start = tokens[range.start].start;
-    let end = tokens[range.end - 1].end;
+    let mut end = tokens[range.end - 1].end;
+    // Keep a closing bracket whose opening counterpart is part of the title:
+    // `Title (Other Title)`.
+    if let Some(close) = input[end..].chars().next()
+        && let Some(open) = opening(close)
+        && input[start..end].contains(open)
+    {
+        end += close.len_utf8();
+    }
     // Keep an opening bracket whose closing counterpart is part of the title: `(300) Letters`.
     if let Some(open) = input[..start].chars().next_back()
         && let Some(close) = closing(open)
@@ -172,6 +181,15 @@ fn closing(open: char) -> Option<char> {
         '(' => Some(')'),
         '[' => Some(']'),
         '{' => Some('}'),
+        _ => None,
+    }
+}
+
+fn opening(close: char) -> Option<char> {
+    match close {
+        ')' => Some('('),
+        ']' => Some('['),
+        '}' => Some('{'),
         _ => None,
     }
 }

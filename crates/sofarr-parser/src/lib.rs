@@ -138,6 +138,19 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         quality.modifier = Modifier::BrDisk;
     }
 
+    // A resolution without any source is treated as a TV capture.
+    if quality.source == Source::Unknown
+        && quality.modifier == Modifier::None
+        && quality.resolution != Resolution::Unknown
+    {
+        quality.source = Source::Tv;
+    }
+
+    // Remuxes without a resolution are HD.
+    if quality.modifier == Modifier::Remux && quality.resolution == Resolution::Unknown {
+        quality.resolution = Resolution::R1080;
+    }
+
     // Blu-ray and web releases without a resolution are standard definition.
     if quality.resolution == Resolution::Unknown
         && quality.modifier == Modifier::None
@@ -254,7 +267,8 @@ mod tests {
             ("A.Film.2001.1080p.WEB.h264-G", Source::WebDl),
             ("A.Film.2001.1080p.Blu-Ray.x264-G", Source::BluRay),
             ("A.Film.2001.1080p.BDRip.x264-G", Source::BluRay),
-            ("A.Film.2001.1080p-G", Source::Unknown),
+            ("A.Film.2001.1080p-G", Source::Tv),
+            ("A.Film.2001-G", Source::Unknown),
         ];
         for (input, expected) in cases {
             assert_eq!(parse(input).quality.source, expected, "{input}");
@@ -366,6 +380,22 @@ mod tests {
         assert_eq!(r.quality.resolution, Resolution::Unknown);
         let r = parse("Grey.Harbour.2017.x264-NEBEL");
         assert_eq!(r.quality.resolution, Resolution::Unknown);
+    }
+
+    #[test]
+    fn bracketed_alternative_title_stays() {
+        let r = parse("Nebelwald.(The.Misty.Forest).1981.720p.BluRay.x264-WALD");
+        assert_eq!(r.title(), Some("Nebelwald (The Misty Forest)"));
+        let r = parse("Nebelwald (Uncut) (1981) 720p BluRay");
+        assert_eq!(r.title(), Some("Nebelwald"));
+        assert_eq!(r.edition.as_deref(), Some("Uncut"));
+    }
+
+    #[test]
+    fn remux_without_resolution_is_hd() {
+        let r = parse("Slow Lantern 1971 BD Remux FLAC");
+        assert_eq!(r.quality.modifier, Modifier::Remux);
+        assert_eq!(r.quality.resolution, Resolution::R1080);
     }
 
     #[test]
