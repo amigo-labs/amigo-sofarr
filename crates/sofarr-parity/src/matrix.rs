@@ -172,7 +172,7 @@ pub fn rows(apps: &[AppExport]) -> Vec<Row> {
         count(&mut m, export, "rootfolder", "Root Folders", "3");
         library(&mut m, export, "movie", "Bibliothek: Filme");
         library(&mut m, export, "series", "Bibliothek: Serien");
-        implementations(&mut m, export, "importlist", "Import List", "später");
+        implementations(&mut m, export, "importlist", "Import List", "4");
         implementations(&mut m, export, "downloadclient", "Download Client", "4");
         settings(
             &mut m,
@@ -535,12 +535,17 @@ fn escape(cell: &str) -> String {
     cell.replace('|', "\\|").replace('\n', " ")
 }
 
+/// `|---|---|` or `| :--- | --- |`, however a Markdown formatter rewrote it.
+fn is_separator_row(line: &str) -> bool {
+    line.contains('-') && line.chars().all(|c| matches!(c, '|' | '-' | ':' | ' '))
+}
+
 /// Status per feature from a previously generated matrix.
 fn existing_statuses(doc: &str) -> BTreeMap<String, String> {
     let generated = doc.split(MANUAL_MARKER).next().unwrap_or_default();
     generated
         .lines()
-        .filter(|l| l.starts_with('|') && !l.starts_with("|---") && !l.starts_with("| Feature |"))
+        .filter(|l| l.starts_with('|') && !is_separator_row(l) && !l.starts_with("| Feature |"))
         .filter_map(|line| {
             let cells: Vec<String> = line
                 .replace("\\|", "\u{0}")
@@ -794,6 +799,11 @@ mod tests {
         assert!(second.contains("| Titel | weicht ab | Absicht |"));
         assert_eq!(second.matches(MANUAL_MARKER).count(), 1);
         let third = render(&apps, &rows, Some(&second));
+        // A Markdown formatter may rewrite the separator row.
+        let reformatted = second.replace("|---|---|---|---|", "| --- | --- | --- | --- |");
+        let statuses = existing_statuses(&reformatted);
+        assert!(!statuses.contains_key("---"));
+        assert_eq!(statuses["Tags"], "erledigt");
         assert_eq!(second, third, "regenerating must be stable");
     }
 

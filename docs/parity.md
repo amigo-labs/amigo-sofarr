@@ -43,7 +43,7 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Tags | radarr: 2; sonarr: 1 | 3 | offen |
 | Root Folders | radarr: 1; sonarr: 1 | 3 | offen |
 | Bibliothek: Filme | radarr: 2420 (53 überwacht) | 3 | offen |
-| Import List: TMDbPersonImport | radarr: 5 (5 aktiv) | später | offen |
+| Import List: TMDbPersonImport | radarr: 5 (5 aktiv) | 4 | offen |
 | Download Client: Nzbget | radarr: 1 (1 aktiv, usenet); sonarr: 1 (1 aktiv, usenet) | 4 | offen |
 | Download-Client-Einstellung: enableCompletedDownloadHandling | radarr: = true; sonarr: = true | 4 | offen |
 | Download-Client-Einstellung: autoRedownloadFailed | radarr: = false; sonarr: = true | 4 | offen |
