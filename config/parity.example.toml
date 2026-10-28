@@ -16,4 +16,5 @@ api_key = "dein-radarr-api-key"
 url = "https://indexer.example/api"
 api_key = "dein-indexer-api-key"
 categories = [2000]   # Filme; die meisten Indexer liefern die Unterkategorien mit
-limit = 200           # Releases pro Lauf (der Indexer begrenzt auf sein Maximum, siehe t=caps)
+limit = 200           # Releases pro Seite (der Indexer begrenzt auf sein Maximum, siehe t=caps)
+pages = 1             # Seiten pro Lauf; jede Seite blättert weiter zurück (limit × pages Releases)

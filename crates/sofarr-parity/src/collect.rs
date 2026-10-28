@@ -49,10 +49,24 @@ pub fn run(
     if matches!(sources, Sources::Rss | Sources::All) {
         let mut store = Store::open(&fixtures.join(PUBLIC_FILE))?;
         for (n, indexer) in config.indexers.iter().enumerate() {
-            let titles = newznab::fetch_latest(http, indexer)
-                .with_context(|| format!("Indexer {} ({})", n + 1, host_of(&indexer.url)))?;
-            eprintln!("Indexer {}: {} Releases", n + 1, titles.len());
-            summary.rss_new += record_new(&radarr, &mut store, &titles, "rss", &version, true)?;
+            // Page by page, so an error later on keeps what earlier pages collected.
+            // The offset advances by what the indexer actually returned: it may cap `limit`.
+            let mut offset = 0;
+            for page in 1..=indexer.pages {
+                let titles = newznab::fetch_page(http, indexer, offset)
+                    .with_context(|| format!("Indexer {} ({})", n + 1, host_of(&indexer.url)))?;
+                eprintln!(
+                    "Indexer {}, Seite {page}/{}: {} Releases",
+                    n + 1,
+                    indexer.pages,
+                    titles.len()
+                );
+                if titles.is_empty() {
+                    break;
+                }
+                offset += titles.len();
+                summary.rss_new += record_new(&radarr, &mut store, &titles, "rss", &version, true)?;
+            }
         }
     }
 

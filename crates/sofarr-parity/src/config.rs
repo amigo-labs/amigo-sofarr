@@ -10,6 +10,8 @@ pub const DEFAULT_RATE_LIMIT: f64 = 2.0;
 pub const DEFAULT_CATEGORIES: &[u32] = &[2000];
 /// Releases requested per run; indexers cap this at their own maximum.
 pub const DEFAULT_LIMIT: u32 = 200;
+/// Pages fetched per run; each page continues where the previous one ended.
+pub const DEFAULT_PAGES: u32 = 1;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -39,6 +41,8 @@ pub struct IndexerConfig {
     pub categories: Vec<u32>,
     #[serde(default = "default_limit")]
     pub limit: u32,
+    #[serde(default = "default_pages")]
+    pub pages: u32,
 }
 
 fn default_rate_limit() -> f64 {
@@ -51,6 +55,10 @@ fn default_categories() -> Vec<u32> {
 
 fn default_limit() -> u32 {
     DEFAULT_LIMIT
+}
+
+fn default_pages() -> u32 {
+    DEFAULT_PAGES
 }
 
 impl ParityConfig {
@@ -69,6 +77,10 @@ impl ParityConfig {
         anyhow::ensure!(
             config.rate_limit_per_sec.is_finite() && config.rate_limit_per_sec > 0.0,
             "rate_limit_per_sec muss größer als 0 sein"
+        );
+        anyhow::ensure!(
+            config.indexers.iter().all(|i| i.limit > 0 && i.pages > 0),
+            "limit und pages müssen größer als 0 sein"
         );
         Ok(config)
     }
@@ -94,6 +106,7 @@ mod tests {
         assert_eq!(config.rate_limit_per_sec, DEFAULT_RATE_LIMIT);
         assert_eq!(config.indexers[0].categories, DEFAULT_CATEGORIES);
         assert_eq!(config.indexers[0].limit, DEFAULT_LIMIT);
+        assert_eq!(config.indexers[0].pages, DEFAULT_PAGES);
     }
 
     #[test]

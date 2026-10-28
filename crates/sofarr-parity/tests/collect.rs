@@ -55,8 +55,13 @@ fn start_mock() -> (String, Arc<Mutex<Vec<String>>>) {
             let authorized = headers.get("x-api-key").map(String::as_str) == Some("radarr-key");
 
             let (status, body) = match path {
-                "/newznab/api" if query.contains("apikey=indexer-key") => {
+                "/newznab/api"
+                    if query.contains("apikey=indexer-key") && query.contains("offset=0") =>
+                {
                     ("200 OK", FEED.to_owned())
+                }
+                "/newznab/api" if query.contains("apikey=indexer-key") => {
+                    ("200 OK", "<rss><channel/></rss>".to_owned())
                 }
                 "/newznab/api" => (
                     "200 OK",
@@ -168,6 +173,28 @@ fn collects_dedupes_and_redacts() {
     assert_eq!(summary, collect::Summary::default());
     assert_eq!(lines(&dir.join(PUBLIC_FILE)).len(), 2);
     assert_eq!(lines(&dir.join(HISTORY_FILE)).len(), 2);
+}
+
+#[test]
+fn paging_continues_at_offset_and_stops_on_empty_page() {
+    let (base, log) = start_mock();
+    let dir = fixtures_dir("collect-paging");
+    let http = HttpClient::new(1000.0, false);
+    let mut config = config(&base, "indexer-key");
+    config.indexers[0].pages = 5;
+
+    let summary = collect::run(&config, &http, &dir, Sources::Rss).expect("run");
+    assert_eq!(summary.rss_new, 2);
+    let pages: Vec<String> = log
+        .lock()
+        .expect("lock")
+        .iter()
+        .filter(|p| p.starts_with("/newznab/api"))
+        .cloned()
+        .collect();
+    // First page at offset 0 (3 items), second at offset 3 is empty: stop there.
+    assert_eq!(pages.len(), 2);
+    assert!(pages[1].contains("offset=3"));
 }
 
 #[test]

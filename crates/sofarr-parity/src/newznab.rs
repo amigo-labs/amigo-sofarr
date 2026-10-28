@@ -34,8 +34,13 @@ pub fn parse_feed(xml: &str) -> Result<Vec<String>, FeedError> {
         .collect())
 }
 
-/// Latest releases in the configured categories (`t=search` without a query).
-pub fn fetch_latest(http: &HttpClient, indexer: &IndexerConfig) -> anyhow::Result<Vec<String>> {
+/// One page of the latest releases in the configured categories (`t=search` without a
+/// query), starting `offset` releases back.
+pub fn fetch_page(
+    http: &HttpClient,
+    indexer: &IndexerConfig,
+    offset: usize,
+) -> anyhow::Result<Vec<String>> {
     let categories = indexer
         .categories
         .iter()
@@ -43,12 +48,14 @@ pub fn fetch_latest(http: &HttpClient, indexer: &IndexerConfig) -> anyhow::Resul
         .collect::<Vec<_>>()
         .join(",");
     let limit = indexer.limit.to_string();
+    let offset = offset.to_string();
     let body = http.get(
         &indexer.url,
         &[
             ("t", "search"),
             ("cat", &categories),
             ("limit", &limit),
+            ("offset", &offset),
             ("apikey", &indexer.api_key),
         ],
         &[],
