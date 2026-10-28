@@ -96,7 +96,18 @@ fn start_mock() -> (String, Arc<Mutex<Vec<String>>>) {
                          "qualityProfileId": 4, "hasFile": false,
                          "path": "/data/media/movies/Geheim"},
                         {"id": 2, "title": "Unbeobachtet", "monitored": false},
-                        {"id": 3, "title": "Zweiter", "monitored": true, "runtime": 100}
+                        {"id": 3, "title": "Zweiter", "monitored": true, "runtime": 100},
+                        {"id": 4, "title": "Mit Datei", "monitored": false, "hasFile": true,
+                         "qualityProfileId": 5,
+                         "movieFile": {"quality": {"quality": {"name": "WEBDL-2160p"}}}}
+                    ])
+                    .to_string(),
+                ),
+                "/api/v3/moviefile" if query == "movieId=4" => (
+                    "200 OK",
+                    serde_json::json!([
+                        {"quality": {"quality": {"id": 18, "name": "WEBDL-2160p"}},
+                         "customFormatScore": 42, "path": "/data/media/movies/Datei.mkv"}
                     ])
                     .to_string(),
                 ),
@@ -253,12 +264,31 @@ fn collects_releases_for_monitored_films_and_redacts() {
     let http = HttpClient::new(1000.0, false);
     let config = config(&base, "indexer-key");
 
-    let summary =
-        collect::run(&config, &http, &dir, Sources::Releases { movies: 1 }).expect("first run");
+    let summary = collect::run(
+        &config,
+        &http,
+        &dir,
+        Sources::Releases {
+            movies: 1,
+            with_file: false,
+            ids: Vec::new(),
+        },
+    )
+    .expect("first run");
     assert_eq!(summary.releases_new, 1);
     assert_eq!(summary.rss_new, 0);
     // The second run queries the film not covered yet.
-    collect::run(&config, &http, &dir, Sources::Releases { movies: 1 }).expect("second run");
+    collect::run(
+        &config,
+        &http,
+        &dir,
+        Sources::Releases {
+            movies: 1,
+            with_file: false,
+            ids: Vec::new(),
+        },
+    )
+    .expect("second run");
     let searched: Vec<String> = log
         .lock()
         .expect("lock")
@@ -294,4 +324,61 @@ fn collects_releases_for_monitored_films_and_redacts() {
     assert_eq!(private.len(), 2);
     assert_eq!(private[0]["movie"]["id"], 1);
     assert_eq!(private[0]["response"]["guid"], "geheime-guid");
+}
+
+#[test]
+fn with_file_queries_films_with_a_file_and_their_score() {
+    let (base, log) = start_mock();
+    let dir = fixtures_dir("collect-releases-with-file");
+    let http = HttpClient::new(1000.0, false);
+    let config = config(&base, "indexer-key");
+
+    let summary = collect::run(
+        &config,
+        &http,
+        &dir,
+        Sources::Releases {
+            movies: 5,
+            with_file: true,
+            ids: Vec::new(),
+        },
+    )
+    .expect("run");
+    assert_eq!(summary.releases_new, 1);
+    let requested: Vec<String> = log
+        .lock()
+        .expect("lock")
+        .iter()
+        .filter(|p| p.starts_with("/api/v3/moviefile") || p.starts_with("/api/v3/release"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        requested,
+        ["/api/v3/moviefile?movieId=4", "/api/v3/release?movieId=4"]
+    );
+
+    let public = lines(&dir.join(releases::PUBLIC_FILE));
+    assert_eq!(public[0]["movie"]["movieFile"]["customFormatScore"], 42);
+    let text = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
+    assert!(!text.contains("/data/media"), "file path leaked");
+}
+
+#[test]
+fn rebuild_public_redacts_the_private_file_again() {
+    let (base, _log) = start_mock();
+    let dir = fixtures_dir("collect-rebuild");
+    let http = HttpClient::new(1000.0, false);
+    let sources = Sources::Releases {
+        movies: 2,
+        with_file: false,
+        ids: Vec::new(),
+    };
+    collect::run(&config(&base, "indexer-key"), &http, &dir, sources).expect("run");
+    let before = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
+    fs::write(dir.join(releases::PUBLIC_FILE), "").expect("clear");
+
+    assert_eq!(releases::rebuild_public(&dir).expect("rebuild"), 2);
+    let after = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
+    assert_eq!(after, before);
+    assert!(!after.contains("geheime-guid"));
 }

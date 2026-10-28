@@ -3,12 +3,12 @@
 #   SOFARR_UPDATE_BASELINE=1 cargo test -p sofarr-parity --test release_oracle
 
 [fixtures]
-count = 53
-fingerprint = "fnv1a64:b07bf574870ae527"
+count = 1703
+fingerprint = "fnv1a64:e40fda1dc24fecf5"
 
 [permille]
 approved = 1000
-custom_formats = 1000
-quality = 1000
-rejections = 1000
-score = 1000
+custom_formats = 998
+quality = 980
+rejections = 984
+score = 998

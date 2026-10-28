@@ -1,14 +1,22 @@
 //! `sofarr-parity collect --source releases`: records Radarr's grab decisions.
 //!
-//! `/api/v3/release?movieId=…` runs a real indexer search, so only a few monitored
-//! films are queried per run, those with the fewest recorded releases first.
+//! `/api/v3/release?movieId=…` runs a real indexer search, so only a few films are
+//! queried per run, those with the fewest recorded releases first. By default these are
+//! monitored films; with `with_file` films that already have a file (monitored or not),
+//! spread over profile, file quality and revision so upgrade rules get covered; or
+//! exactly the films asked for by id. A film's file comes from `/api/v3/moviefile`,
+//! which also carries its custom format score.
 //!
 //! Every release is stored twice: raw in `fixtures/private/`, and redacted in
 //! `fixtures/public/` – rebuilt from a whitelist, without indexer, GUID or URLs, and
 //! with the film reduced to what the decision depends on (no path, no ids but the
 //! profile).
 
-use std::{collections::HashMap, fs, path::Path};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs,
+    path::Path,
+};
 
 use anyhow::Context;
 use serde_json::{Map, Value};
@@ -46,6 +54,7 @@ const MOVIE_KEYS: &[&str] = &[
     "title",
     "originalTitle",
     "year",
+    "secondaryYear",
     "runtime",
     "qualityProfileId",
     "monitored",
@@ -54,15 +63,23 @@ const MOVIE_KEYS: &[&str] = &[
     "minimumAvailability",
     "status",
 ];
-const MOVIE_FILE_KEYS: &[&str] = &["quality", "customFormatScore", "languages", "edition"];
+const MOVIE_FILE_KEYS: &[&str] = &[
+    "quality",
+    "customFormatScore",
+    "languages",
+    "edition",
+    "releaseGroup",
+];
 const NAMED_KEYS: &[&str] = &["id", "name"];
 
-/// Collects releases for up to `movies` monitored films; returns the new public records.
+/// Collects releases for up to `movies` films; returns the new public records.
 pub fn collect(
     radarr: &Radarr<'_>,
     fixtures: &Path,
     version: &str,
     movies: usize,
+    with_file: bool,
+    ids: &[u64],
 ) -> anyhow::Result<usize> {
     let private_path = fixtures.join(PRIVATE_FILE);
     let counts = records_per_movie(&private_path)?;
@@ -70,25 +87,40 @@ pub fn collect(
     let mut public = Store::open(&fixtures.join(PUBLIC_FILE))?;
 
     let library = radarr.movies().context("Radarr-Bibliothek")?;
-    let mut candidates: Vec<&Value> = library
-        .iter()
-        .filter(|m| m["monitored"].as_bool() == Some(true))
-        .filter(|m| m["id"].as_u64().is_some())
-        .collect();
-    candidates.sort_by_key(|m| {
-        let id = m["id"].as_u64().unwrap_or_default();
-        (counts.get(&id).copied().unwrap_or(0), id)
-    });
+    let selected = if ids.is_empty() {
+        select(&library, &counts, movies, with_file)
+    } else {
+        ids.iter()
+            .filter_map(|id| library.iter().find(|m| m["id"].as_u64() == Some(*id)))
+            .collect()
+    };
     eprintln!(
-        "Bibliothek: {} überwachte Filme, frage {} davon ab",
-        candidates.len(),
-        movies.min(candidates.len())
+        "Bibliothek: {} Filme, frage {} davon ab ({})",
+        library.len(),
+        selected.len(),
+        if !ids.is_empty() {
+            "nach Id"
+        } else if with_file {
+            "mit Datei"
+        } else {
+            "überwacht"
+        }
     );
 
+    let total = selected.len();
     let mut added = 0;
-    for (n, movie) in candidates.into_iter().take(movies).enumerate() {
+    for (n, movie) in selected.into_iter().enumerate() {
         let id = movie["id"].as_u64().unwrap_or_default();
-        eprintln!("Film {}/{movies}: Suche läuft …", n + 1);
+        let mut movie = movie.clone();
+        if movie["hasFile"].as_bool() == Some(true)
+            && let Some(file) = radarr
+                .movie_file(id)
+                .with_context(|| format!("Radarr-Datei für Film {id}"))?
+        {
+            movie["movieFile"] = file;
+        }
+        let movie = &movie;
+        eprintln!("Film {}/{total}: Suche läuft …", n + 1);
         let releases = radarr
             .releases(id)
             .with_context(|| format!("Radarr-Releases für Film {id}"))?;
@@ -128,6 +160,109 @@ pub fn collect(
         added += new;
     }
     Ok(added)
+}
+
+/// Films to query, least covered first.
+///
+/// Without `with_file`: monitored films. With it: films with a file, taken round-robin
+/// from groups of (profile, file quality, file revision), least covered group first.
+pub fn select<'a>(
+    library: &'a [Value],
+    counts: &HashMap<u64, usize>,
+    movies: usize,
+    with_file: bool,
+) -> Vec<&'a Value> {
+    let count = |m: &Value| {
+        let id = m["id"].as_u64().unwrap_or_default();
+        (counts.get(&id).copied().unwrap_or(0), id)
+    };
+    let mut candidates: Vec<&Value> = library
+        .iter()
+        .filter(|m| m["id"].as_u64().is_some())
+        .filter(|m| {
+            if with_file {
+                m["hasFile"].as_bool() == Some(true)
+            } else {
+                m["monitored"].as_bool() == Some(true)
+            }
+        })
+        .collect();
+    candidates.sort_by_key(|m| count(m));
+    if !with_file {
+        candidates.truncate(movies);
+        return candidates;
+    }
+
+    let mut groups: BTreeMap<(u64, String, u64), Vec<&Value>> = BTreeMap::new();
+    for movie in candidates {
+        let file = &movie["movieFile"]["quality"];
+        let key = (
+            movie["qualityProfileId"].as_u64().unwrap_or_default(),
+            file["quality"]["name"].as_str().unwrap_or("").to_owned(),
+            file["revision"]["version"].as_u64().unwrap_or(1),
+        );
+        groups.entry(key).or_default().push(movie);
+    }
+    let mut groups: Vec<Vec<&Value>> = groups.into_values().collect();
+    // Stable: equally covered groups keep their key order.
+    groups.sort_by_key(|g| g.iter().map(|m| count(m).0).sum::<usize>());
+    let mut selected = Vec::new();
+    for round in 0.. {
+        let before = selected.len();
+        for group in &groups {
+            if selected.len() == movies {
+                return selected;
+            }
+            if let Some(movie) = group.get(round) {
+                selected.push(*movie);
+            }
+        }
+        if selected.len() == before {
+            break;
+        }
+    }
+    selected
+}
+
+/// Rewrites the public release file from the private one, e.g. after the whitelist
+/// changed. Returns the number of public records.
+pub fn rebuild_public(fixtures: &Path) -> anyhow::Result<usize> {
+    let private_path = fixtures.join(PRIVATE_FILE);
+    let raw = fs::read_to_string(&private_path)
+        .with_context(|| format!("{} nicht lesbar", private_path.display()))?;
+    let public_path = fixtures.join(PUBLIC_FILE);
+    let temp_path = public_path.with_extension("jsonl.tmp");
+    let _ = fs::remove_file(&temp_path);
+    let mut public = Store::open(&temp_path)?;
+    for (n, line) in raw.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let at = || format!("{}:{}", private_path.display(), n + 1);
+        let record: Value =
+            serde_json::from_str(line).with_context(|| format!("{}: ungültiges JSON", at()))?;
+        let field = |key: &str| {
+            record[key]
+                .as_str()
+                .with_context(|| format!("{}: `{key}` fehlt", at()))
+        };
+        public.append(&Record {
+            title: field("title")?,
+            origin: ORIGIN,
+            collected_at: field("collected_at")?.to_owned(),
+            oracle: Oracle {
+                app: record["oracle"]["app"].as_str().unwrap_or("radarr"),
+                version: record["oracle"]["version"].as_str().unwrap_or(""),
+            },
+            movie: Some(public_movie(&record["movie"])),
+            response: public_release(&record["response"]),
+        })?;
+    }
+    let count = public.len();
+    drop(public);
+    fs::rename(&temp_path, &public_path)
+        .with_context(|| format!("{} nicht ersetzbar", public_path.display()))?;
+    Ok(count)
 }
 
 /// Number of private records per film id, to query the least covered films first.
@@ -190,15 +325,6 @@ pub fn public_movie(movie: &Value) -> Value {
             Value::Object(pick(language, NAMED_KEYS)),
         );
     }
-    // Alternative titles decide whether a release belongs to the film.
-    if let Some(alternates) = movie["alternateTitles"].as_array() {
-        let titles = alternates
-            .iter()
-            .filter_map(|a| a["title"].as_str())
-            .map(|t| Value::String(t.to_owned()))
-            .collect();
-        out.insert("alternateTitles".into(), Value::Array(titles));
-    }
     if let Some(file) = movie.get("movieFile").filter(|f| f.is_object()) {
         out.insert(
             "movieFile".into(),
@@ -258,6 +384,33 @@ mod tests {
     }
 
     #[test]
+    fn select_spreads_films_with_file_over_groups() {
+        let film = |id: u64, profile: u64, quality: &str, version: u64| {
+            json!({"id": id, "monitored": false, "hasFile": true, "qualityProfileId": profile,
+                   "movieFile": {"quality": {"quality": {"name": quality},
+                                             "revision": {"version": version}}}})
+        };
+        let library = vec![
+            film(1, 4, "Bluray-1080p", 1),
+            film(2, 4, "Bluray-1080p", 1),
+            film(3, 4, "Bluray-1080p", 1),
+            film(4, 4, "Bluray-1080p", 2),
+            film(5, 5, "WEBDL-2160p", 1),
+            json!({"id": 6, "monitored": true, "hasFile": false}),
+        ];
+        let ids = |selected: Vec<&Value>| -> Vec<u64> {
+            selected.iter().filter_map(|m| m["id"].as_u64()).collect()
+        };
+        let counts = HashMap::new();
+        assert_eq!(ids(select(&library, &counts, 4, true)), [1, 4, 5, 2]);
+        assert_eq!(ids(select(&library, &counts, 9, true)), [1, 4, 5, 2, 3]);
+        assert_eq!(ids(select(&library, &counts, 5, false)), [6]);
+        // A covered group comes last, a covered film last within its group.
+        let counts = HashMap::from([(1, 10), (5, 3)]);
+        assert_eq!(ids(select(&library, &counts, 3, true)), [4, 5, 2]);
+    }
+
+    #[test]
     fn public_movie_keeps_decision_context_only() {
         let movie = json!({
             "id": 77, "tmdbId": 1234, "title": "Some Movie", "year": 2020, "runtime": 101,
@@ -265,7 +418,7 @@ mod tests {
             "path": "/data/media/movies/Some Movie (2020)",
             "rootFolderPath": "/data/media/movies",
             "originalLanguage": {"id": 1, "name": "English"},
-            "alternateTitles": [{"id": 9, "movieMetadataId": 77, "sourceType": "tmdb", "title": "Ein Film"}],
+            "secondaryYear": 2019,
             "movieFile": {"relativePath": "Some Movie (2020).mkv",
                           "path": "/data/media/movies/Some Movie (2020)/x.mkv",
                           "quality": {"quality": {"id": 7}}, "customFormatScore": 50}
@@ -277,6 +430,6 @@ mod tests {
         assert_eq!(public["runtime"], 101);
         assert_eq!(public["movieFile"]["customFormatScore"], 50);
         assert!(public["movieFile"].get("relativePath").is_none());
-        assert_eq!(public["alternateTitles"], json!(["Ein Film"]));
+        assert_eq!(public["secondaryYear"], 2019);
     }
 }

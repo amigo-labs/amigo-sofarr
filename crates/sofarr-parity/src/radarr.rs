@@ -72,6 +72,16 @@ impl<'a> Radarr<'a> {
         self.get_json_with_timeout("api/v3/release", &[("movieId", &id)], Some(SEARCH_TIMEOUT))
     }
 
+    /// The file of a film with its custom format score (`/api/v3/moviefile?movieId=…`).
+    pub fn movie_file(&self, movie_id: u64) -> anyhow::Result<Option<Value>> {
+        let id = movie_id.to_string();
+        match self.get_json("api/v3/moviefile", &[("movieId", &id)])? {
+            Value::Array(mut files) if !files.is_empty() => Ok(Some(files.swap_remove(0))),
+            Value::Array(_) => Ok(None),
+            _ => anyhow::bail!("Radarr: moviefile liefert keine Liste"),
+        }
+    }
+
     /// All `sourceTitle`s of the grab/import history, newest first, without duplicates.
     pub fn history_titles(&self) -> anyhow::Result<Vec<String>> {
         let page_size = HISTORY_PAGE_SIZE.to_string();

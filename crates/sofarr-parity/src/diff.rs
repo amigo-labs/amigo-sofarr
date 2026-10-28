@@ -19,7 +19,7 @@ use sofarr_core::{
     ExistingFile, LanguageRef, MovieContext, ProfileId, QualityId, RadarrConfig, Rejection,
     ReleaseInput, decide, import,
 };
-use sofarr_parser::Revision;
+use sofarr_parser::{Language, Revision};
 
 pub const FIELDS: &[&str] = &[
     "quality",
@@ -112,10 +112,21 @@ pub fn fingerprint(fixtures: &[Fixture]) -> String {
     format!("fnv1a64:{hash:016x}")
 }
 
-/// Maps an oracle rejection text to `Rejection::key()`.
+/// Rejection keys the engine does not produce (yet), with the reason.
+pub const NOT_MODELLED: &[(&str, &str)] = &[
+    (
+        "raw_disc",
+        "nicht aus dem Titel ableitbar (gleiche Titelmuster mal mit, mal ohne)",
+    ),
+    ("already_imported", "braucht die History (Phase 3)"),
+];
+
+/// Maps an oracle rejection text to `Rejection::key()` (or a key of [`NOT_MODELLED`]).
 pub fn rejection_key(text: &str) -> Option<&'static str> {
     let text = text.trim();
-    let key = if text.starts_with("Unknown Movie.") {
+    let key = if text.starts_with("Unable to parse release") {
+        "unparsable"
+    } else if text.starts_with("Unknown Movie.") {
         "unknown_movie"
     } else if text.starts_with("Hardcode subs found") {
         "hardcoded_subs"
@@ -127,6 +138,26 @@ pub fn rejection_key(text: &str) -> Option<&'static str> {
         "below_minimum_score"
     } else if text.contains(" is larger than maximum allowed ") {
         "too_large"
+    } else if text.starts_with("Existing file and the Quality profile does not allow upgrades") {
+        "upgrades_not_allowed"
+    } else if text.starts_with("Existing file meets cutoff") {
+        "cutoff_met"
+    } else if text.starts_with("Existing file on disk meets quality cutoff") {
+        "quality_cutoff_met"
+    } else if text.starts_with("Existing file on disk is of equal or higher preference") {
+        "lower_quality"
+    } else if text.starts_with("Existing file on disk is of equal or higher revision") {
+        "lower_revision"
+    } else if text.starts_with("Existing file on disk has a equal or higher Custom Format score") {
+        "no_better_score"
+    } else if text.starts_with("Release is a repack for a different release group") {
+        "repack_other_group"
+    } else if text.starts_with("Unable to determine release group for the existing file") {
+        "file_group_unknown"
+    } else if text.starts_with("Raw Bluray/DVD release") {
+        "raw_disc"
+    } else if text.starts_with("Has same release name as a grabbed and imported release") {
+        "already_imported"
     } else {
         return None;
     };
@@ -273,10 +304,12 @@ pub fn evaluate(config: &RadarrConfig, fixtures: &[Fixture]) -> Report {
             report.skipped += 1;
             continue;
         };
+        let languages = reported_languages(&fixture.response);
         let release = ReleaseInput {
             title: &fixture.title,
             size_bytes: fixture.response["size"].as_u64().unwrap_or(0),
             age_minutes: fixture.response["ageMinutes"].as_f64().unwrap_or(0.0),
+            languages: languages.as_deref(),
         };
         let decision = decide(config, profile, &release, &movie_context(&fixture.movie));
 
@@ -375,21 +408,32 @@ fn expected_rejections(response: &Value, unmapped: &mut BTreeMap<String, usize>)
     Some(keys.join(", "))
 }
 
+/// The languages the oracle reports for the release. They include indexer metadata that
+/// the fixtures do not hold, so the decision gets them as reported; the parser languages
+/// are measured by the parse oracle. `Unknown` means none.
+fn reported_languages(response: &Value) -> Option<Vec<Language>> {
+    let languages = response["languages"].as_array()?;
+    Some(
+        languages
+            .iter()
+            .filter_map(|l| l["name"].as_str())
+            .filter_map(LanguageRef::from_name)
+            .filter_map(|l| match l {
+                LanguageRef::Language(l) => Some(l),
+                _ => None,
+            })
+            .collect(),
+    )
+}
+
 /// The film as the decision sees it.
 pub fn movie_context(movie: &Value) -> MovieContext {
-    let mut titles: Vec<String> = ["title", "originalTitle"]
+    let years = ["year", "secondaryYear"]
         .iter()
-        .filter_map(|k| movie[*k].as_str())
-        .map(str::to_owned)
+        .filter_map(|k| movie[*k].as_u64())
+        .filter_map(|y| u16::try_from(y).ok())
+        .filter(|y| *y > 0)
         .collect();
-    if let Some(alternates) = movie["alternateTitles"].as_array() {
-        titles.extend(
-            alternates
-                .iter()
-                .filter_map(|a| a.as_str().or_else(|| a["title"].as_str()))
-                .map(str::to_owned),
-        );
-    }
     let original_language = movie
         .pointer("/originalLanguage/name")
         .and_then(Value::as_str)
@@ -404,7 +448,7 @@ pub fn movie_context(movie: &Value) -> MovieContext {
         .flatten()
         .filter(|_| movie["hasFile"].as_bool() != Some(false));
     MovieContext {
-        titles,
+        years,
         runtime_minutes: movie["runtime"]
             .as_u64()
             .and_then(|r| u32::try_from(r).ok())
@@ -436,6 +480,10 @@ fn existing_file(file: &Value) -> Option<ExistingFile> {
             .as_i64()
             .and_then(|s| i32::try_from(s).ok())
             .unwrap_or(0),
+        release_group: file["releaseGroup"]
+            .as_str()
+            .filter(|g| !g.trim().is_empty())
+            .map(str::to_owned),
     })
 }
 
@@ -465,6 +513,41 @@ mod tests {
                 "17.3 GB is larger than maximum allowed 11.7 GB (for Some Film)",
                 "too_large",
             ),
+            ("Unable to parse release", "unparsable"),
+            (
+                "Existing file and the Quality profile does not allow upgrades",
+                "upgrades_not_allowed",
+            ),
+            ("Existing file meets cutoff: A-1 [B]", "cutoff_met"),
+            (
+                "Existing file on disk meets quality cutoff: A-1",
+                "quality_cutoff_met",
+            ),
+            (
+                "Existing file on disk is of equal or higher preference: A-1 v1",
+                "lower_quality",
+            ),
+            (
+                "Existing file on disk is of equal or higher revision: v2",
+                "lower_revision",
+            ),
+            (
+                "Existing file on disk has a equal or higher Custom Format score: 10",
+                "no_better_score",
+            ),
+            (
+                "Release is a repack for a different release group. Release Group: A. File release group: B",
+                "repack_other_group",
+            ),
+            (
+                "Unable to determine release group for the existing file",
+                "file_group_unknown",
+            ),
+            ("Raw Bluray/DVD release", "raw_disc"),
+            (
+                "Has same release name as a grabbed and imported release",
+                "already_imported",
+            ),
         ];
         for (text, key) in cases {
             assert_eq!(rejection_key(text), Some(key), "{text}");
@@ -485,18 +568,14 @@ mod tests {
     #[test]
     fn movie_context_from_fixture() {
         let movie = json!({
-            "title": "Some Film", "originalTitle": "Ein Film", "runtime": 101,
-            "alternateTitles": ["Film, Some", {"title": "Some Film II"}],
+            "title": "Some Film", "year": 2020, "secondaryYear": 2019, "runtime": 101,
             "originalLanguage": {"id": 4, "name": "German"},
             "hasFile": true,
             "movieFile": {"quality": {"quality": {"id": 7}, "revision": {"version": 2, "real": 1, "isRepack": true}},
-                          "customFormatScore": 50}
+                          "customFormatScore": 50, "releaseGroup": "GRP"}
         });
         let context = movie_context(&movie);
-        assert_eq!(
-            context.titles,
-            ["Some Film", "Ein Film", "Film, Some", "Some Film II"]
-        );
+        assert_eq!(context.years, [2020, 2019]);
         assert_eq!(context.runtime_minutes, 101);
         assert_eq!(
             context.original_language,
@@ -513,10 +592,20 @@ mod tests {
             (2, 1, true)
         );
         assert_eq!(file.custom_format_score, 50);
+        assert_eq!(file.release_group.as_deref(), Some("GRP"));
 
-        let without = movie_context(&json!({"title": "X", "hasFile": false}));
+        let without = movie_context(&json!({"title": "X", "year": 0, "hasFile": false}));
+        assert!(without.years.is_empty());
         assert!(without.file.is_none());
         assert_eq!(without.runtime_minutes, 0);
+    }
+
+    #[test]
+    fn reported_languages_skip_unknown() {
+        let response =
+            json!({"languages": [{"id": 0, "name": "Unknown"}, {"id": 4, "name": "German"}]});
+        assert_eq!(reported_languages(&response), Some(vec![Language::German]));
+        assert_eq!(reported_languages(&json!({})), None);
     }
 
     #[test]

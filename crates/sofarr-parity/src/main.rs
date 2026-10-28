@@ -4,7 +4,9 @@
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use sofarr_parity::{collect, config::ParityConfig, diff, export, http::HttpClient, matrix};
+use sofarr_parity::{
+    collect, config::ParityConfig, diff, export, http::HttpClient, matrix, releases,
+};
 
 #[derive(Parser)]
 #[command(
@@ -33,6 +35,12 @@ enum Command {
         /// Nur mit --source releases: so viele überwachte Filme abfragen (jeder löst eine Indexer-Suche aus)
         #[arg(long, default_value_t = 5)]
         movies: usize,
+        /// Nur mit --source releases: Filme mit vorhandener Datei statt überwachter (Upgrade-Regeln)
+        #[arg(long)]
+        with_file: bool,
+        /// Nur mit --source releases: genau diese Filme abfragen (Radarr-Id, wiederholbar)
+        #[arg(long = "movie-id")]
+        movie_ids: Vec<u64>,
     },
     /// Erzeugt docs/parity.md aus dem Config-Export (scripts/export-arr-config.sh)
     Matrix {
@@ -51,6 +59,12 @@ enum Command {
         /// Zielverzeichnis
         #[arg(long, default_value = "fixtures/public/config/radarr")]
         out: PathBuf,
+    },
+    /// Erzeugt die öffentlichen Release-Fixtures aus den privaten neu (nach Änderung der Whitelist)
+    RebuildReleases {
+        /// Fixture-Verzeichnis (enthält public/ und private/)
+        #[arg(long, default_value = "fixtures")]
+        fixtures: PathBuf,
     },
     /// Vergleicht sofarrs Entscheidungen mit dem Orakel (öffentliche und private Fixtures), nur Report
     Diff {
@@ -99,6 +113,8 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             fixtures,
             source,
             movies,
+            with_file,
+            movie_ids,
         } => {
             let config = ParityConfig::load(&config)?;
             let http = HttpClient::new(config.rate_limit_per_sec, true);
@@ -106,7 +122,11 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 SourceArg::Rss => collect::Sources::Rss,
                 SourceArg::History => collect::Sources::History,
                 SourceArg::All => collect::Sources::All,
-                SourceArg::Releases => collect::Sources::Releases { movies },
+                SourceArg::Releases => collect::Sources::Releases {
+                    movies,
+                    with_file,
+                    ids: movie_ids,
+                },
             };
             let summary = collect::run(&config, &http, &fixtures, sources)?;
             println!(
@@ -124,6 +144,11 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             for name in export::write(&exports, &out)? {
                 println!("{} geschrieben", out.join(name).display());
             }
+            Ok(())
+        }
+        Command::RebuildReleases { fixtures } => {
+            let count = releases::rebuild_public(&fixtures)?;
+            println!("{count} öffentliche Release-Fixtures geschrieben");
             Ok(())
         }
         Command::Diff {
