@@ -163,8 +163,6 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["ultimate", "edition"], Tag::Edition),
     (&["ultimate", "cut"], Tag::Edition),
     (&["final", "cut"], Tag::Edition),
-    (&["criterion", "collection"], Tag::Edition),
-    (&["criterion"], Tag::Edition),
     (&["anniversary", "edition"], Tag::Edition),
     (&["open", "matte"], Tag::Edition),
     (&["despecialized"], Tag::Edition),

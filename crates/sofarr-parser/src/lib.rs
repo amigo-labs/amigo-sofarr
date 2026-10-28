@@ -40,6 +40,7 @@ pub fn parse(title: &str) -> ParsedRelease {
         .collect();
 
     let mut implied_source = None;
+    let mut resolution_from_keyword = false;
     let mut edition: Vec<&str> = Vec::new();
     let mut edition_done = false;
     for &i in &metadata {
@@ -64,10 +65,15 @@ pub fn parse(title: &str) -> ParsedRelease {
                 {
                     quality.modifier = m;
                 }
-                if let Some(r) = resolution
-                    && quality.resolution == Resolution::Unknown
-                {
-                    quality.resolution = r;
+                // An explicit `1080p` beats a `UHD`/`4K` keyword (`UHD.BluRay.1080p`).
+                if let Some(r) = resolution {
+                    let keyword = matches!(tokens[i].key.as_str(), "uhd" | "4k");
+                    if quality.resolution == Resolution::Unknown
+                        || (!keyword && resolution_from_keyword)
+                    {
+                        quality.resolution = r;
+                        resolution_from_keyword = keyword;
+                    }
                 }
             }
             Tag::Proper => {
@@ -100,7 +106,10 @@ pub fn parse(title: &str) -> ParsedRelease {
         release.quality.source = source;
     }
     apply_quality_defaults(&mut release.quality, &tokens, &metadata);
+    // `German.DL` is German plus the original track; `DL` alone or with other
+    // languages adds nothing.
     if metadata.iter().any(|&i| tags[i] == Tag::DualLanguage)
+        && release.languages.contains(&Language::German)
         && !release.languages.contains(&Language::Original)
     {
         release.languages.push(Language::Original);
@@ -110,6 +119,11 @@ pub fn parse(title: &str) -> ParsedRelease {
     }
     release
 }
+
+/// Audio formats found on Blu-ray discs (prefixes, so `dtshd` or `truehd7` match too).
+const DISC_AUDIO: &[&str] = &[
+    "lpcm", "pcm", "truehd", "dts", "flac", "ac3", "eac3", "dd", "atmos",
+];
 
 /// Rules that depend on the quality as a whole rather than on a single token.
 fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], metadata: &[usize]) {
@@ -124,18 +138,58 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         })
     };
 
-    // Full Blu-ray discs name the disc's video codec; encodes name the encoder.
-    let disc_codec = has(&["avc", "vc1", "mpeg2"], &[("vc", "1"), ("mpeg", "2")]);
+    // A remux only exists of a Blu-ray; with another explicit source the word is noise.
+    if quality.modifier == Modifier::Remux && quality.source != Source::BluRay {
+        quality.modifier = Modifier::None;
+    }
+
+    // Untouched Blu-ray video names the disc's codec, encodes name the encoder. With the
+    // disc's audio track listed as well it is a full disc, otherwise a remux. HEVC only
+    // counts for UHD: plenty of HD encodes are labelled HEVC.
+    let uhd = quality.resolution == Resolution::R2160;
+    let disc_codec = has(&["avc", "vc1", "mpeg2"], &[("vc", "1"), ("mpeg", "2")])
+        || (uhd && has(&["hevc"], &[]));
+    // A rip is an encode by definition, even when it names the codec (`BDRip.HEVC`).
     let encoder = has(
-        &["x264", "x265", "h264", "h265"],
-        &[("x", "264"), ("x", "265"), ("h", "264"), ("h", "265")],
+        &["x264", "x265", "h264", "h265", "bdrip", "brrip"],
+        &[
+            ("x", "264"),
+            ("x", "265"),
+            ("h", "264"),
+            ("h", "265"),
+            ("bd", "rip"),
+            ("br", "rip"),
+        ],
     );
+    let disc_audio = metadata.iter().any(|&i| {
+        let key = tokens[i].key.as_str();
+        DISC_AUDIO.iter().any(|prefix| key.starts_with(prefix))
+    });
     if quality.source == Source::BluRay
         && quality.modifier == Modifier::None
         && disc_codec
         && !encoder
     {
-        quality.modifier = Modifier::BrDisk;
+        quality.modifier = if disc_audio {
+            Modifier::BrDisk
+        } else {
+            Modifier::Remux
+        };
+    }
+
+    // A full disc counts as 1080p, whatever its actual resolution.
+    if quality.modifier == Modifier::BrDisk {
+        quality.resolution = Resolution::R1080;
+    }
+
+    // Web releases below 720p are SD.
+    if matches!(quality.source, Source::WebDl | Source::WebRip)
+        && matches!(
+            quality.resolution,
+            Resolution::R360 | Resolution::R540 | Resolution::R576
+        )
+    {
+        quality.resolution = Resolution::R480;
     }
 
     // A resolution without any source is treated as a TV capture.
@@ -151,12 +205,12 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         quality.resolution = Resolution::R1080;
     }
 
-    // Blu-ray and web releases without a resolution are standard definition.
+    // Blu-ray, web and TV releases without a resolution are standard definition.
     if quality.resolution == Resolution::Unknown
         && quality.modifier == Modifier::None
         && matches!(
             quality.source,
-            Source::BluRay | Source::WebDl | Source::WebRip
+            Source::BluRay | Source::WebDl | Source::WebRip | Source::Tv
         )
     {
         quality.resolution = Resolution::R480;
@@ -396,6 +450,73 @@ mod tests {
         let r = parse("Slow Lantern 1971 BD Remux FLAC");
         assert_eq!(r.quality.modifier, Modifier::Remux);
         assert_eq!(r.quality.resolution, Resolution::R1080);
+    }
+
+    #[test]
+    fn untouched_video_without_disc_audio_is_remux() {
+        let r = parse("Copper.Bell.1958.1080p.BluRay.AVC-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::Remux);
+        let r = parse("Copper.Bell.1958.2160p.UHD.BluRay.HEVC-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::Remux);
+        assert_eq!(r.quality.resolution, Resolution::R2160);
+    }
+
+    #[test]
+    fn full_disc_is_1080p_and_rips_are_encodes() {
+        let r = parse("Copper.Bell.1958.2160p.UHD.Blu-ray.HEVC.LPCM.2.0-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::BrDisk);
+        assert_eq!(r.quality.resolution, Resolution::R1080);
+        let r = parse("Copper.Bell.1958.COMPLETE.UHD.BLURAY-GLOCKE");
+        assert_eq!(r.quality.resolution, Resolution::R1080);
+        let r = parse("Copper.Bell.1958.2160p.UHD.BDRip.HEVC.10bit.TrueHD.7.1-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::None);
+        assert_eq!(r.quality.resolution, Resolution::R2160);
+    }
+
+    #[test]
+    fn remux_needs_a_bluray() {
+        let r = parse("Copper.Bell.1958.UHD.WEB-DL.2160p.HEVC.DL.Remux-GLOCKE");
+        assert_eq!(r.quality.source, Source::WebDl);
+        assert_eq!(r.quality.modifier, Modifier::None);
+    }
+
+    #[test]
+    fn explicit_resolution_beats_uhd_keyword() {
+        let r = parse("Copper.Bell.1958.UHD.BluRay.1080p.DDP.5.1.x265-GLOCKE");
+        assert_eq!(r.quality.resolution, Resolution::R1080);
+        let r = parse("Copper.Bell.1958.UHD.BluRay.x265-GLOCKE");
+        assert_eq!(r.quality.resolution, Resolution::R2160);
+    }
+
+    #[test]
+    fn sd_web_and_tv() {
+        let r = parse("Copper.Bell.1958.540p.WEB-DL.AAC2.0.H.264-GLOCKE");
+        assert_eq!(r.quality.resolution, Resolution::R480);
+        let r = parse("Copper.Bell.1958.576p.BluRay.x264-GLOCKE");
+        assert_eq!(r.quality.resolution, Resolution::R576);
+        let r = parse("Copper.Bell.1958.PDTV.x264-GLOCKE");
+        assert_eq!(r.quality.source, Source::Tv);
+        assert_eq!(r.quality.resolution, Resolution::R480);
+    }
+
+    #[test]
+    fn dual_language_original_only_with_german() {
+        let r = parse("Copper.Bell.1958.ITA.UHD.BluRay.2160p.HEVC.DTSMA.DL.Remux-GLOCKE");
+        assert_eq!(r.languages, [Language::Italian]);
+        let r = parse("Copper.Bell.1958.UHD.BluRay.2160p.HEVC.DTSMA.DL.Remux-GLOCKE");
+        assert!(r.languages.is_empty());
+    }
+
+    #[test]
+    fn group_rules() {
+        let r = parse("Copper.Bell.1958.1080p.NF.WEB-DL.AAC2.0.H.264-ATMOS");
+        assert_eq!(r.release_group.as_deref(), Some("ATMOS"));
+        let r = parse("Copper.Bell.1958.2160p.UHD.BluRay.REMUX.HDR-Jo.The.Smith");
+        assert_eq!(r.release_group.as_deref(), Some("Jo"));
+        let r = parse("Copper.Bell.1958.1080p.WEB.H.264-AB-CD-Retail-Multi");
+        assert_eq!(r.release_group.as_deref(), Some("Multi"));
+        let r = parse("Copper.Bell.1958.1080p.WEB-DL");
+        assert_eq!(r.release_group, None);
     }
 
     #[test]

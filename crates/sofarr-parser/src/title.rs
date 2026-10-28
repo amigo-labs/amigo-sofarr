@@ -115,14 +115,16 @@ fn find_year(
 }
 
 /// `…x264-GROUP`: unrecognised, dash-joined tokens at the end of the name.
+/// `…x264-GROUP`: the last dash-separated token after the metadata, extended backwards
+/// over dash-joined unrecognised tokens (`-D-Z0N3`). Scene words may serve as group
+/// names (`-ATMOS`), and words after the group are ignored (`-Ben.The.Men`).
 fn trailing_group(tokens: &[Token<'_>], tags: &[Tag], boundary: usize) -> Option<Range<usize>> {
-    let last = tokens.iter().rposition(|t| !t.bracketed)?;
-    let candidate = |i: usize| i > boundary && tags[i] == Tag::Plain && tokens[i].sep == Sep::Dash;
-    if !candidate(last) {
-        return None;
-    }
+    let dashed = |i: usize| i > boundary && !tokens[i].bracketed && tokens[i].sep == Sep::Dash;
+    let last = (boundary + 1..tokens.len())
+        .rev()
+        .find(|&i| dashed(i) && matches!(tags[i], Tag::Plain | Tag::Technical))?;
     let mut first = last;
-    while first > 0 && candidate(first - 1) {
+    while first > 0 && dashed(first - 1) && tags[first - 1] == Tag::Plain {
         first -= 1;
     }
     Some(first..last + 1)
