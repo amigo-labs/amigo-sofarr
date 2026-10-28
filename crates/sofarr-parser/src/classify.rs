@@ -22,6 +22,8 @@ pub enum Tag {
     Version(u8),
     Edition,
     Language(Language),
+    /// `DL`: dual language, i.e. the named language plus the original audio track.
+    DualLanguage,
     /// Codec, audio format, streaming service or scene tag: carries no field
     /// but clearly does not belong to the title.
     Technical,
@@ -34,7 +36,12 @@ impl Tag {
     pub fn is_strong(self) -> bool {
         matches!(
             self,
-            Self::Quality { .. } | Self::Proper | Self::Repack | Self::Version(_) | Self::Technical
+            Self::Quality { .. }
+                | Self::Proper
+                | Self::Repack
+                | Self::Version(_)
+                | Self::Technical
+                | Self::DualLanguage
         )
     }
 }
@@ -173,6 +180,8 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["truefrench"], Tag::Language(Language::French)),
     (&["vff"], Tag::Language(Language::French)),
     (&["vfq"], Tag::Language(Language::French)),
+    (&["vf2"], Tag::Language(Language::French)),
+    (&["vfi"], Tag::Language(Language::French)),
     (&["spanish"], Tag::Language(Language::Spanish)),
     (&["castellano"], Tag::Language(Language::Spanish)),
     (&["esp"], Tag::Language(Language::Spanish)),
@@ -216,6 +225,7 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["dts", "hd"], Tag::Technical),
     (&["dts", "x"], Tag::Technical),
     (&["aka"], Tag::Aka),
+    (&["dl"], Tag::DualLanguage),
 ];
 
 /// Single-token technical keywords: codecs, HDR formats, audio, streaming services, scene tags.
@@ -268,7 +278,6 @@ const TECHNICAL: &[&str] = &[
     "hc",
     "multi",
     "multisub",
-    "dl",
     "dual",
     "ac3d",
     "ld",
@@ -448,7 +457,7 @@ mod tests {
     #[test]
     fn phrases_do_not_cross_brackets() {
         assert_eq!(tags("WEB [DL]")[0], src(Source::WebDl));
-        assert_eq!(tags("WEB [DL]")[1], Tag::Technical);
+        assert_eq!(tags("WEB [DL]")[1], Tag::DualLanguage);
     }
 
     #[test]

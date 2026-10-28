@@ -201,6 +201,8 @@ pub enum Language {
     Turkish,
     Ukrainian,
     Vietnamese,
+    /// The film's original audio track, as in dual-language (`DL`) releases.
+    Original,
 }
 
 impl Language {
@@ -237,6 +239,7 @@ impl Language {
             Self::Turkish => "Turkish",
             Self::Ukrainian => "Ukrainian",
             Self::Vietnamese => "Vietnamese",
+            Self::Original => "Original",
         }
     }
 }

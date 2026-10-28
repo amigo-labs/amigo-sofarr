@@ -99,10 +99,55 @@ pub fn parse(title: &str) -> ParsedRelease {
     {
         release.quality.source = source;
     }
+    apply_quality_defaults(&mut release.quality, &tokens, &metadata);
+    if metadata.iter().any(|&i| tags[i] == Tag::DualLanguage)
+        && !release.languages.contains(&Language::Original)
+    {
+        release.languages.push(Language::Original);
+    }
     if !edition.is_empty() {
         release.edition = Some(edition.join(" "));
     }
     release
+}
+
+/// Rules that depend on the quality as a whole rather than on a single token.
+fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], metadata: &[usize]) {
+    // Does a keyword occur in the metadata, as one token or split over two?
+    let has = |glued: &[&str], split: &[(&str, &str)]| {
+        metadata.iter().any(|&i| {
+            let key = tokens[i].key.as_str();
+            glued.contains(&key)
+                || tokens
+                    .get(i + 1)
+                    .is_some_and(|next| split.contains(&(key, next.key.as_str())))
+        })
+    };
+
+    // Full Blu-ray discs name the disc's video codec; encodes name the encoder.
+    let disc_codec = has(&["avc", "vc1", "mpeg2"], &[("vc", "1"), ("mpeg", "2")]);
+    let encoder = has(
+        &["x264", "x265", "h264", "h265"],
+        &[("x", "264"), ("x", "265"), ("h", "264"), ("h", "265")],
+    );
+    if quality.source == Source::BluRay
+        && quality.modifier == Modifier::None
+        && disc_codec
+        && !encoder
+    {
+        quality.modifier = Modifier::BrDisk;
+    }
+
+    // Blu-ray and web releases without a resolution are standard definition.
+    if quality.resolution == Resolution::Unknown
+        && quality.modifier == Modifier::None
+        && matches!(
+            quality.source,
+            Source::BluRay | Source::WebDl | Source::WebRip
+        )
+    {
+        quality.resolution = Resolution::R480;
+    }
 }
 
 #[cfg(test)]
@@ -281,7 +326,7 @@ mod tests {
     fn languages() {
         let r = parse("Der.Stille.Hafen.2016.German.DL.1080p.BluRay.x264-HAFEN");
         assert_eq!(r.title(), Some("Der Stille Hafen"));
-        assert_eq!(r.languages, [Language::German]);
+        assert_eq!(r.languages, [Language::German, Language::Original]);
 
         let r = parse("Le.Petit.Jardin.2013.FRENCH.720p.BluRay-G");
         assert_eq!(r.languages, [Language::French]);
@@ -292,6 +337,55 @@ mod tests {
         let r = parse("Ein.Kleines.Haus.German.1080p.WEB-DL-G");
         assert_eq!(r.title(), Some("Ein Kleines Haus"));
         assert_eq!(r.languages, [Language::German]);
+    }
+
+    #[test]
+    fn dual_language_adds_original() {
+        let r = parse("Leiser.Sturm.2019.German.DL.1080p.WEB.h264-WIND");
+        assert_eq!(r.languages, [Language::German, Language::Original]);
+        assert_eq!(r.title(), Some("Leiser Sturm"));
+
+        let r = parse("Leiser.Sturm.2019.German.1080p.WEB.h264-WIND");
+        assert_eq!(r.languages, [Language::German]);
+    }
+
+    #[test]
+    fn french_version_tags() {
+        let r = parse("Vent.Calme.2019.MULTi.VF2.1080p.WEB.H265-BRISE");
+        assert_eq!(r.languages, [Language::French]);
+    }
+
+    #[test]
+    fn standard_definition_default() {
+        let r = parse("Grey.Harbour.2017.BDRip.x264-NEBEL");
+        assert_eq!(r.quality.resolution, Resolution::R480);
+        let r = parse("Grey.Harbour.2017.German.DL.WebRip.x264-NEBEL");
+        assert_eq!(r.quality.resolution, Resolution::R480);
+        // DVDs and unknown sources keep an unknown resolution.
+        let r = parse("Grey.Harbour.2017.DVDRip.x264-NEBEL");
+        assert_eq!(r.quality.resolution, Resolution::Unknown);
+        let r = parse("Grey.Harbour.2017.x264-NEBEL");
+        assert_eq!(r.quality.resolution, Resolution::Unknown);
+    }
+
+    #[test]
+    fn full_disc_versus_remux_and_encode() {
+        let r = parse("Copper.Bell.1958.1080p.EUR.Blu-ray.AVC.DTS-HD.MA.2.0-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::BrDisk);
+        assert_eq!(r.quality.source, Source::BluRay);
+        assert_eq!(r.quality.resolution, Resolution::R1080);
+
+        let r = parse("Copper.Bell.1958.1080p.Blu-ray.VC-1.LPCM.2.0-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::BrDisk);
+
+        let r = parse("Copper.Bell.1958.1080p.Blu-ray.Remux.AVC.FLAC.2.0-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::Remux);
+
+        let r = parse("Copper.Bell.1958.1080p.BluRay.AVC.x264-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::None);
+
+        let r = parse("Copper.Bell.1958.1080p.WEB-DL.AVC-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::None);
     }
 
     #[test]
