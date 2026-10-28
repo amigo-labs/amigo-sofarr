@@ -3,16 +3,16 @@
 #   SOFARR_UPDATE_BASELINE=1 cargo test -p sofarr-parser --test oracle
 
 [fixtures]
-count = 198
-fingerprint = "fnv1a64:e2e9163f62954aaa"
+count = 496
+fingerprint = "fnv1a64:d775e10bc0ff7655"
 
 [permille]
 edition = 1000
 languages = 1000
-modifier = 993
-release_group = 1000
+modifier = 1000
+release_group = 997
 resolution = 1000
 revision = 1000
 source = 1000
-title = 1000
+title = 997
 year = 1000
