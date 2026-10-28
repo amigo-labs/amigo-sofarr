@@ -12,7 +12,9 @@ mod model;
 mod title;
 mod token;
 
-pub use model::{Language, Modifier, ParsedRelease, Quality, Resolution, Revision, Source};
+pub use model::{
+    HardcodedSubs, Language, Modifier, ParsedRelease, Quality, Resolution, Revision, Source,
+};
 
 use classify::Tag;
 
@@ -42,7 +44,9 @@ pub fn parse(title: &str) -> ParsedRelease {
         .filter(|&i| !in_group(i))
         .collect();
 
-    let mut implied_source = None;
+    // Source implied by a modifier, and whether it came from a bare `REMUX` (`BD.Remux`
+    // names the disc).
+    let mut implied_source: Option<(Source, bool)> = None;
     let mut resolution_from_keyword = false;
     let mut edition: Vec<&str> = Vec::new();
     let mut edition_done = false;
@@ -58,7 +62,9 @@ pub fn parse(title: &str) -> ParsedRelease {
                 match (source, modifier) {
                     // A modifier only implies a source; an explicit source takes precedence.
                     (Some(s), Some(_)) => {
-                        implied_source.get_or_insert(s);
+                        let bare =
+                            tokens[i].key == "remux" && (i == 0 || tokens[i - 1].key != "bd");
+                        implied_source.get_or_insert((s, bare));
                     }
                     (Some(s), None) if quality.source == Source::Unknown => quality.source = s,
                     _ => {}
@@ -117,9 +123,14 @@ pub fn parse(title: &str) -> ParsedRelease {
         }
     }
     if release.quality.source == Source::Unknown
-        && let Some(source) = implied_source
+        && let Some((source, bare_remux)) = implied_source
     {
-        release.quality.source = source;
+        // A bare `REMUX` with neither source nor resolution says too little.
+        if bare_remux && release.quality.resolution == Resolution::Unknown {
+            release.quality.modifier = Modifier::None;
+        } else {
+            release.quality.source = source;
+        }
     }
     apply_quality_defaults(&mut release.quality, &tokens, &metadata);
     // `German.DL` is German plus the original track; `DL` alone or with other
@@ -143,7 +154,24 @@ pub fn parse(title: &str) -> ParsedRelease {
     if !edition.is_empty() {
         release.edition = Some(edition.join(" "));
     }
+    release.hardcoded_subs = tokens[layout.metadata_start..]
+        .iter()
+        .find_map(hardcoded_subs);
     release
+}
+
+/// `SUBBED` and `HC` mark burnt-in subtitles; a short language code glued to `sub(s)`
+/// (`NLsub`, `DKsubs`, `Esub`) names them. `SUBS` alone means soft subtitles.
+fn hardcoded_subs(token: &token::Token<'_>) -> Option<HardcodedSubs> {
+    let key = token.key.as_str();
+    if matches!(key, "subbed" | "hc") {
+        return Some(HardcodedSubs::Generic);
+    }
+    let code = key
+        .strip_suffix("subs")
+        .or_else(|| key.strip_suffix("sub"))?;
+    ((1..=3).contains(&code.len()) && code.bytes().all(|b| b.is_ascii_alphabetic()))
+        .then(|| HardcodedSubs::Tagged(token.text.to_owned()))
 }
 
 /// Audio formats found on Blu-ray discs (prefixes, so `dtshd` or `truehd7` match too).
@@ -626,6 +654,15 @@ mod tests {
     }
 
     #[test]
+    fn bare_remux_without_resolution_is_unknown() {
+        let r = parse("Slow Lantern-1971-Collection br remux avc-GRP");
+        assert_eq!(r.quality, Quality::default());
+        let r = parse("Slow.Lantern.1971.1080p.REMUX.AVC-GRP");
+        assert_eq!(r.quality.modifier, Modifier::Remux);
+        assert_eq!(r.quality.source, Source::BluRay);
+    }
+
+    #[test]
     fn untouched_video_without_disc_audio_is_remux() {
         let r = parse("Copper.Bell.1958.1080p.BluRay.AVC-GLOCKE");
         assert_eq!(r.quality.modifier, Modifier::Remux);
@@ -744,6 +781,33 @@ mod tests {
         assert_eq!(r.title(), Some("Simple Title"));
         assert_eq!(r.year, None);
         assert_eq!(r.quality, Quality::default());
+    }
+
+    #[test]
+    fn hardcoded_subs() {
+        let subs = |input: &str| parse(input).hardcoded_subs;
+        assert_eq!(
+            subs("Some.Film.2001.German.SUBBED.1080p.BluRay.x264-GRP"),
+            Some(HardcodedSubs::Generic)
+        );
+        assert_eq!(
+            subs("Some.Film.2001.1080p.HC.WEB-DL.x264-GRP"),
+            Some(HardcodedSubs::Generic)
+        );
+        assert_eq!(
+            subs("Some Film (2001) - 1080p - H265 BRRip - NLsub"),
+            Some(HardcodedSubs::Tagged("NLsub".into()))
+        );
+        assert_eq!(
+            subs("Some.Film.2001.Retail.DKsubs.1080p.WEB-DL.H.264-GRP"),
+            Some(HardcodedSubs::Tagged("DKsubs".into()))
+        );
+        // Soft subtitles and words that merely start with `sub`.
+        assert_eq!(subs("Some Film 2001 1080p WEB-DL X264 NL SUBS"), None);
+        assert_eq!(subs("Some.Film.2001.720p.H.264.Ita.Eng.Sub.Ita-GRP"), None);
+        assert_eq!(subs("Subspecies.1991.1080p.BluRay.REMUX.AVC-GRP"), None);
+        // A title word is not a tag.
+        assert_eq!(subs("Subbed.2001.1080p.WEB-DL.x264-GRP"), None);
     }
 
     #[test]

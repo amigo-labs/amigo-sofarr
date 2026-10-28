@@ -15,6 +15,7 @@ pub struct ParsedRelease {
     pub edition: Option<String>,
     pub release_group: Option<String>,
     pub languages: Vec<Language>,
+    pub hardcoded_subs: Option<HardcodedSubs>,
 }
 
 impl ParsedRelease {
@@ -166,6 +167,15 @@ impl fmt::Display for Modifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
+}
+
+/// Subtitles burnt into the video.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HardcodedSubs {
+    /// Only marked as subbed (`SUBBED`, `HC`), without a language.
+    Generic,
+    /// A tag naming the subtitle language (`NLsub`, `DKsubs`), as written in the title.
+    Tagged(String),
 }
 
 /// Re-release information.
