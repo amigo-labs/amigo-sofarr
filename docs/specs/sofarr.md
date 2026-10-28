@@ -19,7 +19,7 @@ ist bis auf Weiteres out of scope.
 
 | Stufe | Inhalt |
 |---|---|
-| v1 | Filme: Parser, Decision Engine, Newznab-RSS, TMDB, nzbget, Import/Rename, Jellyfin-Refresh |
+| v1 | Filme: Parser, Decision Engine, Newznab-RSS, TMDB, nzbget, Import/Rename, Import Lists (TMDb-Personen) |
 | v2 | Serien: Episoden-Parsing, Staffeln, Specials, Serien-Metadaten |
 | später | Web-UI, amigo-downloader als Download-Client, Integrationen mit v3-API-Kompatibilität |
 
@@ -35,7 +35,7 @@ Ein Binary (`amigo-sofarr`), ein Container, SQLite. Cargo-Workspace:
 | `sofarr-parser` | Release-Name → `ParsedRelease` | nein |
 | `sofarr-core` | Domänenmodell, Qualities, Profile, Custom Formats, Decision Engine | nein |
 | `sofarr-indexer` | Newznab: Caps, RSS, Suche | ja |
-| `sofarr-metadata` | TMDB (Serien-Provider: siehe §10) | ja |
+| `sofarr-metadata` | TMDB (Filme), TVDB (Serien, D10) | ja |
 | `sofarr-download` | `DownloadClient`-Trait, nzbget-Implementierung | ja |
 | `sofarr-db` | SQLite via sqlx, Migrations | ja |
 | `sofarr-server` | axum-API, Scheduler, Config, Binary `amigo-sofarr` | ja |
@@ -105,7 +105,7 @@ Regexes. Erlaubt: API-Beobachtung, Nutzer-Doku, allgemeines Wissen über Release
 | Integration | Wann | Wie |
 |---|---|---|
 | nzbget | Phase 4 | JSON-RPC, hinter `DownloadClient`-Trait |
-| Jellyfin | Phase 4 | Library-Refresh nach Import |
+| Jellyfin | – | nicht nötig: Jellyfin überwacht die Bibliothek selbst (D12) |
 | amigo-downloader | nach Radarr-Ablösung | zweite `DownloadClient`-Implementierung (braucht Headless-Modus/Library-Crate) |
 | Prowlarr, Jellyseerr, Bazarr | nur bei Bedarf | genau die v3-Endpoints, die diese Tools aufrufen |
 
@@ -121,10 +121,12 @@ Regexes. Erlaubt: API-Beobachtung, Nutzer-Doku, allgemeines Wissen über Release
 | D6 | nzbget als erster Download-Client | Läuft bereits; nie zwei neue Komponenten gleichzeitig live schalten |
 | D7 | Usenet only | Entspricht dem eigenen Setup |
 | D8 | Eigene API, v3-Kompatibilität nur für konkrete Integrationen | Keine Altlasten aus Sonarr-API nachbauen |
+| D9 | Indexer direkt per Newznab, kein Prowlarr | Entspricht dem eigenen Setup; `sofarr-indexer` spricht Newznab direkt, Prowlarr-Kompatibilität bleibt „nur bei Bedarf“ (§8) |
+| D10 | Serien-Metadaten über TVDB, Filme über TMDB | Gleiche Episoden-Reihenfolge wie Sonarr → Parity in Phase 5; ein zweiter Provider wird in Kauf genommen |
+| D11 | Import Lists (TMDb-Personen) vor der Radarr-Ablösung (Phase 4) | 5 aktive Listen im eigenen Setup; ohne sie kämen nach der Abschaltung keine neuen Filme mehr hinzu |
+| D12 | Kein Jellyfin-Refresh nach dem Import | Jellyfin überwacht die Bibliothek selbst; Radarr hat heute ebenfalls keine Notification konfiguriert |
 
 ## 10. Offene Fragen
 
-- Serien-Metadaten: TVDB (Sonarr-Ordering, Parity) vs. TMDB (ein Provider für alles). Entscheidung vor Phase 5.
-- Indexer direkt oder über Prowlarr? Abhängig vom eigenen Setup (Config-Export prüfen).
 - Web-UI: Stack und Zeitpunkt (Bun + React + TS, eingebettet per `rust-embed`, ist der Favorit).
 - amigo-downloader: Library-Crate oder Daemon mit API?

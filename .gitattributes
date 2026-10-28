@@ -1,0 +1,2 @@
+# Fixtures are appended to on every platform; keep them LF so lines stay byte-identical.
+*.jsonl text eol=lf
