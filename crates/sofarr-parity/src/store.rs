@@ -68,17 +68,22 @@ impl Store {
             known.insert(title.to_owned());
         }
 
+        // Truncate through a write handle: Windows refuses `set_len` on an append-only one.
+        if complete.len() < raw.len() {
+            OpenOptions::new()
+                .write(true)
+                .open(path)
+                .and_then(|f| f.set_len(complete.len() as u64))
+                .with_context(|| {
+                    format!("{}: unvollständige Zeile nicht entfernbar", path.display())
+                })?;
+            eprintln!("{}: unvollständige letzte Zeile entfernt", path.display());
+        }
         let file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(path)
             .with_context(|| format!("{} nicht schreibbar", path.display()))?;
-        if complete.len() < raw.len() {
-            file.set_len(complete.len() as u64).with_context(|| {
-                format!("{}: unvollständige Zeile nicht entfernbar", path.display())
-            })?;
-            eprintln!("{}: unvollständige letzte Zeile entfernt", path.display());
-        }
         Ok(Self {
             path: path.to_owned(),
             known,
