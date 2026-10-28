@@ -107,7 +107,8 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 
 ## Phase 3 – Bibliothek + Shadow-Mode
 
-- `sofarr-db` (SQLite, Migrations), `sofarr-metadata` (TMDB), `sofarr-indexer` (Newznab-RSS)
+- `sofarr-db` (SQLite, Migrations), `sofarr-metadata` (TMDB, inkl. deutscher Titel für
+  `{Movie Title:DE}`/`{Movie CleanTitle:DE}`), `sofarr-indexer` (Newznab-RSS)
 - Import der Bibliothek aus Radarr (Filme, Monitoring, Profile, Dateizuordnung)
 - RSS-Sync im Scheduler, **read-only**: loggt „würde grabben“
 - **Gate:** importierte Bibliothek deckungsgleich mit Radarr (fehlende Filme, Cutoff Unmet);
@@ -116,11 +117,15 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 ## Phase 4 – Grab + Import (Radarr ablösen)
 
 - nzbget hinter `DownloadClient`-Trait, Download-Überwachung
-- Import: Zuordnung (Orakel: `manualimport`), Rename (Orakel: `rename`), Hardlink/Move, Jellyfin-Refresh
+- Import: Zuordnung (Orakel: `manualimport`), Rename (Orakel: `rename`), Hardlink/Move
+  (kein Jellyfin-Refresh – Jellyfin scannt selbst, Spec D12)
+- Import Lists: TMDb-Personen-Listen (Orakel: `/api/v3/importlist`; hinzugefügte Filme gegen
+  Radarrs Bibliothek abgleichen), Spec D11
 - `/data` ohne `:ro` mounten, Radarr parallel pausieren statt löschen
-- **Gate:** vier Wochen Alleinbetrieb ohne manuellen Eingriff → Radarr abschalten
+- **Gate:** Import Lists laufen in sofarr; vier Wochen Alleinbetrieb ohne manuellen Eingriff
+  → Radarr abschalten
 
 ## Phase 5+ – Serien
 
-- Entscheidung TVDB vs. TMDB (Spec §10), dann Episoden-Parsing, Staffeln, Specials
+- Serien-Metadaten über TVDB (Spec D10), Episoden-Parsing, Staffeln, Specials
 - Gleicher Ablauf: Fixtures (Sonarr-`parse`) → Ratchet → Decision-Orakel → Shadow → Ablösung
