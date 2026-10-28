@@ -116,8 +116,8 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ### 2.3 Profile, Definitions, Custom Formats
 
-- [ ] 🤖 Domänenmodell + Import aus dem v3-JSON (pure, `thiserror`).
-- [ ] 🤖 Custom Formats: `LanguageSpecification`, `ReleaseGroupSpecification`,
+- [x] 🤖 Domänenmodell + Import aus dem v3-JSON (pure, `thiserror`).
+- [x] 🤖 Custom Formats: `LanguageSpecification`, `ReleaseGroupSpecification`,
       `ReleaseTitleSpecification` inkl. `negate`/`required`; Score aus dem Profil.
 
 ### 2.4 Decision Engine

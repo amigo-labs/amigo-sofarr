@@ -3,6 +3,18 @@
 //!
 //! Depends on `sofarr-parser`; must stay free of IO. Implementation: PLAN.md Phase 2.
 
+pub mod custom_format;
+pub mod definition;
+pub mod import;
+pub mod language;
+pub mod profile;
 pub mod quality;
+pub mod settings;
 
+pub use custom_format::{CustomFormat, CustomFormatId, ReleaseFacts};
+pub use definition::{QualityDefinition, QualityDefinitions};
+pub use import::RadarrConfig;
+pub use language::LanguageRef;
+pub use profile::{ProfileId, ProfileItem, QualityProfile};
 pub use quality::{NamedQuality, QualityCatalog, QualityId};
+pub use settings::{PropersPolicy, Settings};

@@ -7,10 +7,11 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-sofarr-parser.workspace = true
-
-[dev-dependencies]
+fancy-regex.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+sofarr-parser.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true
