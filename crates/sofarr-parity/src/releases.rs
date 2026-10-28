@@ -190,6 +190,15 @@ pub fn public_movie(movie: &Value) -> Value {
             Value::Object(pick(language, NAMED_KEYS)),
         );
     }
+    // Alternative titles decide whether a release belongs to the film.
+    if let Some(alternates) = movie["alternateTitles"].as_array() {
+        let titles = alternates
+            .iter()
+            .filter_map(|a| a["title"].as_str())
+            .map(|t| Value::String(t.to_owned()))
+            .collect();
+        out.insert("alternateTitles".into(), Value::Array(titles));
+    }
     if let Some(file) = movie.get("movieFile").filter(|f| f.is_object()) {
         out.insert(
             "movieFile".into(),
@@ -256,6 +265,7 @@ mod tests {
             "path": "/data/media/movies/Some Movie (2020)",
             "rootFolderPath": "/data/media/movies",
             "originalLanguage": {"id": 1, "name": "English"},
+            "alternateTitles": [{"id": 9, "movieMetadataId": 77, "sourceType": "tmdb", "title": "Ein Film"}],
             "movieFile": {"relativePath": "Some Movie (2020).mkv",
                           "path": "/data/media/movies/Some Movie (2020)/x.mkv",
                           "quality": {"quality": {"id": 7}}, "customFormatScore": 50}
@@ -267,5 +277,6 @@ mod tests {
         assert_eq!(public["runtime"], 101);
         assert_eq!(public["movieFile"]["customFormatScore"], 50);
         assert!(public["movieFile"].get("relativePath").is_none());
+        assert_eq!(public["alternateTitles"], json!(["Ein Film"]));
     }
 }

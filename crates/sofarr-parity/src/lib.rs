@@ -6,6 +6,7 @@
 
 pub mod collect;
 pub mod config;
+pub mod diff;
 pub mod export;
 pub mod http;
 pub mod matrix;

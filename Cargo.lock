@@ -899,6 +899,8 @@ dependencies = [
  "roxmltree",
  "serde",
  "serde_json",
+ "sofarr-core",
+ "sofarr-parser",
  "thiserror",
  "toml",
  "ureq",

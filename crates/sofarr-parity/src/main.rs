@@ -4,7 +4,7 @@
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use sofarr_parity::{collect, config::ParityConfig, export, http::HttpClient, matrix};
+use sofarr_parity::{collect, config::ParityConfig, diff, export, http::HttpClient, matrix};
 
 #[derive(Parser)]
 #[command(
@@ -52,6 +52,24 @@ enum Command {
         #[arg(long, default_value = "fixtures/public/config/radarr")]
         out: PathBuf,
     },
+    /// Vergleicht sofarrs Entscheidungen mit dem Orakel (öffentliche und private Fixtures), nur Report
+    Diff {
+        /// Was verglichen wird
+        #[arg(value_enum)]
+        target: DiffTarget,
+        /// Fixture-Verzeichnis (enthält public/ und private/)
+        #[arg(long, default_value = "fixtures")]
+        fixtures: PathBuf,
+        /// Config aus `export-public`
+        #[arg(long, default_value = "fixtures/public/config/radarr")]
+        config: PathBuf,
+    },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum DiffTarget {
+    /// Grab-Entscheidungen gegen /api/v3/release
+    Releases,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -105,6 +123,23 @@ fn run(cli: Cli) -> anyhow::Result<()> {
         Command::ExportPublic { exports, out } => {
             for name in export::write(&exports, &out)? {
                 println!("{} geschrieben", out.join(name).display());
+            }
+            Ok(())
+        }
+        Command::Diff {
+            target: DiffTarget::Releases,
+            fixtures,
+            config,
+        } => {
+            let config = diff::load_config(&config)?.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "keine vollständige Config unter {} (erst `export-public` ausführen)",
+                    config.display()
+                )
+            })?;
+            for label in ["public", "private"] {
+                let set = diff::load_dir(&fixtures.join(label))?;
+                print!("{}", diff::evaluate(&config, &set).render(label));
             }
             Ok(())
         }

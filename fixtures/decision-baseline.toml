@@ -1,0 +1,14 @@
+# Decision-Ratchet: Pass-Rate pro Feld in Promille, nur über fixtures/public/.
+# Nicht von Hand pflegen – neu schreiben mit:
+#   SOFARR_UPDATE_BASELINE=1 cargo test -p sofarr-parity --test release_oracle
+
+[fixtures]
+count = 53
+fingerprint = "fnv1a64:b07bf574870ae527"
+
+[permille]
+approved = 1000
+custom_formats = 1000
+quality = 1000
+rejections = 1000
+score = 1000
