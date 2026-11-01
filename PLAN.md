@@ -11,7 +11,7 @@
 Workspace mit allen Crates (Stubs), `sofarr-server` mit Config, `GET /api/health`,
 `healthcheck`-Subcommand, Graceful Shutdown, Dockerfile (`scratch`), CI, Export-Script.
 
-- [ ] 👤 Push auf `main`, CI grün (fmt, clippy, test, Docker-Build)
+- [x] 👤 Push auf `main`, CI grün (fmt, clippy, test, Docker-Build)
 - [ ] 👤 `compose.example.yml` in die eigene Compose übernehmen, Container startet, Status `healthy`
 
 **Gate:** CI grün, Container läuft neben Radarr.
@@ -24,8 +24,8 @@ Ziel: Ein wachsendes, echtes Orakel-Fixture-Set und ein eigener Parser, der dage
 
 ### 1.1 Config-Export und Parity-Matrix
 
-- [ ] 👤 `scripts/export-arr-config.sh` ausführen → `fixtures/private/config/`
-- [ ] 🤖 `docs/parity.md` aus den Exporten erstellen (Generator fertig: `cargo run -p sofarr-parity -- matrix`;
+- [x] 👤 `scripts/export-arr-config.sh` ausführen → `fixtures/private/config/`
+- [x] 🤖 `docs/parity.md` aus den Exporten erstellen (Generator fertig: `cargo run -p sofarr-parity -- matrix`;
       Gerüst committet – erzeugt wird lokal, weil die Exporte Secrets enthalten): Welche Features nutzt das Setup tatsächlich?
       (Quality Profiles inkl. Cutoff/Upgrade, Custom Formats inkl. verwendeter Bedingungstypen,
       Naming-Tokens, Indexer-Typen, Download-Client, Notifications, Delay Profiles, Tags.)
