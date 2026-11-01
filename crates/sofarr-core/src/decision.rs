@@ -126,6 +126,10 @@ pub enum Rejection {
         age_minutes: f64,
         minimum: u32,
     },
+    /// Series: the release names episodes the series does not have.
+    UnknownEpisode,
+    /// Series: none of the covered episodes is monitored and already aired.
+    EpisodeNotWanted,
 }
 
 impl Rejection {
@@ -156,6 +160,8 @@ impl Rejection {
             Self::MaximumSizeExceeded { .. } => "maximum_size_exceeded",
             Self::OutsideRetention { .. } => "outside_retention",
             Self::TooYoung { .. } => "too_young",
+            Self::UnknownEpisode => "unknown_episode",
+            Self::EpisodeNotWanted => "episode_not_wanted",
         }
     }
 }
@@ -227,6 +233,10 @@ impl fmt::Display for Rejection {
                 f,
                 "{age_minutes:.0} Minuten alt, Mindestalter {minimum} Minuten"
             ),
+            Self::UnknownEpisode => f.write_str("Episode gehört nicht zur Serie"),
+            Self::EpisodeNotWanted => {
+                f.write_str("keine der Episoden ist überwacht und bereits ausgestrahlt")
+            }
         }
     }
 }
@@ -263,6 +273,23 @@ pub fn decide(
     {
         return rejected(parsed, quality, Rejection::UnknownMovie);
     }
+    evaluate(config, profile, release, parsed, movie)
+}
+
+/// The rules shared by films and series: quality, language, size, custom formats,
+/// upgrades and indexer limits. Identifying the film or episode is the caller's job.
+pub fn evaluate(
+    config: &RadarrConfig,
+    profile: &QualityProfile,
+    release: &ReleaseInput<'_>,
+    parsed: ParsedRelease,
+    movie: &MovieContext,
+) -> Decision {
+    let quality = config
+        .definitions
+        .catalog()
+        .resolve(&parsed.quality)
+        .clone();
     let languages = release.languages.unwrap_or(&parsed.languages);
     let facts = ReleaseFacts {
         title: release.title,
@@ -385,6 +412,27 @@ fn indexer_rules(
             minimum: settings.minimum_age_minutes,
         });
     }
+}
+
+/// Orders approved decisions: the best release compares greatest. Quality rank in the
+/// profile first, then custom format score, then revision (unless propers are ignored),
+/// then size (bigger first).
+pub fn compare(
+    profile: &QualityProfile,
+    propers: crate::PropersPolicy,
+    a: (&Decision, u64),
+    b: (&Decision, u64),
+) -> std::cmp::Ordering {
+    let revision = |d: &Decision| (d.parsed.revision.version, d.parsed.revision.real);
+    profile
+        .rank(a.0.quality.id)
+        .cmp(&profile.rank(b.0.quality.id))
+        .then(a.0.score.cmp(&b.0.score))
+        .then_with(|| match propers {
+            crate::PropersPolicy::DoNotPrefer => std::cmp::Ordering::Equal,
+            _ => revision(a.0).cmp(&revision(b.0)),
+        })
+        .then(a.1.cmp(&b.1))
 }
 
 #[cfg(test)]

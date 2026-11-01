@@ -35,7 +35,7 @@ COMMON=(
   config/indexer
   config/downloadclient
 )
-RADARR_ONLY=(movie)
+RADARR_ONLY=(movie exclusions)
 SONARR_ONLY=(series)
 
 export_app () {

@@ -2,7 +2,7 @@
 
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::Context;
@@ -15,6 +15,192 @@ pub const DEFAULT_PORT: u16 = 7676;
 pub struct Config {
     pub server: ServerConfig,
     pub log: LogConfig,
+    pub database: DatabaseConfig,
+    pub automation: AutomationConfig,
+    pub rss: RssConfig,
+    pub tmdb: Option<TmdbConfig>,
+    pub radarr: Option<RadarrConfig>,
+    /// The Sonarr instance for series import and comparisons (Phase 5).
+    pub sonarr: Option<RadarrConfig>,
+    pub tvdb: Option<TvdbConfig>,
+    #[serde(rename = "indexer")]
+    pub indexers: Vec<IndexerConfig>,
+    pub nzbget: Option<NzbgetConfig>,
+    pub download: DownloadConfig,
+    pub import_lists: ImportListConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NzbgetConfig {
+    /// Base URL, e.g. `http://nzbget:6789`.
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    #[serde(default = "default_category")]
+    pub category: String,
+    #[serde(default = "default_tv_category")]
+    pub tv_category: String,
+}
+
+fn default_tv_category() -> String {
+    "tv".to_owned()
+}
+
+fn default_category() -> String {
+    "movies".to_owned()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DownloadConfig {
+    /// Minutes between checks of the download client.
+    pub check_interval_minutes: u64,
+    /// Path translations between the download client's view and sofarr's.
+    pub path_map: Vec<PathMap>,
+}
+
+impl Default for DownloadConfig {
+    fn default() -> Self {
+        Self {
+            check_interval_minutes: 2,
+            path_map: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PathMap {
+    /// Prefix as the download client reports it.
+    pub remote: String,
+    /// The same folder inside the sofarr container.
+    pub local: String,
+}
+
+impl DownloadConfig {
+    /// Translates a path reported by the download client.
+    pub fn map_path(&self, remote: &str) -> PathBuf {
+        for map in &self.path_map {
+            let prefix = map.remote.trim_end_matches('/');
+            if let Some(rest) = remote.strip_prefix(prefix)
+                && (rest.is_empty() || rest.starts_with('/'))
+            {
+                return PathBuf::from(format!("{}{rest}", map.local.trim_end_matches('/')));
+            }
+        }
+        PathBuf::from(remote)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ImportListConfig {
+    /// Hours between import list syncs; 0 disables them.
+    pub interval_hours: u64,
+}
+
+impl Default for ImportListConfig {
+    fn default() -> Self {
+        Self { interval_hours: 24 }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DatabaseConfig {
+    pub path: PathBuf,
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self {
+            path: PathBuf::from("/config/sofarr.db"),
+        }
+    }
+}
+
+/// Whether sofarr acts or only logs what it would do.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Mode {
+    /// Read-only: decisions are logged and stored, nothing is sent or moved.
+    #[default]
+    Shadow,
+    /// Grabs go to the download client, finished downloads are imported.
+    Live,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AutomationConfig {
+    pub mode: Mode,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RssConfig {
+    /// Minutes between RSS syncs; 0 disables the scheduler.
+    pub interval_minutes: u64,
+}
+
+impl Default for RssConfig {
+    fn default() -> Self {
+        Self {
+            interval_minutes: 30,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TmdbConfig {
+    /// TMDB v3 API key or v4 read access token.
+    pub api_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TvdbConfig {
+    pub api_key: String,
+    /// Subscriber PIN, if the key needs one.
+    pub pin: Option<String>,
+}
+
+/// The Radarr instance sofarr imports from and compares against.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RadarrConfig {
+    pub url: String,
+    pub api_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IndexerConfig {
+    pub name: String,
+    /// Full Newznab API endpoint, e.g. `https://indexer.example/api`.
+    pub url: String,
+    pub api_key: String,
+    #[serde(default = "default_categories")]
+    pub categories: Vec<u32>,
+    /// Series categories, fetched together with the movie categories.
+    #[serde(default = "default_tv_categories")]
+    pub tv_categories: Vec<u32>,
+    #[serde(default = "default_limit")]
+    pub limit: u32,
+}
+
+fn default_tv_categories() -> Vec<u32> {
+    vec![5000]
+}
+
+fn default_categories() -> Vec<u32> {
+    vec![2000]
+}
+
+fn default_limit() -> u32 {
+    100
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,7 +253,15 @@ impl Config {
     }
 
     pub fn parse(raw: &str) -> anyhow::Result<Self> {
-        Ok(toml::from_str(raw)?)
+        let config: Self = toml::from_str(raw)?;
+        let mut names: Vec<&str> = config.indexers.iter().map(|i| i.name.as_str()).collect();
+        names.sort_unstable();
+        names.dedup();
+        anyhow::ensure!(
+            names.len() == config.indexers.len(),
+            "Indexer-Namen müssen eindeutig sein"
+        );
+        Ok(config)
     }
 }
 
@@ -86,6 +280,39 @@ mod tests {
     fn example_config_is_valid() {
         let raw = include_str!("../../../config/sofarr.example.toml");
         Config::parse(raw).expect("config/sofarr.example.toml must stay valid");
+    }
+
+    #[test]
+    fn full_config_parses() {
+        let config = Config::parse(
+            "[automation]\nmode = \"live\"\n[rss]\ninterval_minutes = 15\n\
+             [tmdb]\napi_key = \"k\"\n[[indexer]]\nname = \"a\"\nurl = \"http://i/api\"\napi_key = \"k\"\n",
+        )
+        .expect("valid");
+        assert_eq!(config.automation.mode, Mode::Live);
+        assert_eq!(config.rss.interval_minutes, 15);
+        assert_eq!(config.indexers[0].categories, [2000]);
+        assert!(
+            Config::parse("[[indexer]]\nname = \"a\"\nurl = \"u\"\napi_key = \"k\"\n[[indexer]]\nname = \"a\"\nurl = \"u\"\napi_key = \"k\"\n")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn maps_download_paths() {
+        let config = Config::parse(
+            "[[download.path_map]]\nremote = \"/downloads/\"\nlocal = \"/data/usenet\"\n",
+        )
+        .expect("valid");
+        assert_eq!(
+            config.download.map_path("/downloads/completed/movies/A"),
+            PathBuf::from("/data/usenet/completed/movies/A")
+        );
+        assert_eq!(
+            config.download.map_path("/downloadsx/a"),
+            PathBuf::from("/downloadsx/a")
+        );
+        assert_eq!(config.download.check_interval_minutes, 2);
     }
 
     #[test]

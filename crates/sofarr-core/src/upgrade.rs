@@ -49,11 +49,7 @@ pub(crate) fn rules(
     };
     let better_revision = quality == Ordering::Equal && revision == Ordering::Greater;
 
-    let cutoff_rank = if profile.upgrade_allowed {
-        profile.cutoff_rank()
-    } else {
-        profile.items.iter().position(|i| i.allowed())
-    };
+    let cutoff_rank = profile.effective_cutoff_rank();
     let quality_cutoff_met = matches!((file_rank, cutoff_rank), (Some(f), Some(c)) if f >= c);
     let cutoff_met = quality_cutoff_met
         && file.custom_format_score >= profile.cutoff_format_score

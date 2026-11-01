@@ -9,3 +9,58 @@ bind = "0.0.0.0:7676"
 # Wird von RUST_LOG überschrieben, falls gesetzt.
 level = "info"      # trace | debug | info | warn | error
 format = "pretty"   # pretty | json
+
+[database]
+path = "/config/sofarr.db"
+
+[automation]
+# shadow: nur protokollieren, was sofarr tun würde (nichts wird heruntergeladen oder verschoben)
+# live:   Releases an den Download-Client schicken und fertige Downloads importieren
+mode = "shadow"
+
+[rss]
+interval_minutes = 30   # 0 schaltet den RSS-Sync ab
+
+# TMDB-Zugang (v3-API-Key oder v4-Read-Token) – für Metadaten und Import Lists.
+# [tmdb]
+# api_key = "dein-tmdb-key"
+
+# Radarr-Instanz für den einmaligen Import und die Abgleiche.
+# [radarr]
+# url = "http://radarr:7878"
+# api_key = "dein-radarr-api-key"
+
+# Newznab-Indexer (beliebig viele Blöcke).
+# [[indexer]]
+# name = "mein-indexer"
+# url = "https://indexer.example/api"
+# api_key = "dein-indexer-api-key"
+# categories = [2000]
+# tv_categories = [5000]
+# limit = 100
+
+# Serien (Phase 5): Sonarr für den Import, TVDB für Metadaten.
+# [sonarr]
+# url = "http://sonarr:8989"
+# api_key = "dein-sonarr-api-key"
+# [tvdb]
+# api_key = "dein-tvdb-key"
+# pin = "optional"
+
+# Download-Client (nur im Modus "live" genutzt).
+# [nzbget]
+# url = "http://nzbget:6789"
+# username = "nzbget"
+# password = "dein-passwort"
+# category = "movies"
+# tv_category = "tv"
+
+[download]
+check_interval_minutes = 2
+# Falls nzbget Pfade anders sieht als sofarr (andere Container-Mounts):
+# [[download.path_map]]
+# remote = "/downloads"
+# local = "/data/usenet"
+
+[import_lists]
+interval_hours = 24   # 0 schaltet die Import Lists ab

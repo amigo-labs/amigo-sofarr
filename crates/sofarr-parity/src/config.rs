@@ -17,6 +17,8 @@ pub const DEFAULT_PAGES: u32 = 1;
 #[serde(deny_unknown_fields)]
 pub struct ParityConfig {
     pub radarr: RadarrConfig,
+    /// Oracle for series (Phase 5, `collect --app sonarr`); same API shape as Radarr.
+    pub sonarr: Option<RadarrConfig>,
     #[serde(default, rename = "indexer")]
     pub indexers: Vec<IndexerConfig>,
     /// Maximum requests per second, over all hosts together.
@@ -39,10 +41,17 @@ pub struct IndexerConfig {
     pub api_key: String,
     #[serde(default = "default_categories")]
     pub categories: Vec<u32>,
+    /// Categories for series fixtures (`collect --app sonarr`).
+    #[serde(default = "default_tv_categories")]
+    pub tv_categories: Vec<u32>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     #[serde(default = "default_pages")]
     pub pages: u32,
+}
+
+fn default_tv_categories() -> Vec<u32> {
+    vec![5000]
 }
 
 fn default_rate_limit() -> f64 {

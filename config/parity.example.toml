@@ -10,11 +10,17 @@ rate_limit_per_sec = 2.0
 url = "http://localhost:7878"
 api_key = "dein-radarr-api-key"
 
+# Orakel für Serien (Phase 5, `collect --app sonarr`) – optional.
+# [sonarr]
+# url = "http://localhost:8989"
+# api_key = "dein-sonarr-api-key"
+
 # Newznab-Indexer für die öffentlichen RSS-Fixtures (beliebig viele Blöcke).
 # url ist der vollständige API-Endpunkt (meist mit /api am Ende).
 [[indexer]]
 url = "https://indexer.example/api"
 api_key = "dein-indexer-api-key"
 categories = [2000]   # Filme; die meisten Indexer liefern die Unterkategorien mit
+tv_categories = [5000] # Serien (für `collect --app sonarr`)
 limit = 200           # Releases pro Seite (der Indexer begrenzt auf sein Maximum, siehe t=caps)
 pages = 1             # Seiten pro Lauf; jede Seite blättert weiter zurück (limit × pages Releases)

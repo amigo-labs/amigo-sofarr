@@ -41,6 +41,9 @@ enum Command {
         /// Nur mit --source releases: genau diese Filme abfragen (Radarr-Id, wiederholbar)
         #[arg(long = "movie-id")]
         movie_ids: Vec<u64>,
+        /// Welches Orakel gefragt wird (Filme: radarr, Serien: sonarr)
+        #[arg(long, value_enum, default_value_t = AppArg::Radarr)]
+        app: AppArg,
     },
     /// Erzeugt docs/parity.md aus dem Config-Export (scripts/export-arr-config.sh)
     Matrix {
@@ -87,6 +90,12 @@ enum DiffTarget {
 }
 
 #[derive(Clone, Copy, ValueEnum)]
+enum AppArg {
+    Radarr,
+    Sonarr,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
 enum SourceArg {
     Rss,
     History,
@@ -115,6 +124,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             movies,
             with_file,
             movie_ids,
+            app,
         } => {
             let config = ParityConfig::load(&config)?;
             let http = HttpClient::new(config.rate_limit_per_sec, true);
@@ -128,7 +138,10 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                     ids: movie_ids,
                 },
             };
-            let summary = collect::run(&config, &http, &fixtures, sources)?;
+            let summary = match app {
+                AppArg::Radarr => collect::run(&config, &http, &fixtures, sources)?,
+                AppArg::Sonarr => collect::run_sonarr(&config, &http, &fixtures, &sources)?,
+            };
             println!(
                 "Neue Fixtures: {} öffentlich (RSS), {} privat (History), {} Releases",
                 summary.rss_new, summary.history_new, summary.releases_new

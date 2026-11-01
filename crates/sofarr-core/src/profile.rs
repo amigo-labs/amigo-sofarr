@@ -87,6 +87,22 @@ impl QualityProfile {
         self.items.iter().position(|i| i.id() == self.cutoff)
     }
 
+    /// Rank from which a file needs no further quality upgrades: the cutoff item, or –
+    /// for a profile without upgrades – the lowest allowed quality.
+    pub fn effective_cutoff_rank(&self) -> Option<usize> {
+        if self.upgrade_allowed {
+            self.cutoff_rank()
+        } else {
+            self.items.iter().position(ProfileItem::allowed)
+        }
+    }
+
+    /// Whether a file of this quality and score meets the cutoff (quality and score).
+    pub fn cutoff_met(&self, quality: QualityId, score: i32) -> bool {
+        matches!((self.rank(quality), self.effective_cutoff_rank()), (Some(f), Some(c)) if f >= c)
+            && score >= self.cutoff_format_score
+    }
+
     /// Profile score for a set of matched custom formats.
     pub fn score(&self, formats: &[CustomFormatId]) -> i32 {
         self.format_scores

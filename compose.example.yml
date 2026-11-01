@@ -11,6 +11,7 @@ services:
     volumes:
       - ./sofarr-config:/config
       - /pfad/zu/data:/data:ro     # gleiches Layout wie bei Radarr (Hardlinks!)
+                                   # Live-Modus (Phase 4): ":ro" entfernen
     environment:
       RUST_LOG: info
     restart: unless-stopped
