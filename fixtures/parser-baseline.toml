@@ -8,6 +8,7 @@ fingerprint = "fnv1a64:50df2d88fbe9dd4b"
 
 [permille]
 edition = 999
+hardcoded_subs = 1000
 languages = 993
 modifier = 999
 release_group = 994

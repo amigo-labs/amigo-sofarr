@@ -23,6 +23,7 @@ sofarr-db = { path = "crates/sofarr-db" }
 anyhow = "1"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+fancy-regex = "0.20"
 jiff = "0.2"
 roxmltree = "0.21"
 serde = { version = "1", features = ["derive"] }

@@ -6,8 +6,11 @@
 
 pub mod collect;
 pub mod config;
+pub mod diff;
+pub mod export;
 pub mod http;
 pub mod matrix;
 pub mod newznab;
 pub mod radarr;
+pub mod releases;
 pub mod store;

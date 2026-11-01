@@ -4,7 +4,9 @@
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use sofarr_parity::{collect, config::ParityConfig, http::HttpClient, matrix};
+use sofarr_parity::{
+    collect, config::ParityConfig, diff, export, http::HttpClient, matrix, releases,
+};
 
 #[derive(Parser)]
 #[command(
@@ -30,6 +32,15 @@ enum Command {
         /// Welche Quellen gesammelt werden
         #[arg(long, value_enum, default_value_t = SourceArg::All)]
         source: SourceArg,
+        /// Nur mit --source releases: so viele überwachte Filme abfragen (jeder löst eine Indexer-Suche aus)
+        #[arg(long, default_value_t = 5)]
+        movies: usize,
+        /// Nur mit --source releases: Filme mit vorhandener Datei statt überwachter (Upgrade-Regeln)
+        #[arg(long)]
+        with_file: bool,
+        /// Nur mit --source releases: genau diese Filme abfragen (Radarr-Id, wiederholbar)
+        #[arg(long = "movie-id")]
+        movie_ids: Vec<u64>,
     },
     /// Erzeugt docs/parity.md aus dem Config-Export (scripts/export-arr-config.sh)
     Matrix {
@@ -40,13 +51,49 @@ enum Command {
         #[arg(long, default_value = "docs/parity.md")]
         out: PathBuf,
     },
+    /// Schreibt Quality Definitions, Profile und Custom Formats bereinigt nach fixtures/public/config/
+    ExportPublic {
+        /// Verzeichnis des Config-Exports
+        #[arg(long, default_value = "fixtures/private/config")]
+        exports: PathBuf,
+        /// Zielverzeichnis
+        #[arg(long, default_value = "fixtures/public/config/radarr")]
+        out: PathBuf,
+    },
+    /// Erzeugt die öffentlichen Release-Fixtures aus den privaten neu (nach Änderung der Whitelist)
+    RebuildReleases {
+        /// Fixture-Verzeichnis (enthält public/ und private/)
+        #[arg(long, default_value = "fixtures")]
+        fixtures: PathBuf,
+    },
+    /// Vergleicht sofarrs Entscheidungen mit dem Orakel (öffentliche und private Fixtures), nur Report
+    Diff {
+        /// Was verglichen wird
+        #[arg(value_enum)]
+        target: DiffTarget,
+        /// Fixture-Verzeichnis (enthält public/ und private/)
+        #[arg(long, default_value = "fixtures")]
+        fixtures: PathBuf,
+        /// Config aus `export-public`
+        #[arg(long, default_value = "fixtures/public/config/radarr")]
+        config: PathBuf,
+    },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum DiffTarget {
+    /// Grab-Entscheidungen gegen /api/v3/release
+    Releases,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
 enum SourceArg {
     Rss,
     History,
+    /// RSS und History
     All,
+    /// Grab-Entscheidungen (/api/v3/release) für einige überwachte Filme
+    Releases,
 }
 
 fn main() -> ExitCode {
@@ -65,6 +112,9 @@ fn run(cli: Cli) -> anyhow::Result<()> {
             config,
             fixtures,
             source,
+            movies,
+            with_file,
+            movie_ids,
         } => {
             let config = ParityConfig::load(&config)?;
             let http = HttpClient::new(config.rate_limit_per_sec, true);
@@ -72,17 +122,50 @@ fn run(cli: Cli) -> anyhow::Result<()> {
                 SourceArg::Rss => collect::Sources::Rss,
                 SourceArg::History => collect::Sources::History,
                 SourceArg::All => collect::Sources::All,
+                SourceArg::Releases => collect::Sources::Releases {
+                    movies,
+                    with_file,
+                    ids: movie_ids,
+                },
             };
             let summary = collect::run(&config, &http, &fixtures, sources)?;
             println!(
-                "Neue Fixtures: {} öffentlich (RSS), {} privat (History)",
-                summary.rss_new, summary.history_new
+                "Neue Fixtures: {} öffentlich (RSS), {} privat (History), {} Releases",
+                summary.rss_new, summary.history_new, summary.releases_new
             );
             Ok(())
         }
         Command::Matrix { exports, out } => {
             let rows = matrix::write(&exports, &out)?;
             println!("{} geschrieben ({rows} Features)", out.display());
+            Ok(())
+        }
+        Command::ExportPublic { exports, out } => {
+            for name in export::write(&exports, &out)? {
+                println!("{} geschrieben", out.join(name).display());
+            }
+            Ok(())
+        }
+        Command::RebuildReleases { fixtures } => {
+            let count = releases::rebuild_public(&fixtures)?;
+            println!("{count} öffentliche Release-Fixtures geschrieben");
+            Ok(())
+        }
+        Command::Diff {
+            target: DiffTarget::Releases,
+            fixtures,
+            config,
+        } => {
+            let config = diff::load_config(&config)?.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "keine vollständige Config unter {} (erst `export-public` ausführen)",
+                    config.display()
+                )
+            })?;
+            for label in ["public", "private"] {
+                let set = diff::load_dir(&fixtures.join(label))?;
+                print!("{}", diff::evaluate(&config, &set).render(label));
+            }
             Ok(())
         }
     }

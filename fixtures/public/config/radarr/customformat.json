@@ -1,0 +1,208 @@
+[
+  {
+    "id": 1,
+    "includeCustomFormatWhenRenaming": true,
+    "name": "German DL",
+    "specifications": [
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "(?i)german\\s*\\.?dl|(?<=\\bGerman\\b.*)(?<!\\bWEB[-_. ])\\bDL\\b|\\[DE\\+[a-z]{2}\\]|\\[[a-z]{2}\\+DE\\]|ger,\\s*[a-z]{3}\\]|\\[[a-z]{3}\\s*,\\s*ger\\]"
+          }
+        ],
+        "implementation": "ReleaseTitleSpecification",
+        "name": "German DL",
+        "negate": false,
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "includeCustomFormatWhenRenaming": false,
+    "name": "German DL 2",
+    "specifications": [
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "(?i)german\\s*\\.?dl|(?<=\\bGerman\\b.*)(?<!\\bWEB[-_. ])\\bDL\\b|\\[DE\\+[a-z]{2}\\]|\\[[a-z]{2}\\+DE\\]|ger,\\s*[a-z]{3}\\]|\\[[a-z]{3}\\s*,\\s*ger\\]"
+          }
+        ],
+        "implementation": "ReleaseTitleSpecification",
+        "name": "NOT German DL",
+        "negate": true,
+        "required": true
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": 4
+          },
+          {
+            "name": "exceptLanguage",
+            "value": false
+          }
+        ],
+        "implementation": "LanguageSpecification",
+        "name": "German",
+        "negate": false,
+        "required": true
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": 1
+          },
+          {
+            "name": "exceptLanguage",
+            "value": false
+          }
+        ],
+        "implementation": "LanguageSpecification",
+        "name": "English",
+        "negate": false,
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "includeCustomFormatWhenRenaming": false,
+    "name": "Language: Not GER",
+    "specifications": [
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": 4
+          },
+          {
+            "name": "exceptLanguage",
+            "value": false
+          }
+        ],
+        "implementation": "LanguageSpecification",
+        "name": "Not German Language",
+        "negate": true,
+        "required": true
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "(?i)\\bgerman\\b"
+          }
+        ],
+        "implementation": "ReleaseTitleSpecification",
+        "name": "Not German in Title",
+        "negate": true,
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "includeCustomFormatWhenRenaming": false,
+    "name": "Language: German Only",
+    "specifications": [
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": 4
+          },
+          {
+            "name": "exceptLanguage",
+            "value": false
+          }
+        ],
+        "implementation": "LanguageSpecification",
+        "name": "Language GER",
+        "negate": false,
+        "required": true
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "(?i)german\\s*\\.?dl|(?<=\\bGerman\\b.*)(?<!\\bWEB[-_. ])\\bDL\\b|\\[DE\\+[a-z]{2}\\]|\\[[a-z]{2}\\+DE\\]|ger,\\s*[a-z]{3}\\]|\\[[a-z]{3}\\s*,\\s*ger\\]"
+          }
+        ],
+        "implementation": "ReleaseTitleSpecification",
+        "name": "NOT German DL",
+        "negate": true,
+        "required": true
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": 1
+          },
+          {
+            "name": "exceptLanguage",
+            "value": false
+          }
+        ],
+        "implementation": "LanguageSpecification",
+        "name": "Not English",
+        "negate": true,
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "includeCustomFormatWhenRenaming": false,
+    "name": "x265-FuN",
+    "specifications": [
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "x[ ._-]?265|\\bHEVC(\\b|\\d)"
+          }
+        ],
+        "implementation": "ReleaseTitleSpecification",
+        "name": "x265",
+        "negate": false,
+        "required": true
+      },
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "^(FuN)$"
+          }
+        ],
+        "implementation": "ReleaseGroupSpecification",
+        "name": "FuN",
+        "negate": false,
+        "required": true
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "includeCustomFormatWhenRenaming": true,
+    "name": "MIC DUB",
+    "specifications": [
+      {
+        "fields": [
+          {
+            "name": "value",
+            "value": "((19|20|21)[0-9]{2}).*?(?<=^|[ .-])(MD|Mic)(?=[ .-]|$).*?(?<=^|[ .-])GERMAN(?=[ .-]|$)|((19|20|21)[0-9]{2}).*?(?<=^|[ .-])GERMAN(?=[ .-]|$).*?(?<=^|[ .-])(MD|Mic)(?=[ .-]|$)"
+          }
+        ],
+        "implementation": "ReleaseTitleSpecification",
+        "name": "MD|Mic",
+        "negate": false,
+        "required": true
+      }
+    ]
+  }
+]

@@ -10,6 +10,7 @@ use crate::{
     http::{HttpClient, host_of},
     newznab,
     radarr::Radarr,
+    releases,
     store::{Oracle, Record, Store},
 };
 
@@ -22,17 +23,26 @@ pub const HISTORY_FILE: &str = "private/radarr-parse-history.jsonl";
 /// in particular a matched `movie` with paths and library data – stays out.
 const PUBLIC_RESPONSE_KEYS: &[&str] = &["title", "parsedMovieInfo", "languages"];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Sources {
     Rss,
     History,
+    /// RSS and history; releases trigger indexer searches and are only collected on request.
     All,
+    /// Grab decisions for this many films: monitored ones, with `with_file` films that
+    /// already have a file, or exactly the films in `ids`.
+    Releases {
+        movies: usize,
+        with_file: bool,
+        ids: Vec<u64>,
+    },
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Summary {
     pub rss_new: usize,
     pub history_new: usize,
+    pub releases_new: usize,
 }
 
 pub fn run(
@@ -80,6 +90,16 @@ pub fn run(
             record_new(&radarr, &mut store, &titles, "history", &version, false)?;
     }
 
+    if let Sources::Releases {
+        movies,
+        with_file,
+        ids,
+    } = sources
+    {
+        summary.releases_new =
+            releases::collect(&radarr, fixtures, &version, movies, with_file, &ids)?;
+    }
+
     Ok(summary)
 }
 
@@ -113,6 +133,7 @@ fn record_new(
                 app: "radarr",
                 version,
             },
+            movie: None,
             response: if public {
                 public_response(response)
             } else {
