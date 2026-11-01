@@ -8,10 +8,12 @@
 //! from the classified sequence ([`title`]).
 
 mod classify;
+mod episode;
 mod model;
 mod title;
 mod token;
 
+pub use episode::{EpisodeInfo, parse_episode};
 pub use model::{
     HardcodedSubs, Language, Modifier, ParsedRelease, Quality, Resolution, Revision, Source,
 };

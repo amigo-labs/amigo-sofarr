@@ -162,25 +162,65 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 
 ## Phase 3 – Bibliothek + Shadow-Mode
 
-- `sofarr-db` (SQLite, Migrations), `sofarr-metadata` (TMDB, inkl. deutscher Titel für
-  `{Movie Title:DE}`/`{Movie CleanTitle:DE}`), `sofarr-indexer` (Newznab-RSS)
-- Import der Bibliothek aus Radarr (Filme, Monitoring, Profile, Dateizuordnung)
-- RSS-Sync im Scheduler, **read-only**: loggt „würde grabben“
+- [x] 🤖 `sofarr-db`: SQLite (sqlx), Migrationen, Filme, Dateien, Einstellungen, Grabs
+- [x] 🤖 `sofarr-metadata`: TMDB (Details, Alternativtitel, deutscher Titel für
+      `{Movie Title:DE}`/`{Movie CleanTitle:DE}`, Personen-Filmografie)
+- [x] 🤖 `sofarr-indexer`: Newznab-RSS und Filmsuche (IMDb-ID oder Text)
+- [x] 🤖 Import aus Radarr: `amigo-sofarr import-radarr` (laufende Instanz) oder
+      `--exports fixtures/private/config/radarr`; Profile, Custom Formats, Definitionen,
+      Einstellungen, Filme mit Überwachung, Profil und Datei
+- [x] 🤖 `amigo-sofarr refresh-metadata` ergänzt deutsche Titel aus TMDB
+- [x] 🤖 RSS-Sync im Scheduler (`[rss] interval_minutes`), im Shadow-Mode nur
+      „würde grabben“ (Log + Tabelle `grabs`, Status `shadow`); API `GET /api/grabs`
+- [x] 🤖 Gate-Werkzeuge: `amigo-sofarr compare-library` (Filme, Überwachung, Dateien,
+      fehlend, Cutoff unerfüllt) und `amigo-sofarr compare-history` (Grabs gegen Radarrs History)
+- [ ] 👤 `sofarr.toml` mit `[radarr]`, `[tmdb]`, `[[indexer]]` anlegen, `import-radarr` und
+      `refresh-metadata` ausführen, Container im Shadow-Mode laufen lassen
+- [ ] 👤 `compare-library` grün; nach zwei Wochen `compare-history` ohne unerklärte Abweichung
+
 - **Gate:** importierte Bibliothek deckungsgleich mit Radarr (fehlende Filme, Cutoff Unmet);
   zwei Wochen Shadow-Betrieb ohne unerklärte Abweichung gegenüber Radarrs History
 
 ## Phase 4 – Grab + Import (Radarr ablösen)
 
-- nzbget hinter `DownloadClient`-Trait, Download-Überwachung
-- Import: Zuordnung (Orakel: `manualimport`), Rename (Orakel: `rename`), Hardlink/Move
-  (kein Jellyfin-Refresh – Jellyfin scannt selbst, Spec D12)
-- Import Lists: TMDb-Personen-Listen (Orakel: `/api/v3/importlist`; hinzugefügte Filme gegen
-  Radarrs Bibliothek abgleichen), Spec D11
-- `/data` ohne `:ro` mounten, Radarr parallel pausieren statt löschen
+- [x] 🤖 `sofarr-download`: `DownloadClient`-Trait, nzbget per JSON-RPC (append, listgroups,
+      history, editqueue); NZB wird von sofarr geladen und als Inhalt übergeben
+- [x] 🤖 Live-Modus (`[automation] mode = "live"`): Grab an nzbget, Download-Überwachung
+      (`[download] check_interval_minutes`), Pfad-Übersetzung (`[[download.path_map]]`)
+- [x] 🤖 Import: größte Videodatei, Benennung nach `standardMovieFormat` (Tokens des Setups inkl.
+      `:DE`), Verschieben, alte Datei in den Papierkorb, Freier-Platz-Prüfung;
+      End-to-End-Test RSS → nzbget → Import
+- [x] 🤖 Import Lists: TMDb-Personen (Cast/Crew-Abteilungen, Ausschlüsse, Profil, Root Folder,
+      Ordnername nach `movieFolderFormat`, Suche beim Hinzufügen), `amigo-sofarr sync-import-lists`
+- [x] 🤖 Orakel-Werkzeuge: `amigo-sofarr compare-rename` (gegen `/api/v3/rename`) und
+      `compare-import-lists` (Listen-Filme gegen Radarrs Bibliothek)
+- [ ] 👤 `compare-rename` und `compare-import-lists` ohne unerklärte Abweichung
+- [ ] 👤 `/data` ohne `:ro` mounten, `[nzbget]` eintragen, `mode = "live"`, Radarr pausieren
+      (nicht löschen)
+
 - **Gate:** Import Lists laufen in sofarr; vier Wochen Alleinbetrieb ohne manuellen Eingriff
   → Radarr abschalten
 
 ## Phase 5+ – Serien
 
-- Serien-Metadaten über TVDB (Spec D10), Episoden-Parsing, Staffeln, Specials
-- Gleicher Ablauf: Fixtures (Sonarr-`parse`) → Ratchet → Decision-Orakel → Shadow → Ablösung
+- [x] 🤖 `sofarr-parser`: `parse_episode` – `S01E02`, Mehrfach-Episoden (`E01E02`, `E01-E03`, `E01-03`),
+      `1x02`, Staffelpakete (`S01`, `Staffel 1`, `S01-S04`), Daily (`2026.10.31`), Anime-Absolutnummern,
+      Specials (`S00`); Film-Fixtures werden nicht als Episoden erkannt (Test)
+- [x] 🤖 Orakel: `sofarr-parity collect --app sonarr` (`[sonarr]`, `tv_categories`) →
+      `fixtures/public/sonarr-parse.jsonl`; Harness + Ratchet `tests/episode_oracle.rs`
+      (`fixtures/parser-episode-baseline.toml`, entsteht mit den ersten Fixtures)
+- [x] 🤖 `sofarr-metadata::tvdb`: TVDB v4 (Login, Serie inkl. deutschem Titel, Episoden inkl.
+      deutscher Titel, Paging)
+- [x] 🤖 `sofarr-core`: Episoden-Entscheidung (abgedeckte Episoden, überwacht + ausgestrahlt,
+      Staffelpakete, Upgrades), Naming-Tokens für Serien inkl. `multiEpisodeStyle`
+- [x] 🤖 `sofarr-db`: Serien, Episoden, Episodendateien (Mehrfach-Episoden teilen eine Datei), Serien-Grabs
+- [x] 🤖 Server: `import-sonarr` (Einstellungen mit Präfix `sonarr_`, Serien, Episoden, Dateien),
+      `refresh-series` (TVDB), Serien im RSS-Sync (Shadow/Live), nzbget-Kategorie `tv_category`,
+      Episoden-Import mit Staffelordnern; End-to-End-Test RSS → nzbget → Import
+- [x] 🤖 Gate-Werkzeug `compare-series-library` (Serien, fehlende Episoden, Cutoff gegen Sonarr)
+- [ ] 👤 `collect --app sonarr` laufen lassen (≥ 1.000 Fixtures), Baseline schreiben,
+      Episoden-Felder ≥ 95 %
+- [ ] 👤 `import-sonarr`, `refresh-series`, `compare-series-library` grün; Shadow-Betrieb für Serien
+- [ ] 👤 Nach stabiler Shadow-Phase: Sonarr pausieren, Serien im Live-Modus
+
+- **Gate:** wie bei Filmen – Fixtures → Ratchet → Decision-Orakel → Shadow → Ablösung

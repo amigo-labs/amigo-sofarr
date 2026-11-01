@@ -102,6 +102,13 @@ impl QualityCatalog {
         self.qualities.iter().find(|q| q.id == id)
     }
 
+    /// Looks a quality up by its name (case-insensitive).
+    pub fn by_name(&self, name: &str) -> Option<&NamedQuality> {
+        self.qualities
+            .iter()
+            .find(|q| q.name.eq_ignore_ascii_case(name.trim()))
+    }
+
     /// The named quality with exactly these parts, if the catalog has one.
     pub fn find(&self, parts: &Parts) -> Option<&NamedQuality> {
         self.qualities.iter().find(|q| q.parts == *parts)

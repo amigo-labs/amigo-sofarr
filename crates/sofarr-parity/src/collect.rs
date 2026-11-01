@@ -21,7 +21,11 @@ pub const HISTORY_FILE: &str = "private/radarr-parse-history.jsonl";
 
 /// Top-level keys of a parse answer that may go into public fixtures. Everything else –
 /// in particular a matched `movie` with paths and library data – stays out.
-const PUBLIC_RESPONSE_KEYS: &[&str] = &["title", "parsedMovieInfo", "languages"];
+const PUBLIC_RESPONSE_KEYS: &[&str] =
+    &["title", "parsedMovieInfo", "parsedEpisodeInfo", "languages"];
+
+pub const SONARR_PUBLIC_FILE: &str = "public/sonarr-parse.jsonl";
+pub const SONARR_HISTORY_FILE: &str = "private/sonarr-parse-history.jsonl";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Sources {
@@ -77,7 +81,9 @@ pub fn run(
                     break;
                 }
                 offset += titles.len();
-                summary.rss_new += record_new(&radarr, &mut store, &titles, "rss", &version, true)?;
+                summary.rss_new += record_new(
+                    &radarr, "radarr", &mut store, &titles, "rss", &version, true,
+                )?;
             }
         }
     }
@@ -86,8 +92,9 @@ pub fn run(
         let mut store = Store::open(&fixtures.join(HISTORY_FILE))?;
         let titles = radarr.history_titles().context("Radarr-History")?;
         eprintln!("History: {} Titel", titles.len());
-        summary.history_new +=
-            record_new(&radarr, &mut store, &titles, "history", &version, false)?;
+        summary.history_new += record_new(
+            &radarr, "radarr", &mut store, &titles, "history", &version, false,
+        )?;
     }
 
     if let Sources::Releases {
@@ -103,8 +110,66 @@ pub fn run(
     Ok(summary)
 }
 
+/// Parse fixtures from Sonarr (Phase 5): RSS in the series categories → public,
+/// Sonarr's history → private. Release decisions are not collected for series yet.
+pub fn run_sonarr(
+    config: &ParityConfig,
+    http: &HttpClient,
+    fixtures: &Path,
+    sources: &Sources,
+) -> anyhow::Result<Summary> {
+    let oracle = config
+        .sonarr
+        .as_ref()
+        .context("[sonarr] fehlt in der Parity-Konfiguration")?;
+    let sonarr = Radarr::new(http, oracle);
+    let version = sonarr
+        .version()
+        .with_context(|| format!("Orakel {} nicht erreichbar", host_of(&oracle.url)))?;
+    eprintln!("Orakel: Sonarr {version}");
+    let mut summary = Summary::default();
+    if matches!(sources, Sources::Rss | Sources::All) {
+        let mut store = Store::open(&fixtures.join(SONARR_PUBLIC_FILE))?;
+        for (n, indexer) in config.indexers.iter().enumerate() {
+            let mut offset = 0;
+            for page in 1..=indexer.pages {
+                let titles = newznab::fetch_page_in(http, indexer, &indexer.tv_categories, offset)
+                    .with_context(|| format!("Indexer {} ({})", n + 1, host_of(&indexer.url)))?;
+                eprintln!(
+                    "Indexer {}, Seite {page}/{}: {} Releases",
+                    n + 1,
+                    indexer.pages,
+                    titles.len()
+                );
+                if titles.is_empty() {
+                    break;
+                }
+                offset += titles.len();
+                summary.rss_new += record_new(
+                    &sonarr, "sonarr", &mut store, &titles, "rss", &version, true,
+                )?;
+            }
+        }
+    }
+    if matches!(sources, Sources::History | Sources::All) {
+        let mut store = Store::open(&fixtures.join(SONARR_HISTORY_FILE))?;
+        let titles = sonarr.history_titles().context("Sonarr-History")?;
+        eprintln!("History: {} Titel", titles.len());
+        summary.history_new += record_new(
+            &sonarr, "sonarr", &mut store, &titles, "history", &version, false,
+        )?;
+    }
+    anyhow::ensure!(
+        !matches!(sources, Sources::Releases { .. }),
+        "Release-Entscheidungen werden für Serien noch nicht gesammelt"
+    );
+    Ok(summary)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn record_new(
     radarr: &Radarr<'_>,
+    app: &'static str,
     store: &mut Store,
     titles: &[String],
     origin: &str,
@@ -113,7 +178,7 @@ fn record_new(
 ) -> anyhow::Result<usize> {
     let new: Vec<&String> = titles.iter().filter(|t| !store.contains(t)).collect();
     if !new.is_empty() {
-        eprintln!("  {} neue Titel, frage Radarr …", new.len());
+        eprintln!("  {} neue Titel, frage {app} …", new.len());
     }
     let mut added = 0;
     for (n, title) in new.into_iter().enumerate() {
@@ -122,17 +187,14 @@ fn record_new(
         }
         let response = radarr
             .parse(title)
-            .with_context(|| format!("Radarr-Parse für „{title}“"))?;
+            .with_context(|| format!("{app}-Parse für „{title}“"))?;
         let record = Record {
             title,
             origin,
             collected_at: jiff::Timestamp::now()
                 .round(jiff::Unit::Second)?
                 .to_string(),
-            oracle: Oracle {
-                app: "radarr",
-                version,
-            },
+            oracle: Oracle { app, version },
             movie: None,
             response: if public {
                 public_response(response)
@@ -176,5 +238,12 @@ mod tests {
         let keys: Vec<&String> = public.as_object().expect("object").keys().collect();
         assert_eq!(keys, ["languages", "parsedMovieInfo", "title"]);
         assert!(!public.to_string().contains("/data/media"));
+
+        let sonarr = public_response(serde_json::json!({
+            "title": "Show.S01E01-G", "parsedEpisodeInfo": {"seriesTitle": "Show"},
+            "series": {"path": "/data/media/tv/Show"}, "episodes": [{"id": 1}]
+        }));
+        assert!(sonarr.get("parsedEpisodeInfo").is_some());
+        assert!(!sonarr.to_string().contains("/data/media"));
     }
 }

@@ -1,11 +1,22 @@
 //! amigo-sofarr server binary.
 
+mod api;
+mod app;
+mod compare;
 mod config;
+mod import_lists;
+mod importer;
+mod library;
+mod metadata;
+mod radarr;
+mod rss;
+mod series;
 
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     path::PathBuf,
     process::ExitCode,
+    sync::Arc,
     time::Duration,
 };
 
@@ -19,7 +30,10 @@ use tokio::{
 };
 use tracing_subscriber::EnvFilter;
 
-use crate::config::{Config, LogFormat};
+use crate::{
+    app::App,
+    config::{Config, LogFormat},
+};
 
 #[derive(Parser)]
 #[command(
@@ -42,6 +56,52 @@ enum Command {
     Serve,
     /// Prüft, ob der laufende Server antwortet (für Docker-HEALTHCHECK)
     Healthcheck,
+    /// Übernimmt Einstellungen und Bibliothek aus Radarr (laufende Instanz oder Config-Export)
+    ImportRadarr {
+        /// Verzeichnis eines Exports von scripts/export-arr-config.sh (…/config/radarr);
+        /// ohne Angabe wird die Radarr-Instanz aus der Konfiguration abgefragt
+        #[arg(long)]
+        exports: Option<PathBuf>,
+    },
+    /// Ergänzt deutsche Titel und Metadaten aus TMDB
+    RefreshMetadata,
+    /// Übernimmt Einstellungen, Serien und Episoden aus Sonarr
+    ImportSonarr {
+        /// Verzeichnis eines Exports (…/config/sonarr) – enthält keine Episoden; ohne
+        /// Angabe wird die Sonarr-Instanz aus der Konfiguration abgefragt
+        #[arg(long)]
+        exports: Option<PathBuf>,
+    },
+    /// Aktualisiert Serien und Episoden aus TVDB (deutsche Titel, neue Episoden)
+    RefreshSeries,
+    /// Vergleicht Serien, fehlende Episoden und Cutoff mit Sonarr (Gate Phase 5)
+    CompareSeriesLibrary,
+    /// Führt einen RSS-Sync aus (im Shadow-Mode nur protokolliert)
+    RssSync,
+    /// Zeigt fehlende Filme und Filme unter dem Cutoff
+    Wanted,
+    /// Sucht Releases für einen Film (sofarr-ID) und nimmt das beste
+    Search { movie_id: i64 },
+    /// Prüft den Download-Client und importiert fertige Downloads
+    CheckDownloads,
+    /// Synchronisiert die Import Lists (TMDb-Personen)
+    SyncImportLists,
+    /// Vergleicht sofarrs Dateinamen mit Radarrs Benennung (Orakel: rename)
+    CompareRename {
+        /// Höchstens so viele Filme prüfen
+        #[arg(long, default_value_t = 200)]
+        limit: usize,
+    },
+    /// Zeigt, welche Filme die Import Lists hinzufügen würden, die Radarr nicht hat (Gate Phase 4)
+    CompareImportLists,
+    /// Vergleicht die Bibliothek mit Radarr (Gate Phase 3)
+    CompareLibrary,
+    /// Vergleicht sofarrs Grabs mit Radarrs History (Gate Phase 3)
+    CompareHistory {
+        /// Beginn des Zeitraums (RFC 3339), Standard: 14 Tage zurück
+        #[arg(long)]
+        since: Option<jiff::Timestamp>,
+    },
 }
 
 fn main() -> ExitCode {
@@ -68,6 +128,7 @@ fn main() -> ExitCode {
     let result = match cli.command.unwrap_or(Command::Serve) {
         Command::Serve => runtime.block_on(serve(config)),
         Command::Healthcheck => runtime.block_on(healthcheck(config.server.bind)),
+        command => runtime.block_on(run_command(config, command)),
     };
 
     match result {
@@ -82,16 +143,220 @@ fn main() -> ExitCode {
 async fn serve(config: Config) -> anyhow::Result<()> {
     init_tracing(&config);
 
-    let app = router();
-    let listener = TcpListener::bind(config.server.bind)
+    let interval = config.rss.interval_minutes;
+    let mode = config.automation.mode;
+    let bind = config.server.bind;
+    let state = Arc::new(App::new(config).await?);
+    if interval > 0 && !state.indexers.is_empty() {
+        let job = Arc::clone(&state);
+        tokio::spawn(app::every(
+            "rss",
+            Duration::from_secs(interval * 60),
+            move || {
+                let job = Arc::clone(&job);
+                async move { job.rss_sync().await.map(|_| ()) }
+            },
+        ));
+    }
+    let check = state.config.download.check_interval_minutes;
+    if mode == config::Mode::Live && state.nzbget.is_some() && check > 0 {
+        let job = Arc::clone(&state);
+        tokio::spawn(app::every(
+            "downloads",
+            Duration::from_secs(check * 60),
+            move || {
+                let job = Arc::clone(&job);
+                async move { job.check_downloads().await.map(|_| ()) }
+            },
+        ));
+    }
+    let lists = state.config.import_lists.interval_hours;
+    if mode == config::Mode::Live && state.config.tmdb.is_some() && lists > 0 {
+        let job = Arc::clone(&state);
+        tokio::spawn(app::every(
+            "import-lists",
+            Duration::from_secs(lists * 3600),
+            move || {
+                let job = Arc::clone(&job);
+                async move { job.sync_import_lists().await.map(|_| ()) }
+            },
+        ));
+    }
+    tracing::info!(
+        ?mode,
+        indexers = state.indexers.len(),
+        rss_minutes = interval,
+        "starting"
+    );
+    let app = router().merge(api::routes(state));
+    let listener = TcpListener::bind(bind)
         .await
-        .with_context(|| format!("Port {} nicht verfügbar", config.server.bind))?;
+        .with_context(|| format!("Port {bind} nicht verfügbar"))?;
 
-    tracing::info!(addr = %config.server.bind, version = env!("CARGO_PKG_VERSION"), "listening");
+    tracing::info!(addr = %bind, version = env!("CARGO_PKG_VERSION"), "listening");
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     tracing::info!("shut down");
+    Ok(())
+}
+
+/// One-shot commands of the CLI.
+async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
+    init_tracing(&config);
+    let app = App::new(config).await?;
+    let sonarr = || {
+        let config = app
+            .config
+            .sonarr
+            .as_ref()
+            .context("[sonarr] fehlt in der Konfiguration")?;
+        anyhow::Ok(radarr::Radarr::new(app.http.clone(), config))
+    };
+    let radarr = || {
+        let config = app
+            .config
+            .radarr
+            .as_ref()
+            .context("[radarr] fehlt in der Konfiguration")?;
+        anyhow::Ok(radarr::Radarr::new(app.http.clone(), config))
+    };
+    match command {
+        Command::Serve | Command::Healthcheck => unreachable!("handled in main"),
+        Command::ImportRadarr { exports } => {
+            let docs = match exports {
+                Some(dir) => library::read_export_dir(&dir)?,
+                None => library::fetch_from_radarr(&radarr()?).await?,
+            };
+            let summary = library::import_documents(&app.db, &docs, jiff::Timestamp::now()).await?;
+            println!(
+                "Importiert: {} Einstellungen, {} Filme ({} mit Datei), {} übersprungen",
+                summary.settings, summary.movies, summary.files, summary.skipped
+            );
+            match library::load_rules(&app.db).await {
+                Ok(rules) => println!(
+                    "Regeln: {} Profile, {} Custom Formats",
+                    rules.config.profiles.len(),
+                    rules.config.custom_formats.len()
+                ),
+                Err(e) => println!("Hinweis: Regeln noch unvollständig: {e:#}"),
+            }
+        }
+        Command::ImportSonarr { exports } => {
+            let (docs, episodes) = match exports {
+                Some(dir) => (
+                    library::read_dir_documents(&dir, &["series"])?,
+                    Default::default(),
+                ),
+                None => series::fetch_from_sonarr(&sonarr()?).await?,
+            };
+            let summary =
+                series::import_documents(&app.db, &docs, &episodes, jiff::Timestamp::now()).await?;
+            println!(
+                "Importiert: {} Einstellungen, {} Serien, {} Episoden, {} Dateien",
+                summary.settings, summary.series, summary.episodes, summary.files
+            );
+        }
+        Command::RefreshSeries => {
+            let config = app
+                .config
+                .tvdb
+                .as_ref()
+                .context("[tvdb] fehlt in der Konfiguration")?;
+            let tvdb = sofarr_metadata::tvdb::Tvdb::new(
+                app.http.clone(),
+                &config.api_key,
+                config.pin.clone(),
+            );
+            let mut total = 0;
+            for show in app.db.all_series().await? {
+                match series::refresh(&app.db, &tvdb, &show, jiff::Timestamp::now()).await {
+                    Ok(n) => total += n,
+                    Err(e) => println!("Fehler bei {}: {e:#}", show.data.title),
+                }
+            }
+            println!("Episoden aktualisiert: {total}");
+        }
+        Command::CompareSeriesLibrary => {
+            let (report, clean) = compare::series_library(&app, &sonarr()?).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Serien weichen von Sonarr ab");
+        }
+        Command::RefreshMetadata => {
+            let n = metadata::refresh_all(&app).await?;
+            println!("Metadaten aktualisiert: {n} Filme");
+        }
+        Command::RssSync => {
+            let report = app.rss_sync().await?;
+            println!(
+                "RSS: {} Releases, {} einem Film zugeordnet, {} Filme und {} Serien-Releases angenommen",
+                report.releases, report.matched, report.approved, report.series_grabs
+            );
+            for e in &report.errors {
+                println!("Fehler: {e}");
+            }
+        }
+        Command::Wanted => {
+            let rules = library::load_rules(&app.db).await?;
+            let movies = app.db.movies().await?;
+            let wanted = library::wanted(&movies, &rules);
+            let name = |tmdb: &i64| {
+                movies
+                    .iter()
+                    .find(|m| m.tmdb_id == *tmdb)
+                    .map_or_else(String::new, |m| m.title.clone())
+            };
+            println!("Fehlend ({}):", wanted.missing.len());
+            for id in &wanted.missing {
+                println!("  {}", name(id));
+            }
+            println!("Cutoff nicht erreicht ({}):", wanted.cutoff_unmet.len());
+            for id in &wanted.cutoff_unmet {
+                println!("  {}", name(id));
+            }
+        }
+        Command::Search { movie_id } => {
+            let report = app.search_movie(movie_id).await?;
+            println!(
+                "Suche: {} Releases, {} angenommen",
+                report.releases, report.approved
+            );
+        }
+        Command::CheckDownloads => {
+            let n = app.check_downloads().await?;
+            println!("Importiert: {n}");
+        }
+        Command::SyncImportLists => {
+            let added = app.sync_import_lists().await?;
+            println!("Hinzugefügt: {}", added.len());
+            for title in added {
+                println!("  {title}");
+            }
+        }
+        Command::CompareRename { limit } => {
+            let (report, clean) = compare::rename(&app, &radarr()?, limit).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Dateinamen weichen von Radarr ab");
+        }
+        Command::CompareImportLists => {
+            let (report, clean) = compare::import_lists(&app, &radarr()?).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Import Lists weichen von Radarr ab");
+        }
+        Command::CompareLibrary => {
+            let (report, clean) = compare::library(&app, &radarr()?).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Bibliothek weicht von Radarr ab");
+        }
+        Command::CompareHistory { since } => {
+            let since = since.unwrap_or_else(|| {
+                jiff::Timestamp::now() - jiff::SignedDuration::from_hours(14 * 24)
+            });
+            let (report, clean) = compare::history(&app, &radarr()?, since).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Grabs weichen von Radarrs History ab");
+        }
+    }
     Ok(())
 }
 

@@ -1,0 +1,696 @@
+//! Series (Phase 5): library import from Sonarr, TVDB refresh, decisions, episode import.
+
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::{Path, PathBuf},
+};
+
+use jiff::Timestamp;
+use serde::Serialize;
+use serde_json::Value;
+use sofarr_core::{
+    ReleaseInput, compare,
+    language::LanguageRef,
+    naming::{self, NamingConfig, NamingInput},
+    normalize_title,
+    series::{EpisodeDecision, EpisodeState, SeriesTarget, evaluate_episodes},
+};
+use sofarr_db::{Db, Episode, MovieFile, NewEpisode, NewSeries, Series, SeriesGrab};
+use sofarr_indexer::IndexerRelease;
+use sofarr_parser::{EpisodeInfo, parse_episode};
+
+use crate::{
+    importer,
+    library::{Rules, load_prefixed_rules},
+    radarr::Radarr,
+};
+
+/// Setting and list documents by export name (`series`, `qualityprofile`, …).
+pub type Documents = BTreeMap<String, Value>;
+/// Episodes and episode files per Sonarr series id.
+pub type EpisodeDocuments = BTreeMap<i64, (Vec<Value>, Vec<Value>)>;
+
+/// Sonarr's configuration documents, stored with this prefix next to Radarr's.
+pub const PREFIX: &str = "sonarr_";
+
+const SETTING_KEYS: &[&str] = &[
+    "qualityprofile",
+    "qualitydefinition",
+    "customformat",
+    "config_mediamanagement",
+    "config_indexer",
+    "config_naming",
+    "rootfolder",
+    "tag",
+];
+
+pub async fn load_rules(db: &Db) -> anyhow::Result<Rules> {
+    load_prefixed_rules(db, PREFIX, "import-sonarr").await
+}
+
+pub async fn naming_config(db: &Db) -> anyhow::Result<NamingConfig> {
+    Ok(NamingConfig::from_json(
+        &db.setting(&format!("{PREFIX}config_naming"))
+            .await?
+            .unwrap_or_default(),
+    ))
+}
+
+// --- import -------------------------------------------------------------------
+
+fn text(v: &Value) -> Option<String> {
+    v.as_str().filter(|s| !s.is_empty()).map(str::to_owned)
+}
+
+fn small(v: &Value) -> Option<u16> {
+    v.as_u64().and_then(|n| u16::try_from(n).ok())
+}
+
+/// Reads one series of Sonarr's `/api/v3/series`.
+pub fn series_from_sonarr(v: &Value) -> Option<NewSeries> {
+    Some(NewSeries {
+        tvdb_id: v["tvdbId"].as_i64().filter(|i| *i > 0)?,
+        imdb_id: text(&v["imdbId"]),
+        title: text(&v["title"])?,
+        title_de: None,
+        year: small(&v["year"]).filter(|y| *y > 0),
+        runtime_minutes: v["runtime"]
+            .as_u64()
+            .and_then(|r| u32::try_from(r).ok())
+            .unwrap_or(0),
+        original_language: text(&v["originalLanguage"]["name"]),
+        series_type: text(&v["seriesType"]).unwrap_or_else(|| "standard".to_owned()),
+        monitored: v["monitored"].as_bool().unwrap_or(false),
+        season_folder: v["seasonFolder"].as_bool().unwrap_or(true),
+        quality_profile_id: v["qualityProfileId"].as_i64().unwrap_or(0),
+        path: text(&v["path"]).unwrap_or_default(),
+        sonarr_id: v["id"].as_i64(),
+        alternative_titles: v["alternateTitles"]
+            .as_array()
+            .map_or(&[][..], Vec::as_slice)
+            .iter()
+            .filter_map(|t| text(&t["title"]))
+            .collect(),
+    })
+}
+
+/// Reads one episode of Sonarr's `/api/v3/episode`.
+pub fn episode_from_sonarr(v: &Value) -> Option<NewEpisode> {
+    Some(NewEpisode {
+        tvdb_id: v["tvdbId"].as_i64().filter(|i| *i > 0),
+        season: small(&v["seasonNumber"])?,
+        number: small(&v["episodeNumber"])?,
+        absolute: small(&v["absoluteEpisodeNumber"]).filter(|n| *n > 0),
+        title: text(&v["title"]),
+        title_de: None,
+        air_date: text(&v["airDate"]).map(|d| d.chars().take(10).collect()),
+        monitored: v["monitored"].as_bool().unwrap_or(false),
+    })
+}
+
+/// Reads one file of Sonarr's `/api/v3/episodefile`.
+pub fn file_from_sonarr(v: &Value) -> MovieFile {
+    let revision = &v["quality"]["revision"];
+    let byte = |v: &Value, d| v.as_u64().and_then(|n| u8::try_from(n).ok()).unwrap_or(d);
+    MovieFile {
+        relative_path: text(&v["relativePath"]).unwrap_or_default(),
+        size: v["size"].as_u64().unwrap_or(0),
+        quality: text(&v["quality"]["quality"]["name"]).unwrap_or_else(|| "Unknown".to_owned()),
+        revision_version: byte(&revision["version"], 1),
+        revision_real: byte(&revision["real"], 0),
+        release_group: text(&v["releaseGroup"]),
+        scene_name: text(&v["sceneName"]),
+        custom_format_score: v["customFormatScore"]
+            .as_i64()
+            .and_then(|s| i32::try_from(s).ok())
+            .unwrap_or(0),
+    }
+}
+
+#[derive(Debug, Default, Serialize, PartialEq, Eq)]
+pub struct ImportSummary {
+    pub settings: usize,
+    pub series: usize,
+    pub episodes: usize,
+    pub files: usize,
+}
+
+/// Imports settings, series and – if given per Sonarr series id – episodes and files.
+pub async fn import_documents(
+    db: &Db,
+    docs: &Documents,
+    episodes: &EpisodeDocuments,
+    now: Timestamp,
+) -> anyhow::Result<ImportSummary> {
+    let mut summary = ImportSummary::default();
+    for key in SETTING_KEYS {
+        if let Some(v) = docs.get(*key) {
+            db.put_setting(&format!("{PREFIX}{key}"), v).await?;
+            summary.settings += 1;
+        }
+    }
+    for v in docs
+        .get("series")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice)
+    {
+        let Some(series) = series_from_sonarr(v) else {
+            continue;
+        };
+        let id = db.upsert_series(&series, now).await?;
+        summary.series += 1;
+        let Some((eps, files)) = series.sonarr_id.and_then(|sid| episodes.get(&sid)) else {
+            continue;
+        };
+        let mut by_file: HashMap<i64, Vec<i64>> = HashMap::new();
+        for e in eps {
+            let Some(new) = episode_from_sonarr(e) else {
+                continue;
+            };
+            let episode_id = db.upsert_episode(id, &new).await?;
+            summary.episodes += 1;
+            if let Some(file_id) = e["episodeFileId"].as_i64().filter(|f| *f > 0) {
+                by_file.entry(file_id).or_default().push(episode_id);
+            }
+        }
+        for f in files {
+            let Some(ids) = f["id"].as_i64().and_then(|fid| by_file.get(&fid)) else {
+                continue;
+            };
+            db.set_episode_file(id, ids, &file_from_sonarr(f), now)
+                .await?;
+            summary.files += 1;
+        }
+    }
+    Ok(summary)
+}
+
+/// Reads Sonarr's settings, series, episodes and files through its API.
+pub async fn fetch_from_sonarr(sonarr: &Radarr) -> anyhow::Result<(Documents, EpisodeDocuments)> {
+    let mut docs = BTreeMap::new();
+    for key in SETTING_KEYS.iter().copied().chain(["series"]) {
+        docs.insert(
+            key.to_owned(),
+            sonarr
+                .get(&key.replacen("config_", "config/", 1), &[])
+                .await?,
+        );
+    }
+    let mut episodes = BTreeMap::new();
+    for s in docs["series"].as_array().map_or(&[][..], Vec::as_slice) {
+        let Some(sid) = s["id"].as_i64() else {
+            continue;
+        };
+        let id = sid.to_string();
+        let list = |v: Value| match v {
+            Value::Array(a) => a,
+            _ => Vec::new(),
+        };
+        let eps = list(sonarr.get("episode", &[("seriesId", id.as_str())]).await?);
+        let files = list(
+            sonarr
+                .get("episodefile", &[("seriesId", id.as_str())])
+                .await?,
+        );
+        episodes.insert(sid, (eps, files));
+    }
+    Ok((docs, episodes))
+}
+
+/// Refreshes one series from TVDB: German title, aliases, episodes (new ones are
+/// monitored like the series).
+pub async fn refresh(
+    db: &Db,
+    tvdb: &sofarr_metadata::tvdb::Tvdb,
+    series: &Series,
+    now: Timestamp,
+) -> anyhow::Result<usize> {
+    let meta = tvdb.series(series.data.tvdb_id).await?;
+    let mut data = series.data.clone();
+    data.title_de = Some(meta.title_de.clone());
+    for alias in meta.aliases {
+        if !data.alternative_titles.contains(&alias) {
+            data.alternative_titles.push(alias);
+        }
+    }
+    if data.imdb_id.is_none() {
+        data.imdb_id = meta.imdb_id;
+    }
+    db.upsert_series(&data, now).await?;
+    let existing = db.episodes(Some(series.id)).await?;
+    let mut n = 0;
+    for e in tvdb.episodes(series.data.tvdb_id).await? {
+        let known = existing
+            .iter()
+            .find(|x| x.data.season == e.season && x.data.number == e.number);
+        db.upsert_episode(
+            series.id,
+            &NewEpisode {
+                tvdb_id: Some(e.tvdb_id),
+                season: e.season,
+                number: e.number,
+                absolute: e.absolute,
+                title: Some(e.title).filter(|t| !t.is_empty()),
+                title_de: e.title_de,
+                air_date: e.air_date,
+                monitored: known
+                    .map_or(series.data.monitored && e.season > 0, |k| k.data.monitored),
+            },
+        )
+        .await?;
+        n += 1;
+    }
+    Ok(n)
+}
+
+// --- decisions ----------------------------------------------------------------
+
+/// Today's date as `YYYY-MM-DD` (UTC).
+pub fn today(now: Timestamp) -> String {
+    now.to_zoned(jiff::tz::TimeZone::UTC).date().to_string()
+}
+
+/// The decision target of a series. Episodes with a pending grab count as having that
+/// release as their file.
+pub fn target(
+    series: &Series,
+    episodes: &[Episode],
+    pending: &[SeriesGrab],
+    today: &str,
+    rules: &Rules,
+) -> SeriesTarget {
+    SeriesTarget {
+        original_language: series
+            .data
+            .original_language
+            .as_deref()
+            .and_then(LanguageRef::from_name)
+            .and_then(|l| match l {
+                LanguageRef::Language(l) => Some(l),
+                _ => None,
+            }),
+        runtime_minutes: series.data.runtime_minutes,
+        episodes: episodes
+            .iter()
+            .filter(|e| e.series_id == series.id)
+            .map(|e| {
+                let grab = pending.iter().find(|g| g.episode_ids.contains(&e.id));
+                EpisodeState {
+                    id: e.id,
+                    season: e.data.season,
+                    number: e.data.number,
+                    absolute: e.data.absolute,
+                    air_date: e.data.air_date.clone(),
+                    monitored: series.data.monitored && e.data.monitored,
+                    aired: e.data.air_date.as_deref().is_some_and(|d| d <= today),
+                    file: match grab {
+                        Some(g) => Some(rules.pending(&g.quality, &g.title, g.custom_format_score)),
+                        None => e.file.as_ref().map(|f| rules.existing(f)),
+                    },
+                }
+            })
+            .collect(),
+    }
+}
+
+/// A series release sofarr decided to take.
+#[derive(Debug, Clone)]
+pub struct SelectedEpisodes {
+    pub series: Series,
+    pub release: IndexerRelease,
+    pub decision: EpisodeDecision,
+}
+
+/// Decides over the series releases of a batch; the best release per covered episode set.
+pub fn decide(
+    releases: &[(IndexerRelease, EpisodeInfo)],
+    series: &[Series],
+    episodes: &[Episode],
+    pending: &[SeriesGrab],
+    rules: &Rules,
+    seen: &dyn Fn(i64, &str) -> bool,
+    now: Timestamp,
+) -> Vec<SelectedEpisodes> {
+    let today = today(now);
+    let mut by_title: HashMap<String, Vec<&Series>> = HashMap::new();
+    for s in series.iter().filter(|s| s.data.monitored) {
+        let titles = std::iter::once(&s.data.title)
+            .chain(s.data.title_de.as_ref())
+            .chain(&s.data.alternative_titles);
+        for t in titles {
+            let key = normalize_title(t);
+            let entry = by_title.entry(key).or_default();
+            if !entry.iter().any(|x| x.id == s.id) {
+                entry.push(s);
+            }
+        }
+        // `Title 2019` and `Title (2019)` in release names.
+        if let Some(y) = s.data.year {
+            by_title
+                .entry(normalize_title(&format!("{} {y}", s.data.title)))
+                .or_default()
+                .push(s);
+        }
+    }
+    let mut best: BTreeMap<(i64, Vec<i64>), SelectedEpisodes> = BTreeMap::new();
+    for (release, info) in releases {
+        let Some(candidates) = by_title.get(&normalize_title(&info.series_title)) else {
+            continue;
+        };
+        for s in candidates {
+            if seen(s.id, &release.guid) {
+                continue;
+            }
+            let Some(profile) = rules.profile(s.data.quality_profile_id) else {
+                continue;
+            };
+            let target = target(s, episodes, pending, &today, rules);
+            let input = ReleaseInput {
+                title: &release.title,
+                size_bytes: release.size_bytes,
+                age_minutes: crate::rss::age(release, now),
+                languages: None,
+            };
+            let decision = evaluate_episodes(&rules.config, profile, &input, info, &target);
+            if !decision.decision.approved() {
+                tracing::debug!(series = %s.data.title, release = %release.title,
+                    rejections = ?decision.decision.rejections.iter().map(|r| r.key()).collect::<Vec<_>>(), "decision");
+                continue;
+            }
+            let key = (s.id, decision.episodes.clone());
+            let pick = SelectedEpisodes {
+                series: (*s).clone(),
+                release: release.clone(),
+                decision,
+            };
+            let better = best.get(&key).is_none_or(|current| {
+                compare(
+                    profile,
+                    rules.propers(),
+                    (&pick.decision.decision, pick.release.size_bytes),
+                    (&current.decision.decision, current.release.size_bytes),
+                )
+                .is_gt()
+            });
+            if better {
+                best.insert(key, pick);
+            }
+        }
+    }
+    // A season pack wins over single episodes it contains.
+    let picks: Vec<SelectedEpisodes> = best.into_values().collect();
+    picks
+        .iter()
+        .filter(|p| {
+            !picks.iter().any(|other| {
+                other.series.id == p.series.id
+                    && other.decision.episodes.len() > p.decision.episodes.len()
+                    && p.decision
+                        .episodes
+                        .iter()
+                        .all(|e| other.decision.episodes.contains(e))
+            })
+        })
+        .cloned()
+        .collect()
+}
+
+// --- import -------------------------------------------------------------------
+
+/// File name (without extension) of episodes.
+pub fn episode_name(
+    series: &Series,
+    eps: &[&Episode],
+    release_title: &str,
+    quality: &str,
+    naming: &NamingConfig,
+) -> String {
+    let parsed = sofarr_parser::parse(release_title);
+    let first = eps.first();
+    let input = NamingInput {
+        title: series.data.title.clone(),
+        title_de: series.data.title_de.clone(),
+        year: series.data.year,
+        quality: Some(quality.to_owned()),
+        revision: parsed.revision,
+        release_group: parsed.release_group,
+        media_info_simple: naming::media_info_from_name(release_title),
+        imdb_id: series.data.imdb_id.clone(),
+        season: first.map(|e| e.data.season),
+        episodes: eps.iter().map(|e| e.data.number).collect(),
+        episode_title: first.and_then(|e| e.data.title.clone()),
+        episode_title_de: first.and_then(|e| e.data.title_de.clone()),
+        air_date: first.and_then(|e| e.data.air_date.clone()),
+        dynamic_range: naming::dynamic_range_from_name(release_title),
+        ..NamingInput::default()
+    };
+    let pattern = match series.data.series_type.as_str() {
+        "daily" => &naming.daily_episode_format,
+        "anime" => &naming.anime_episode_format,
+        _ => &naming.standard_episode_format,
+    };
+    naming::format(pattern, &input, naming)
+}
+
+/// Folder of a season inside the series folder.
+pub fn season_folder(series: &Series, season: u16, naming: &NamingConfig) -> PathBuf {
+    let root = PathBuf::from(&series.data.path);
+    if !series.data.season_folder {
+        return root;
+    }
+    let input = NamingInput {
+        title: series.data.title.clone(),
+        season: Some(season),
+        ..NamingInput::default()
+    };
+    root.join(naming::format(&naming.season_folder_format, &input, naming))
+}
+
+/// Video files of a download with the episodes each one holds.
+pub fn plan_episode_import(
+    series: &Series,
+    grab: &SeriesGrab,
+    episodes: &[Episode],
+    download: &Path,
+    naming: &NamingConfig,
+) -> anyhow::Result<Vec<(importer::ImportPlan, Vec<i64>)>> {
+    let videos = importer::find_videos(download)?;
+    anyhow::ensure!(
+        !videos.is_empty(),
+        "keine Videodatei in {}",
+        download.display()
+    );
+    let quality = grab.quality.as_str();
+    let grabbed: Vec<&Episode> = episodes
+        .iter()
+        .filter(|e| grab.episode_ids.contains(&e.id))
+        .collect();
+    let mut plans = Vec::new();
+    for video in videos {
+        let name = video
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        // Single-file downloads may carry an obfuscated name: then the grab title counts.
+        let info = parse_episode(name).or_else(|| {
+            (grab.episode_ids.len() <= 1 || grabbed.len() == 1)
+                .then(|| parse_episode(&grab.title))
+                .flatten()
+        });
+        let eps: Vec<&Episode> = match &info {
+            Some(info) if !info.episodes.is_empty() => grabbed
+                .iter()
+                .copied()
+                .filter(|e| {
+                    Some(e.data.season) == info.season && info.episodes.contains(&e.data.number)
+                })
+                .collect(),
+            _ if grabbed.len() == 1 => grabbed.clone(),
+            _ => Vec::new(),
+        };
+        if eps.is_empty() {
+            tracing::debug!(file = %video.display(), "no episode for file");
+            continue;
+        }
+        let stem = if naming.rename_episodes {
+            episode_name(series, &eps, &grab.title, quality, naming)
+        } else {
+            name.to_owned()
+        };
+        let ext = video
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("mkv")
+            .to_ascii_lowercase();
+        let folder = season_folder(series, eps[0].data.season, naming);
+        let old_file = eps
+            .iter()
+            .find_map(|e| e.file.as_ref())
+            .map(|f| PathBuf::from(&series.data.path).join(&f.relative_path));
+        plans.push((
+            importer::ImportPlan {
+                source: video,
+                destination: folder.join(format!("{stem}.{ext}")),
+                old_file,
+            },
+            eps.iter().map(|e| e.id).collect(),
+        ));
+    }
+    anyhow::ensure!(
+        !plans.is_empty(),
+        "keine Datei passt zu den Episoden des Grabs"
+    );
+    Ok(plans)
+}
+
+/// Path of a file relative to the series folder.
+pub fn relative_to(series: &Series, path: &Path) -> String {
+    path.strip_prefix(&series.data.path)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .into_owned()
+}
+
+#[cfg(test)]
+pub mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    pub fn sonarr_documents() -> (Documents, EpisodeDocuments) {
+        let mut docs = BTreeMap::new();
+        docs.insert(
+            "qualityprofile".to_owned(),
+            json!([{"id": 1, "name": "HD", "upgradeAllowed": true, "cutoff": 7,
+            "items": [
+                {"quality": {"id": 3, "name": "WEBDL-1080p"}, "allowed": true},
+                {"quality": {"id": 7, "name": "Bluray-1080p"}, "allowed": true}
+            ]}]),
+        );
+        docs.insert("qualitydefinition".to_owned(), json!([]));
+        docs.insert("customformat".to_owned(), json!([]));
+        docs.insert(
+            "config_naming".to_owned(),
+            json!({"renameEpisodes": true, "multiEpisodeStyle": 5,
+                   "standardEpisodeFormat": "{Series Title} - S{season:00}E{episode:00} - {Episode Title} {Quality Full}",
+                   "seasonFolderFormat": "Staffel {season:00}"}),
+        );
+        docs.insert(
+            "series".to_owned(),
+            json!([{"id": 3, "tvdbId": 77, "title": "Kleine Insel", "year": 2019, "runtime": 45,
+                    "seriesType": "standard", "monitored": true, "seasonFolder": true,
+                    "qualityProfileId": 1, "path": "/tv/Kleine Insel",
+                    "alternateTitles": [{"title": "Small Island", "seasonNumber": -1}]}]),
+        );
+        let eps = vec![
+            json!({"id": 30, "seasonNumber": 1, "episodeNumber": 1, "title": "Ankunft", "airDate": "2019-01-01",
+                   "monitored": true, "episodeFileId": 300}),
+            json!({"id": 31, "seasonNumber": 1, "episodeNumber": 2, "title": "Sturm", "airDate": "2019-01-08",
+                   "monitored": true, "episodeFileId": 0}),
+            json!({"id": 32, "seasonNumber": 1, "episodeNumber": 3, "title": "Zukunft", "airDate": "2099-01-01",
+                   "monitored": true}),
+        ];
+        let files = vec![
+            json!({"id": 300, "relativePath": "Staffel 01/Kleine Insel - S01E01.mkv", "size": 5,
+            "quality": {"quality": {"name": "WEBDL-1080p"}, "revision": {"version": 1, "real": 0}}}),
+        ];
+        (docs, BTreeMap::from([(3, (eps, files))]))
+    }
+
+    fn release(title: &str, guid: &str) -> (IndexerRelease, EpisodeInfo) {
+        (
+            IndexerRelease {
+                guid: guid.to_owned(),
+                title: title.to_owned(),
+                size_bytes: 2_000_000_000,
+                published: None,
+                download_url: None,
+                categories: vec![5000],
+                imdb_id: None,
+                indexer: "idx".to_owned(),
+            },
+            parse_episode(title).expect("episode"),
+        )
+    }
+
+    #[tokio::test]
+    async fn imports_sonarr_and_decides() {
+        let db = Db::in_memory().await.expect("db");
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        let (docs, eps) = sonarr_documents();
+        let summary = import_documents(&db, &docs, &eps, now)
+            .await
+            .expect("import");
+        assert_eq!(
+            summary,
+            ImportSummary {
+                settings: 4,
+                series: 1,
+                episodes: 3,
+                files: 1
+            }
+        );
+        let rules = load_rules(&db).await.expect("rules");
+        let series = db.all_series().await.expect("series");
+        let episodes = db.episodes(None).await.expect("episodes");
+        let releases = vec![
+            release("Kleine.Insel.S01E02.German.1080p.WEB-DL.h264-A", "1"),
+            release("Small.Island.S01E02.1080p.BluRay.x264-B", "2"),
+            release("Kleine.Insel.S01E01.1080p.WEB-DL.h264-C", "3"),
+            release("Kleine.Insel.S01E03.1080p.WEB-DL.h264-D", "4"),
+            release("Kleine.Insel.S01.1080p.BluRay.x264-E", "5"),
+        ];
+        let picks = decide(
+            &releases,
+            &series,
+            &episodes,
+            &[],
+            &rules,
+            &|_, _| false,
+            now,
+        );
+        let titles: Vec<&str> = picks.iter().map(|p| p.release.title.as_str()).collect();
+        // The Bluray season pack covers E01 (upgrade) and E02 (missing) and beats the singles.
+        assert_eq!(titles, ["Kleine.Insel.S01.1080p.BluRay.x264-E"]);
+    }
+
+    #[test]
+    fn names_episodes() {
+        let series = Series {
+            id: 1,
+            data: series_from_sonarr(&sonarr_documents().0["series"][0]).expect("series"),
+        };
+        let ep = |n: u16, title: &str| Episode {
+            id: i64::from(n),
+            series_id: 1,
+            data: NewEpisode {
+                tvdb_id: None,
+                season: 1,
+                number: n,
+                absolute: None,
+                title: Some(title.to_owned()),
+                title_de: None,
+                air_date: None,
+                monitored: true,
+            },
+            file_id: None,
+            file: None,
+        };
+        let naming = NamingConfig::from_json(&sonarr_documents().0["config_naming"]);
+        let (a, b) = (ep(1, "Ankunft"), ep(2, "Sturm"));
+        assert_eq!(
+            episode_name(
+                &series,
+                &[&a, &b],
+                "Kleine.Insel.S01E01E02.1080p.WEB-DL-G",
+                "WEBDL-1080p",
+                &naming
+            ),
+            "Kleine Insel - S01E01-E02 - Ankunft WEBDL-1080p"
+        );
+        assert_eq!(
+            season_folder(&series, 1, &naming),
+            PathBuf::from("/tv/Kleine Insel/Staffel 01")
+        );
+    }
+}

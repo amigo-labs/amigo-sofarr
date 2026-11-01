@@ -41,8 +41,17 @@ pub fn fetch_page(
     indexer: &IndexerConfig,
     offset: usize,
 ) -> anyhow::Result<Vec<String>> {
-    let categories = indexer
-        .categories
+    fetch_page_in(http, indexer, &indexer.categories, offset)
+}
+
+/// Like [`fetch_page`], in other categories (series: `tv_categories`).
+pub fn fetch_page_in(
+    http: &HttpClient,
+    indexer: &IndexerConfig,
+    categories: &[u32],
+    offset: usize,
+) -> anyhow::Result<Vec<String>> {
+    let categories = categories
         .iter()
         .map(u32::to_string)
         .collect::<Vec<_>>()
