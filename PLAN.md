@@ -11,14 +11,14 @@
 Workspace mit allen Crates (Stubs), `sofarr-server` mit Config, `GET /api/health`,
 `healthcheck`-Subcommand, Graceful Shutdown, Dockerfile (`scratch`), CI, Export-Script.
 
-- [ ] 👤 Push auf `main`, CI grün (fmt, clippy, test, Docker-Build)
+- [x] 👤 Push auf `main`, CI grün (fmt, clippy, test, Docker-Build)
 - [ ] 👤 `compose.example.yml` in die eigene Compose übernehmen, Container startet, Status `healthy`
 
 **Gate:** CI grün, Container läuft neben Radarr.
 
 ---
 
-## Phase 1 – Parity-Fundament + Parser v0 ✅
+## Phase 1 – Parity-Fundament + Parser v0 ✅ (Gate erfüllt 2026-11-01)
 
 Ziel: Ein wachsendes, echtes Orakel-Fixture-Set und ein eigener Parser, der dagegen gemessen wird.
 
@@ -92,7 +92,7 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 - Standard-Gates grün (`CLAUDE.md`)
 - ≥ 1.000 öffentliche Fixtures committet
 - Baseline committet; **Titel, Jahr, Source, Resolution ≥ 95 %** bevor Phase 2 beginnt
-- 👤 Review: kein Servarr-Code, keine übernommenen Regexes
+- 👤 Review: kein Servarr-Code, keine übernommenen Regexes – ✅ abgenommen 2026-11-01
 
 ---
 
