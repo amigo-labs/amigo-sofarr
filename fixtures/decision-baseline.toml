@@ -9,6 +9,6 @@ fingerprint = "fnv1a64:e40fda1dc24fecf5"
 [permille]
 approved = 1000
 custom_formats = 998
-quality = 980
-rejections = 984
+quality = 998
+rejections = 992
 score = 998

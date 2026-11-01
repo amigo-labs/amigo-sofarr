@@ -113,6 +113,9 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["mbluray"], src(Source::BluRay)),
     (&["uhd2bd"], src(Source::BluRay)),
     (&["uhdbdrip"], src(Source::BluRay)),
+    (&["uhdbd"], src(Source::BluRay)),
+    (&["amazonhd"], src(Source::WebDl)),
+    (&["hdlight"], src(Source::WebDl)),
     (&["full", "bd"], src(Source::BluRay)),
     (
         &["complete", "mbluray"],
@@ -131,6 +134,7 @@ const PHRASES: &[(&[&str], Tag)] = &[
     // Modifiers (with the source they imply)
     (&["remux"], modi(Modifier::Remux, Source::BluRay)),
     (&["bdremux"], modi(Modifier::Remux, Source::BluRay)),
+    (&["mkvremux"], modi(Modifier::Remux, Source::BluRay)),
     (&["br", "disk"], modi(Modifier::BrDisk, Source::BluRay)),
     (&["brdisk"], modi(Modifier::BrDisk, Source::BluRay)),
     (&["bdmv"], modi(Modifier::BrDisk, Source::BluRay)),
@@ -138,6 +142,10 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["bd50"], modi(Modifier::BrDisk, Source::BluRay)),
     (&["bd66"], modi(Modifier::BrDisk, Source::BluRay)),
     (&["bd100"], modi(Modifier::BrDisk, Source::BluRay)),
+    (&["bd", "25"], modi(Modifier::BrDisk, Source::BluRay)),
+    (&["bd", "50"], modi(Modifier::BrDisk, Source::BluRay)),
+    (&["bd", "66"], modi(Modifier::BrDisk, Source::BluRay)),
+    (&["bd", "100"], modi(Modifier::BrDisk, Source::BluRay)),
     (
         &["complete", "bluray"],
         modi(Modifier::BrDisk, Source::BluRay),
@@ -151,7 +159,13 @@ const PHRASES: &[(&[&str], Tag)] = &[
     (&["dvdscr"], modi(Modifier::Screener, Source::Dvd)),
     (&["dvd", "scr"], modi(Modifier::Screener, Source::Dvd)),
     (&["bdscr"], modi(Modifier::Screener, Source::BluRay)),
+    // Region codes of DVD releases (`R1`, `R5`, `R6`).
+    (&["r1"], modi(Modifier::Regional, Source::Dvd)),
+    (&["r2"], modi(Modifier::Regional, Source::Dvd)),
+    (&["r3"], modi(Modifier::Regional, Source::Dvd)),
+    (&["r4"], modi(Modifier::Regional, Source::Dvd)),
     (&["r5"], modi(Modifier::Regional, Source::Dvd)),
+    (&["r6"], modi(Modifier::Regional, Source::Dvd)),
     (&["rawhd"], modi(Modifier::RawHd, Source::Tv)),
     (&["raw", "hd"], modi(Modifier::RawHd, Source::Tv)),
     // Resolutions without a `p` suffix
@@ -264,6 +278,7 @@ const TECHNICAL: &[&str] = &[
     "vp9",
     "vc1",
     "mpeg2",
+    "mvc",
     "8bit",
     "10bit",
     "12bit",
@@ -345,6 +360,7 @@ pub fn classify(tokens: &[Token<'_>]) -> Vec<Tag> {
         }
     }
     resolve_real(&mut tags);
+    demote_dashed_web(tokens, &mut tags);
     demote_remaster_resolution(tokens, &mut tags);
     mark_ordinal_editions(tokens, &mut tags);
     tags
@@ -452,6 +468,29 @@ fn demote_remaster_resolution(tokens: &[Token<'_>], tags: &mut [Tag]) {
         if tokens[i].key == "4k" && matches!(tokens[i + 1].key.as_str(), "remastered" | "restored")
         {
             tags[i] = Tag::Plain;
+        }
+    }
+}
+
+/// A bare `WEB` followed by a dash (`4K-WEB-5.1-GRP`, `WEB - DL`, `WEB-DLRip`) is not a
+/// source; `WEB-DL`, `WEB-Rip` and glued forms like `WEB-DL2DVD` written without spaces are.
+fn demote_dashed_web(tokens: &[Token<'_>], tags: &mut [Tag]) {
+    for i in 0..tokens.len().saturating_sub(1) {
+        let next = &tokens[i + 1];
+        if tokens[i].key != "web" || next.sep != Sep::Dash {
+            continue;
+        }
+        let tight = next.start == tokens[i].end + 1;
+        let glued_dl = next.key.starts_with("dl") && next.key != "dlrip";
+        if tight && (tags[i + 1] == Tag::Continued || glued_dl) {
+            continue;
+        }
+        tags[i] = Tag::Plain;
+        if tags[i + 1] == Tag::Continued {
+            tags[i + 1] = match match_phrase(&tokens[i + 1..i + 2], 0) {
+                Some((_, tag)) => tag,
+                None => classify_single(&next.key),
+            };
         }
     }
 }
