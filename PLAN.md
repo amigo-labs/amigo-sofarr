@@ -18,7 +18,7 @@ Workspace mit allen Crates (Stubs), `sofarr-server` mit Config, `GET /api/health
 
 ---
 
-## Phase 1 – Parity-Fundament + Parser v0 · **AKTIV**
+## Phase 1 – Parity-Fundament + Parser v0 ✅ (Gate erfüllt 2026-11-01)
 
 Ziel: Ein wachsendes, echtes Orakel-Fixture-Set und ein eigener Parser, der dagegen gemessen wird.
 
@@ -91,11 +91,11 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 - Standard-Gates grün (`CLAUDE.md`)
 - ≥ 1.000 öffentliche Fixtures committet
 - Baseline committet; **Titel, Jahr, Source, Resolution ≥ 95 %** bevor Phase 2 beginnt
-- 👤 Review: kein Servarr-Code, keine übernommenen Regexes
+- 👤 Review: kein Servarr-Code, keine übernommenen Regexes – ✅ abgenommen 2026-11-01
 
 ---
 
-## Phase 2 – Decision Engine + Release-Orakel
+## Phase 2 – Decision Engine + Release-Orakel · **AKTIV**
 
 - Qualities, Quality Definitions, Quality Profiles, Custom Formats in `sofarr-core`
   (Umfang laut `docs/parity.md`), Import aus dem Config-Export
