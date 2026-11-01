@@ -50,11 +50,14 @@ pub fn parse(title: &str) -> ParsedRelease {
     // names the disc).
     let mut implied_source: Option<(Source, bool)> = None;
     let mut resolution_from_keyword = false;
+    let mut disc_size = false;
     let mut edition: Vec<&str> = Vec::new();
     let mut edition_done = false;
     for &i in &metadata {
         let tag = tags[i];
         match tag {
+            // Disc sizes (`BD50`) are decided once the resolution is known.
+            Tag::Quality { .. } if is_disc_size(&tokens, i) => disc_size = true,
             Tag::Quality {
                 source,
                 resolution,
@@ -64,9 +67,10 @@ pub fn parse(title: &str) -> ParsedRelease {
                 match (source, modifier) {
                     // A modifier only implies a source; an explicit source takes precedence.
                     (Some(s), Some(_)) => {
-                        let bare =
-                            tokens[i].key == "remux" && (i == 0 || tokens[i - 1].key != "bd");
-                        implied_source.get_or_insert((s, bare));
+                        let key = tokens[i].key.as_str();
+                        let bare = key == "bdremux"
+                            || (key == "remux" && (i == 0 || tokens[i - 1].key != "bd"));
+                        imply(&mut implied_source, s, bare);
                     }
                     (Some(s), None) if quality.source == Source::Unknown => quality.source = s,
                     _ => {}
@@ -124,6 +128,15 @@ pub fn parse(title: &str) -> ParsedRelease {
             }
         }
     }
+    // A disc size names a full Blu-ray, but not next to a UHD resolution (`UHD.BD66`
+    // is an HDTV-2160p, `UHD.BluRay.x265.BD50` an encode). Next to a remux it only
+    // names the source (`Remux.BD25`).
+    if disc_size && release.quality.resolution != Resolution::R2160 {
+        if release.quality.modifier == Modifier::None {
+            release.quality.modifier = Modifier::BrDisk;
+        }
+        imply(&mut implied_source, Source::BluRay, false);
+    }
     if release.quality.source == Source::Unknown
         && let Some((source, bare_remux)) = implied_source
     {
@@ -162,6 +175,27 @@ pub fn parse(title: &str) -> ParsedRelease {
     release
 }
 
+/// Records the source a modifier implies. The first one counts, unless it came from a
+/// bare `REMUX` and a later keyword names the disc.
+fn imply(implied: &mut Option<(Source, bool)>, source: Source, bare: bool) {
+    match implied {
+        Some((_, false)) => {}
+        Some((_, true)) if bare => {}
+        _ => *implied = Some((source, bare)),
+    }
+}
+
+/// `BD25`, `BD50`, `BD66`, `BD100`, also written `BD-50`.
+fn is_disc_size(tokens: &[token::Token<'_>], i: usize) -> bool {
+    const SIZES: &[&str] = &["25", "50", "66", "100"];
+    let key = tokens[i].key.as_str();
+    key.strip_prefix("bd").is_some_and(|n| SIZES.contains(&n))
+        || (key == "bd"
+            && tokens
+                .get(i + 1)
+                .is_some_and(|t| SIZES.contains(&t.key.as_str())))
+}
+
 /// `SUBBED` and `HC` mark burnt-in subtitles; a short language code glued to `sub(s)`
 /// (`NLsub`, `DKsubs`, `Esub`) names them. `SUBS` alone means soft subtitles.
 fn hardcoded_subs(token: &token::Token<'_>) -> Option<HardcodedSubs> {
@@ -176,11 +210,10 @@ fn hardcoded_subs(token: &token::Token<'_>) -> Option<HardcodedSubs> {
         .then(|| HardcodedSubs::Tagged(token.text.to_owned()))
 }
 
-/// Audio formats found on Blu-ray discs (prefixes, so `dtshd` or `truehd7` match too).
-/// `DDP` is a streaming format and does not count.
-const DISC_AUDIO: &[&str] = &[
-    "lpcm", "pcm", "truehd", "dts", "flac", "ac3", "eac3", "dd", "atmos",
-];
+/// Audio formats that mark a full Blu-ray disc (prefixes, so `dtshd` or `truehd7` match
+/// too). `AC3`/`EAC3` and the streaming format `DDP` also appear in remuxes and encodes
+/// and do not count; `DD` does.
+const DISC_AUDIO: &[&str] = &["lpcm", "pcm", "truehd", "dts", "flac", "atmos", "dd"];
 
 /// Rules that depend on the quality as a whole rather than on a single token.
 fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], metadata: &[usize]) {
@@ -194,6 +227,21 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
                     .is_some_and(|next| split.contains(&(key, next.key.as_str())))
         })
     };
+
+    // A region code (`R5`, `R6`) makes it Radarr's "REGIONAL", whatever else is named,
+    // except for cinema recordings (`R6.HDCAM` is a CAM).
+    let cinema = matches!(
+        quality.source,
+        Source::Cam | Source::Telesync | Source::Telecine | Source::Workprint
+    );
+    if quality.modifier == Modifier::Regional && cinema {
+        quality.modifier = Modifier::None;
+    }
+    if quality.modifier == Modifier::Regional {
+        quality.source = Source::Dvd;
+        quality.resolution = Resolution::R480;
+        return;
+    }
 
     // DVDs: an untouched disc (`DVD5`, `DVD9`, `DVD-R`) is Radarr's "DVD-R" at 480p,
     // anything else (`DVDRip`, `DVD.REMUX`) is plain DVD without a resolution.
@@ -229,16 +277,17 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
     }
 
     // Untouched Blu-ray video names the disc's codec, encodes name the encoder. MPEG-2
-    // video is always a full disc; AVC or VC-1 (HEVC only for UHD: plenty of HD encodes
+    // and 3D (MVC) video are always a full disc; AVC or VC-1 (HEVC only for UHD: plenty of HD encodes
     // are labelled HEVC) is a full disc with the disc's audio listed, otherwise a remux.
     // `COMPLETE` marks a full disc as well.
     let uhd = quality.resolution == Resolution::R2160;
-    let mpeg2 = has(&["mpeg2"], &[("mpeg", "2")]);
+    let mpeg2 = has(&["mpeg2", "mvc"], &[("mpeg", "2")]);
     let disc_codec = mpeg2 || has(&["avc", "vc1"], &[("vc", "1")]) || (uhd && has(&["hevc"], &[]));
-    // A rip is an encode by definition, even when it names the codec (`BDRip.HEVC`).
+    // A rip is an encode by definition, even when it names the codec (`BDRip.HEVC`);
+    // so is 10-bit video.
     let encoder = has(
         &[
-            "x264", "x265", "h264", "h265", "bdrip", "brrip", "uhdbdrip", "uhd2bd",
+            "x264", "x265", "h264", "h265", "bdrip", "brrip", "uhdbdrip", "uhd2bd", "10bit",
         ],
         &[
             ("x", "264"),
@@ -263,7 +312,8 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         && !encoder
         && !encode_audio
     {
-        if has(&["complete"], &[]) || mpeg2 || (disc_codec && disc_audio) {
+        let untouched = has(&["untouched"], &[]);
+        if has(&["complete"], &[]) || mpeg2 || (disc_codec && (disc_audio || untouched)) {
             quality.modifier = Modifier::BrDisk;
         } else if disc_codec {
             quality.modifier = Modifier::Remux;
@@ -275,20 +325,23 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
         quality.resolution = Resolution::R1080;
     }
 
-    // Web and TV releases below 720p are SD.
+    // Web and TV releases below 720p are SD; Blu-rays keep 576p but nothing below 480p.
     if matches!(quality.source, Source::WebDl | Source::WebRip | Source::Tv)
         && matches!(
             quality.resolution,
             Resolution::R360 | Resolution::R540 | Resolution::R576
         )
+        || (quality.source == Source::BluRay && quality.resolution == Resolution::R360)
     {
         quality.resolution = Resolution::R480;
     }
 
-    // A resolution or an encoder without any source is treated as a TV capture.
+    // A resolution or an AVC encoder without any source is treated as a TV capture;
+    // `x265` alone says nothing.
+    let avc_encoder = has(&["x264", "h264"], &[("x", "264"), ("h", "264")]);
     if quality.source == Source::Unknown
         && quality.modifier == Modifier::None
-        && (quality.resolution != Resolution::Unknown || encoder)
+        && (quality.resolution != Resolution::Unknown || avc_encoder)
     {
         quality.source = Source::Tv;
         if quality.resolution < Resolution::R720 {
@@ -297,7 +350,10 @@ fn apply_quality_defaults(quality: &mut Quality, tokens: &[token::Token<'_>], me
     }
 
     // A Blu-ray without a resolution is 720p, unless it is a rip (`BDRip`), which is SD.
-    let rip = has(&["bdrip", "brrip"], &[("bd", "rip"), ("br", "rip")]);
+    let rip = has(
+        &["bdrip", "brrip", "uhdbdrip"],
+        &[("bd", "rip"), ("br", "rip")],
+    );
     if quality.source == Source::BluRay
         && quality.modifier == Modifier::None
         && quality.resolution == Resolution::Unknown
@@ -840,5 +896,135 @@ mod tests {
         ] {
             let _ = parse(input);
         }
+    }
+
+    fn q(input: &str) -> (Source, Resolution, Modifier) {
+        let r = parse(input);
+        (r.quality.source, r.quality.resolution, r.quality.modifier)
+    }
+
+    #[test]
+    fn disc_sizes() {
+        use Modifier::*;
+        assert_eq!(
+            q("Copper.Bell.1958.Bluray.BD-50"),
+            (Source::BluRay, Resolution::R1080, BrDisk)
+        );
+        // Next to a remux the size only names the source.
+        assert_eq!(
+            q("Copper.Bell.1958.Remux.BD25"),
+            (Source::BluRay, Resolution::R1080, Remux)
+        );
+        // Next to a UHD resolution the size counts for nothing.
+        assert_eq!(
+            q("Copper.Bell.1958.Studio.UHD.BD66"),
+            (Source::Tv, Resolution::R2160, None)
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.UHD.BluRay.x265.2160p.TrueHD.BD50-GLOCKE"),
+            (Source::BluRay, Resolution::R2160, None)
+        );
+    }
+
+    #[test]
+    fn disc_audio_and_untouched() {
+        use Modifier::*;
+        // AC3/EAC3 do not make a full disc, DD and lossless audio do.
+        assert_eq!(
+            q("Copper.Bell.1958.German.AC3D.DL.1080p.BluRay.AVC").2,
+            Remux
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.E-AC3.2160p.UHD.BluRay.HEVC-GLOCKE").2,
+            Remux
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.1080p.Blu-ray.AVC.DD5.1-GLOCKE").2,
+            BrDisk
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.2160p.UHD.BluRay.UNTOUCHED.HEVC-GLOCKE").2,
+            BrDisk
+        );
+        // 10-bit video is an encode.
+        assert_eq!(
+            q("Copper.Bell.1958.UHD.BluRay.10Bit.2160p.DTS-HD.MA.HEVC-GLOCKE"),
+            (Source::BluRay, Resolution::R2160, None)
+        );
+        // 3D Blu-rays (MVC) are full discs.
+        assert_eq!(
+            q("Copper.Bell.1958.1080p.3D.Bluray.MVC.Atmos-GLOCKE").2,
+            BrDisk
+        );
+    }
+
+    #[test]
+    fn bare_disc_remux_and_mkv_remux() {
+        assert_eq!(q("GRP-Copper.Bell.1958.BDREMUX").2, Modifier::None);
+        assert_eq!(
+            q("Copper Bell (1958) UHD MKVRemux 2160p"),
+            (Source::BluRay, Resolution::R2160, Modifier::Remux)
+        );
+    }
+
+    #[test]
+    fn uhd_blu_ray_abbreviations() {
+        assert_eq!(
+            q("Copper.Bell.1958.German.1080p.UHDBD.x265-GLOCKE"),
+            (Source::BluRay, Resolution::R1080, Modifier::None)
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.German.UHDBDRip.x265-GLOCKE"),
+            (Source::BluRay, Resolution::R480, Modifier::None)
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.BluRay.360p.H264-GLOCKE"),
+            (Source::BluRay, Resolution::R480, Modifier::None)
+        );
+    }
+
+    #[test]
+    fn region_codes() {
+        assert_eq!(q("Copper Bell 1958 R6-GLOCKE").2, Modifier::Regional);
+        assert_eq!(
+            q("Copper.Bell.1958.German.1080p.HDTV.x264-GLOCKE-r2"),
+            (Source::Dvd, Resolution::R480, Modifier::Regional)
+        );
+        // A cinema recording stays one.
+        assert_eq!(q("Copper Bell 1958 R6 HDCAM 480p").0, Source::Cam);
+    }
+
+    #[test]
+    fn dashed_web_is_no_source() {
+        assert_eq!(
+            q("Copper.Bell.1958.720p.WEB-DLRip.x264-GLOCKE").0,
+            Source::Tv
+        );
+        assert_eq!(
+            q("Copper Bell 1958 720p WEB - DL h264 - GLOCKE").0,
+            Source::Tv
+        );
+        assert_eq!(q("Copper Bell-1958-2160p-4K-WEB-5.1-GLOCKE").0, Source::Tv);
+        assert_eq!(
+            q("Copper.Bell.1958.1080p.WEB-DL.x264-GLOCKE").0,
+            Source::WebDl
+        );
+        assert_eq!(
+            q("COPPER BELL 1958 1080p WEB-DL2DvD DD5 1").0,
+            Source::WebDl
+        );
+        assert_eq!(
+            q("Copper.Bell.1958.1080p.AmazonHD.h264-GLOCKE").0,
+            Source::WebDl
+        );
+    }
+
+    #[test]
+    fn only_avc_encoder_implies_tv() {
+        assert_eq!(q("Copper.Bell.1958.x264").0, Source::Tv);
+        assert_eq!(
+            q("Copper.Bell.1958.German.DTSHD.5.1.x265").0,
+            Source::Unknown
+        );
     }
 }

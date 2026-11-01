@@ -152,6 +152,9 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
       (`collect --source releases --with-file`, `--movie-id`), Upgrade-, Cutoff-, Propers-
       und Repack-Regeln sowie die Film-Zuordnung (Jahr statt Titel) daraus abgeleitet.
       Stand: 1.703 Releases, approved 100 %, Rejections 98,4 %; Lücken in `docs/parity.md`.
+- [x] 🤖 Parser-Quality an den 34 Abweichungen des Release-Orakels nachgezogen (Disc-Größen,
+      Disc-Audio, UHDBD, Region-Codes, `WEB-`-Varianten): Quality 99,8 %, Rejections 99,3 %;
+      3 Einzelfälle in `docs/parity.md`.
 
 **Gate Phase 2:**
 

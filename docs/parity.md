@@ -114,8 +114,8 @@ in allen vorkommenden Qualities und Revisionen.
 | approved | 100 % |
 | Custom Formats | 99,8 % |
 | Score | 99,8 % |
-| Rejections | 98,4 % |
-| Quality | 98,0 % |
+| Rejections | 99,3 % |
+| Quality | 99,8 % |
 
 Aus den Fixtures abgeleitete Regeln:
 
@@ -130,6 +130,20 @@ Aus den Fixtures abgeleitete Regeln:
   Profil ohne Upgrades hat die niedrigste erlaubte Quality als Cutoff. Ein Repack ersetzt
   nur eine Datei derselben Release-Gruppe.
 - **Größe:** MB = 1024².
+- **Quality aus dem Titel** (Release- und Parse-Orakel):
+  - `BD25`/`BD50`/`BD66`/`BD100` (auch `BD-50`) ist eine volle Disc, aber nicht neben einer
+    UHD-Auflösung (`UHD.BD66` → HDTV-2160p, `UHD.BluRay.x265…BD50` → Bluray-2160p); neben
+    `Remux` benennt es nur die Quelle (`Remux.BD25` → Remux-1080p).
+  - Volle Disc: Disc-Codec (AVC, VC-1, HEVC bei UHD) mit `DD`, DTS, TrueHD, LPCM, FLAC oder
+    Atmos, oder mit `UNTOUCHED`; MPEG-2 und 3D (MVC) immer. `AC3`/`EAC3` zählen nicht
+    (→ Remux), `10bit` macht ein Encode.
+  - `UHDBD` ist Blu-ray, `UHDBDRip` ohne Auflösung SD; Blu-ray unter 480p zählt als 480p.
+  - Region-Codes `R1`–`R6` (auch als Suffix `-r2`) ergeben REGIONAL, außer bei CAM/TS/TC.
+  - `WEB` mit folgendem Bindestrich ist keine Quelle (`4K-WEB-5.1`, `WEB - DL`,
+    `WEB-DLRip` → HDTV), `WEB-DL`, `WEB-Rip` und `WEB-DL2DvD` schon; `AmazonHD` und
+    `HDLight` sind WEB-DL.
+  - Ein Encoder ohne Quelle und Auflösung ist nur bei `x264`/`h264` SDTV; `x265` allein
+    bleibt Unknown.
 
 Hinweise zur Messung:
 
@@ -144,7 +158,9 @@ Noch nicht abgedeckt:
 
 - Nicht modelliert: „Raw Bluray/DVD release“ (6×, nicht aus dem Titel ableitbar) und „Has
   same release name as a grabbed and imported release“ (1×, braucht die History, Phase 3).
-- Quality-Abweichungen des Parsers (34×, v. a. BR-DISK/Remux/Bluray und HDTV/WEB-DL).
+- Quality-Abweichungen des Parsers (3×, Einzelfälle ohne Gegenstück im Parse-Orakel):
+  `1080p.Bluray.HEVC` mit DTSHD (Radarr: Remux), `[2160p]…WEB.AV1` (Radarr: HDTV, im
+  Parse-Orakel ist `WEB.AV1` WEB-DL) und `Cam` vor dem Jahr.
 - Unbelegt, weil die Config sie nicht auslöst: „zu klein“ (alle `minSize` = 0),
   Indexer-Limits (alle 0), `downloadPropersAndRepacks` ≠ `preferAndUpgrade`,
   Custom Formats mit nicht-`required` Bedingungen, ein erreichter CF-Cutoff-Score bei
