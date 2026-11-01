@@ -11,21 +11,21 @@
 Workspace mit allen Crates (Stubs), `sofarr-server` mit Config, `GET /api/health`,
 `healthcheck`-Subcommand, Graceful Shutdown, Dockerfile (`scratch`), CI, Export-Script.
 
-- [ ] 👤 Push auf `main`, CI grün (fmt, clippy, test, Docker-Build)
+- [x] 👤 Push auf `main`, CI grün (fmt, clippy, test, Docker-Build)
 - [ ] 👤 `compose.example.yml` in die eigene Compose übernehmen, Container startet, Status `healthy`
 
 **Gate:** CI grün, Container läuft neben Radarr.
 
 ---
 
-## Phase 1 – Parity-Fundament + Parser v0 · **AKTIV**
+## Phase 1 – Parity-Fundament + Parser v0 ✅ (Gate erfüllt 2026-11-01)
 
 Ziel: Ein wachsendes, echtes Orakel-Fixture-Set und ein eigener Parser, der dagegen gemessen wird.
 
 ### 1.1 Config-Export und Parity-Matrix
 
-- [ ] 👤 `scripts/export-arr-config.sh` ausführen → `fixtures/private/config/`
-- [ ] 🤖 `docs/parity.md` aus den Exporten erstellen (Generator fertig: `cargo run -p sofarr-parity -- matrix`;
+- [x] 👤 `scripts/export-arr-config.sh` ausführen → `fixtures/private/config/`
+- [x] 🤖 `docs/parity.md` aus den Exporten erstellen (Generator fertig: `cargo run -p sofarr-parity -- matrix`;
       Gerüst committet – erzeugt wird lokal, weil die Exporte Secrets enthalten): Welche Features nutzt das Setup tatsächlich?
       (Quality Profiles inkl. Cutoff/Upgrade, Custom Formats inkl. verwendeter Bedingungstypen,
       Naming-Tokens, Indexer-Typen, Download-Client, Notifications, Delay Profiles, Tags.)
@@ -91,11 +91,11 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 - Standard-Gates grün (`CLAUDE.md`)
 - ≥ 1.000 öffentliche Fixtures committet
 - Baseline committet; **Titel, Jahr, Source, Resolution ≥ 95 %** bevor Phase 2 beginnt
-- 👤 Review: kein Servarr-Code, keine übernommenen Regexes
+- 👤 Review: kein Servarr-Code, keine übernommenen Regexes – ✅ abgenommen 2026-11-01
 
 ---
 
-## Phase 2 – Decision Engine + Release-Orakel
+## Phase 2 – Decision Engine + Release-Orakel · **AKTIV**
 
 - Qualities, Quality Definitions, Quality Profiles, Custom Formats in `sofarr-core`
   (Umfang laut `docs/parity.md`), Import aus dem Config-Export
