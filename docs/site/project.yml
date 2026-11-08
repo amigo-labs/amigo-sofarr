@@ -3,7 +3,7 @@ schema: 1
 slug: sofarr
 name: amigo-sofarr
 status: in-development
-accent: "#2bb673"
+accent: "#2bd67b"
 tagline:
   en: Movies and TV shows, managed from the sofa
   de: Filme und Serien, vom Sofa aus verwaltet
