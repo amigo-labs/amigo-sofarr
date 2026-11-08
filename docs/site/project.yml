@@ -1,0 +1,68 @@
+# Content for amigo-labs.dev/sofarr/ — format: https://github.com/amigo-labs/website/blob/main/docs/project-data.md
+schema: 1
+slug: sofarr
+name: amigo-sofarr
+status: in-development
+accent: "#2bb673"
+tagline:
+  en: Movies and TV shows, managed from the sofa
+  de: Filme und Serien, vom Sofa aus verwaltet
+summary:
+  en: >-
+    One lightweight service that finds new releases on Usenet indexers, decides based on your
+    quality rules, hands them to your download client and imports them into your library. Written in
+    Rust: a single static binary, a single container, SQLite.
+  de: >-
+    Ein schlanker Dienst, der neue Releases bei Usenet-Indexern findet, anhand der eigenen Qualitätsregeln
+    entscheidet, sie an den Download-Client übergibt und in die Bibliothek importiert. Geschrieben in
+    Rust: ein statisches Binary, ein Container, SQLite.
+about:
+  en: |
+    amigo-sofarr is in early development and not usable yet. Movies come first, TV shows build on
+    the finished core.
+
+    It is an independent, clean-room project: not part of, endorsed by or derived from Sonarr, Radarr
+    or any other Servarr project. No Servarr source code or test data is used; existing instances are
+    only observed through their public HTTP API to check that sofarr behaves the same.
+  de: |
+    amigo-sofarr ist in einer frühen Entwicklungsphase und noch nicht nutzbar. Zuerst kommen Filme,
+    Serien bauen auf dem fertigen Kern auf.
+
+    Es ist ein unabhängiges Clean-Room-Projekt: weder Teil von Sonarr, Radarr oder einem anderen
+    Servarr-Projekt noch von ihnen unterstützt oder abgeleitet. Es wird kein Servarr-Quellcode und
+    keine Servarr-Testdaten verwendet; bestehende Instanzen werden nur über ihre öffentliche
+    HTTP-API beobachtet, um zu prüfen, dass sofarr sich gleich verhält.
+platforms: [docker]
+license: MIT
+
+features:
+  - title: { en: Own release-name parser, de: Eigener Release-Parser }
+    text:
+      en: A tokenizer-based parser reads title, year, source, resolution, edition, release group and languages from a release name, measured field by field against thousands of real release names.
+      de: Ein Tokenizer-basierter Parser liest Titel, Jahr, Quelle, Auflösung, Edition, Release-Gruppe und Sprachen aus einem Release-Namen – Feld für Feld gemessen an Tausenden echten Release-Namen.
+    status: in-progress
+  - title: { en: Decisions by your quality rules, de: Entscheidungen nach eigenen Qualitätsregeln }
+    text:
+      en: Quality profiles with cutoff and upgrades, size limits, custom formats with scores, propers and repacks, language and indexer settings decide which release to grab.
+      de: Qualitätsprofile mit Cutoff und Upgrades, Größengrenzen, Custom Formats mit Punktwerten, Propers und Repacks sowie Sprach- und Indexer-Einstellungen entscheiden, welches Release geholt wird.
+    status: in-progress
+  - title: { en: Usenet from search to library, de: Usenet von der Suche bis zur Bibliothek }
+    text:
+      en: New releases via Newznab RSS and search, downloads through nzbget, then import with renaming into the library — hardlink-friendly with downloads and library under one mount.
+      de: Neue Releases über Newznab-RSS und -Suche, Downloads über nzbget, danach Import mit Umbenennung in die Bibliothek – Hardlink-freundlich, mit Downloads und Bibliothek unter einem Mount.
+    status: in-progress
+  - title: { en: Move over from Radarr and Sonarr, de: Umzug von Radarr und Sonarr }
+    text:
+      en: Imports profiles, custom formats, quality definitions, settings and the library from a running instance, and a shadow mode runs alongside it and logs what sofarr would grab before it takes over.
+      de: Übernimmt Profile, Custom Formats, Qualitätsdefinitionen, Einstellungen und die Bibliothek aus einer laufenden Instanz; ein Shadow-Modus läuft daneben und protokolliert, was sofarr holen würde, bevor es übernimmt.
+    status: in-progress
+  - title: { en: TV shows, de: Serien }
+    text:
+      en: Episodes, multi-episode files, season packs, daily and anime numbering, specials and series metadata from TVDB.
+      de: Episoden, Mehrfach-Episoden, Staffelpakete, tägliche und Anime-Nummerierung, Specials und Serien-Metadaten von TVDB.
+    status: in-progress
+  - title: { en: Web UI, de: Web-Oberfläche }
+    text:
+      en: A web interface for the service; stack and timing are still open.
+      de: Eine Web-Oberfläche für den Dienst; Technik und Zeitpunkt sind noch offen.
+    status: planned
