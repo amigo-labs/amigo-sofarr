@@ -1,0 +1,22 @@
+# Checks the project data for amigo-labs.dev: validates docs/site/ against the
+# site's schema and fails when assets/brand/ (the icons made from the pixel
+# monogram) no longer matches docs/site/project.yml. The check lives in
+# amigo-labs/website (docs/project-data.md); regenerate the icons there with
+# `node scripts/monogram.ts amigo-labs/amigo-sofarr --out ../amigo-sofarr/assets/brand`.
+
+name: Site data
+
+on:
+  pull_request:
+    paths:
+      - docs/site/**
+      - assets/brand/**
+      - .github/workflows/site-data.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  site-data:
+    uses: amigo-labs/website/.github/workflows/validate-project.yml@main
