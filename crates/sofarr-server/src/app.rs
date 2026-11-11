@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 use crate::{
     config::{Config, Mode},
     import_lists, importer, library, metadata,
+    rescan::{self, RescanAfterRefresh, ScanReport, ScanSettings},
     rss::{self, Selected, SyncReport},
     series,
 };
@@ -127,6 +128,18 @@ impl App {
         Ok(report)
     }
 
+    /// Indexer tags: an indexer with tags serves only movies and series that share one
+    /// of them (labels, case-insensitive); an indexer without tags serves everything.
+    pub fn indexer_allows(&self, indexer: &str, labels: &[String]) -> bool {
+        self.config
+            .indexers
+            .iter()
+            .find(|i| i.name == indexer)
+            .is_none_or(|i| {
+                i.tags.is_empty() || i.tags.iter().any(|t| labels.contains(&t.to_lowercase()))
+            })
+    }
+
     /// Takes a release: shadow mode records it, live mode hands it to the download client.
     pub async fn grab(&self, pick: Selected, now: Timestamp) -> anyhow::Result<()> {
         let status = match self.config.automation.mode {
@@ -180,6 +193,12 @@ impl App {
             .iter()
             .map(|g| (g.series_id, g.guid.clone()))
             .collect();
+        let imported: std::collections::HashSet<(i64, String)> = grabs
+            .iter()
+            .filter(|g| g.status == GrabStatus::Imported)
+            .map(|g| (g.series_id, g.title.to_lowercase()))
+            .collect();
+        let tags = self.db.setting(&format!("{}tag", series::PREFIX)).await?;
         let now = Timestamp::now();
         let picks = series::decide(
             releases,
@@ -187,7 +206,14 @@ impl App {
             &episodes,
             &pending,
             &rules,
-            &|s, guid| seen.contains(&(s, guid.to_owned())),
+            &|s, release| {
+                seen.contains(&(s.id, release.guid.clone()))
+                    || imported.contains(&(s.id, release.title.to_lowercase()))
+                    || !self.indexer_allows(
+                        &release.indexer,
+                        &library::tag_labels(tags.as_ref(), &s.tags),
+                    )
+            },
             now,
         );
         let n = picks.len();
@@ -365,6 +391,40 @@ impl App {
             .context("Download-Client meldet keinen Ordner")?;
         let download = self.config.download.map_path(remote);
         let plans = series::plan_episode_import(show, grab, &episodes, &download, naming)?;
+        let media = self
+            .db
+            .setting(&format!("{}config_mediamanagement", series::PREFIX))
+            .await?;
+        let required = media
+            .as_ref()
+            .and_then(|m| m["episodeTitleRequired"].as_str());
+        let pattern = match show.data.series_type.as_str() {
+            "daily" => &naming.daily_episode_format,
+            "anime" => &naming.anime_episode_format,
+            _ => &naming.standard_episode_format,
+        };
+        let season_pack = parse_episode_pack(&grab.title);
+        let covered: Vec<&sofarr_db::Episode> = episodes
+            .iter()
+            .filter(|e| plans.iter().any(|(_, ids)| ids.contains(&e.id)))
+            .collect();
+        if naming.rename_episodes
+            && series::waits_for_titles(required, pattern, &covered, season_pack, Timestamp::now())
+        {
+            tracing::info!(release = %grab.title, "import waits for episode titles");
+            self.db
+                .update_series_grab(
+                    grab.id,
+                    GrabStatus::Completed,
+                    None,
+                    Some(
+                        "Import wartet auf Episodentitel (höchstens 48 Stunden nach Ausstrahlung)",
+                    ),
+                    Timestamp::now(),
+                )
+                .await?;
+            return Ok(0);
+        }
         let quality = grab.quality.as_str();
         let mut n = 0;
         for (plan, episode_ids) in plans {
@@ -390,7 +450,32 @@ impl App {
         self.db
             .update_series_grab(grab.id, GrabStatus::Imported, None, None, Timestamp::now())
             .await?;
+        self.remove_completed(item, &download).await;
         Ok(n)
+    }
+
+    /// "Remove Completed": the imported download leaves the client's history and its
+    /// folder is deleted if no video is left. Failures are only logged.
+    async fn remove_completed(
+        &self,
+        item: &sofarr_download::DownloadItem,
+        download: &std::path::Path,
+    ) {
+        if !self.config.download.remove_completed {
+            return;
+        }
+        if let Some(client) = &self.nzbget
+            && let Err(e) = client.remove(&item.id).await
+        {
+            tracing::warn!(download = %item.name, error = %e, "removing from history failed");
+        }
+        let dir = download.to_path_buf();
+        match tokio::task::spawn_blocking(move || importer::remove_leftovers(&dir)).await {
+            Ok(Ok(true)) => tracing::info!(folder = %download.display(), "download folder removed"),
+            Ok(Ok(false)) => {}
+            Ok(Err(e)) => tracing::warn!(error = format!("{e:#}"), "download folder not removed"),
+            Err(e) => tracing::warn!(error = %e, "download folder not removed"),
+        }
     }
 
     /// Live mode: fetches the NZB and hands it to nzbget.
@@ -473,10 +558,15 @@ impl App {
             return Ok(());
         }
         let rules = library::load_rules(&self.db).await?;
+        let tags = self.db.setting("tag").await?;
         let mut pending = BTreeMap::new();
         let mut seen = std::collections::HashSet::new();
+        let mut imported = std::collections::HashSet::new();
         for grab in self.db.grabs(None, u32::MAX).await? {
             seen.insert((grab.movie_id, grab.guid.clone()));
+            if grab.status == GrabStatus::Imported {
+                imported.insert((grab.movie_id, grab.title.to_lowercase()));
+            }
             let open = grab.status == GrabStatus::Shadow || grab.status.is_active();
             if open && !pending.contains_key(&grab.movie_id) {
                 pending.insert(grab.movie_id, grab);
@@ -488,7 +578,14 @@ impl App {
             &movies,
             &rules,
             &pending,
-            &|movie, guid| seen.contains(&(movie, guid.to_owned())),
+            &|movie, release| {
+                seen.contains(&(movie.id, release.guid.clone()))
+                    || imported.contains(&(movie.id, release.title.to_lowercase()))
+                    || !self.indexer_allows(
+                        &release.indexer,
+                        &library::tag_labels(tags.as_ref(), &movie.tags),
+                    )
+            },
             now,
             report,
         );
@@ -626,6 +723,7 @@ impl App {
             .update_grab(grab.id, GrabStatus::Imported, None, None, now)
             .await?;
         tracing::info!(movie = %movie.title, file = %plan.destination.display(), "imported");
+        self.remove_completed(item, &download).await;
         Ok(())
     }
 
@@ -647,6 +745,7 @@ impl App {
         let naming = sofarr_core::naming::NamingConfig::from_json(
             &self.db.setting("config_naming").await?.unwrap_or_default(),
         );
+        let rules = library::load_rules(&self.db).await;
         let mut added = Vec::new();
         for list in &lists {
             let credits = tmdb.person_movies(list.person_id).await?;
@@ -663,7 +762,13 @@ impl App {
                         continue;
                     }
                 };
-                let mut movie = metadata::new_movie(&meta, list.monitored, list.quality_profile_id);
+                let mut movie = metadata::new_movie(
+                    &meta,
+                    list.monitored,
+                    list.quality_profile_id,
+                    &list.minimum_availability,
+                    list.tags.clone(),
+                );
                 let input =
                     importer::naming_input(&metadata::as_library_movie(&movie), "", "Unknown");
                 movie.path = importer::movie_folder(
@@ -676,8 +781,15 @@ impl App {
                 let id = self.db.upsert_movie(&movie, Timestamp::now()).await?;
                 tracing::info!(list = %list.name, movie = %movie.title, "added from import list");
                 added.push(movie.title.clone());
+                // Like an RSS grab, the search on add waits until the movie is available.
+                let today = Timestamp::now().to_zoned(jiff::tz::TimeZone::UTC).date();
+                let available = match (&rules, self.db.movie(id).await?) {
+                    (Ok(rules), Some(stored)) => library::is_available(&stored, rules, today),
+                    _ => true,
+                };
                 if list.search_on_add
                     && list.monitored
+                    && available
                     && let Err(e) = self.search_movie_locked(id).await
                 {
                     tracing::warn!(movie = %movie.title, error = format!("{e:#}"), "search failed");
@@ -688,13 +800,134 @@ impl App {
     }
 }
 
+/// Whether a release title is a season pack.
+fn parse_episode_pack(title: &str) -> bool {
+    sofarr_parser::parse_episode(title).is_some_and(|i| i.full_season)
+}
+
+/// Outcome of a metadata refresh with its disk scans.
+#[derive(Debug, Default, serde::Serialize)]
+pub struct RefreshReport {
+    pub movies: usize,
+    pub episodes: usize,
+    pub movie_scan: Option<ScanReport>,
+    pub series_scan: Option<ScanReport>,
+}
+
+impl App {
+    /// Disk scan of movies and series (see [`rescan`]).
+    pub async fn rescan(&self) -> anyhow::Result<(Option<ScanReport>, Option<ScanReport>)> {
+        let _guard = self.jobs.lock().await;
+        Ok((self.rescan_movies().await?, self.rescan_series().await?))
+    }
+
+    /// Shadow mode leaves `/data` alone: no folder is deleted.
+    fn scan_settings(&self, mut settings: ScanSettings) -> ScanSettings {
+        if self.config.automation.mode == Mode::Shadow {
+            settings.delete_empty_folders = false;
+        }
+        settings
+    }
+
+    async fn rescan_movies(&self) -> anyhow::Result<Option<ScanReport>> {
+        if self.db.movies().await?.is_empty() {
+            return Ok(None);
+        }
+        let rules = library::load_rules(&self.db).await?;
+        let media = self.db.setting("config_mediamanagement").await?;
+        let settings = self.scan_settings(ScanSettings::movies(media.as_ref()));
+        Ok(Some(
+            rescan::movies(&self.db, &rules, settings, Timestamp::now()).await?,
+        ))
+    }
+
+    async fn rescan_series(&self) -> anyhow::Result<Option<ScanReport>> {
+        if self.db.all_series().await?.is_empty() {
+            return Ok(None);
+        }
+        let rules = series::load_rules(&self.db).await?;
+        let media = self
+            .db
+            .setting(&format!("{}config_mediamanagement", series::PREFIX))
+            .await?;
+        let settings = self.scan_settings(ScanSettings::series(media.as_ref()));
+        Ok(Some(
+            rescan::all_series(&self.db, &rules, settings, Timestamp::now()).await?,
+        ))
+    }
+
+    /// Refreshes movies from TMDB and series from TVDB (where configured), then scans
+    /// the disk as `rescanAfterRefresh` says; `manual` marks a refresh from the CLI.
+    pub async fn refresh(
+        &self,
+        movies: bool,
+        shows: bool,
+        manual: bool,
+    ) -> anyhow::Result<RefreshReport> {
+        let _guard = self.jobs.lock().await;
+        let mut report = RefreshReport::default();
+        if movies {
+            if self.config.tmdb.is_some() {
+                report.movies = metadata::refresh_all(self).await?;
+            }
+            let media = self.db.setting("config_mediamanagement").await?;
+            if RescanAfterRefresh::from_setting(media.as_ref()).applies(manual) {
+                report.movie_scan = self.rescan_movies().await?;
+            }
+        }
+        if shows {
+            if let Some(config) = &self.config.tvdb {
+                let tvdb = sofarr_metadata::tvdb::Tvdb::new(
+                    self.http.clone(),
+                    &config.api_key,
+                    config.pin.clone(),
+                );
+                for show in self.db.all_series().await? {
+                    match series::refresh(&self.db, &tvdb, &show, Timestamp::now()).await {
+                        Ok(n) => report.episodes += n,
+                        Err(e) => {
+                            tracing::warn!(series = %show.data.title, error = format!("{e:#}"), "series refresh failed");
+                        }
+                    }
+                }
+            }
+            let media = self
+                .db
+                .setting(&format!("{}config_mediamanagement", series::PREFIX))
+                .await?;
+            if RescanAfterRefresh::from_setting(media.as_ref()).applies(manual) {
+                report.series_scan = self.rescan_series().await?;
+            }
+        }
+        Ok(report)
+    }
+}
+
 /// Runs a job every `interval` until the process ends.
 pub async fn every<F, Fut>(name: &'static str, interval: Duration, job: F)
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<()>>,
 {
-    let mut ticker = tokio::time::interval(interval);
+    run_every(name, tokio::time::interval(interval), job).await;
+}
+
+/// Like [`every`], but the first run is one `interval` after the start (jobs that are
+/// too expensive for every container start).
+pub async fn every_later<F, Fut>(name: &'static str, interval: Duration, job: F)
+where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<()>>,
+{
+    let start = tokio::time::Instant::now() + interval;
+    run_every(name, tokio::time::interval_at(start, interval), job).await;
+}
+
+async fn run_every<F, Fut>(name: &'static str, mut ticker: tokio::time::Interval, job: F)
+where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<()>>,
+{
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
         ticker.tick().await;
@@ -937,5 +1170,19 @@ mod tests {
             Some("Staffel 01/Kleine Insel - S01E02 - Sturm WEBDL-1080p.mkv")
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn indexer_tags_restrict_indexers() {
+        let db = Db::in_memory().await.expect("db");
+        let config = Config::parse(
+            "[[indexer]]\nname = \"a\"\nurl = \"u\"\napi_key = \"k\"\ntags = [\"Kids\"]\n\
+             [[indexer]]\nname = \"b\"\nurl = \"u\"\napi_key = \"k\"\n",
+        )
+        .expect("config");
+        let app = App::with_db(config, db).expect("app");
+        assert!(app.indexer_allows("a", &["kids".to_owned()]));
+        assert!(!app.indexer_allows("a", &[]));
+        assert!(app.indexer_allows("b", &[]));
     }
 }

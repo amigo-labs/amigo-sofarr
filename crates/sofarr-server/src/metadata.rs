@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 use jiff::Timestamp;
-use sofarr_db::{Movie, NewMovie};
+use sofarr_db::{Availability, Movie, NewMovie};
 use sofarr_metadata::{MovieMetadata, Tmdb};
 
 use crate::app::App;
@@ -45,6 +45,26 @@ pub fn merge(movie: &Movie, meta: &MovieMetadata) -> NewMovie {
         path: movie.path.clone(),
         radarr_id: movie.radarr_id,
         alternative_titles: titles,
+        availability: Availability {
+            minimum: movie.availability.minimum.clone(),
+            status: meta
+                .status
+                .clone()
+                .or_else(|| movie.availability.status.clone()),
+            in_cinemas: meta
+                .in_cinemas
+                .clone()
+                .or_else(|| movie.availability.in_cinemas.clone()),
+            digital_release: meta
+                .digital_release
+                .clone()
+                .or_else(|| movie.availability.digital_release.clone()),
+            physical_release: meta
+                .physical_release
+                .clone()
+                .or_else(|| movie.availability.physical_release.clone()),
+        },
+        tags: movie.tags.clone(),
     }
 }
 
@@ -67,7 +87,13 @@ pub async fn refresh_all(app: &App) -> anyhow::Result<usize> {
 }
 
 /// A new library movie from TMDB data (import lists).
-pub fn new_movie(meta: &MovieMetadata, monitored: bool, quality_profile_id: i64) -> NewMovie {
+pub fn new_movie(
+    meta: &MovieMetadata,
+    monitored: bool,
+    quality_profile_id: i64,
+    minimum_availability: &str,
+    tags: Vec<i64>,
+) -> NewMovie {
     NewMovie {
         tmdb_id: meta.tmdb_id,
         imdb_id: meta.imdb_id.clone(),
@@ -82,6 +108,14 @@ pub fn new_movie(meta: &MovieMetadata, monitored: bool, quality_profile_id: i64)
         path: String::new(),
         radarr_id: None,
         alternative_titles: meta.alternative_titles.clone(),
+        availability: Availability {
+            minimum: minimum_availability.to_owned(),
+            status: meta.status.clone(),
+            in_cinemas: meta.in_cinemas.clone(),
+            digital_release: meta.digital_release.clone(),
+            physical_release: meta.physical_release.clone(),
+        },
+        tags,
     }
 }
 
@@ -102,6 +136,8 @@ pub fn as_library_movie(movie: &NewMovie) -> Movie {
         path: movie.path.clone(),
         radarr_id: movie.radarr_id,
         alternative_titles: movie.alternative_titles.clone(),
+        availability: movie.availability.clone(),
+        tags: movie.tags.clone(),
         file: None,
     }
 }

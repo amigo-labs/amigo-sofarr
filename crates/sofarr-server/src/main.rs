@@ -9,6 +9,7 @@ mod importer;
 mod library;
 mod metadata;
 mod radarr;
+mod rescan;
 mod rss;
 mod series;
 
@@ -63,8 +64,11 @@ enum Command {
         #[arg(long)]
         exports: Option<PathBuf>,
     },
-    /// Ergänzt deutsche Titel und Metadaten aus TMDB
+    /// Ergänzt deutsche Titel und Metadaten aus TMDB, danach Festplatten-Scan
+    /// (laut `rescanAfterRefresh`)
     RefreshMetadata,
+    /// Gleicht Filme und Serien mit den Dateien auf der Festplatte ab
+    Rescan,
     /// Übernimmt Einstellungen, Serien und Episoden aus Sonarr
     ImportSonarr {
         /// Verzeichnis eines Exports (…/config/sonarr) – enthält keine Episoden; ohne
@@ -72,7 +76,8 @@ enum Command {
         #[arg(long)]
         exports: Option<PathBuf>,
     },
-    /// Aktualisiert Serien und Episoden aus TVDB (deutsche Titel, neue Episoden)
+    /// Aktualisiert Serien und Episoden aus TVDB (deutsche Titel, neue Episoden), danach
+    /// Festplatten-Scan (laut `rescanAfterRefresh`)
     RefreshSeries,
     /// Vergleicht Serien, fehlende Episoden und Cutoff mit Sonarr (Gate Phase 5)
     CompareSeriesLibrary,
@@ -91,6 +96,13 @@ enum Command {
         /// Höchstens so viele Filme prüfen
         #[arg(long, default_value_t = 200)]
         limit: usize,
+    },
+    /// Vergleicht sofarrs Zuordnung von Downloads (Film, Qualität) mit Radarrs manuellem
+    /// Import (Orakel: manualimport)
+    CompareManualImport {
+        /// Ordner, wie Radarr ihn sieht, z. B. /data/usenet/completed/movies
+        #[arg(long)]
+        folder: String,
     },
     /// Zeigt, welche Filme die Import Lists hinzufügen würden, die Radarr nicht hat (Gate Phase 4)
     CompareImportLists,
@@ -182,6 +194,18 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             },
         ));
     }
+    let refresh = state.config.library.refresh_interval_hours;
+    if refresh > 0 {
+        let job = Arc::clone(&state);
+        tokio::spawn(app::every_later(
+            "refresh",
+            Duration::from_secs(refresh * 3600),
+            move || {
+                let job = Arc::clone(&job);
+                async move { job.refresh(true, true, false).await.map(|_| ()) }
+            },
+        ));
+    }
     tracing::info!(
         ?mode,
         indexers = state.indexers.len(),
@@ -258,24 +282,13 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             );
         }
         Command::RefreshSeries => {
-            let config = app
-                .config
-                .tvdb
-                .as_ref()
-                .context("[tvdb] fehlt in der Konfiguration")?;
-            let tvdb = sofarr_metadata::tvdb::Tvdb::new(
-                app.http.clone(),
-                &config.api_key,
-                config.pin.clone(),
+            anyhow::ensure!(
+                app.config.tvdb.is_some(),
+                "[tvdb] fehlt in der Konfiguration"
             );
-            let mut total = 0;
-            for show in app.db.all_series().await? {
-                match series::refresh(&app.db, &tvdb, &show, jiff::Timestamp::now()).await {
-                    Ok(n) => total += n,
-                    Err(e) => println!("Fehler bei {}: {e:#}", show.data.title),
-                }
-            }
-            println!("Episoden aktualisiert: {total}");
+            let report = app.refresh(false, true, true).await?;
+            println!("Episoden aktualisiert: {}", report.episodes);
+            print_scan("Serien", report.series_scan.as_ref());
         }
         Command::CompareSeriesLibrary => {
             let (report, clean) = compare::series_library(&app, &sonarr()?).await?;
@@ -283,8 +296,15 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             anyhow::ensure!(clean, "Serien weichen von Sonarr ab");
         }
         Command::RefreshMetadata => {
-            let n = metadata::refresh_all(&app).await?;
-            println!("Metadaten aktualisiert: {n} Filme");
+            metadata::tmdb(&app)?;
+            let report = app.refresh(true, false, true).await?;
+            println!("Metadaten aktualisiert: {} Filme", report.movies);
+            print_scan("Filme", report.movie_scan.as_ref());
+        }
+        Command::Rescan => {
+            let (movies, shows) = app.rescan().await?;
+            print_scan("Filme", movies.as_ref());
+            print_scan("Serien", shows.as_ref());
         }
         Command::RssSync => {
             let report = app.rss_sync().await?;
@@ -338,6 +358,11 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             print!("{report}");
             anyhow::ensure!(clean, "Dateinamen weichen von Radarr ab");
         }
+        Command::CompareManualImport { folder } => {
+            let (report, clean) = compare::manual_import(&app, &radarr()?, &folder).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Zuordnung weicht von Radarrs manuellem Import ab");
+        }
         Command::CompareImportLists => {
             let (report, clean) = compare::import_lists(&app, &radarr()?).await?;
             print!("{report}");
@@ -358,6 +383,17 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn print_scan(label: &str, report: Option<&rescan::ScanReport>) {
+    let Some(r) = report else {
+        return;
+    };
+    println!(
+        "Scan {label}: {} geprüft, {} übersprungen (Stammordner fehlt), {} Dateien fehlen, \
+         {} nicht mehr überwacht, {} Dateien gefunden, {} leere Ordner entfernt",
+        r.checked, r.skipped, r.missing, r.unmonitored, r.found, r.removed_folders
+    );
 }
 
 fn router() -> Router {

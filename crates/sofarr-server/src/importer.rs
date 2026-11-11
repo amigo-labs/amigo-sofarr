@@ -91,6 +91,20 @@ pub fn find_videos(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
         .collect())
 }
 
+/// Deletes what is left of a download folder after the import, unless a video is
+/// still in it (e.g. an episode of a pack no grab asked for). Returns whether it went.
+pub fn remove_leftovers(download: &Path) -> anyhow::Result<bool> {
+    if !download.is_dir() {
+        return Ok(false);
+    }
+    if !find_videos(download)?.is_empty() {
+        return Ok(false);
+    }
+    fs::remove_dir_all(download)
+        .with_context(|| format!("{} nicht löschbar", download.display()))?;
+    Ok(true)
+}
+
 /// Naming input for a release of a movie.
 pub fn naming_input(movie: &Movie, release_title: &str, quality: &str) -> NamingInput {
     let parsed = sofarr_parser::parse(release_title);
@@ -277,6 +291,8 @@ mod tests {
             path: path.to_string_lossy().into_owned(),
             radarr_id: None,
             alternative_titles: vec![],
+            availability: sofarr_db::Availability::default(),
+            tags: vec![],
             file: file.map(|f| MovieFile {
                 relative_path: f.to_owned(),
                 size: 1,
@@ -338,6 +354,23 @@ mod tests {
 
         let record = imported_file(&plan, size, title, "Bluray-1080p", 50);
         assert_eq!(record.release_group.as_deref(), Some("GRP"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn removes_leftovers_without_videos() {
+        let root = temp_dir("leftovers");
+        let done = root.join("done");
+        fs::create_dir_all(done.join("Sample")).expect("dir");
+        fs::write(done.join("a.nfo"), b"nfo").expect("nfo");
+        fs::write(done.join("Sample/a-sample.mkv"), b"s").expect("sample");
+        let busy = root.join("busy");
+        fs::create_dir_all(&busy).expect("dir");
+        fs::write(busy.join("Show.S01E09.mkv"), b"v").expect("video");
+        assert!(remove_leftovers(&done).expect("remove"));
+        assert!(!done.exists());
+        assert!(!remove_leftovers(&busy).expect("keep"));
+        assert!(busy.exists());
         let _ = fs::remove_dir_all(&root);
     }
 

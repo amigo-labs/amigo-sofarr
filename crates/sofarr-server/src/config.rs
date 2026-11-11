@@ -28,6 +28,23 @@ pub struct Config {
     pub nzbget: Option<NzbgetConfig>,
     pub download: DownloadConfig,
     pub import_lists: ImportListConfig,
+    pub library: LibraryConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LibraryConfig {
+    /// Hours between metadata refreshes (TMDB/TVDB, if configured) with the disk scan
+    /// that `rescanAfterRefresh` asks for; 0 disables them.
+    pub refresh_interval_hours: u64,
+}
+
+impl Default for LibraryConfig {
+    fn default() -> Self {
+        Self {
+            refresh_interval_hours: 24,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,6 +75,9 @@ pub struct DownloadConfig {
     pub check_interval_minutes: u64,
     /// Path translations between the download client's view and sofarr's.
     pub path_map: Vec<PathMap>,
+    /// After an import, remove the download from the client's history and delete what
+    /// is left of its folder (only if no video remains), like "Remove Completed".
+    pub remove_completed: bool,
 }
 
 impl Default for DownloadConfig {
@@ -65,6 +85,7 @@ impl Default for DownloadConfig {
         Self {
             check_interval_minutes: 2,
             path_map: Vec::new(),
+            remove_completed: true,
         }
     }
 }
@@ -189,6 +210,10 @@ pub struct IndexerConfig {
     pub tv_categories: Vec<u32>,
     #[serde(default = "default_limit")]
     pub limit: u32,
+    /// Tag labels (as in Radarr/Sonarr): if set, the indexer only serves movies and
+    /// series with one of these tags.
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 fn default_tv_categories() -> Vec<u32> {
