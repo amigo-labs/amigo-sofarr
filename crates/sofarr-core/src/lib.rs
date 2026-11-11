@@ -3,6 +3,7 @@
 //!
 //! Depends on `sofarr-parser`; must stay free of IO. Implementation: PLAN.md Phase 2.
 
+pub mod availability;
 pub mod custom_format;
 pub mod decision;
 pub mod definition;

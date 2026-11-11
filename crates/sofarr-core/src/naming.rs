@@ -63,6 +63,12 @@ pub struct NamingConfig {
 pub enum MultiEpisodeStyle {
     /// `S01E01-02-03`
     Extend,
+    /// `S01E01.S01E02`
+    Duplicate,
+    /// `S01E01E02E03`
+    Repeat,
+    /// `S01E01-E02-E03`
+    Scene,
     /// `S01E01-03`
     Range,
     /// `S01E01-E03`
@@ -71,11 +77,14 @@ pub enum MultiEpisodeStyle {
 }
 
 impl MultiEpisodeStyle {
-    /// Numeric setting (order as listed in the user interface); styles sofarr does not
-    /// implement fall back to the prefixed range.
+    /// Numeric setting (order as listed in the user interface); unknown values fall
+    /// back to the prefixed range.
     pub fn from_setting(value: &serde_json::Value) -> Self {
         match value.as_u64() {
             Some(0) => Self::Extend,
+            Some(1) => Self::Duplicate,
+            Some(2) => Self::Repeat,
+            Some(3) => Self::Scene,
             Some(4) => Self::Range,
             _ => Self::PrefixedRange,
         }
@@ -368,7 +377,13 @@ fn token_value(token: &str, input: &NamingInput, config: &NamingConfig, spec: Sp
         "air date" => input.air_date.clone().unwrap_or_default(),
         "mediainfo videodynamicrange" => input.dynamic_range.clone().unwrap_or_default(),
         "season" => input.season.map(pad).unwrap_or_default(),
-        "episode" => episode_numbers(&input.episodes, config.multi_episode_style, spec.lead, &pad),
+        "episode" => episode_numbers(
+            &input.episodes,
+            input.season,
+            config.multi_episode_style,
+            spec.lead,
+            &pad,
+        ),
         _ => String::new(),
     }
 }
@@ -447,10 +462,22 @@ fn first_character(title: &str) -> String {
 
 fn episode_numbers(
     episodes: &[u16],
+    season: Option<u16>,
     style: MultiEpisodeStyle,
     lead: Option<char>,
     pad: &dyn Fn(u16) -> String,
 ) -> String {
+    let prefix = lead
+        .filter(char::is_ascii_alphabetic)
+        .map(String::from)
+        .unwrap_or_default();
+    let joined = |sep: &str| {
+        episodes
+            .iter()
+            .map(|&e| pad(e))
+            .collect::<Vec<_>>()
+            .join(sep)
+    };
     let (Some(&first), Some(&last)) = (episodes.first(), episodes.last()) else {
         return String::new();
     };
@@ -458,19 +485,16 @@ fn episode_numbers(
         return pad(first);
     }
     match style {
-        MultiEpisodeStyle::Extend => episodes
-            .iter()
-            .map(|&e| pad(e))
-            .collect::<Vec<_>>()
-            .join("-"),
-        MultiEpisodeStyle::Range => format!("{}-{}", pad(first), pad(last)),
-        MultiEpisodeStyle::PrefixedRange => {
-            let prefix = lead
-                .filter(char::is_ascii_alphabetic)
-                .map(String::from)
-                .unwrap_or_default();
-            format!("{}-{prefix}{}", pad(first), pad(last))
+        MultiEpisodeStyle::Extend => joined("-"),
+        // The season is written with the episode's padding: `{season:00}` is the norm.
+        MultiEpisodeStyle::Duplicate => {
+            let season = season.map(&pad).unwrap_or_default();
+            joined(&format!(".S{season}{prefix}"))
         }
+        MultiEpisodeStyle::Repeat => joined(&prefix),
+        MultiEpisodeStyle::Scene => joined(&format!("-{prefix}")),
+        MultiEpisodeStyle::Range => format!("{}-{}", pad(first), pad(last)),
+        MultiEpisodeStyle::PrefixedRange => format!("{}-{prefix}{}", pad(first), pad(last)),
     }
 }
 
@@ -714,6 +738,21 @@ mod tests {
             format(pattern, &multi, &c),
             "Small Island - S02E05-E07 - The Storm Part 1 WEBDL-1080p"
         );
+        for (style, expected) in [
+            (MultiEpisodeStyle::Extend, "S02E05-06-07"),
+            (MultiEpisodeStyle::Duplicate, "S02E05.S02E06.S02E07"),
+            (MultiEpisodeStyle::Repeat, "S02E05E06E07"),
+            (MultiEpisodeStyle::Scene, "S02E05-E06-E07"),
+        ] {
+            let styled = NamingConfig {
+                multi_episode_style: style,
+                ..c.clone()
+            };
+            assert_eq!(
+                format("S{season:00}E{episode:00}", &multi, &styled),
+                expected
+            );
+        }
         let range = NamingConfig {
             multi_episode_style: MultiEpisodeStyle::Range,
             ..c.clone()
