@@ -858,13 +858,14 @@ impl App {
 
     /// Refreshes movies from TMDB and series from TVDB (where configured), then scans
     /// the disk as `rescanAfterRefresh` says; `manual` marks a refresh from the CLI.
+    /// The remote requests run without the jobs lock (RSS and imports go on); only the
+    /// disk scans take it.
     pub async fn refresh(
         &self,
         movies: bool,
         shows: bool,
         manual: bool,
     ) -> anyhow::Result<RefreshReport> {
-        let _guard = self.jobs.lock().await;
         let mut report = RefreshReport::default();
         if movies {
             if self.config.tmdb.is_some() {
@@ -872,6 +873,7 @@ impl App {
             }
             let media = self.db.setting("config_mediamanagement").await?;
             if RescanAfterRefresh::from_setting(media.as_ref()).applies(manual) {
+                let _guard = self.jobs.lock().await;
                 report.movie_scan = self.rescan_movies().await?;
             }
         }
@@ -896,6 +898,7 @@ impl App {
                 .setting(&format!("{}config_mediamanagement", series::PREFIX))
                 .await?;
             if RescanAfterRefresh::from_setting(media.as_ref()).applies(manual) {
+                let _guard = self.jobs.lock().await;
                 report.series_scan = self.rescan_series().await?;
             }
         }

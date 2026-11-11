@@ -228,7 +228,13 @@ pub async fn refresh(
     now: Timestamp,
 ) -> anyhow::Result<usize> {
     let meta = tvdb.series(series.data.tvdb_id).await?;
-    let mut data = series.data.clone();
+    let fetched = tvdb.episodes(series.data.tvdb_id).await?;
+    // Other jobs may have changed the series while TVDB answered: write onto the
+    // current state.
+    let Some(current) = db.series_by_tvdb(series.data.tvdb_id).await? else {
+        return Ok(0);
+    };
+    let mut data = current.data.clone();
     data.title_de = Some(meta.title_de.clone());
     for alias in meta.aliases {
         if !data.alternative_titles.contains(&alias) {
@@ -241,7 +247,7 @@ pub async fn refresh(
     db.upsert_series(&data, now).await?;
     let existing = db.episodes(Some(series.id)).await?;
     let mut n = 0;
-    for e in tvdb.episodes(series.data.tvdb_id).await? {
+    for e in fetched {
         let known = existing
             .iter()
             .find(|x| x.data.season == e.season && x.data.number == e.number);
@@ -563,24 +569,30 @@ pub fn waits_for_titles(
         Some("bulkSeasonReleases") => season_pack,
         _ => false,
     };
-    if !applies || !(pattern.contains("{Episode Title") || pattern.contains("{Episode CleanTitle"))
-    {
+    // The title each token would write: `:DE` falls back to the default title.
+    let tokens = naming::episode_title_tokens(pattern);
+    if !applies || tokens.is_empty() {
         return false;
     }
     let deadline = now - jiff::SignedDuration::from_hours(TITLE_WAIT_HOURS);
+    let missing =
+        |t: Option<&str>| t.is_none_or(|t| t.trim().is_empty() || t.eq_ignore_ascii_case("tba"));
     eps.iter().any(|e| {
-        let untitled = e
-            .data
-            .title
-            .as_deref()
-            .is_none_or(|t| t.trim().is_empty() || t.eq_ignore_ascii_case("tba"));
+        let untitled = tokens.iter().any(|language| {
+            let title = match language.as_deref() {
+                Some("DE") => e.data.title_de.as_deref().or(e.data.title.as_deref()),
+                _ => e.data.title.as_deref(),
+            };
+            missing(title)
+        });
+        // Without a known air date there is nothing to wait for.
         let recent = e
             .data
             .air_date
             .as_deref()
             .and_then(|d| d.parse::<jiff::civil::Date>().ok())
             .and_then(|d| d.to_zoned(jiff::tz::TimeZone::UTC).ok())
-            .is_none_or(|aired| aired.timestamp() > deadline);
+            .is_some_and(|aired| aired.timestamp() > deadline);
         untitled && recent
     })
 }
@@ -809,5 +821,18 @@ pub mod tests {
             false,
             now
         ));
+        let always = |pattern: &str, e: &Episode| {
+            waits_for_titles(Some("always"), pattern, &[e], false, now)
+        };
+        // Token spelling as the renderer accepts it.
+        assert!(always("{Episode.Title}", &tba));
+        // `:DE` uses the German title, falling back to the default one.
+        let mut german = ep(Some("Storm"), "2026-11-01");
+        german.data.title_de = Some("TBA".to_owned());
+        assert!(always("{Episode Title:DE}", &german));
+        assert!(!always("{Episode Title}", &german));
+        let mut undated = ep(None, "2026-11-01");
+        undated.data.air_date = None;
+        assert!(!always(pattern, &undated));
     }
 }

@@ -12,6 +12,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
 };
 
@@ -100,33 +101,65 @@ pub struct ScanReport {
     pub removed_folders: usize,
 }
 
-fn root_exists(folder: &Path) -> bool {
-    folder.parent().is_some_and(Path::is_dir)
+/// The root folder (parent of the movie or series folder) is usable: it exists and is
+/// not empty. An unmounted volume usually leaves an empty mount point behind.
+fn root_usable(folder: &Path) -> bool {
+    folder
+        .parent()
+        .and_then(|root| fs::read_dir(root).ok())
+        .is_some_and(|mut entries| entries.next().is_some())
 }
 
-/// Whether a folder holds no files at all (sub folders may exist).
+/// What the disk says about a recorded file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FileState {
+    Present,
+    Gone,
+    /// The file system did not answer (permissions, I/O): nothing is changed.
+    Unknown,
+}
+
+fn file_state(path: &Path) -> FileState {
+    match fs::metadata(path) {
+        Ok(m) if m.is_file() => FileState::Present,
+        Ok(_) => FileState::Gone,
+        Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
+            FileState::Gone
+        }
+        Err(e) => {
+            tracing::warn!(file = %path.display(), error = %e, "file not checkable, skipped");
+            FileState::Unknown
+        }
+    }
+}
+
+/// Whether a folder holds no files at all (sub folders may exist). Symbolic links count
+/// as content and are never followed; unreadable folders are not empty.
 fn holds_no_files(dir: &Path) -> bool {
     let Ok(entries) = fs::read_dir(dir) else {
         return false;
     };
-    entries.flatten().all(|e| {
-        let path = e.path();
-        path.is_dir() && holds_no_files(&path)
+    entries.into_iter().all(|e| {
+        e.ok().is_some_and(|e| {
+            e.file_type()
+                .is_ok_and(|t| t.is_dir() && holds_no_files(&e.path()))
+        })
     })
 }
 
 /// Removes empty folders below `dir` (deepest first); `dir` itself only if `with_root`.
+/// `remove_dir` only removes empty folders, so a file that arrives meanwhile stays;
+/// symbolic links are never followed.
 fn remove_empty(dir: &Path, with_root: bool) -> usize {
     let mut removed = 0;
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                removed += remove_empty(&path, true);
+            if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                removed += remove_empty(&entry.path(), true);
             }
         }
     }
-    if with_root && holds_no_files(dir) && fs::remove_dir(dir).is_ok() {
+    if with_root && fs::remove_dir(dir).is_ok() {
         tracing::info!(folder = %dir.display(), "removed empty folder");
         removed += 1;
     }
@@ -167,31 +200,34 @@ pub enum MovieAction {
     EmptyFolder,
 }
 
-/// Looks at one movie folder.
+/// Looks at one movie folder; nothing if the file system cannot tell.
 pub fn inspect_movie(movie: &Movie, settings: ScanSettings) -> Vec<MovieAction> {
     let folder = PathBuf::from(&movie.path);
     let mut actions = Vec::new();
-    let mut has_file = false;
     if let Some(file) = &movie.file {
-        if folder.join(&file.relative_path).is_file() {
-            has_file = true;
-        } else {
-            actions.push(MovieAction::Missing);
+        match file_state(&folder.join(&file.relative_path)) {
+            FileState::Present => return actions,
+            FileState::Gone => actions.push(MovieAction::Missing),
+            FileState::Unknown => return actions,
         }
     }
-    if !has_file && folder.is_dir() {
-        match importer::find_videos(&folder)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-        {
-            Some(video) => actions.push(MovieAction::Found(video)),
-            None if settings.delete_empty_folders
-                && !settings.keep_empty_root
-                && holds_no_files(&folder) =>
-            {
-                actions.push(MovieAction::EmptyFolder);
+    if folder.is_dir() {
+        match importer::find_videos(&folder) {
+            Ok(videos) => match videos.into_iter().next() {
+                Some(video) => actions.push(MovieAction::Found(video)),
+                None if settings.delete_empty_folders
+                    && !settings.keep_empty_root
+                    && holds_no_files(&folder) =>
+                {
+                    actions.push(MovieAction::EmptyFolder);
+                }
+                None => {}
+            },
+            // An unreadable folder says nothing about the file: leave the record alone.
+            Err(e) => {
+                tracing::warn!(folder = %folder.display(), error = format!("{e:#}"), "folder not readable, skipped");
+                return Vec::new();
             }
-            None => {}
         }
     }
     actions
@@ -210,18 +246,21 @@ pub async fn movies(
             continue;
         }
         let folder = PathBuf::from(&movie.path);
-        if !root_exists(&folder) {
+        if !root_usable(&folder) {
             report.skipped += 1;
             continue;
         }
         report.checked += 1;
-        for action in inspect_movie(&movie, settings) {
+        let actions = inspect_movie(&movie, settings);
+        // A renamed or replaced file is no reason to stop monitoring.
+        let replaced = actions.iter().any(|a| matches!(a, MovieAction::Found(_)));
+        for action in actions {
             match action {
                 MovieAction::Missing => {
                     tracing::info!(movie = %movie.title, "file missing on disk");
                     db.remove_file(movie.id).await?;
                     report.missing += 1;
-                    if settings.auto_unmonitor && movie.monitored {
+                    if settings.auto_unmonitor && movie.monitored && !replaced {
                         db.set_monitored(movie.id, false).await?;
                         report.unmonitored += 1;
                     }
@@ -247,10 +286,7 @@ pub async fn movies(
                     report.found += 1;
                 }
                 MovieAction::EmptyFolder => {
-                    if fs::remove_dir_all(&folder).is_ok() {
-                        tracing::info!(folder = %folder.display(), "removed empty movie folder");
-                        report.removed_folders += 1;
-                    }
+                    report.removed_folders += remove_empty(&folder, true);
                 }
             }
         }
@@ -271,7 +307,7 @@ pub async fn all_series(
             continue;
         }
         let folder = PathBuf::from(&show.data.path);
-        if !root_exists(&folder) {
+        if !root_usable(&folder) {
             report.skipped += 1;
             continue;
         }
@@ -303,77 +339,94 @@ async fn scan_series(
                 .push(e.id);
         }
     }
+    // Check every file first: if the file system cannot tell, the series is left alone.
+    let mut gone = Vec::new();
     let mut known = BTreeSet::new();
+    for (file_id, (relative, ids)) in &files {
+        match file_state(&folder.join(relative)) {
+            FileState::Present => {
+                known.insert(relative.clone());
+            }
+            FileState::Gone => gone.push((*file_id, relative, ids)),
+            FileState::Unknown => return Ok(()),
+        }
+    }
+    let videos = if folder.is_dir() {
+        match importer::find_videos(&folder) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!(folder = %folder.display(), error = format!("{e:#}"), "folder not readable, skipped");
+                return Ok(());
+            }
+        }
+    } else {
+        Vec::new()
+    };
     let mut without_file: BTreeSet<i64> = episodes
         .iter()
         .filter(|e| e.file.is_none())
         .map(|e| e.id)
         .collect();
-    for (file_id, (relative, ids)) in &files {
-        if folder.join(relative).is_file() {
-            known.insert(relative.clone());
-            continue;
-        }
+    let mut lost: BTreeSet<i64> = BTreeSet::new();
+    for (file_id, relative, ids) in gone {
         tracing::info!(series = %show.data.title, file = %relative, "episode file missing on disk");
-        db.remove_episode_file(*file_id).await?;
+        db.remove_episode_file(file_id).await?;
         report.missing += 1;
         without_file.extend(ids);
-        if settings.auto_unmonitor {
-            let monitored: Vec<i64> = episodes
-                .iter()
-                .filter(|e| ids.contains(&e.id) && e.data.monitored)
-                .map(|e| e.id)
-                .collect();
-            db.set_episodes_monitored(&monitored, false).await?;
-            report.unmonitored += monitored.len();
-        }
+        lost.extend(ids);
     }
-    if folder.is_dir() {
-        for video in importer::find_videos(&folder).unwrap_or_default() {
-            let relative = series::relative_to(show, &video);
-            if known.contains(&relative) {
-                continue;
-            }
-            let name = video
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or_default();
-            let Some(info) = sofarr_parser::parse_episode(name) else {
-                continue;
-            };
-            let ids: Vec<i64> = episodes
-                .iter()
-                .filter(|e| {
-                    without_file.contains(&e.id)
-                        && Some(e.data.season) == info.season
-                        && info.episodes.contains(&e.data.number)
-                })
-                .map(|e| e.id)
-                .collect();
-            if ids.is_empty() {
-                continue;
-            }
-            let original = show
-                .data
-                .original_language
-                .as_deref()
-                .and_then(sofarr_core::LanguageRef::from_name)
-                .and_then(|l| match l {
-                    sofarr_core::LanguageRef::Language(l) => Some(l),
-                    _ => None,
-                });
-            let score = rules.score(show.data.quality_profile_id, name, original);
-            let file = found_file(&video, relative, rules, score);
-            tracing::info!(series = %show.data.title, file = %file.relative_path, "episode file found on disk");
-            db.set_episode_file(show.id, &ids, &file, now).await?;
-            for id in &ids {
-                without_file.remove(id);
-            }
-            report.found += 1;
+    // Daily and absolute numbering resolve like releases do.
+    let target = series::target(show, episodes, &[], &series::today(now), rules);
+    for video in videos {
+        let relative = series::relative_to(show, &video);
+        if known.contains(&relative) {
+            continue;
         }
-        if settings.delete_empty_folders {
-            report.removed_folders += remove_empty(&folder, !settings.keep_empty_root);
+        let name = video
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        let Some(info) = sofarr_parser::parse_episode(name) else {
+            continue;
+        };
+        let ids: Vec<i64> = sofarr_core::series::covered(&info, &target)
+            .into_iter()
+            .map(|e| e.id)
+            .filter(|id| without_file.contains(id))
+            .collect();
+        if ids.is_empty() {
+            continue;
         }
+        let original = show
+            .data
+            .original_language
+            .as_deref()
+            .and_then(sofarr_core::LanguageRef::from_name)
+            .and_then(|l| match l {
+                sofarr_core::LanguageRef::Language(l) => Some(l),
+                _ => None,
+            });
+        let score = rules.score(show.data.quality_profile_id, name, original);
+        let file = found_file(&video, relative, rules, score);
+        tracing::info!(series = %show.data.title, file = %file.relative_path, "episode file found on disk");
+        db.set_episode_file(show.id, &ids, &file, now).await?;
+        for id in &ids {
+            without_file.remove(id);
+        }
+        report.found += 1;
+    }
+    // Only episodes whose file is gone for good (no replacement found) stop being monitored.
+    if settings.auto_unmonitor {
+        let monitored: Vec<i64> = episodes
+            .iter()
+            .filter(|e| lost.contains(&e.id) && without_file.contains(&e.id) && e.data.monitored)
+            .map(|e| e.id)
+            .collect();
+        db.set_episodes_monitored(&monitored, false).await?;
+        report.unmonitored += monitored.len();
+    }
+    if folder.is_dir() && settings.delete_empty_folders {
+        report.removed_folders += remove_empty(&folder, !settings.keep_empty_root);
     }
     Ok(())
 }
@@ -444,7 +497,7 @@ mod tests {
         assert_eq!(report.missing, 1);
         assert_eq!(report.unmonitored, 1);
         assert_eq!(report.found, 1);
-        assert_eq!(report.removed_folders, 1);
+        assert_eq!(report.removed_folders, 2, "Zweiter Film and its empty Subs");
         assert_eq!(report.skipped, 1, "Vierter Film has no root folder");
         let all = db.movies().await.expect("movies");
         let by = |t: &str| all.iter().find(|m| m.title == t).expect("movie");
@@ -456,6 +509,70 @@ mod tests {
         assert!(!by("Zweiter Film").monitored);
         assert!(!root.join("Zweiter Film (2002)").exists());
         assert!(by("Dritter Film").file.is_some());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn keeps_monitoring_on_rename_and_skips_empty_roots() {
+        let root = temp("rename");
+        let db = Db::in_memory().await.expect("db");
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        let mut docs = documents();
+        let raw = docs["movie"]
+            .to_string()
+            .replace("/data/media/movies", &format!("{}/lib", root.display()))
+            .replace("\"/x\"", &format!("\"{}/unmounted/x\"", root.display()));
+        docs.insert(
+            "movie".to_owned(),
+            serde_json::from_str(&raw).expect("json"),
+        );
+        import_documents(&db, &docs, now).await.expect("import");
+        let rules = load_rules(&db).await.expect("rules");
+        // Zweiter Film: the recorded file was renamed.
+        let second = root.join("lib/Zweiter Film (2002)");
+        fs::create_dir_all(&second).expect("dir");
+        fs::write(second.join("Zweiter Film (2002) WEBDL-1080p.mkv"), b"v").expect("video");
+        let third = root.join("lib/Dritter Film (2003)");
+        fs::create_dir_all(&third).expect("dir");
+        fs::write(third.join("Dritter Film (2003).mkv"), b"v").expect("video");
+        // An unmounted volume leaves an empty mount point.
+        fs::create_dir_all(root.join("unmounted")).expect("mount point");
+        let settings = ScanSettings {
+            auto_unmonitor: true,
+            delete_empty_folders: true,
+            keep_empty_root: false,
+        };
+        let report = movies(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!(
+            (report.missing, report.found, report.unmonitored),
+            (1, 1, 0)
+        );
+        assert_eq!(report.skipped, 1);
+        let all = db.movies().await.expect("movies");
+        let second = all
+            .iter()
+            .find(|m| m.title == "Zweiter Film")
+            .expect("movie");
+        assert!(second.monitored);
+        assert_eq!(
+            second.file.as_ref().map(|f| f.relative_path.as_str()),
+            Some("Zweiter Film (2002) WEBDL-1080p.mkv")
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn never_follows_symlinks() {
+        let root = temp("links");
+        let outside = root.join("outside/empty");
+        fs::create_dir_all(&outside).expect("dir");
+        let show = root.join("show");
+        fs::create_dir_all(&show).expect("dir");
+        std::os::unix::fs::symlink(root.join("outside"), show.join("link")).expect("link");
+        assert!(!holds_no_files(&show), "a link is content");
+        assert_eq!(remove_empty(&show, false), 0);
+        assert!(outside.exists(), "nothing outside the folder is touched");
         let _ = fs::remove_dir_all(&root);
     }
 

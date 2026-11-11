@@ -252,6 +252,55 @@ struct Spec<'a> {
     lead: Option<char>,
 }
 
+/// The token name inside a token body (position, length, normalised name, separator);
+/// the rest of the body is prefix and suffix. The longest match wins.
+fn find_token(body: &str) -> Option<(usize, usize, &'static str, char)> {
+    let lower = body.to_ascii_lowercase();
+    let mut found: Option<(usize, usize, &'static str, char)> = None;
+    for token in TOKENS {
+        for sep in SEPARATORS {
+            let candidate = token.replace(' ', &sep.to_string());
+            if let Some(pos) = lower.find(&candidate)
+                && found.is_none_or(|(_, len, _, _)| candidate.len() > len)
+            {
+                found = Some((pos, candidate.len(), *token, sep));
+            }
+        }
+    }
+    found
+}
+
+/// Every episode title token of a pattern (`{Episode Title}`, `{Episode.CleanTitle:DE}`,
+/// …) with its translation suffix (`Some("DE")`), recognised like [`format`] does.
+pub fn episode_title_tokens(pattern: &str) -> Vec<Option<String>> {
+    let mut out = Vec::new();
+    let mut rest = pattern;
+    while let Some(start) = rest.find('{') {
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('}') else {
+            break;
+        };
+        let raw = &after[..end];
+        let (body, language) = match raw.rsplit_once(':') {
+            Some((body, lang))
+                if lang.len() == 2 && lang.chars().all(|c| c.is_ascii_alphabetic()) =>
+            {
+                (body, Some(lang.to_ascii_uppercase()))
+            }
+            Some((body, _)) => (body, None),
+            None => (raw, None),
+        };
+        if matches!(
+            find_token(body),
+            Some((_, _, "episode title" | "episode cleantitle", _))
+        ) {
+            out.push(language);
+        }
+        rest = &after[end + 1..];
+    }
+    out
+}
+
 fn render_token(
     raw: &str,
     input: &NamingInput,
@@ -275,22 +324,7 @@ fn render_token(
         }
         _ => raw,
     };
-    // Find the token name inside the body; the rest is prefix and suffix.
-    let lower = body.to_ascii_lowercase();
-    let mut found = None;
-    for token in TOKENS {
-        for sep in SEPARATORS {
-            let candidate = token.replace(' ', &sep.to_string());
-            if let Some(pos) = lower.find(&candidate) {
-                let better = found
-                    .is_none_or(|(_, len, _, _): (usize, usize, &str, char)| candidate.len() > len);
-                if better {
-                    found = Some((pos, candidate.len(), *token, sep));
-                }
-            }
-        }
-    }
-    let Some((pos, len, token, sep)) = found else {
+    let Some((pos, len, token, sep)) = find_token(body) else {
         return format!("{{{raw}}}");
     };
     let prefix = &body[..pos];
@@ -721,6 +755,17 @@ mod tests {
     }
 
     #[test]
+    fn finds_episode_title_tokens() {
+        assert_eq!(
+            episode_title_tokens(
+                "{Series Title} - {episode title} {.Episode CleanTitle:DE} {Episode.Title}"
+            ),
+            [None, Some("DE".to_owned()), None]
+        );
+        assert!(episode_title_tokens("S{season:00}E{episode:00} {Quality Full}").is_empty());
+    }
+
+    #[test]
     fn formats_episodes() {
         let c = NamingConfig {
             colon_replacement: ColonReplacement::Smart,
@@ -748,10 +793,12 @@ mod tests {
                 multi_episode_style: style,
                 ..c.clone()
             };
-            assert_eq!(
-                format("S{season:00}E{episode:00}", &multi, &styled),
-                expected
-            );
+            let name = format("S{season:00}E{episode:00}", &multi, &styled);
+            assert_eq!(name, expected);
+            // sofarr reads its own names back (disk scan).
+            let info = sofarr_parser::parse_episode(&format!("Small.Island.{name}.1080p"))
+                .expect("episode");
+            assert_eq!(info.episodes, [5, 6, 7], "{name}");
         }
         let range = NamingConfig {
             multi_episode_style: MultiEpisodeStyle::Range,

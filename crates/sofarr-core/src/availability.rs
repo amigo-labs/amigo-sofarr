@@ -13,14 +13,16 @@ pub enum Stage {
 }
 
 impl Stage {
-    /// Reads Radarr's `minimumAvailability` or `status`, or TMDB's `status`.
+    /// Reads Radarr's `minimumAvailability` or `status`, or TMDB's `status`. TMDB's
+    /// `Released` only says the movie was shown somewhere (a theatrical release), not
+    /// that it is out for home viewing, so it counts as in cinemas.
     pub fn from_api(value: &str) -> Option<Self> {
         Some(match value {
             "tba" | "announced" | "Rumored" | "Planned" | "In Production" | "Post Production" => {
                 Self::Announced
             }
-            "inCinemas" => Self::InCinemas,
-            "released" | "preDB" | "Released" => Self::Released,
+            "inCinemas" | "Released" => Self::InCinemas,
+            "released" | "preDB" => Self::Released,
             _ => return None,
         })
     }
@@ -99,7 +101,8 @@ mod tests {
     fn stages() {
         assert_eq!(Stage::from_api("inCinemas"), Some(Stage::InCinemas));
         assert_eq!(Stage::from_api("Post Production"), Some(Stage::Announced));
-        assert_eq!(Stage::from_api("Released"), Some(Stage::Released));
+        assert_eq!(Stage::from_api("Released"), Some(Stage::InCinemas));
+        assert_eq!(Stage::from_api("released"), Some(Stage::Released));
         assert_eq!(Stage::from_api("whatever"), None);
         assert_eq!(parse_date("2026-11-01T00:00:00Z"), Some(d("2026-11-01")));
     }

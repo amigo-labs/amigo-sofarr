@@ -47,10 +47,12 @@ pub fn merge(movie: &Movie, meta: &MovieMetadata) -> NewMovie {
         alternative_titles: titles,
         availability: Availability {
             minimum: movie.availability.minimum.clone(),
-            status: meta
+            // Radarr's status distinguishes home releases; TMDB's only theatrical ones.
+            status: movie
+                .availability
                 .status
                 .clone()
-                .or_else(|| movie.availability.status.clone()),
+                .or_else(|| meta.status.clone()),
             in_cinemas: meta
                 .in_cinemas
                 .clone()
@@ -68,15 +70,20 @@ pub fn merge(movie: &Movie, meta: &MovieMetadata) -> NewMovie {
     }
 }
 
-/// Refreshes every movie; errors of single movies are logged and skipped.
+/// Refreshes every movie; errors of single movies are logged and skipped. Runs without
+/// the jobs lock: each movie is re-read right before it is written.
 pub async fn refresh_all(app: &App) -> anyhow::Result<usize> {
     let tmdb = tmdb(app)?;
     let mut done = 0;
     for movie in app.db.movies().await? {
         match tmdb.movie(movie.tmdb_id).await {
             Ok(meta) => {
+                // Other jobs may have changed the movie while TMDB answered.
+                let Some(current) = app.db.movie(movie.id).await? else {
+                    continue;
+                };
                 app.db
-                    .upsert_movie(&merge(&movie, &meta), Timestamp::now())
+                    .upsert_movie(&merge(&current, &meta), Timestamp::now())
                     .await?;
                 done += 1;
             }

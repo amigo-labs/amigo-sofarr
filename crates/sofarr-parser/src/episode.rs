@@ -83,14 +83,19 @@ fn cross(key: &str) -> Option<(u16, Vec<u16>)> {
     Some((season, episodes))
 }
 
-/// Continues an episode list with following tokens: `-E03`, `E03`, `-03`.
-fn more_episodes(tokens: &[Token<'_>], mut i: usize, episodes: &mut Vec<u16>) {
+/// Continues an episode list with following tokens: `-E03`, `E03`, `-03`, and – with a
+/// known season – a repeated `S01E03` of the same season.
+fn more_episodes(tokens: &[Token<'_>], mut i: usize, season: Option<u16>, episodes: &mut Vec<u16>) {
     while let Some(t) = tokens.get(i) {
         let next = t
             .key
             .strip_prefix('e')
             .and_then(digits)
-            .or_else(|| (t.sep == Sep::Dash).then(|| digits(&t.key)).flatten());
+            .or_else(|| (t.sep == Sep::Dash).then(|| digits(&t.key)).flatten())
+            .or_else(|| {
+                let (s, eps) = season_episode(&t.key)?;
+                (Some(s) == season && eps.len() == 1).then(|| eps[0])
+            });
         match next {
             Some(n)
                 if episodes
@@ -139,7 +144,7 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
                 .map(|(s, _)| s);
             return Some(Marker::Season { season, last });
         }
-        more_episodes(tokens, i + 1, &mut episodes);
+        more_episodes(tokens, i + 1, Some(season), &mut episodes);
         return Some(Marker::Episode { season, episodes });
     }
     if season_word(key)
@@ -203,7 +208,7 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
             && !(1900..2100).contains(&n)
         {
             let mut numbers = vec![n];
-            more_episodes(tokens, i + 1, &mut numbers);
+            more_episodes(tokens, i + 1, None, &mut numbers);
             return Some(Marker::Absolute { numbers });
         }
     }
@@ -271,6 +276,10 @@ mod tests {
         assert_eq!(ep("Show.S01E01-E03.720p.HDTV-X").episodes, [1, 2, 3]);
         assert_eq!(ep("Show S01E01-03 720p").episodes, [1, 2, 3]);
         assert_eq!(ep("Show.S01E01.E02.720p").episodes, [1, 2]);
+        assert_eq!(ep("Show.S01E01.S01E02.720p").episodes, [1, 2]);
+        assert_eq!(ep("Show S01E01-E02-E03 720p").episodes, [1, 2, 3]);
+        // A different season is no continuation.
+        assert_eq!(ep("Show.S01E01.S02E02.720p").episodes, [1]);
     }
 
     #[test]
