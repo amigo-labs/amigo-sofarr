@@ -488,7 +488,7 @@ fn episode_numbers(
         MultiEpisodeStyle::Extend => joined("-"),
         // The season is written with the episode's padding: `{season:00}` is the norm.
         MultiEpisodeStyle::Duplicate => {
-            let season = season.map(&pad).unwrap_or_default();
+            let season = season.map(pad).unwrap_or_default();
             joined(&format!(".S{season}{prefix}"))
         }
         MultiEpisodeStyle::Repeat => joined(&prefix),
