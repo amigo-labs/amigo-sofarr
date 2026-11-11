@@ -33,14 +33,14 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Indexer-Einstellung: minimumAge | radarr: = 0; sonarr: = 0 | 2 | umgesetzt, im Orakel unbelegt (= 0) |
 | Indexer-Einstellung: maximumSize | radarr: = 0; sonarr: = 0 | 2 | umgesetzt, im Orakel unbelegt (= 0) |
 | Indexer-Einstellung: retention | radarr: = 0; sonarr: = 0 | 2 | umgesetzt, im Orakel unbelegt (= 0) |
-| Indexer-Einstellung: preferIndexerFlags | radarr: = false | 2 | offen |
-| Indexer-Einstellung: availabilityDelay | radarr: = 0 | 2 | offen |
+| Indexer-Einstellung: preferIndexerFlags | radarr: = false | 2 | nicht nötig (aus; Newznab-Indexer liefern keine Indexer-Flags) |
+| Indexer-Einstellung: availabilityDelay | radarr: = 0 | 2 | umgesetzt (mit `minimumAvailability`, nur RSS und Suche beim Hinzufügen) – Orakel-Abgleich offen |
 | Indexer-Einstellung: allowHardcodedSubs | radarr: = false | 2 | umgesetzt, Release-Orakel ✓ |
 | Indexer-Einstellung: rssSyncInterval | radarr: = 30; sonarr: = 15 | 3 | umgesetzt (`[rss] interval_minutes`) |
 | Indexer: Newznab | radarr: 2 (1 aktiv, usenet); sonarr: 2 (1 aktiv, usenet) | 3 | umgesetzt – Orakel-Abgleich offen |
 | Delay Profiles | radarr: 1; sonarr: 1 | 3 | nicht nötig (keine Usenet-Verzögerung konfiguriert) |
 | Delay Profile: Bypass bei höchster Quality | radarr: 1 von 1; sonarr: 1 von 1 | 3 | nicht nötig (ohne Verzögerung wirkungslos) |
-| Tags | radarr: 2; sonarr: 1 | 3 | offen – Tags werden importiert, aber nicht ausgewertet |
+| Tags | radarr: 2; sonarr: 1 | 3 | umgesetzt: Filme/Serien tragen ihre Tags, Import Lists vergeben sie, `[[indexer]] tags` beschränkt Indexer – Orakel-Abgleich offen |
 | Root Folders | radarr: 1; sonarr: 1 | 3 | umgesetzt (Filmpfade aus dem Import) |
 | Bibliothek: Filme | radarr: 2420 (53 überwacht) | 3 | umgesetzt – Orakel-Abgleich offen |
 | Import List: TMDbPersonImport | radarr: 5 (5 aktiv) | 4 | umgesetzt – Orakel-Abgleich offen |
@@ -52,16 +52,16 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Media Management: downloadPropersAndRepacks | radarr: = preferAndUpgrade; sonarr: = preferAndUpgrade | 2 | umgesetzt, Release-Orakel ✓ (nur preferAndUpgrade belegt) |
 | Media Management: copyUsingHardlinks | radarr: = true; sonarr: = true | 4 | bewusst anders: Usenet-Downloads werden verschoben |
 | Media Management: importExtraFiles | radarr: = false; sonarr: = false | 4 | umgesetzt (aus: nur die Videodatei) |
-| Media Management: autoUnmonitorPreviouslyDownloadedMovies | radarr: = true | 4 | offen |
+| Media Management: autoUnmonitorPreviouslyDownloadedMovies | radarr: = true | 4 | umgesetzt (Festplatten-Scan) – Orakel-Abgleich offen |
 | Media Management: createEmptyMovieFolders | radarr: = false | 4 | umgesetzt (aus: Ordner entstehen erst beim Import) |
-| Media Management: deleteEmptyFolders | radarr: = true; sonarr: = true | 4 | offen – Download-Ordner bleiben nach dem Import liegen |
+| Media Management: deleteEmptyFolders | radarr: = true; sonarr: = true | 4 | umgesetzt (Festplatten-Scan; Download-Reste räumt `[download] remove_completed` ab) – Orakel-Abgleich offen |
 | Media Management: autoRenameFolders | radarr: = false | 4 | umgesetzt (aus: bestehende Ordner bleiben) |
 | Media Management: fileDate | radarr: = none; sonarr: = none | 4 | umgesetzt (none: Dateidatum bleibt) |
-| Media Management: rescanAfterRefresh | radarr: = always; sonarr: = always | 4 | offen – kein Festplatten-Rescan |
+| Media Management: rescanAfterRefresh | radarr: = always; sonarr: = always | 4 | umgesetzt (`rescan`, nach `refresh-metadata`/`refresh-series` und dem Refresh-Job `[library]`) |
 | Media Management: setPermissionsLinux | radarr: = false; sonarr: = false | 4 | umgesetzt (aus) |
 | Media Management: skipFreeSpaceCheckWhenImporting | radarr: = false; sonarr: = false | 4 | umgesetzt – Orakel-Abgleich offen |
 | Media Management: minimumFreeSpaceWhenImporting | radarr: = 50000; sonarr: = 10000 | 4 | umgesetzt – Orakel-Abgleich offen |
-| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | offen – sofarr liest noch keine Mediainfo aus Dateien |
+| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | offen – sofarr liest keine Mediainfo aus Dateien; `{MediaInfo…}`-Tokens werden aus dem Release-Namen geschätzt |
 | Media Management: recycleBinCleanupDays | radarr: = 7; sonarr: = 7 | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: renameMovies | radarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: replaceIllegalCharacters | radarr: = true; sonarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
@@ -74,9 +74,9 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Naming-Token `{Quality.Full}` | radarr: standardMovieFormat; sonarr: standardEpisodeFormat | 4 | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{Release Year}` | radarr: movieFolderFormat, standardMovieFormat | 4 | umgesetzt – Orakel-Abgleich offen |
 | Bibliothek: Serien | sonarr: 150 (63 überwacht) | 5+ | umgesetzt – Orakel-Abgleich offen |
-| Media Management: autoUnmonitorPreviouslyDownloadedEpisodes | sonarr: = true | 5+ | offen – Löschen von Dateien wird noch nicht erkannt |
+| Media Management: autoUnmonitorPreviouslyDownloadedEpisodes | sonarr: = true | 5+ | umgesetzt (Festplatten-Scan) – Orakel-Abgleich offen |
 | Media Management: createEmptySeriesFolders | sonarr: = true | 5+ | umgesetzt – Orakel-Abgleich offen |
-| Media Management: episodeTitleRequired | sonarr: = always | 5+ | offen – Import wartet nicht auf Episodentitel |
+| Media Management: episodeTitleRequired | sonarr: = always | 5+ | umgesetzt (Import wartet bis 48 h nach Ausstrahlung) – Orakel-Abgleich offen |
 | Benennung: renameEpisodes | sonarr: = true | 5+ | umgesetzt – Orakel-Abgleich offen |
 | Benennung: multiEpisodeStyle | sonarr: = 5 | 5+ | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{.MediaInfo.VideoDynamicRange}` | sonarr: standardEpisodeFormat | 5+ | umgesetzt – aus dem Release-Namen geschätzt (keine Mediainfo) |
@@ -156,8 +156,10 @@ Hinweise zur Messung:
 
 Noch nicht abgedeckt:
 
-- Nicht modelliert: „Raw Bluray/DVD release“ (6×, nicht aus dem Titel ableitbar) und „Has
-  same release name as a grabbed and imported release“ (1×, braucht die History, Phase 3).
+- Nicht modelliert: „Raw Bluray/DVD release“ (6×, nicht aus dem Titel ableitbar). „Has
+  same release name as a grabbed and imported release“ (1×) braucht die History: RSS-Sync
+  und Suche nehmen keinen Release, dessen Name einem importierten Grab gleicht; im
+  Release-Orakel (ohne History) bleibt der Fall offen.
 - Quality-Abweichungen des Parsers (3×, Einzelfälle ohne Gegenstück im Parse-Orakel):
   `1080p.Bluray.HEVC` mit DTSHD (Radarr: Remux), `[2160p]…WEB.AV1` (Radarr: HDTV, im
   Parse-Orakel ist `WEB.AV1` WEB-DL) und `Cam` vor dem Jahr.
@@ -171,6 +173,8 @@ Noch nicht abgedeckt:
 Verhalten, das ohne Orakel-Daten festgelegt wurde. Die Abgleiche (`compare-library`,
 `compare-history`, `compare-rename`, `compare-import-lists`, `compare-series-library`) zeigen,
 ob es stimmt; Abweichungen werden hier korrigiert oder als bewusst markiert.
+`compare-manual-import --folder …` prüft zusätzlich die Zuordnung von Downloads gegen
+Radarrs manuellen Import (Spec §5).
 
 | Thema | Annahme in sofarr |
 | --- | --- |
@@ -178,7 +182,13 @@ ob es stimmt; Abweichungen werden hier korrigiert oder als bewusst markiert.
 | RSS: bestes Release | Quality-Rang, dann CF-Score, dann Revision (außer `doNotPrefer`), dann Größe. |
 | Pending Grab | Ein offener Grab (Shadow oder Download läuft) gilt wie eine vorhandene Datei: nur bessere Releases werden genommen. |
 | Release ohne Veröffentlichungsdatum | gilt als gerade veröffentlicht (Alter 0). |
-| Fehlende Filme | überwacht und ohne Datei; `minimumAvailability` wird noch nicht berücksichtigt. |
+| Fehlende Filme | überwacht und ohne Datei, unabhängig von der Verfügbarkeit (wie `wanted/missing` mit `monitored=true`). |
+| Verfügbarkeit | Nur RSS-Sync und die Suche beim Hinzufügen warten darauf (die interaktive Suche im Release-Orakel lehnt nicht verfügbare Filme nicht ab). `announced`: immer; `inCinemas`: Kinostart oder Heimkino-Release + `availabilityDelay` erreicht; `released`: früheres von Digital- und Disc-Release + Verzögerung erreicht. Ohne Datum zählt der gemeldete Status; ganz ohne Angaben gilt ein Film als verfügbar. TMDB-Daten: weltweit frühestes Datum je Typ (3/2 Kino, 4 digital, 5 Disc). |
+| Tags | Ein Indexer mit `tags` bedient nur Filme/Serien mit mindestens einem gleichen Tag (Label, ohne Groß-/Kleinschreibung); ohne Tags alle. Delay Profiles, Download-Clients und Benachrichtigungen werten Tags nicht aus (nicht konfiguriert). |
+| Festplatten-Scan | Fehlt eine Datei, wird sie vergessen (mit `autoUnmonitorPreviouslyDownloaded…` auch die Überwachung beendet); ein Video ohne Eintrag wird mit Quality und Gruppe aus dem Dateinamen übernommen; Filme/Serien ohne Stammordner werden übersprungen. `deleteEmptyFolders` entfernt leere Filmordner und leere Unterordner von Serien (Serienordner bleiben mit `createEmptySeriesFolders`); im Shadow-Mode wird nichts gelöscht. |
+| Download-Reste | Nach dem Import verschwindet der Download aus der nzbget-History; sein Ordner wird gelöscht, wenn kein Video mehr darin liegt (`[download] remove_completed`, Standard an). |
+| `episodeTitleRequired` | `always`: Import wartet, solange eine Episode ohne Titel (leer/`TBA`) vor weniger als 48 h lief und das Format den Episodentitel nutzt; `bulkSeasonReleases`: nur Staffelpakete. |
+| Manueller Import (`compare-manual-import`) | Film aus dem Ordnernamen, sonst dem Dateinamen (bei mehreren Treffern das gleiche Jahr); Quality aus dem Dateinamen, sonst dem Ordnernamen. |
 | Cutoff unerfüllt | gleiche Cutoff-Regel wie bei Upgrades (Profil ohne Upgrades: niedrigste erlaubte Quality). |
 | CF-Score vorhandener Dateien | aus `customFormatScore` der Radarr-Antwort, sonst aus Szene- bzw. Dateiname berechnet. |
 | Import | Die größte Videodatei ohne `sample` im Namen wird verschoben (gleiches Dateisystem: `rename`, sonst kopieren und löschen); Extras bleiben liegen. |
@@ -191,6 +201,6 @@ ob es stimmt; Abweichungen werden hier korrigiert oder als bewusst markiert.
 | Serien: Staffelpakete | decken alle Episoden der Staffel(n) ab; maßgeblich ist die schwächste vorhandene Datei der überwachten, ausgestrahlten Episoden; ein Paket schlägt einzelne Episoden, die es enthält. |
 | Serien: Regeln | dieselben wie für Filme (Quality, Sprache, Größe pro Episode, CF, Upgrades), aber ohne die filmspezifische Jahr-Prüfung. |
 | Serien: ausgestrahlt | Ausstrahlungsdatum ≤ heute (UTC). |
-| Serien: `multiEpisodeStyle` | 0 = Extend, 4 = Range, sonst Prefixed Range (5); Duplicate/Repeat/Scene fehlen noch. |
+| Serien: `multiEpisodeStyle` | 0 Extend, 1 Duplicate, 2 Repeat, 3 Scene, 4 Range, 5 Prefixed Range; Duplicate schreibt die Staffel mit der Auffüllung der Episode. |
 | Serien: `colonReplacementFormat` (numerisch) | 0 Delete, 1 Dash, 2 Space Dash, 3 Space Dash Space, 4 Smart. |
 | Serien: Episoden-Import | jede Videodatei wird über ihren Namen (sonst den Grab-Titel) Episoden zugeordnet. |

@@ -197,7 +197,15 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
       Ordnername nach `movieFolderFormat`, Suche beim Hinzufügen), `amigo-sofarr sync-import-lists`
 - [x] 🤖 Orakel-Werkzeuge: `amigo-sofarr compare-rename` (gegen `/api/v3/rename`) und
       `compare-import-lists` (Listen-Filme gegen Radarrs Bibliothek)
-- [ ] 👤 `compare-rename` und `compare-import-lists` ohne unerklärte Abweichung
+- [x] 🤖 Orakel-Werkzeug `amigo-sofarr compare-manual-import --folder …` (Film und Quality
+      eines Downloads gegen `/api/v3/manualimport`, Spec §5)
+- [x] 🤖 Lücken aus `docs/parity.md` geschlossen: Verfügbarkeit (`minimumAvailability`,
+      `availabilityDelay`, Release-Daten aus Radarr/TMDB), Tags (Filme, Serien, Import Lists,
+      `[[indexer]] tags`), Festplatten-Scan `amigo-sofarr rescan` (fehlende Dateien,
+      `autoUnmonitorPreviouslyDownloaded…`, neue Dateien, `deleteEmptyFolders`),
+      `rescanAfterRefresh` mit Refresh-Job `[library]`, Download-Reste nach dem Import
+      (`[download] remove_completed`), „gleicher Name wie ein importierter Release“
+- [ ] 👤 `compare-rename`, `compare-import-lists` und `compare-manual-import` ohne unerklärte Abweichung
 - [ ] 👤 `/data` ohne `:ro` mounten, `[nzbget]` eintragen, `mode = "live"`, Radarr pausieren
       (nicht löschen)
 
@@ -221,6 +229,8 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
       `refresh-series` (TVDB), Serien im RSS-Sync (Shadow/Live), nzbget-Kategorie `tv_category`,
       Episoden-Import mit Staffelordnern; End-to-End-Test RSS → nzbget → Import
 - [x] 🤖 Gate-Werkzeug `compare-series-library` (Serien, fehlende Episoden, Cutoff gegen Sonarr)
+- [x] 🤖 `episodeTitleRequired` (Import wartet bis 48 h auf Episodentitel), alle
+      `multiEpisodeStyle`-Varianten, Festplatten-Scan und Tags auch für Serien
 - [ ] 👤 `collect --app sonarr` laufen lassen (≥ 1.000 Fixtures), Baseline schreiben,
       Episoden-Felder ≥ 95 %
 - [ ] 👤 `import-sonarr`, `refresh-series`, `compare-series-library` grün; Shadow-Betrieb für Serien
