@@ -19,9 +19,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked -p sofarr-server \
  && cp target/release/amigo-sofarr /amigo-sofarr
 
-# --- Runtime: nichts außer dem Binary und CA-Zertifikaten ---
-FROM scratch
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+# --- Runtime: Alpine (gepinnt) mit yt-dlp und ffmpeg für die Trailer (D18) ---
+# Neuere yt-dlp-Versionen kommen mit einem neu gebauten Image, nicht im laufenden Container.
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+RUN apk add --no-cache ca-certificates ffmpeg yt-dlp
 COPY --from=builder /amigo-sofarr /amigo-sofarr
 ENV SOFARR_CONFIG=/config/sofarr.toml
 EXPOSE 7676
