@@ -2,6 +2,7 @@
 
 mod blocklist;
 mod files;
+mod imdb;
 mod library;
 mod media;
 mod series;
@@ -13,6 +14,7 @@ pub use blocklist::{BlockEntry, MediaRef, NewBlock};
 pub use files::{
     Inspection, MIGRATOR, Pending, create_at_version, inspect, pending_migrations, snapshot_file,
 };
+pub use imdb::{ImdbRating, RatingRow, RatingsLoad};
 pub use library::{Activity, MonitorTarget, Presentation};
 pub use media::{FileRef, StoredMediaInfo};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};

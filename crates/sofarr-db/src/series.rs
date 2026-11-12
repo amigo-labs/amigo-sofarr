@@ -133,6 +133,24 @@ pub(crate) fn grab_from_row(row: &SqliteRow) -> SeriesGrab {
 }
 
 impl Db {
+    /// The TMDB id of a series (D26), if one was found.
+    pub async fn series_tmdb_id(&self, series_id: i64) -> Result<Option<i64>> {
+        let id: Option<Option<i64>> = sqlx::query_scalar("SELECT tmdb_id FROM series WHERE id = ?")
+            .bind(series_id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(id.flatten())
+    }
+
+    pub async fn set_series_tmdb_id(&self, series_id: i64, tmdb_id: i64) -> Result<()> {
+        sqlx::query("UPDATE series SET tmdb_id = ? WHERE id = ?")
+            .bind(tmdb_id)
+            .bind(series_id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
     pub async fn upsert_series(&self, series: &NewSeries, now: Timestamp) -> Result<i64> {
         let mut tx = self.pool().begin().await?;
         let (id,): (i64,) = sqlx::query_as(
