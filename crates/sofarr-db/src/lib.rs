@@ -2,6 +2,7 @@
 
 mod blocklist;
 mod files;
+mod media;
 mod series;
 mod sessions;
 
@@ -11,6 +12,7 @@ pub use blocklist::{BlockEntry, MediaRef, NewBlock};
 pub use files::{
     Inspection, MIGRATOR, Pending, create_at_version, inspect, pending_migrations, snapshot_file,
 };
+pub use media::{FileRef, StoredMediaInfo};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 pub use sessions::Session;
 
