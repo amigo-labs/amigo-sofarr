@@ -4,14 +4,13 @@
 import type { ApiFailure } from '../api/http';
 import type { DiscoverStatus } from '../api/generated/DiscoverStatus';
 import type { ImdbInfo } from '../api/generated/ImdbInfo';
-import { getImdbInfo } from '../imdb/imdb';
+import { imdb, loadImdb } from '../imdb/info.svelte';
 import { getStatus } from './api';
 
 const state = $state<{
   status: DiscoverStatus | null;
-  imdb: ImdbInfo | null;
   failure: ApiFailure | null;
-}>({ status: null, imdb: null, failure: null });
+}>({ status: null, failure: null });
 let loading: Promise<void> | null = null;
 
 export const discover = {
@@ -20,7 +19,7 @@ export const discover = {
   },
   /** `null` until known, and while ratings are off. */
   get imdb(): ImdbInfo | null {
-    return state.imdb;
+    return state.status?.ratings === true ? imdb.info : null;
   },
   get failure(): ApiFailure | null {
     return state.failure;
@@ -38,10 +37,7 @@ export function ensureStatus(): Promise<void> {
     }
     state.failure = null;
     state.status = result.data;
-    if (result.data.ratings) {
-      const imdb = await getImdbInfo();
-      if (imdb.ok) state.imdb = imdb.data;
-    }
+    if (result.data.ratings) await loadImdb();
   })();
   return loading;
 }
