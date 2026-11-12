@@ -166,7 +166,9 @@ fn listed(need: &SubtitleNeed) -> bool {
     !(need.kind == SubtitleKind::Forced && need.found == Some(false))
 }
 
-/// `GET /api/subtitles`.
+/// `GET /api/subtitles`. Needed subtitles are those of monitored items (Terms): the
+/// stored needs of an unmonitored item (a manual search, or monitored before) are not
+/// listed, as no scheduled run searches them.
 pub async fn overview(State(app): State<SharedApp>) -> Result<Json<SubtitleOverview>, ApiError> {
     let reason = super::off_reason(&app.config);
     let now = Timestamp::now();
@@ -178,7 +180,7 @@ pub async fn overview(State(app): State<SharedApp>) -> Result<Json<SubtitleOverv
         .await?
         .iter()
         .filter(|n| listed(n))
-        .filter_map(|n| find(n.file).map(|item| needed(item, n)))
+        .filter_map(|n| find(n.file).filter(|i| i.monitored).map(|i| needed(i, n)))
         .collect();
     let since = now - SignedDuration::from_hours(24 * 7);
     let recent = app

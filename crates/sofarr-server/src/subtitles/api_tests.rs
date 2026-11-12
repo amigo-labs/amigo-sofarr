@@ -385,3 +385,46 @@ async fn an_episode_import_replaces_own_subtitles_and_searches_the_new_file() {
     assert!(app.subtitles.pending.lock().expect("pending").is_empty());
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[tokio::test]
+async fn the_overview_lists_needs_of_monitored_items_only() {
+    // Needed subtitles are those of monitored items (AC-11, Terms).
+    let (app, _fake, root, movie) =
+        movie_app("overview-monitored", "[automation]\nmode = \"live\"\n").await;
+    run(&app, Scope::All, Timestamp::now()).await.expect("run");
+    let base = serve(Arc::clone(&app)).await;
+    let listed = || async {
+        let (_, overview) = call(reqwest::Method::GET, &format!("{base}/api/subtitles")).await;
+        overview["needed"]
+            .as_array()
+            .expect("needed")
+            .iter()
+            .map(|n| format!("{}:{}", n["item"]["movie_id"], n["language"]))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(listed().await, [format!("{movie}:\"de\"")]);
+    // Unmonitored later: the need stays stored but is not listed, as the schedule no
+    // longer searches it.
+    app.db.set_monitored(movie, false).await.expect("unmonitor");
+    assert!(listed().await.is_empty());
+    // A manual search of the unmonitored file lists nothing either.
+    let (status, report) = call(
+        reqwest::Method::POST,
+        &format!("{base}/api/movies/{movie}/subtitles/search"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{report}");
+    assert_eq!(report["searched"], 2);
+    assert!(listed().await.is_empty());
+    assert!(
+        !app.db
+            .subtitle_needs(Some(FileRef::Movie(movie)))
+            .await
+            .expect("needs")
+            .is_empty()
+    );
+    // Monitored again, the need is listed with its schedule.
+    app.db.set_monitored(movie, true).await.expect("monitor");
+    assert_eq!(listed().await, [format!("{movie}:\"de\"")]);
+    let _ = std::fs::remove_dir_all(&root);
+}
