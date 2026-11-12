@@ -329,6 +329,11 @@ impl App {
             return Ok(0);
         }
         let quality = grab.quality.as_str();
+        let had_video = self
+            .db
+            .trailer_item(MediaRef::Series(show.id))
+            .await?
+            .is_some_and(|i| i.has_video);
         let mut n = 0;
         for (plan, episode_ids) in plans {
             let replaced = replaced_episode_files(show, &episodes, &episode_ids, &plan);
@@ -361,6 +366,12 @@ impl App {
             crate::subtitles::imported(self, FileRef::Episode(file_id)).await;
             tracing::info!(series = %show.data.title, file = %plan.destination.display(), "imported");
             n += 1;
+        }
+        // The first file makes the series eligible for a trailer (spec trailers AC-02).
+        if !had_video && n > 0 {
+            self.db
+                .put_trailer_first_in_line(MediaRef::Series(show.id), Timestamp::now())
+                .await?;
         }
         self.db
             .update_series_grab(grab.id, GrabStatus::Imported, None, None, Timestamp::now())
@@ -475,6 +486,12 @@ impl App {
                 .await;
         }
         crate::subtitles::imported(self, FileRef::Movie(movie.id)).await;
+        // The first file makes the movie eligible for a trailer (spec trailers AC-02).
+        if movie.file.is_none() {
+            self.db
+                .put_trailer_first_in_line(MediaRef::Movie(movie.id), now)
+                .await?;
+        }
         self.db
             .update_grab(grab.id, GrabStatus::Imported, None, None, now)
             .await?;

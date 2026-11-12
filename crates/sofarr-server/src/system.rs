@@ -34,6 +34,8 @@ pub struct SystemAnswer {
     pub mode: Mode,
     pub jobs: Vec<JobAnswer>,
     pub connections: Vec<ConnectionAnswer>,
+    /// Whether trailers are downloaded, or why not (spec trailers AC-12).
+    pub trailers: crate::trailers::api::TrailerSupport,
     /// The configuration in effect (defaults filled in), secrets masked.
     #[cfg_attr(test, ts(type = "Record<string, unknown>"))]
     pub config: Value,
@@ -237,6 +239,7 @@ pub fn answer(app: &App, now: Timestamp) -> SystemAnswer {
         mode: app.config.automation.mode,
         jobs: jobs(app, now),
         connections: connections(app),
+        trailers: crate::trailers::api::support_answer(app),
         config: shown_config(app),
     }
 }

@@ -51,6 +51,10 @@ pub struct App {
     pub opensubtitles: Option<sofarr_subtitles::OpenSubtitles>,
     /// Run state of the subtitle search.
     pub subtitles: crate::subtitles::SubtitleState,
+    /// TMDB's API root (tests use a fake).
+    pub tmdb_api: String,
+    /// Trailer downloads (spec trailers).
+    pub trailers: crate::trailers::Runtime,
 }
 
 pub type SharedApp = Arc<App>;
@@ -95,6 +99,12 @@ impl App {
         let auth = crate::auth::AuthState::new(&config.auth);
         let images = crate::images::Images::new(&config.database.path);
         let opensubtitles = crate::subtitles::client(&config, &http);
+        let trailers =
+            crate::trailers::Runtime::new(std::sync::Arc::new(crate::trailers::ytdlp::YtDlp {
+                program: config.trailers.yt_dlp.clone(),
+                max_height: config.trailers.max_height,
+                limits: crate::trailers::ytdlp::Limits::trailer(),
+            }));
         Ok(Self {
             config,
             db,
@@ -112,6 +122,8 @@ impl App {
             images,
             opensubtitles,
             subtitles: crate::subtitles::SubtitleState::default(),
+            tmdb_api: sofarr_metadata::TMDB_API.to_owned(),
+            trailers,
         })
     }
 

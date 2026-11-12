@@ -114,3 +114,11 @@ interval_hours = 12
 # api_key = "dein-api-key"
 # username = "dein-benutzername"
 # password = "dein-passwort"
+[trailers]
+# Trailer von TMDB (YouTube) per yt-dlp in den Ordner "trailers" jedes Films und jeder Serie,
+# für Jellyfin. Im Container sind yt-dlp und ffmpeg dabei.
+enabled = true
+languages = ["de", "en"]   # bevorzugte Sprachen in dieser Reihenfolge, danach ohne Sprache
+max_height = 1080          # höchste Auflösung (Zeilen)
+per_day = 20               # Trailer pro Tag im täglichen Lauf; 0 schaltet ihn ab
+# yt_dlp = "yt-dlp"        # Programm (ohne Ordner: über PATH)

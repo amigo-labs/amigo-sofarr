@@ -146,6 +146,9 @@ fn generated() -> BTreeMap<String, String> {
     one::<subtitles::EmbeddedSubtitle>(&cfg, &mut out);
     one::<subtitles::ExternalSubtitle>(&cfg, &mut out);
     one::<subtitles::SubtitleSearchReport>(&cfg, &mut out);
+    one::<crate::trailers::api::TrailerInfo>(&cfg, &mut out);
+    one::<crate::trailers::api::TrailerStatus>(&cfg, &mut out);
+    one::<crate::trailers::api::TrailerSupport>(&cfg, &mut out);
     out
 }
 

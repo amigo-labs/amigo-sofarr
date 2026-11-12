@@ -35,6 +35,8 @@ pub struct Config {
     pub subtitles: SubtitlesConfig,
     /// The OpenSubtitles.com account (spec subtitles); without it no subtitles are fetched.
     pub opensubtitles: Option<OpenSubtitlesConfig>,
+    /// `[trailers]` (spec trailers).
+    pub trailers: TrailersConfig,
 }
 
 /// `[subtitles]`: which subtitles sofarr fetches and how often it searches (spec subtitles).
@@ -55,6 +57,36 @@ impl Default for SubtitlesConfig {
             enabled: None,
             languages: vec!["de".to_owned(), "en".to_owned()],
             interval_hours: 12,
+        }
+    }
+}
+
+/// `[trailers]`: trailers from TMDB via yt-dlp into the item's `trailers` folder (spec
+/// trailers).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TrailersConfig {
+    /// `false`: no trailer is downloaded (AC-12).
+    pub enabled: bool,
+    /// Wanted trailer languages (ISO 639-1), best first; videos without language come
+    /// after them.
+    pub languages: Vec<String>,
+    /// Highest video resolution (lines) downloaded.
+    pub max_height: u32,
+    /// Trailers the daily run downloads at most; 0 switches the daily run off.
+    pub per_day: u32,
+    /// The yt-dlp program (looked up on `PATH` without a folder).
+    pub yt_dlp: PathBuf,
+}
+
+impl Default for TrailersConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            languages: vec!["de".to_owned(), "en".to_owned()],
+            max_height: 1080,
+            per_day: 20,
+            yt_dlp: PathBuf::from("yt-dlp"),
         }
     }
 }
@@ -104,6 +136,28 @@ impl std::fmt::Debug for OpenSubtitlesConfig {
             .field("url", &self.url)
             .field("pause_ms", &self.pause_ms)
             .finish_non_exhaustive()
+    }
+}
+
+impl TrailersConfig {
+    /// Languages are two lower-case letters, the height is above 0 (German messages
+    /// naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        for code in &self.languages {
+            anyhow::ensure!(
+                code.len() == 2 && code.bytes().all(|b| b.is_ascii_lowercase()),
+                "[trailers] languages: „{code}“ ist kein Sprachcode aus zwei Kleinbuchstaben (ISO 639-1)"
+            );
+        }
+        anyhow::ensure!(
+            self.max_height > 0,
+            "[trailers] max_height muss größer als 0 sein"
+        );
+        anyhow::ensure!(
+            !self.yt_dlp.as_os_str().is_empty(),
+            "[trailers] yt_dlp ist leer"
+        );
+        Ok(())
     }
 }
 
@@ -551,6 +605,7 @@ impl Config {
         );
         config.auth.check()?;
         config.subtitles.check()?;
+        config.trailers.check()?;
         Ok(config)
     }
 }
@@ -687,6 +742,40 @@ sprachen = []
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn trailer_settings_have_defaults_and_are_checked() {
+        let config = Config::parse("").expect("defaults");
+        let t = &config.trailers;
+        assert!(t.enabled);
+        assert_eq!(t.languages, ["de", "en"]);
+        assert_eq!((t.max_height, t.per_day), (1080, 20));
+        assert_eq!(t.yt_dlp, PathBuf::from("yt-dlp"));
+        let config = Config::parse(
+            "[trailers]\nenabled = false\nlanguages = [\"en\"]\nmax_height = 720\n\
+             per_day = 0\nyt_dlp = \"/usr/bin/yt-dlp\"\n",
+        )
+        .expect("valid");
+        assert!(!config.trailers.enabled);
+        assert_eq!(config.trailers.per_day, 0);
+        for (raw, key) in [
+            ("languages = [\"DE\"]", "languages"),
+            ("languages = [\"de-DE\"]", "languages"),
+            ("languages = [\"de,null\"]", "languages"),
+            ("max_height = 0", "max_height"),
+            ("yt_dlp = \"\"", "yt_dlp"),
+        ] {
+            let error = Config::parse(&format!("[trailers]\n{raw}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{raw} must be rejected"));
+            let message = format!("{error:#}");
+            assert!(
+                message.contains(&format!("[trailers] {key}")),
+                "{raw}: {message}"
+            );
+        }
+        assert!(Config::parse("[trailers]\nper_dya = 3\n").is_err());
     }
 
     #[test]

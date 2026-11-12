@@ -13,7 +13,11 @@ pub fn tmdb(app: &App) -> anyhow::Result<Tmdb> {
         .tmdb
         .as_ref()
         .context("[tmdb] fehlt in der Konfiguration")?;
-    Ok(Tmdb::new(app.http.clone(), &config.api_key))
+    Ok(Tmdb::with_base(
+        app.http.clone(),
+        &config.api_key,
+        &app.tmdb_api,
+    ))
 }
 
 /// Merges TMDB data into a library movie; library state (monitoring, profile, path) stays.

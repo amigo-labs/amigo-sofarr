@@ -19,10 +19,11 @@ pub enum Job {
     Backup,
     Imdb,
     Subtitles,
+    Trailers,
 }
 
 impl Job {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Rss,
         Self::Downloads,
         Self::ImportLists,
@@ -30,6 +31,7 @@ impl Job {
         Self::Backup,
         Self::Imdb,
         Self::Subtitles,
+        Self::Trailers,
     ];
 
     /// The name in the log and the API.
@@ -42,6 +44,7 @@ impl Job {
             Self::Backup => "backup",
             Self::Imdb => "imdb",
             Self::Subtitles => "subtitles",
+            Self::Trailers => "trailers",
         }
     }
 
@@ -55,6 +58,7 @@ impl Job {
             Self::Backup => "Sicherung",
             Self::Imdb => "IMDb-Bewertungen",
             Self::Subtitles => "Untertitel",
+            Self::Trailers => "Trailer",
         }
     }
 
@@ -87,6 +91,14 @@ impl Job {
                 if app.opensubtitles.is_some() && config.subtitles.interval_hours > 0 =>
             {
                 hours(config.subtitles.interval_hours)
+            }
+            Self::Trailers
+                if live
+                    && config.trailers.enabled
+                    && config.trailers.per_day > 0
+                    && config.tmdb.is_some() =>
+            {
+                hours(24)
             }
             _ => None,
         }

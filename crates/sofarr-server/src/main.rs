@@ -39,6 +39,7 @@ mod status;
 mod subtitles;
 mod system;
 mod throttle;
+mod trailers;
 mod ui;
 mod wanted;
 
@@ -303,6 +304,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     backups::spawn_schedule(&state);
     imdb::spawn_schedule(&state);
     subtitles::spawn_schedule(&state);
+    trailers::spawn_schedule(&state);
     for job in [Job::Rss, Job::Downloads, Job::ImportLists, Job::Refresh] {
         let Some(every) = job.interval(&state) else {
             continue;
@@ -330,6 +332,9 @@ async fn serve(config: Config) -> anyhow::Result<()> {
                                 .await
                                 .map(|_| ())
                         }
+                        Job::Trailers => trailers::run(&app, jiff::Timestamp::now())
+                            .await
+                            .map(|_| ()),
                     }
                 }
             },

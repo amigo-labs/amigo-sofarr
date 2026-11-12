@@ -131,6 +131,15 @@ async fn live_pipeline_grabs_and_imports() {
     let movie = app.db.movie_by_tmdb(101).await.expect("db").expect("movie");
     let file = movie.file.expect("file recorded");
     assert_eq!(file.quality, "Bluray-1080p");
+    // Its first file makes it first in line for a trailer (spec trailers AC-02).
+    let trailer = app
+        .db
+        .trailer_item(sofarr_db::MediaRef::Movie(movie.id))
+        .await
+        .expect("trailer item")
+        .and_then(|i| i.trailer)
+        .expect("trailer state");
+    assert!(trailer.first_in_line.is_some());
     assert_eq!(file.custom_format_score, 10);
     assert_eq!(
         app.db
@@ -212,6 +221,18 @@ async fn live_series_pipeline() {
         },
     ));
 
+    // Without any episode file, the import makes the series eligible for a trailer.
+    let show_id = app.db.all_series().await.expect("series")[0].id;
+    for file_id in app
+        .db
+        .episodes(Some(show_id))
+        .await
+        .expect("episodes")
+        .iter()
+        .filter_map(|e| e.file_id)
+    {
+        app.db.remove_episode_file(file_id).await.expect("remove");
+    }
     let report = app.rss_sync().await.expect("rss");
     assert_eq!(report.series_grabs, 1, "{report:?}");
     mock.lock().expect("lock").history = vec![json!({
@@ -228,6 +249,13 @@ async fn live_series_pipeline() {
         e2.file.as_ref().map(|f| f.relative_path.as_str()),
         Some("Staffel 01/Kleine Insel - S01E02 - Sturm WEBDL-1080p.mkv")
     );
+    let trailer = app
+        .db
+        .trailer_item(sofarr_db::MediaRef::Series(show_id))
+        .await
+        .expect("trailer item")
+        .and_then(|i| i.trailer);
+    assert!(trailer.is_some_and(|t| t.first_in_line.is_some()));
     let _ = std::fs::remove_dir_all(&root);
 }
 

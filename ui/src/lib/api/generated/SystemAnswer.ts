@@ -2,8 +2,13 @@
 import type { ConnectionAnswer } from "./ConnectionAnswer";
 import type { JobAnswer } from "./JobAnswer";
 import type { Mode } from "./Mode";
+import type { TrailerSupport } from "./TrailerSupport";
 
 export type SystemAnswer = { version: string, mode: Mode, jobs: Array<JobAnswer>, connections: Array<ConnectionAnswer>, 
+/**
+ * Whether trailers are downloaded, or why not (spec trailers AC-12).
+ */
+trailers: TrailerSupport, 
 /**
  * The configuration in effect (defaults filled in), secrets masked.
  */

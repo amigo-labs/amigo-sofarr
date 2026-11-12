@@ -86,6 +86,14 @@ pub fn routes(app: SharedApp) -> Router {
         .route("/api/movies", get(movies))
         .route("/api/movies/{id}/file", get(movie_file))
         .route(
+            "/api/movies/{id}/trailer",
+            get(crate::trailers::api::movie).post(crate::trailers::api::download_movie),
+        )
+        .route(
+            "/api/series/{id}/trailer",
+            get(crate::trailers::api::series).post(crate::trailers::api::download_series),
+        )
+        .route(
             "/api/series/{id}/episodes/{episode_id}/file",
             get(episode_file),
         )
