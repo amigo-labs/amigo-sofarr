@@ -71,6 +71,7 @@ export const SAMPLE_SYSTEM: SystemAnswer = {
     { kind: 'indexer', name: 'Indexer A', state: 'ok', at: '2026-11-12T10:00:00Z', message: null },
     { kind: 'indexer', name: 'Indexer B', state: 'no_contact', at: null, message: null },
   ],
+  trailers: { active: false, message: 'Schattenmodus: sofarr lädt keine Trailer' },
   config: {
     server: { bind: '0.0.0.0:7676' },
     auth: { enabled: true, password_hash: '***', api_key: '***' },
