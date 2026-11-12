@@ -98,16 +98,33 @@ fn values(info: &MediaInfo, oracle: &Value) -> [(String, String); 6] {
     ]
 }
 
-/// Where an item folder lies on this machine: as the library knows it, or, with `root`
-/// (the root folder as this machine sees it), the item's folder name below `root`. Radarr
-/// and Sonarr keep every item folder directly in a root folder.
-fn item_folder(path: &str, root: Option<&Path>) -> PathBuf {
-    let Some(root) = root else {
+/// Where an item folder lies on this machine: as the library knows it, or, with `local`
+/// (the root folder as this machine sees it), the path below the item's root folder
+/// (longest of `roots`) placed under `local`, e.g. `/movies/A/Apex (2021)` with root folder
+/// `/movies` becomes `<local>/A/Apex (2021)`. Without a matching root folder the item's
+/// folder name goes directly under `local`.
+fn item_folder(path: &str, roots: &[String], local: Option<&Path>) -> PathBuf {
+    let Some(local) = local else {
         return PathBuf::from(path);
     };
-    path.rsplit(['/', '\\'])
-        .find(|part| !part.is_empty())
-        .map_or_else(|| root.to_path_buf(), |name| root.join(name))
+    let below = roots
+        .iter()
+        .map(|r| r.trim_end_matches(['/', '\\']))
+        .filter(|r| !r.is_empty() && path.starts_with(*r))
+        .filter(|r| path[r.len()..].starts_with(['/', '\\']))
+        .max_by_key(|r| r.len())
+        .map(|r| &path[r.len()..]);
+    let parts: Vec<&str> = match below {
+        Some(rest) => rest.split(['/', '\\']).filter(|p| !p.is_empty()).collect(),
+        None => path
+            .rsplit(['/', '\\'])
+            .find(|p| !p.is_empty())
+            .into_iter()
+            .collect(),
+    };
+    parts
+        .iter()
+        .fold(local.to_path_buf(), |dir, part| dir.join(part))
 }
 
 async fn radarr_files(
@@ -116,6 +133,7 @@ async fn radarr_files(
     root: Option<&Path>,
 ) -> anyhow::Result<Vec<OracleFile>> {
     let movies = app.db.movies().await?;
+    let roots = crate::folders::roots(app.db.setting("rootfolder").await?.as_ref());
     let theirs = radarr.get("movie", &[]).await?;
     Ok(theirs
         .as_array()
@@ -129,7 +147,7 @@ async fn radarr_files(
                 .find(|x| x.radarr_id.is_some() && x.radarr_id == m["id"].as_i64());
             Some(OracleFile {
                 name: relative.to_owned(),
-                path: ours.map(|x| item_folder(&x.path, root).join(relative)),
+                path: ours.map(|x| item_folder(&x.path, &roots, root).join(relative)),
                 media: file["mediaInfo"].clone(),
             })
         })
@@ -142,6 +160,7 @@ async fn sonarr_files(
     root: Option<&Path>,
 ) -> anyhow::Result<Vec<OracleFile>> {
     let shows = app.db.all_series().await?;
+    let roots = crate::folders::roots(app.db.setting("sonarr_rootfolder").await?.as_ref());
     let theirs = sonarr.get("series", &[]).await?;
     let mut out = Vec::new();
     for s in theirs.as_array().map_or(&[][..], Vec::as_slice) {
@@ -159,7 +178,7 @@ async fn sonarr_files(
             };
             out.push(OracleFile {
                 name: relative.to_owned(),
-                path: ours.map(|x| item_folder(&x.data.path, root).join(relative)),
+                path: ours.map(|x| item_folder(&x.data.path, &roots, root).join(relative)),
                 media: file["mediaInfo"].clone(),
             });
         }

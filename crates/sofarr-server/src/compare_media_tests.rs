@@ -342,20 +342,25 @@ async fn a_refused_api_key_stops_with_a_german_message() {
     }
 }
 
-/// The owner compares from another machine than the library's: `--root` names the root
-/// folder as seen from there, the item folders and file paths below it stay (AC-07 run).
+/// The owner compares from another machine than the library's: `--root` names Radarr's
+/// root folder as seen from there; the path below the root folder stays, also item folders
+/// sorted into letter folders (AC-07 run).
 #[tokio::test]
 async fn a_local_root_folder_finds_the_files_of_a_library_on_another_machine() {
     let root = dir("compare-root");
     let app = app(Library::Movies, "").await;
-    let folder = root.join("Erster Film (2001)");
+    app.db
+        .put_setting("rootfolder", &json!([{"id": 1, "path": "/movies"}]))
+        .await
+        .expect("root folders");
+    let folder = root.join("E").join("Erster Film (2001)");
     std::fs::create_dir_all(&folder).expect("folder");
     std::fs::write(folder.join("film.mkv"), mkv(Some(("A_EAC3", 6, "ger")))).expect("file");
     // The library knows the folder by the path the server sees.
     place(
         &app,
         101,
-        std::path::Path::new("/data/media/movies/Erster Film (2001)"),
+        std::path::Path::new("/movies/E/Erster Film (2001)"),
         "film.mkv",
     )
     .await;
