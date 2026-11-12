@@ -37,6 +37,8 @@ deren Quellcode. Wenn du unsicher bist, ob etwas erlaubt ist: **anhalten und fra
 
 - Abhängigkeitsrichtung: `parser` ← `core` ← (`indexer`, `metadata`, `download`, `db`) ← `server`.
   `sofarr-parity` darf alles nutzen, aber nichts darf von `sofarr-parity` abhängen.
+  `sofarr-mediainfo` hängt von nichts aus sofarr ab und wird nur von `sofarr-server` genutzt
+  (D22); es arbeitet auf `Read + Seek`, ohne eigenen Dateizugriff.
 - `sofarr-parser` und `sofarr-core` sind **pure**: kein IO, kein async, kein Netzwerk,
   keine Systemzeit (Zeit wird als Parameter übergeben).
 - Tokio-Runtime, HTTP-Server und Scheduler leben nur in `sofarr-server`.
@@ -88,10 +90,12 @@ Die Projektfakten, die die gemeinsamen Spec-Skills (`spec`, `spec-build`, `spec-
   Episoden), `crates/sofarr-core` (Qualities, Profile, Custom Formats, Decision Engine,
   Upgrades, Verfügbarkeit, Naming, Serien-Regeln), `crates/sofarr-indexer` (Newznab),
   `crates/sofarr-metadata` (TMDB, TVDB), `crates/sofarr-download` (`DownloadClient`, nzbget),
-  `crates/sofarr-db` (SQLite, Migrationen unter `migrations/`), `crates/sofarr-server`
+  `crates/sofarr-db` (SQLite, Migrationen unter `migrations/`), `crates/sofarr-mediainfo`
+  (Media-Infos aus Matroska- und MP4-Headern), `crates/sofarr-server`
   (Binary `amigo-sofarr`: Config `config.rs`, Scheduler und Pipeline `app.rs`, API `api.rs`,
   RSS `rss.rs`, Import `importer.rs`, Festplatten-Scan `rescan.rs`, Serien `series.rs`,
-  Import Lists, Orakel-Abgleiche `compare.rs`), `crates/sofarr-parity` (Orakel-Fixtures sammeln,
+  Media-Infos `media.rs`, Import Lists, Orakel-Abgleiche `compare.rs` und `compare_media.rs`),
+  `crates/sofarr-parity` (Orakel-Fixtures sammeln,
   Matrix, Diff), `fixtures/` (Orakel), `Dockerfile`, `compose.example.yml`, CI unter
   `.github/workflows/`.
 - **Spec questions** — Filme, Serien oder beide? Welches Orakel belegt das Verhalten (Endpoint

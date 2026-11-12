@@ -49,6 +49,7 @@ One binary (`amigo-sofarr`), one container, SQLite. Cargo workspace:
 | `sofarr-metadata` | TMDB (movies), TVDB (series, D10) | yes |
 | `sofarr-download` | `DownloadClient` trait, nzbget implementation | yes |
 | `sofarr-db` | SQLite via sqlx, migrations | yes |
+| `sofarr-mediainfo` | Media info from Matroska/MP4 headers on `Read + Seek`; depends on nothing of sofarr, used by `sofarr-server` (D22) | no |
 | `sofarr-server` | axum API, scheduler, config, binary `amigo-sofarr` | yes |
 | `sofarr-parity` | CLI: collect oracle fixtures, diff behavior | yes |
 
