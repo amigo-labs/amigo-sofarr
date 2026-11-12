@@ -7,6 +7,7 @@ mod library;
 mod media;
 mod series;
 mod sessions;
+mod subtitles;
 
 use std::{path::Path, str::FromStr};
 
@@ -19,6 +20,7 @@ pub use library::{Activity, MonitorTarget, Presentation};
 pub use media::{FileRef, StoredMediaInfo};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 pub use sessions::Session;
+pub use subtitles::{NewOwnSubtitle, OwnSubtitle, SearchOutcome, SubtitleKind, SubtitleNeed};
 
 use jiff::Timestamp;
 use serde_json::Value;
@@ -218,7 +220,7 @@ pub(crate) fn ids_from_text(raw: &str) -> Vec<i64> {
         .collect()
 }
 
-fn ts(raw: &str) -> Timestamp {
+pub(crate) fn ts(raw: &str) -> Timestamp {
     raw.parse().unwrap_or(Timestamp::UNIX_EPOCH)
 }
 
