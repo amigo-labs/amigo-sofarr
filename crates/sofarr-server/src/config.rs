@@ -30,6 +30,92 @@ pub struct Config {
     pub import_lists: ImportListConfig,
     pub library: LibraryConfig,
     pub backup: BackupConfig,
+    pub auth: AuthConfig,
+}
+
+/// `[auth]`: optional login, API key, trusted networks and proxies (spec auth).
+#[derive(Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AuthConfig {
+    pub enabled: bool,
+    pub username: Option<String>,
+    /// Argon2id PHC string (`amigo-sofarr hash-password`).
+    pub password_hash: Option<String>,
+    pub api_key: Option<String>,
+    pub session_days: u32,
+    pub trusted_networks: Vec<String>,
+    pub trusted_proxies: Vec<String>,
+}
+
+/// Secrets never go to the log, not even through a debug print of the config.
+impl std::fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("enabled", &self.enabled)
+            .field("username", &self.username.as_ref().map(|_| "…"))
+            .field("password_hash", &self.password_hash.as_ref().map(|_| "…"))
+            .field("api_key", &self.api_key.as_ref().map(|_| "…"))
+            .field("session_days", &self.session_days)
+            .field("trusted_networks", &self.trusted_networks)
+            .field("trusted_proxies", &self.trusted_proxies)
+            .finish()
+    }
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            username: None,
+            password_hash: None,
+            api_key: None,
+            session_days: 30,
+            trusted_networks: Vec::new(),
+            trusted_proxies: Vec::new(),
+        }
+    }
+}
+
+impl AuthConfig {
+    /// While auth is on: everything needed is there and well-formed (German messages
+    /// naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        if !self.enabled {
+            return Ok(());
+        }
+        anyhow::ensure!(
+            self.username.as_deref().is_some_and(|u| !u.is_empty()),
+            "[auth] username fehlt"
+        );
+        let hash = self
+            .password_hash
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("[auth] password_hash fehlt"))?;
+        anyhow::ensure!(
+            crate::auth::is_argon2id(hash),
+            "[auth] password_hash ist kein gültiger Argon2id-Hash (amigo-sofarr hash-password)"
+        );
+        anyhow::ensure!(
+            self.api_key.as_deref().is_none_or(|k| !k.is_empty()),
+            "[auth] api_key ist leer"
+        );
+        anyhow::ensure!(
+            self.session_days >= 1,
+            "[auth] session_days muss mindestens 1 sein"
+        );
+        for (key, list) in [
+            ("trusted_networks", &self.trusted_networks),
+            ("trusted_proxies", &self.trusted_proxies),
+        ] {
+            for entry in list {
+                anyhow::ensure!(
+                    entry.parse::<crate::auth_net::Cidr>().is_ok(),
+                    "[auth] {key}: „{entry}“ ist keine gültige Adresse oder Adressbereich"
+                );
+            }
+        }
+        Ok(())
+    }
 }
 
 /// `[backup]`: where backups go, how often and how many scheduled ones are kept.
@@ -355,6 +441,7 @@ impl Config {
             names.len() == config.indexers.len(),
             "Indexer-Namen müssen eindeutig sein"
         );
+        config.auth.check()?;
         Ok(config)
     }
 }

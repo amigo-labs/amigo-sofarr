@@ -125,25 +125,33 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
-| AC-16 |      | open   |        |
+| AC-01 | `auth_tests::auth_off_serves_everything` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-02 | `auth_tests::auth_on_refuses_requests_without_a_credential` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-03 | `auth_tests::login_gives_a_strict_http_only_session_cookie`, `auth_tests::the_cookie_is_secure_behind_an_https_proxy` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-04 | `auth_tests::the_api_key_header_authenticates` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-05 | `auth_tests::logout_ends_only_its_session` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-06 | `auth_tests::sessions_slide_and_expire` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-07 | `auth_tests::sessions_survive_a_restart_but_not_a_new_password` (`crates/sofarr-server/src/auth_tests.rs`); `sessions::tests::sessions_round_trip` (`crates/sofarr-db/src/sessions.rs`) | built |        |
+| AC-08 | `auth_tests::failed_logins_look_alike` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-09 | `auth_tests::five_failures_make_the_address_wait`, `auth_tests::concurrent_logins_never_pass_more_than_five_failures` (`crates/sofarr-server/src/auth_tests.rs`); `throttle::tests::five_failures_then_doubling_waits`, `throttle::tests::entries_are_forgotten_and_capped` (`crates/sofarr-server/src/throttle.rs`); `auth_net::tests::throttling_counts_ipv6_by_its_64` (`crates/sofarr-server/src/auth_net.rs`) | built |        |
+| AC-10 | `auth_net::tests::client_address_behind_trusted_proxies` (`crates/sofarr-server/src/auth_net.rs`); `auth_tests::trusted_networks_and_proxies` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-11 | `auth_tests::trusted_networks_and_proxies` (`crates/sofarr-server/src/auth_tests.rs`); `auth_net::tests::ranges_contain_addresses` (`crates/sofarr-server/src/auth_net.rs`) | built |        |
+| AC-12 | `auth_tests::a_bad_auth_config_stops_the_start` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-13 | `hashes_a_piped_password`, `refuses_an_empty_password` (`crates/sofarr-server/tests/cli_auth.rs`); `auth::tests::password_hashes_verify` (`crates/sofarr-server/src/auth.rs`) | built |        |
+| AC-14 | `auth_tests::server_errors_answer_generically_and_log_the_details`, `auth_tests::upstream_errors_name_no_urls` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-15 | `auth_tests::secrets_never_reach_the_log` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
+| AC-16 | `auth_tests::health_needs_no_credential` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
 
 ## Decisions
 
 - 2026-11-12: Login plus API key, switchable in `sofarr.toml` (owner; D15).
 - 2026-11-12: Optional trusted networks need no credential; trusted proxies decide whose `X-Forwarded-For` counts (owner).
 - 2026-11-12 (revision): AC-09 also sends the wait as `Retry-After`, because the login page of spec `web-ui-shell` disables the button for exactly that time.
+- 2026-11-12: Tests and code were written together; the red run was the failing build. As a counter-check the core behavior was switched off one piece at a time (no guard, no expiry or fingerprint check, trusted networks ignored, no `HttpOnly`/`SameSite`, failures not counted, `X-Forwarded-For` ignored, error details in 500 answers): 11 tests went red.
+- 2026-11-12: `amigo-sofarr hash-password` reads without echo in a terminal through `rpassword` (owner, 2026-11-12: a new dependency beyond the four the spec names, because reading without echo needs the terminal API and `unsafe` is forbidden); piped input is read as one line. The terminal path is not covered by an automated test (no terminal in the test runner).
+- 2026-11-12: Logins are checked one at a time (one lock for all addresses): concurrent attempts cannot pass the count before the first wait, and Argon2id makes each check take a few milliseconds only.
+- 2026-11-12: Address ranges are parsed by a small own CIDR type (`auth_net.rs`) instead of a new crate such as `ipnet`.
+- 2026-11-12: The middleware sets the client address for every request; without a connection address (only in tests that serve without `ConnectInfo`) the peer counts as `0.0.0.0`.
+- 2026-11-12: An answer with status 500 always carries the generic "Interner Fehler – Details stehen im Log"; the backup API names no paths or OS errors either (they go to the log and the backup list's last error).
+- 2026-11-12: Argon2 and BLAKE2 are compiled optimised in the dev profile, because the tests log in many times.
+- 2026-11-12: `AuthConfig` has a hand-written `Debug` that hides username, hash and key, so no debug print of the config can put them into the log.

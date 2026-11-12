@@ -36,6 +36,8 @@ pub struct App {
     pub backup_lock: Mutex<()>,
     /// The last failed backup operation (spec backups AC-07).
     pub backup_error: std::sync::Mutex<Option<crate::backups::BackupError>>,
+    /// Trusted networks and proxies, login throttling (spec auth).
+    pub auth: crate::auth::AuthState,
 }
 
 pub type SharedApp = Arc<App>;
@@ -77,6 +79,7 @@ impl App {
             .build()
             .context("HTTP-Client nicht erzeugbar")?;
         let (indexers, nzbget) = Self::build_clients(&config, &http);
+        let auth = crate::auth::AuthState::new(&config.auth);
         Ok(Self {
             config,
             db,
@@ -87,6 +90,7 @@ impl App {
             tv_caps: Mutex::new(HashMap::new()),
             backup_lock: Mutex::new(()),
             backup_error: std::sync::Mutex::new(None),
+            auth,
         })
     }
 

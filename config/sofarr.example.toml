@@ -78,6 +78,21 @@ interval_hours = 24
 # So viele geplante Sicherungen bleiben (mindestens 1); manuelle bleiben immer.
 keep = 7
 
+[auth]
+# Anmeldung für API und Oberfläche; aus: jeder im Netz erreicht die API.
+enabled = false
+# username = "daniel"
+# Hash erzeugen mit `amigo-sofarr hash-password` (Argon2id).
+# password_hash = "$argon2id$v=19$…"
+# Für Skripte: Header `X-Api-Key`.
+# api_key = "…"
+# Sitzungen enden nach so vielen Tagen ohne Nutzung.
+session_days = 30
+# Adressbereiche ohne Anmeldung, z. B. das Heimnetz.
+trusted_networks = []
+# Reverse Proxys, deren X-Forwarded-For zählt.
+trusted_proxies = []
+
 [import_lists]
 interval_hours = 24   # 0 schaltet die Import Lists ab
 

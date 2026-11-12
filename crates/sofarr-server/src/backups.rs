@@ -323,10 +323,8 @@ impl App {
     pub async fn backup_list(&self) -> Result<BackupList, BackupRequestError> {
         let dir = &self.config.backup.dir;
         let backups = backup_files::list(dir).await.map_err(|e| {
-            BackupRequestError::Unreadable(format!(
-                "Sicherungsordner {} nicht lesbar: {e}",
-                dir.display()
-            ))
+            tracing::warn!(folder = %dir.display(), error = %e, "backup folder unreadable");
+            BackupRequestError::Unreadable("Sicherungsordner nicht lesbar".to_owned())
         })?;
         let pending_restore = backup_files::read_marker(&self.config.database.path)
             .ok()
@@ -360,13 +358,18 @@ impl App {
         if let Err(e) = std::fs::remove_file(&path) {
             let error = anyhow::anyhow!("Sicherung {name} nicht gelöscht: {e}");
             self.record_backup_error(Timestamp::now(), &error);
-            return Err(BackupRequestError::Failed(error.to_string()));
+            return Err(BackupRequestError::Failed(format!(
+                "Sicherung {name} nicht gelöscht – Details stehen im Log"
+            )));
         }
         if backup_files::read_marker(db).ok().flatten().as_deref() == Some(name) {
             backup_files::clear_marker(db).map_err(|e| {
                 let error = anyhow::anyhow!("Vorgemerkte Wiederherstellung nicht aufgehoben: {e}");
                 self.record_backup_error(Timestamp::now(), &error);
-                BackupRequestError::Failed(error.to_string())
+                BackupRequestError::Failed(
+                    "Vorgemerkte Wiederherstellung nicht aufgehoben – Details stehen im Log"
+                        .to_owned(),
+                )
             })?;
         }
         Ok(())
@@ -382,16 +385,20 @@ impl App {
             )));
         }
         backup_files::write_marker(&self.config.database.path, name).map_err(|e| {
-            BackupRequestError::Failed(format!("Wiederherstellung nicht vorgemerkt: {e}"))
+            tracing::warn!(error = %e, "pending restore not recorded");
+            BackupRequestError::Failed(
+                "Wiederherstellung nicht vorgemerkt – Details stehen im Log".to_owned(),
+            )
         })
     }
 
     pub async fn cancel_restore(&self) -> Result<(), BackupRequestError> {
         let _guard = self.backup_lock.lock().await;
         backup_files::clear_marker(&self.config.database.path).map_err(|e| {
-            BackupRequestError::Failed(format!(
-                "Vorgemerkte Wiederherstellung nicht aufgehoben: {e}"
-            ))
+            tracing::warn!(error = %e, "pending restore not cleared");
+            BackupRequestError::Failed(
+                "Vorgemerkte Wiederherstellung nicht aufgehoben – Details stehen im Log".to_owned(),
+            )
         })
     }
 }

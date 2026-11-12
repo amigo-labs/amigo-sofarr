@@ -22,6 +22,34 @@ use crate::{
     search::{SearchError, SearchReport, SearchTarget},
 };
 
+/// Everything sofarr serves over HTTP, behind the authentication middleware.
+pub fn app_router(app: SharedApp) -> Router {
+    Router::new()
+        .route("/api/health", get(health))
+        .route("/api/auth/login", post(crate::auth::login))
+        .route("/api/auth/logout", post(crate::auth::logout))
+        .route("/api/auth/me", get(crate::auth::me))
+        .with_state(std::sync::Arc::clone(&app))
+        .merge(routes(std::sync::Arc::clone(&app)))
+        .layer(axum::middleware::from_fn_with_state(
+            app,
+            crate::auth::guard,
+        ))
+}
+
+#[derive(Serialize)]
+pub struct Health {
+    status: &'static str,
+    version: &'static str,
+}
+
+pub async fn health() -> Json<Health> {
+    Json(Health {
+        status: "ok",
+        version: env!("CARGO_PKG_VERSION"),
+    })
+}
+
 pub fn routes(app: SharedApp) -> Router {
     Router::new()
         .route("/api/movies", get(movies))
@@ -347,10 +375,16 @@ async fn backup_list(State(app): State<SharedApp>) -> Result<Json<BackupList>, A
 }
 
 async fn backup_now(State(app): State<SharedApp>) -> Result<Json<BackupFile>, ApiError> {
+    // The details (paths, OS errors) go to the log and the backup list, not the answer.
     app.write_backup(Kind::Manual, jiff::Timestamp::now())
         .await
         .map(Json)
-        .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, format!("{e:#}")))
+        .map_err(|_| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Sicherung fehlgeschlagen – Details stehen im Log",
+            )
+        })
 }
 
 /// The backup file as it is (read whole: backups are a few megabytes).

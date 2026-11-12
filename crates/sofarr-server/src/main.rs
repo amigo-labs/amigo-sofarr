@@ -2,6 +2,8 @@
 
 mod api;
 mod app;
+mod auth;
+mod auth_net;
 mod backup_files;
 mod backups;
 mod compare;
@@ -17,9 +19,12 @@ mod rescan;
 mod rss;
 mod search;
 mod series;
+mod throttle;
 
 #[cfg(test)]
 mod api_tests;
+#[cfg(test)]
+mod auth_tests;
 #[cfg(test)]
 mod backup_api_tests;
 #[cfg(test)]
@@ -42,9 +47,7 @@ use std::{
 };
 
 use anyhow::Context;
-use axum::{Json, Router, routing::get};
 use clap::{Parser, Subcommand};
-use serde::Serialize;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -124,6 +127,9 @@ enum Command {
     CheckDownloads,
     /// Schreibt eine Sicherung der Datenbank in den Sicherungsordner
     Backup,
+    /// Liest ein Passwort (Eingabe oder stdin) und gibt den Hash für
+    /// `[auth] password_hash` aus
+    HashPassword,
     /// Spielt eine Sicherung ein (nur bei gestopptem Server); die bisherige Datenbank
     /// bleibt als `….replaced-<Zeit>` liegen
     Restore {
@@ -182,6 +188,7 @@ fn main() -> ExitCode {
         Command::Serve => runtime.block_on(serve(config)),
         Command::Healthcheck => runtime.block_on(healthcheck(config.server.bind)),
         Command::Restore { backup } => runtime.block_on(restore(&config, &backup)),
+        Command::HashPassword => hash_password(),
         command => runtime.block_on(run_command(config, command)),
     };
 
@@ -274,15 +281,18 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         rss_minutes = interval,
         "starting"
     );
-    let app = router().merge(api::routes(state));
+    let app = api::app_router(state);
     let listener = TcpListener::bind(bind)
         .await
         .with_context(|| format!("Port {bind} nicht verfügbar"))?;
 
     tracing::info!(addr = %bind, version = env!("CARGO_PKG_VERSION"), "listening");
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await?;
     tracing::info!("shut down");
     Ok(())
 }
@@ -308,7 +318,7 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
         anyhow::Ok(radarr::Radarr::new(app.http.clone(), config))
     };
     match command {
-        Command::Serve | Command::Healthcheck | Command::Restore { .. } => {
+        Command::Serve | Command::Healthcheck | Command::Restore { .. } | Command::HashPassword => {
             unreachable!("handled in main")
         }
         Command::Backup => {
@@ -556,21 +566,30 @@ fn print_scan(label: &str, report: Option<&rescan::ScanReport>) {
     );
 }
 
-fn router() -> Router {
-    Router::new().route("/api/health", get(health))
+#[cfg(test)]
+fn router() -> axum::Router {
+    axum::Router::new().route("/api/health", axum::routing::get(api::health))
 }
 
-#[derive(Serialize)]
-struct Health {
-    status: &'static str,
-    version: &'static str,
-}
-
-async fn health() -> Json<Health> {
-    Json(Health {
-        status: "ok",
-        version: env!("CARGO_PKG_VERSION"),
-    })
+/// `amigo-sofarr hash-password`: typed without echo in a terminal, otherwise one line
+/// from stdin; the password is never an argument and never printed.
+fn hash_password() -> anyhow::Result<()> {
+    use std::io::{BufRead, IsTerminal};
+    let stdin = std::io::stdin();
+    let line = if stdin.is_terminal() {
+        rpassword::prompt_password("Passwort: ").context("Passwort nicht lesbar")?
+    } else {
+        let mut line = String::new();
+        stdin
+            .lock()
+            .read_line(&mut line)
+            .context("Passwort nicht lesbar")?;
+        line
+    };
+    let password = line.trim_end_matches(['\r', '\n']);
+    anyhow::ensure!(!password.is_empty(), "Leeres Passwort – kein Hash erzeugt");
+    println!("{}", auth::hash_password(password)?);
+    Ok(())
 }
 
 fn init_tracing(config: &Config) {
