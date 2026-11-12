@@ -303,6 +303,8 @@ impl App {
             .filter_map(|scope| tv_request(show, &episodes, *scope))
             .collect();
         let mut candidates = Vec::new();
+        // Every release returned counts, also those without an episode in their name.
+        let mut returned = HashSet::new();
         for indexer in allowed {
             let caps = match self.tv_caps(indexer).await {
                 Ok(caps) => caps,
@@ -315,6 +317,7 @@ impl App {
             for request in &requests {
                 match indexer.search_tv(&caps, request).await {
                     Ok((batch, by_id)) => {
+                        returned.extend(batch.iter().map(|r| r.guid.clone()));
                         candidates.extend(batch.into_iter().filter_map(|release| {
                             let info = sofarr_parser::parse_episode(&release.title)?;
                             Some(Candidate {
@@ -331,7 +334,7 @@ impl App {
                 }
             }
         }
-        report.releases = distinct(candidates.iter().map(|c| c.release.guid.clone()));
+        report.releases = returned.len();
         report.grabs = self
             .grab_series_candidates(show, &episodes, scopes, explicit, &candidates)
             .await?;

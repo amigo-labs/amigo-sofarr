@@ -180,7 +180,7 @@ async fn outage_at_grab_time_fails_without_blocklist_or_search() {
 }
 
 #[tokio::test]
-async fn blocklisted_releases_are_skipped_by_guid_or_title_per_movie() {
+async fn blocklisted_releases_are_skipped_by_title_per_movie() {
     let s = Services::start().await;
     s.feed(
         "idx",
@@ -204,6 +204,31 @@ async fn blocklisted_releases_are_skipped_by_guid_or_title_per_movie() {
     // A blocklist entry of another movie does not hold G2 for Erster Film.
     app.db
         .add_block(&block(MediaRef::Movie(zweiter), G2, "g2"), Timestamp::now())
+        .await
+        .expect("block");
+    app.rss_sync().await.expect("rss");
+    assert_eq!(s.lock().appended, [format!("{G2}.nzb")]);
+}
+
+#[tokio::test]
+async fn a_blocklisted_guid_is_skipped_under_another_title() {
+    let s = Services::start().await;
+    s.feed(
+        "idx",
+        &[
+            // The blocklisted GUID, renamed by the indexer.
+            s.item(
+                "Erster.Film.2001.German.1080p.BluRay.x264-RENAMED",
+                "g1",
+                5_000_000_000,
+            ),
+            s.item(G2, "g2", 4_000_000_000),
+        ],
+    );
+    let app = app(Library::Movies, &live(&s, "")).await;
+    let erster = movie_id(&app, 101).await;
+    app.db
+        .add_block(&block(MediaRef::Movie(erster), G1, "g1"), Timestamp::now())
         .await
         .expect("block");
     app.rss_sync().await.expect("rss");

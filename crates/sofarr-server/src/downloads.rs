@@ -434,10 +434,13 @@ pub const MARKED: &str = "Manuell als fehlgeschlagen markiert";
 /// download, so a client reporting a category or root folder never deletes more.
 fn own_folder(dir: &std::path::Path, item: &DownloadItem) -> bool {
     !item.name.is_empty()
-        && dir
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.starts_with(&item.name))
+        && dir.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+            // nzbget's intermediate folder is `<name>.#<id>`.
+            n == item.name
+                || n.strip_prefix(item.name.as_str())
+                    .and_then(|rest| rest.strip_prefix(".#"))
+                    .is_some_and(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+        })
 }
 
 impl App {
@@ -578,6 +581,10 @@ mod tests {
             &item
         ));
         assert!(!own_folder(path("/data/usenet/movies"), &item));
+        assert!(!own_folder(
+            path("/data/usenet/movies/Film.2020.1080p-GRP-other"),
+            &item
+        ));
         assert!(!own_folder(path("/"), &item));
         let unnamed = DownloadItem {
             name: String::new(),

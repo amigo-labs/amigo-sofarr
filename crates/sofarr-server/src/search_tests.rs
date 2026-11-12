@@ -445,6 +445,67 @@ async fn manual_search_skips_blocklisted_releases() {
 }
 
 #[tokio::test]
+async fn manual_search_skips_a_blocklisted_guid_under_another_title() {
+    let s = Services::start().await;
+    s.feed(
+        "idx",
+        &[
+            s.item(
+                "Erster.Film.2001.German.1080p.BluRay.x264-RENAMED",
+                "g1",
+                5_000_000_000,
+            ),
+            s.item(G2, "g2", 4_000_000_000),
+        ],
+    );
+    let app = app(Library::Movies, &live(&s, "")).await;
+    let id = movie(&app, 101).await;
+    app.db
+        .add_block(
+            &NewBlock {
+                media: MediaRef::Movie(id),
+                title: G1.to_owned(),
+                normalized_title: sofarr_core::normalize_release_title(G1),
+                guid: "g1".to_owned(),
+                indexer: "idx".to_owned(),
+                reason: "Test".to_owned(),
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("block");
+    app.search(SearchTarget::Movie(id)).await.expect("search");
+    assert_eq!(appended(&s), [format!("{G2}.nzb")]);
+}
+
+#[tokio::test]
+async fn series_search_counts_every_release_returned() {
+    let s = Services::start().await;
+    s.feed(
+        "idx",
+        &[
+            s.item(S1, "s1", 2_000_000_000),
+            // No episode in its name: still a release the indexer returned.
+            s.item(
+                "Kleine.Insel.Making.Of.1080p.WEB-DL.h264-DOKU",
+                "x1",
+                1_000_000_000,
+            ),
+        ],
+    );
+    let app = app(Library::Series, &live(&s, "")).await;
+    let report = app
+        .search(SearchTarget::Episode {
+            series_id: series(&app).await,
+            season: 1,
+            episode: 2,
+        })
+        .await
+        .expect("search");
+    assert_eq!((report.releases, report.grabs), (2, 1));
+}
+
+#[tokio::test]
 async fn a_search_for_one_movie_covers_it_when_unmonitored() {
     let s = movie_services().await;
     let app = app(Library::Movies, &live(&s, "")).await;
