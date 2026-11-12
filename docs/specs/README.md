@@ -20,13 +20,15 @@ The order is binding because later specs build on earlier ones.
 | 2 | [backups](backups.md) | M | – | Scheduled, manual and pre-migration backups, restore at the next start or by CLI (D14) | `/spec-build backups` |
 | 3 | [auth](auth.md) | M | – | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) | `/spec-build auth` |
 | 4 | [mediainfo](mediainfo.md) | L | – | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) | `/spec-build mediainfo` |
-| 5 | web-ui | L | auth | Svelte 5 + SvelteKit static, embedded; overview, movies, series, missing, blocklist, backups (D16) | `/spec web-ui` |
-| 6 | discover | L | web-ui | Discover/trending, people pages with filmography, adding titles, IMDb rating from the IMDb datasets (D19, D20) | `/spec discover` |
-| 7 | subtitles | L | mediainfo | OpenSubtitles.com, stored by Jellyfin's naming rules (D17) | `/spec subtitles` |
-| 8 | trailers | M | – | TMDB trailers via yt-dlp into `trailers/`, Alpine runtime image (D18) | `/spec trailers` |
+| 5 | [web-ui-shell](web-ui-shell.md) | L | auth | SvelteKit static UI in the binary, login, navigation, GitHub look, system page (D16, D23) | `/spec-build web-ui-shell` |
+| 6 | web-ui-library | L | web-ui-shell, fail-handling, backups | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) | `/spec web-ui-library` |
+| 7 | imdb-ratings | M | web-ui-library | IMDb ratings from the IMDb datasets in every list, sortable and filterable (D20) | `/spec imdb-ratings` |
+| 8 | discover | L | web-ui-library, imdb-ratings | Discover/trending, search, people pages with filmography, adding titles (D19) | `/spec discover` |
+| 9 | subtitles | L | mediainfo | OpenSubtitles.com, stored by Jellyfin's naming rules (D17) | `/spec subtitles` |
+| 10 | trailers | M | – | TMDB trailers via yt-dlp into `trailers/`, Alpine runtime image (D18) | `/spec trailers` |
 
 Large specs (L) are split while being written when they need more than a few sessions
-(e.g. `web-ui-shell` / `web-ui-library`, `discover-browse` / `discover-imdb`).
+(as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
 
 ## Done
 
