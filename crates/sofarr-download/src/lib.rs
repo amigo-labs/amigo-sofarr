@@ -140,6 +140,14 @@ impl Nzbget {
     }
 }
 
+impl Nzbget {
+    /// The current download speed in bytes per second (0 while paused or idle).
+    pub async fn download_rate(&self) -> Result<u64> {
+        let status = self.call("status", json!([])).await?;
+        Ok(status["DownloadRate"].as_u64().unwrap_or(0))
+    }
+}
+
 fn mib(value: &Value) -> u64 {
     value.as_u64().unwrap_or(0) * MIB
 }
@@ -374,6 +382,7 @@ mod tests {
                 "history" => {
                     json!({"result": [{"NZBID": 41, "Name": "b", "Status": "SUCCESS/ALL", "DestDir": "/d/b"}]})
                 }
+                "status" => json!({"result": {"DownloadRate": 2_097_152, "DownloadPaused": false}}),
                 _ => json!({"result": true}),
             })
         }
@@ -408,6 +417,7 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(items[1].state, DownloadState::Completed);
         nzbget.remove("41").await.expect("remove");
+        assert_eq!(nzbget.download_rate().await.expect("rate"), 2_097_152);
         let calls = calls.lock().expect("lock");
         let (_, append) = &calls[0];
         assert_eq!(append[0], "Film.2020.nzb");
