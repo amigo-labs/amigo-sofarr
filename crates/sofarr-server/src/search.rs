@@ -34,6 +34,7 @@ pub enum SearchTarget {
 
 /// Outcome of a search.
 #[derive(Debug, Default, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SearchReport {
     /// Distinct releases (by GUID) the indexers returned.
     pub releases: usize,
@@ -43,6 +44,7 @@ pub struct SearchReport {
     pub errors: Vec<String>,
     /// Why nothing was searched, if so.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub note: Option<String>,
 }
 

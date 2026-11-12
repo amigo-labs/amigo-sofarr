@@ -7,10 +7,38 @@ use std::{collections::BTreeMap, path::PathBuf};
 use ts_rs::{Config, TS};
 
 use crate::{
+    api::{BlocklistEntry, BlocklistPage, PageQuery, RestoreAnswer, SearchBody},
     api::{ErrorBody, Health, OkBody},
     auth::{LoginBody, Me, Method},
+    backup_files::{BackupFile, Kind},
+    backups::{BackupError, BackupList},
+    calendar::{CalendarAnswer, CalendarEntry, CalendarQuery, EntryKind, EntryState, Release},
     config::Mode,
+    library_detail::{
+        BlockedRelease, EpisodeAnswer, EpisodeDetail, FileActions, FileDetail, FolderState,
+        GrabEntry, MovieDetail, ReleaseDates, SeasonAnswer, SeriesDetail,
+    },
+    library_edit::{
+        ChangePreview, ItemKind, MonitorAnswer, MonitorBody, MonitorItem, MovieChange, PreviewItem,
+        SeriesChange,
+    },
+    library_files::{
+        FolderAnswer, FolderPreview, RemoveAnswer, RemoveBody, RenameAnswer, RenameEntry,
+        RenamePreview,
+    },
+    library_list::Page,
+    library_list::{
+        Choice, LibraryOptions, MovieListItem, MovieListQuery, Order, SeriesListItem,
+        SeriesListQuery, Sort, Tri,
+    },
+    library_view::ReleaseStage,
+    overview::{ActivityEntry, ActivityQuery, MediaKind, OverviewAnswer, QueueAnswer, QueueItem},
+    search::SearchReport,
     system::{ConnectionAnswer, ContactState, JobAnswer, JobResult, PeerKind, SystemAnswer},
+    wanted::{
+        BulkSearchBody, BulkSearchReport, SearchItem, WantedItem, WantedList, WantedMedia,
+        WantedQuery, WantedSelector,
+    },
 };
 
 fn folder() -> PathBuf {
@@ -19,7 +47,8 @@ fn folder() -> PathBuf {
 
 fn one<T: TS + 'static>(cfg: &Config, out: &mut BTreeMap<String, String>) {
     let text = T::export_to_string(cfg).expect("export");
-    out.insert(format!("{}.ts", T::name(cfg)), text.replace("\r\n", "\n"));
+    // `ident`: a generic type's file is named without its parameters.
+    out.insert(format!("{}.ts", T::ident(cfg)), text.replace("\r\n", "\n"));
 }
 
 /// Every generated file by name.
@@ -40,6 +69,73 @@ fn generated() -> BTreeMap<String, String> {
     one::<ConnectionAnswer>(&cfg, &mut out);
     one::<PeerKind>(&cfg, &mut out);
     one::<ContactState>(&cfg, &mut out);
+    one::<SearchBody>(&cfg, &mut out);
+    one::<PageQuery>(&cfg, &mut out);
+    one::<BlocklistPage>(&cfg, &mut out);
+    one::<BlocklistEntry>(&cfg, &mut out);
+    one::<RestoreAnswer>(&cfg, &mut out);
+    one::<BackupList>(&cfg, &mut out);
+    one::<BackupError>(&cfg, &mut out);
+    one::<BackupFile>(&cfg, &mut out);
+    one::<Kind>(&cfg, &mut out);
+    one::<SearchReport>(&cfg, &mut out);
+    one::<Tri>(&cfg, &mut out);
+    one::<Sort>(&cfg, &mut out);
+    one::<Order>(&cfg, &mut out);
+    one::<MovieListQuery>(&cfg, &mut out);
+    one::<SeriesListQuery>(&cfg, &mut out);
+    one::<MovieListItem>(&cfg, &mut out);
+    one::<SeriesListItem>(&cfg, &mut out);
+    one::<Choice>(&cfg, &mut out);
+    one::<LibraryOptions>(&cfg, &mut out);
+    one::<ReleaseStage>(&cfg, &mut out);
+    one::<FileActions>(&cfg, &mut out);
+    one::<FolderState>(&cfg, &mut out);
+    one::<FileDetail>(&cfg, &mut out);
+    one::<GrabEntry>(&cfg, &mut out);
+    one::<BlockedRelease>(&cfg, &mut out);
+    one::<ReleaseDates>(&cfg, &mut out);
+    one::<MovieDetail>(&cfg, &mut out);
+    one::<EpisodeAnswer>(&cfg, &mut out);
+    one::<SeasonAnswer>(&cfg, &mut out);
+    one::<SeriesDetail>(&cfg, &mut out);
+    one::<EpisodeDetail>(&cfg, &mut out);
+    one::<MonitorItem>(&cfg, &mut out);
+    one::<MonitorBody>(&cfg, &mut out);
+    one::<MonitorAnswer>(&cfg, &mut out);
+    one::<MovieChange>(&cfg, &mut out);
+    one::<SeriesChange>(&cfg, &mut out);
+    one::<ItemKind>(&cfg, &mut out);
+    one::<PreviewItem>(&cfg, &mut out);
+    one::<ChangePreview>(&cfg, &mut out);
+    one::<WantedList>(&cfg, &mut out);
+    one::<WantedMedia>(&cfg, &mut out);
+    one::<WantedQuery>(&cfg, &mut out);
+    one::<WantedItem>(&cfg, &mut out);
+    one::<SearchItem>(&cfg, &mut out);
+    one::<WantedSelector>(&cfg, &mut out);
+    one::<BulkSearchBody>(&cfg, &mut out);
+    one::<BulkSearchReport>(&cfg, &mut out);
+    one::<MediaKind>(&cfg, &mut out);
+    one::<ActivityEntry>(&cfg, &mut out);
+    one::<QueueItem>(&cfg, &mut out);
+    one::<QueueAnswer>(&cfg, &mut out);
+    one::<OverviewAnswer>(&cfg, &mut out);
+    one::<ActivityQuery>(&cfg, &mut out);
+    one::<EntryState>(&cfg, &mut out);
+    one::<Release>(&cfg, &mut out);
+    one::<EntryKind>(&cfg, &mut out);
+    one::<CalendarEntry>(&cfg, &mut out);
+    one::<CalendarAnswer>(&cfg, &mut out);
+    one::<CalendarQuery>(&cfg, &mut out);
+    one::<RenameEntry>(&cfg, &mut out);
+    one::<RenamePreview>(&cfg, &mut out);
+    one::<RenameAnswer>(&cfg, &mut out);
+    one::<FolderPreview>(&cfg, &mut out);
+    one::<FolderAnswer>(&cfg, &mut out);
+    one::<RemoveBody>(&cfg, &mut out);
+    one::<RemoveAnswer>(&cfg, &mut out);
+    one::<Page<()>>(&cfg, &mut out);
     out
 }
 

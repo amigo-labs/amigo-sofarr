@@ -24,6 +24,7 @@ const CIVIL_FORMAT: &str = "%Y-%m-%dT%H%M%S";
 const TIME_LEN: usize = 18;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(rename_all = "kebab-case")]
 pub enum Kind {
     Scheduled,
@@ -34,11 +35,13 @@ pub enum Kind {
 
 /// A backup in the folder.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BackupFile {
     pub name: String,
     pub kind: Kind,
     pub size: u64,
     #[serde(serialize_with = "as_text")]
+    #[cfg_attr(test, ts(type = "string"))]
     pub time: Timestamp,
     pub valid: bool,
 }

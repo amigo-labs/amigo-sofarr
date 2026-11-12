@@ -229,8 +229,9 @@ async fn rss_sync(State(app): State<SharedApp>) -> Result<Json<crate::rss::SyncR
 /// Body of `POST /api/command/search`: exactly one of `movie_id`; `series_id`;
 /// `series_id` + `season`; `series_id` + `season` + `episode`.
 #[derive(Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(deny_unknown_fields)]
-struct SearchBody {
+pub(crate) struct SearchBody {
     movie_id: Option<i64>,
     series_id: Option<i64>,
     season: Option<u16>,
@@ -275,13 +276,15 @@ async fn search(
 }
 
 #[derive(Deserialize)]
-struct PageQuery {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub(crate) struct PageQuery {
     page: Option<i64>,
     page_size: Option<i64>,
 }
 
 #[derive(Serialize)]
-struct BlocklistPage {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub(crate) struct BlocklistPage {
     page: u32,
     page_size: u32,
     total: u64,
@@ -289,7 +292,8 @@ struct BlocklistPage {
 }
 
 #[derive(Serialize)]
-struct BlocklistEntry {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub(crate) struct BlocklistEntry {
     id: i64,
     movie_id: Option<i64>,
     series_id: Option<i64>,
@@ -548,7 +552,8 @@ async fn delete_backup(
 }
 
 #[derive(Serialize)]
-struct RestoreAnswer {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub(crate) struct RestoreAnswer {
     pending_restore: String,
     message: &'static str,
 }

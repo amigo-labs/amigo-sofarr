@@ -21,14 +21,17 @@ pub const CHECK_INTERVAL: Duration = Duration::from_secs(60);
 
 /// The last failed backup operation, shown in the list until a backup succeeds.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BackupError {
     #[serde(serialize_with = "backup_files::as_text")]
+    #[cfg_attr(test, ts(type = "string"))]
     pub time: Timestamp,
     pub message: String,
 }
 
 /// The answer of the backup list.
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BackupList {
     pub backups: Vec<BackupFile>,
     pub pending_restore: Option<String>,
