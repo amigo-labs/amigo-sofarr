@@ -135,7 +135,7 @@ pub fn reserve(
     }
     Err(io::Error::new(
         ErrorKind::AlreadyExists,
-        "no free backup name",
+        "kein freier Sicherungsname",
     ))
 }
 
