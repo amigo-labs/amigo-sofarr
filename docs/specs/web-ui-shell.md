@@ -131,28 +131,44 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
-| AC-16 |      | open   |        |
-| AC-17 |      | open   |        |
-| AC-18 |      | open   |        |
-| AC-19 |      | open   |        |
+| AC-01 | `the binary answers / with the app document and the app starts` (`ui/e2e/serving.spec.ts`); `ui_tests::pages_get_the_app_document_and_assets_their_files` (`crates/sofarr-server/src/ui_tests.rs`) | built |  |
+| AC-02 | `ui_tests::pages_get_the_app_document_and_assets_their_files`, `ui_tests::unknown_assets_and_api_paths_are_not_found`, `ui_tests::with_auth_on_unknown_api_paths_ask_for_a_login_first` (`crates/sofarr-server/src/ui_tests.rs`); `a page address opens directly and survives a reload`, `unknown assets and API paths are errors, not the app document` (`ui/e2e/serving.spec.ts`) | built |  |
+| AC-03 | `ui_tests::without_a_build_every_page_explains_how_to_build_it` (`crates/sofarr-server/src/ui_tests.rs`) | built |  |
+| AC-04 | `a bookmarked page asks for a login and shows that page afterwards`, `a foreign target after the login leads to the start page` (`ui/e2e/auth.spec.ts`); `safeTarget`, `routeFor` (`ui/src/lib/auth/redirect.test.ts`) | built |  |
+| AC-05 | `a wrong password shows the API message; throttling disables the button`, `without Retry-After the next attempt waits 60 seconds`, `a failed logout says so and the user stays logged in` (`ui/e2e/auth.spec.ts`); `retry-after` (`ui/src/lib/auth/retry-after.test.ts`) | built |  |
+| AC-06 | `no login where none is needed (AC-06)` (auth off and trusted network, `ui/e2e/auth.spec.ts`); `redirect` (`ui/src/lib/auth/redirect.test.ts`) | built |  |
+| AC-07 | `a refresh that gets 401 shows the login page and returns to the same page`, `a write action that got 401 is not repeated and the page says so` (`ui/e2e/auth.spec.ts`); `sends a write action once and names it after a 401` (`ui/src/lib/api/client.test.ts`) | built |  |
+| AC-08 | `lists the built pages in order and marks the current one`, `every page reaches every other page through the navigation` (`ui/e2e/layout.spec.ts`); `a login without a requested page shows the system page (AC-08)` (`ui/e2e/auth.spec.ts`); `nav` (`ui/src/lib/nav.test.ts`) | built |  |
+| AC-09 | `narrow screens (AC-09)` › `the navigation sits behind a menu button`, `very long names and messages wrap instead of scrolling` (`ui/e2e/layout.spec.ts`) | built |  |
+| AC-10 | `theme (AC-10)` › `follows the system setting, also when it changes`, `the switch offers Hell, Dunkel and System and is remembered`, `blocked storage: the theme follows the system and is not remembered` (`ui/e2e/layout.spec.ts`); `theme` (`ui/src/lib/theme/theme.test.ts`) | built |  |
+| AC-11 | `light theme` and `dark theme` › `system page with every state`, `system page with a failed refresh`, `full-page error`, `login page with an error and the open menu on a narrow screen`, `logged-in header and open menu`, `page not found` (axe, wcag2a/2aa/21a/21aa, `ui/e2e/a11y.spec.ts`); `every control is reachable by Tab with a visible focus`, `the login form works with the keyboard alone` (`ui/e2e/layout.spec.ts`) | built |  |
+| AC-12 | `ui_tests::the_system_page_shows_jobs_connections_and_masked_settings`, `ui_tests::without_clients_the_system_page_says_not_configured` (`crates/sofarr-server/src/ui_tests.rs`); `system::tests::secrets_are_masked_at_any_depth`, `system::tests::urls_lose_user_info_and_query` (`crates/sofarr-server/src/system.rs`); `status::tests::jobs_and_contacts_keep_the_last_state` (`crates/sofarr-server/src/status.rs`); `shows version, mode, jobs, connections and the configuration of the server`, `shows every job result and connection state in German`, `refreshes every 15 seconds while open` (`ui/e2e/system.spec.ts`) | built |  |
+| AC-13 | `failed requests (AC-13)` › `a first load with a server error shows a full-page error with a retry`, `an unreachable API on the first load says so in German`, `a failed refresh keeps the data, offers a retry and retries by itself`, `an unreachable API at the start shows a full-page error with a retry`, `a slow answer shows a loading indicator`; `without JavaScript` › `a German note says that the UI needs JavaScript` (`ui/e2e/system.spec.ts`); `resource` (`ui/src/lib/resource.test.ts`) | built |  |
+| AC-14 | `pages, errors and controls speak German` (`ui/e2e/layout.spec.ts`); `format` (`ui/src/lib/system/format.test.ts`) | built |  |
+| AC-15 | `ui_types::ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
+| AC-16 | `transfer budget (AC-16)` (one test per page: `/`, `/system`, `/anmelden`, `/filme`; about 77–81 KB measured), `scripts and styles arrive gzip-compressed` (`ui/e2e/assets.spec.ts`) | built |  |
+| AC-17 | `ui_tests::pages_get_the_app_document_and_assets_their_files` (`crates/sofarr-server/src/ui_tests.rs`); `caching (AC-17)` › `assets are cached for a year, the app document is always checked` (`ui/e2e/serving.spec.ts`) | built |  |
+| AC-18 | CI: docker — the `docker` job of `.github/workflows/ci.yml` starts the image and checks that `/` answers the app document (`/_app/immutable/` in the page); locally checked with `docker build` + `docker run` | built |  |
+| AC-19 | `a missing asset reloads the app document once and the page appears`, `an asset that still fails after the reload shows an error instead of looping`, `a page changed by a newer build loads after one reload during navigation` (`ui/e2e/assets.spec.ts`); `stale-asset` (`ui/src/lib/stale-asset.test.ts`) | built |  |
 
 ## Decisions
 
 - 2026-11-12: Two UI specs: `web-ui-shell` (this) and `web-ui-library` (owner).
 - 2026-11-12: Responsive from 360 px; light and dark following the system (owner).
 - 2026-11-12: GitHub look with Primer tokens and Octicons, own Svelte components (owner; D23).
+- 2026-11-12: The UI files are embedded with `rust-embed` (`allow_missing`); debug builds read `ui/build` at runtime, so the e2e tests run against the debug binary; release builds and the Docker image carry the files inside (AC-01, AC-03).
+- 2026-11-12: The asset folder is SvelteKit's `_app/`; unknown paths in it answer 404, `_app/immutable/` (hashed files) gets `public, max-age=31536000, immutable`, everything else `no-cache` (AC-02, AC-17).
+- 2026-11-12: The build is precompressed (`adapter-static` `precompress`); the server sends `<file>.gz` with `Content-Encoding: gzip` when the browser accepts gzip, so no compression crate is needed (AC-16).
+- 2026-11-12: Non-GET requests outside `/api/` answer 405; the UI is static.
+- 2026-11-12: Job and connection status live in memory (`status.rs`); a contact counts at every indexer RSS/search call and every download-client call; the backup's next run comes from the newest scheduled backup plus the interval, because the backup scheduler only looks every minute (AC-12).
+- 2026-11-12: Secrets are masked as `***` by key (`password`, `password_hash`, `api_key`, `key`, `token`, `pin`, `secret`) and in every URL-looking string (user info and query); `null` values stay `null` so "not set" is still visible (AC-12).
+- 2026-11-12: `ts-rs` derives only in test builds (`cfg_attr(test, …)`); numbers are generated as `number`; `ErrorBody`/`OkBody` replace the ad-hoc JSON of error and ok answers so the UI has types for them (AC-15).
+- 2026-11-12: Stack versions: SvelteKit 3 (config in `vite.config.ts`, imports via `#lib/*` because Kit 3 dropped `$lib`), Svelte 5.57, TypeScript 6 (Kit 3 and svelte-check require ^6), Vite 8, Vitest 5, Playwright 1.65 with Chromium only.
+- 2026-11-12: `/` redirects to `/system` until the overview exists, so the current-page mark stays unambiguous (AC-08).
+- 2026-11-12: Logout is offered only for a session (`method = session`); auth off, trusted networks and the API key have nothing to log out of (AC-06).
+- 2026-11-12: The e2e servers are started by `ui/e2e/serve.mjs` (plain JS, as `@types/node` is not an approved dependency); a fourth server takes the throttling test so its lockout does not affect the other tests (AC-05).
+- 2026-11-12: The AC-07 write-action test uses the logout with a faked 401, because the shell has no other write action yet; the general write path is covered by `client.test.ts`.
+- 2026-11-12: A stale asset reload is remembered in `sessionStorage`; when that is blocked the German error shows at once instead of risking a reload loop; `src/error.html` covers a layout that cannot load at all (AC-19).
+- 2026-11-12: oxlint turns `no-await-in-loop` off for `ui/e2e/**` in `.oxlintrc.json`, because browser steps must run in order; there are no inline suppressions.
+- 2026-11-12: The theme switch is a native `<select>` labelled "Farbschema"; a small inline script in `app.html` applies the stored theme before the first paint (AC-10).
+- 2026-11-12: The `ui` gates (`lint`, `format:check`, `check` in `fast`; plus install, unit tests, build and e2e in `full`) and the CI job `ui` were added with the owner's approval (2026-11-12).
