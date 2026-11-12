@@ -38,3 +38,30 @@ pub fn normalize_title(title: &str) -> String {
         .flat_map(char::to_lowercase)
         .collect()
 }
+
+/// Normalises a release name for the blocklist: lower-case, every run of characters
+/// that are not letters or digits becomes one space, no leading or trailing space.
+pub fn normalize_release_title(title: &str) -> String {
+    title
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|part| !part.is_empty())
+        .map(str::to_lowercase)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn release_titles_differing_in_case_and_separators_are_equal() {
+        let a = normalize_release_title("Film.2020.1080p");
+        assert_eq!(a, "film 2020 1080p");
+        assert_eq!(normalize_release_title("film 2020 1080p"), a);
+        assert_eq!(normalize_release_title("Film_2020-1080p."), a);
+        assert_eq!(normalize_release_title("..Film -- 2020__1080p"), a);
+        // Separators still separate: joined words are a different release.
+        assert_ne!(normalize_release_title("Film2020.1080p"), a);
+    }
+}
