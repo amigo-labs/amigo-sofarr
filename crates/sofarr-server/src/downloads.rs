@@ -370,12 +370,7 @@ impl App {
         destination: &std::path::Path,
         info: &sofarr_mediainfo::MediaInfo,
     ) {
-        let media = crate::media::FileMedia {
-            info: info.clone(),
-            size: 0,
-            modified: String::new(),
-        };
-        if let Err(e) = crate::media::store(&self.db, file, destination, &media).await {
+        if let Err(e) = crate::media::store_moved(&self.db, file, destination, info).await {
             tracing::warn!(error = format!("{e:#}"), "media info not stored");
         }
     }

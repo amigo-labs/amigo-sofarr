@@ -38,7 +38,13 @@ mod backup_api_tests;
 #[cfg(test)]
 mod backup_tests;
 #[cfg(test)]
+mod compare_media_tests;
+#[cfg(test)]
 mod failure_tests;
+#[cfg(test)]
+mod media_import_tests;
+#[cfg(test)]
+mod media_refresh_tests;
 #[cfg(test)]
 mod media_tests;
 #[cfg(test)]
@@ -317,7 +323,7 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             .sonarr
             .as_ref()
             .context("[sonarr] fehlt in der Konfiguration")?;
-        anyhow::Ok(radarr::Radarr::new(app.http.clone(), config))
+        anyhow::Ok(radarr::Radarr::sonarr(app.http.clone(), config))
     };
     let radarr = || {
         let config = app

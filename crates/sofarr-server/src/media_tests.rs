@@ -1,9 +1,8 @@
 //! Media info in the server (spec mediainfo): storing at import and scan, naming,
-//! the file endpoints, the oracle comparison.
+//! the file endpoints; the test files and helpers the other media tests share.
 
 use std::{path::Path, sync::Arc};
 
-use axum::{Json, Router, routing::get};
 use jiff::Timestamp;
 use serde_json::{Value, json};
 use sofarr_db::{FileRef, MovieFile, NewMovie};
@@ -17,7 +16,7 @@ use crate::{
 
 // --- a minimal Matroska file ----------------------------------------------------------
 
-fn el(id: u32, data: &[u8]) -> Vec<u8> {
+pub(crate) fn el(id: u32, data: &[u8]) -> Vec<u8> {
     let id_bytes: Vec<u8> = id
         .to_be_bytes()
         .into_iter()
@@ -32,16 +31,29 @@ fn el(id: u32, data: &[u8]) -> Vec<u8> {
     out
 }
 
-fn uint(id: u32, value: u64) -> Vec<u8> {
+pub(crate) fn uint(id: u32, value: u64) -> Vec<u8> {
     el(id, &value.to_be_bytes())
 }
 
-fn text(id: u32, value: &str) -> Vec<u8> {
+pub(crate) fn text(id: u32, value: &str) -> Vec<u8> {
     el(id, value.as_bytes())
 }
 
 /// An MKV with an HEVC video track (PQ transfer: HDR10) and, if given, one audio track.
-fn mkv(audio: Option<(&str, u64, &str)>) -> Vec<u8> {
+pub(crate) fn mkv(audio: Option<(&str, u64, &str)>) -> Vec<u8> {
+    mkv_full(audio, None, None)
+}
+
+/// A subtitle track of [`mkv_full`]: codec ID and language; it is forced, not default and
+/// for the hearing impaired.
+pub(crate) type SubtitleTrack<'a> = (&'a str, &'a str);
+
+/// [`mkv`] plus, if given, a subtitle track and an `ENCODER` tag.
+pub(crate) fn mkv_full(
+    audio: Option<(&str, u64, &str)>,
+    subtitle: Option<SubtitleTrack<'_>>,
+    encoder: Option<&str>,
+) -> Vec<u8> {
     let colour = uint(0x55BA, 16);
     let video = [uint(0xB0, 1920), uint(0xBA, 1080), el(0x55B0, &colour)].concat();
     let video_track = [
@@ -63,12 +75,30 @@ fn mkv(audio: Option<(&str, u64, &str)>) -> Vec<u8> {
         .concat();
         tracks.extend(el(0xAE, &audio_track));
     }
+    if let Some((codec, language)) = subtitle {
+        let subtitle_track = [
+            uint(0xD7, 3),
+            uint(0x83, 0x11),
+            text(0x86, codec),
+            text(0x22B59C, language),
+            uint(0x88, 0),
+            uint(0x55AA, 1),
+            uint(0x55AB, 1),
+        ]
+        .concat();
+        tracks.extend(el(0xAE, &subtitle_track));
+    }
+    let mut level1 = el(0x1654AE6B, &tracks);
+    if let Some(encoder) = encoder {
+        let simple = [text(0x45A3, "ENCODER"), text(0x4487, encoder)].concat();
+        level1.extend(el(0x1254C367, &el(0x7373, &el(0x67C8, &simple))));
+    }
     let header = el(0x1A45DFA3, &text(0x4282, "matroska"));
-    let segment = el(0x18538067, &el(0x1654AE6B, &tracks));
+    let segment = el(0x18538067, &level1);
     [header, segment].concat()
 }
 
-fn dir(name: &str) -> std::path::PathBuf {
+pub(crate) fn dir(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("sofarr-media-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("dir");
@@ -76,7 +106,7 @@ fn dir(name: &str) -> std::path::PathBuf {
 }
 
 /// Moves a library movie into `folder` and records `file` as its file.
-async fn place(app: &App, tmdb: i64, folder: &Path, file: &str) -> i64 {
+pub(crate) async fn place(app: &App, tmdb: i64, folder: &Path, file: &str) -> i64 {
     let m = app
         .db
         .movie_by_tmdb(tmdb)
@@ -124,7 +154,7 @@ async fn place(app: &App, tmdb: i64, folder: &Path, file: &str) -> i64 {
     m.id
 }
 
-async fn stored(app: &App, file: FileRef) -> Option<sofarr_mediainfo::MediaInfo> {
+pub(crate) async fn stored(app: &App, file: FileRef) -> Option<sofarr_mediainfo::MediaInfo> {
     app.db
         .media_info(file)
         .await
@@ -297,13 +327,29 @@ async fn an_import_names_and_records_from_the_file() {
 
 // --- the file endpoints (AC-10) ---------------------------------------------------------
 
+/// The fields of a file answer the Technical notes name, as (JSON pointer, value).
+fn assert_fields(answer: &Value, expected: &[(&str, Value)]) {
+    for (pointer, value) in expected {
+        assert_eq!(
+            answer.pointer(pointer),
+            Some(value),
+            "{pointer} in {answer:#}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn the_file_endpoints_answer_with_media_info() {
     let root = dir("api");
     let app = app(Library::Movies, "").await;
     let folder = root.join("Erster Film (2001)");
     std::fs::create_dir_all(&folder).expect("folder");
-    std::fs::write(folder.join("film.mkv"), mkv(Some(("A_EAC3", 6, "ger")))).expect("file");
+    let file = mkv_full(
+        Some(("A_EAC3", 6, "ger")),
+        Some(("S_TEXT/UTF8", "ger")),
+        Some("x265 (build 199)"),
+    );
+    std::fs::write(folder.join("film.mkv"), file).expect("file");
     let id = place(&app, 101, &folder, "film.mkv").await;
     app.rescan().await.expect("scan");
     let without = app
@@ -332,19 +378,37 @@ async fn the_file_endpoints_answer_with_media_info() {
         .json()
         .await
         .expect("json");
-    let media = &answer["media_info"];
-    assert_eq!(media["status"], "complete");
-    assert_eq!(media["container"], "matroska");
-    assert_eq!(media["video"]["codec"], "h265");
-    assert_eq!(media["video"]["width"], 1920);
-    assert_eq!(media["audio"][0]["channels"], 6);
-    assert_eq!(media["audio"][0]["language"], "ger");
-    assert_eq!(media["labels"]["video"], "h265");
-    assert_eq!(media["labels"]["dynamic_range"], "HDR");
-    assert!(
-        answer["path"]
-            .as_str()
-            .is_some_and(|p| p.ends_with("film.mkv"))
+    let path = folder.join("film.mkv").to_string_lossy().into_owned();
+    assert_fields(
+        &answer,
+        &[
+            ("/path", json!(path)),
+            ("/size", json!(1)),
+            ("/quality", json!("Bluray-1080p")),
+            ("/media_info/status", json!("complete")),
+            ("/media_info/container", json!("matroska")),
+            ("/media_info/video/codec", json!("h265")),
+            ("/media_info/video/encoder", json!("x265")),
+            ("/media_info/video/width", json!(1920)),
+            ("/media_info/video/height", json!(1080)),
+            (
+                "/media_info/video/dynamic_range",
+                json!({"hdr10": true, "hdr10_plus": false, "hlg": false, "dolby_vision": false}),
+            ),
+            ("/media_info/audio/0/codec", json!("eac3")),
+            ("/media_info/audio/0/channels", json!(6)),
+            ("/media_info/audio/0/object_audio", json!(false)),
+            ("/media_info/audio/0/language", json!("ger")),
+            ("/media_info/subtitles/0/language", json!("ger")),
+            ("/media_info/subtitles/0/format", json!("srt")),
+            ("/media_info/subtitles/0/forced", json!(true)),
+            ("/media_info/subtitles/0/default", json!(false)),
+            ("/media_info/subtitles/0/hearing_impaired", json!(true)),
+            ("/media_info/labels/video", json!("x265")),
+            ("/media_info/labels/audio", json!("EAC3")),
+            ("/media_info/labels/channels", json!("5.1")),
+            ("/media_info/labels/dynamic_range", json!("HDR")),
+        ],
     );
     let missing = client
         .get(format!("http://{addr}/api/movies/{without}/file"))
@@ -370,7 +434,8 @@ async fn the_episode_file_endpoint() {
     let relative = with_file.file.as_ref().expect("file").relative_path.clone();
     let path = root.join(&relative);
     std::fs::create_dir_all(path.parent().expect("parent")).expect("season");
-    std::fs::write(&path, mkv(Some(("A_AAC", 2, "eng")))).expect("file");
+    let file = mkv_full(Some(("A_AAC", 2, "eng")), Some(("S_HDMV/PGS", "eng")), None);
+    std::fs::write(&path, file).expect("file");
     app.rescan().await.expect("scan");
     let without = episodes.iter().find(|e| e.file.is_none()).expect("E02").id;
     let app = Arc::new(app);
@@ -393,96 +458,35 @@ async fn the_episode_file_endpoint() {
         .json()
         .await
         .expect("json");
-    assert_eq!(answer["media_info"]["audio"][0]["codec"], "aac");
-    assert_eq!(answer["media_info"]["labels"]["channels"], "2.0");
+    assert_fields(
+        &answer,
+        &[
+            ("/path", json!(path.to_string_lossy())),
+            ("/size", json!(5)),
+            ("/quality", json!("WEBDL-1080p")),
+            ("/media_info/status", json!("complete")),
+            ("/media_info/container", json!("matroska")),
+            ("/media_info/video/codec", json!("h265")),
+            ("/media_info/video/encoder", Value::Null),
+            ("/media_info/video/width", json!(1920)),
+            ("/media_info/video/height", json!(1080)),
+            ("/media_info/video/dynamic_range/hdr10", json!(true)),
+            ("/media_info/audio/0/codec", json!("aac")),
+            ("/media_info/audio/0/channels", json!(2)),
+            ("/media_info/audio/0/object_audio", json!(false)),
+            ("/media_info/audio/0/language", json!("eng")),
+            ("/media_info/subtitles/0/language", json!("eng")),
+            ("/media_info/subtitles/0/format", json!("pgs")),
+            ("/media_info/subtitles/0/forced", json!(true)),
+            ("/media_info/subtitles/0/default", json!(false)),
+            ("/media_info/subtitles/0/hearing_impaired", json!(true)),
+            ("/media_info/labels/video", json!("h265")),
+            ("/media_info/labels/audio", json!("AAC")),
+            ("/media_info/labels/channels", json!("2.0")),
+            ("/media_info/labels/dynamic_range", json!("HDR")),
+        ],
+    );
     let missing = client.get(url(without)).send().await.expect("get");
     assert_eq!(missing.status(), reqwest::StatusCode::NOT_FOUND);
     let _ = std::fs::remove_dir_all(&root);
-}
-
-// --- the oracle comparison (AC-08, AC-09) ------------------------------------------------
-
-async fn oracle(movies: Value) -> String {
-    let router = Router::new().route(
-        "/api/v3/movie",
-        get(move || {
-            let movies = movies.clone();
-            async move { Json(movies) }
-        }),
-    );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let addr = listener.local_addr().expect("addr");
-    tokio::spawn(async move { axum::serve(listener, router).await });
-    format!("http://{addr}")
-}
-
-fn radarr(url: &str) -> crate::radarr::Radarr {
-    crate::radarr::Radarr::new(
-        reqwest::Client::builder()
-            .no_proxy()
-            .build()
-            .expect("client"),
-        &crate::config::RadarrConfig {
-            url: url.to_owned(),
-            api_key: "k".to_owned(),
-        },
-    )
-}
-
-#[tokio::test]
-async fn the_comparison_reports_per_field_and_skips_with_reasons() {
-    let root = dir("compare");
-    let app = app(Library::Movies, "").await;
-    let folder = root.join("Erster Film (2001)");
-    std::fs::create_dir_all(&folder).expect("folder");
-    std::fs::write(folder.join("film.mkv"), mkv(Some(("A_EAC3", 6, "ger")))).expect("file");
-    place(&app, 101, &folder, "film.mkv").await;
-    place(&app, 102, &root.join("gone"), "gone.mkv").await;
-    let media = |video: &str| {
-        json!({"videoCodec": video, "audioCodec": "EAC3", "audioChannels": 5.1,
-               "videoDynamicRangeType": "HDR", "audioLanguages": "German", "subtitles": ""})
-    };
-    let url = oracle(json!([
-        {"id": 1, "movieFile": {"relativePath": "film.mkv", "mediaInfo": media("x265")}},
-        {"id": 2, "movieFile": {"relativePath": "gone.mkv", "mediaInfo": media("h265")}},
-        {"id": 3, "movieFile": {"relativePath": "dritter.mkv"}},
-        {"id": 99, "movieFile": {"relativePath": "fremd.mkv", "mediaInfo": media("h265")}}
-    ]))
-    .await;
-    let (report, clean) =
-        crate::compare_media::run(&app, &radarr(&url), crate::compare_media::OracleApp::Radarr)
-            .await
-            .expect("compare");
-    assert!(!clean);
-    for line in [
-        "Video: 0/1 gleich",
-        "film.mkv: erwartet „x265“, gefunden „h265“",
-        "Audio: 1/1 gleich",
-        "Kanäle: 1/1 gleich",
-        "Dynamikumfang: 1/1 gleich",
-        "Audiosprachen: 1/1 gleich",
-        "Übersprungen (Datei fehlt): 1",
-        "Übersprungen (Orakel ohne mediaInfo): 1",
-        "Übersprungen (nicht in sofarrs Bibliothek): 1",
-    ] {
-        assert!(report.contains(line), "{line}\n{report}");
-    }
-    let _ = std::fs::remove_dir_all(&root);
-}
-
-#[tokio::test]
-async fn an_unreachable_oracle_stops_with_a_german_message() {
-    let app = app(Library::Movies, "").await;
-    let closed = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let url = format!("http://{}", closed.local_addr().expect("addr"));
-    drop(closed);
-    let error =
-        crate::compare_media::run(&app, &radarr(&url), crate::compare_media::OracleApp::Radarr)
-            .await
-            .expect_err("must fail");
-    assert!(format!("{error:#}").contains("nicht abrufbar"), "{error:#}");
 }

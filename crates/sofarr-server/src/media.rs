@@ -3,7 +3,8 @@
 
 use std::{
     fs,
-    io::{BufReader, ErrorKind},
+    future::Future,
+    io::{ErrorKind, Read, Seek},
     path::{Path, PathBuf},
 };
 
@@ -44,7 +45,7 @@ pub fn read_path(path: &Path) -> Option<FileMedia> {
         }
     };
     let info = match fs::File::open(path) {
-        Ok(file) => sofarr_mediainfo::read(&mut BufReader::new(file)),
+        Ok(file) => read_file(file),
         Err(e) if e.kind() == ErrorKind::NotFound => return None,
         Err(_) => sofarr_mediainfo::unreadable(),
     };
@@ -53,6 +54,13 @@ pub fn read_path(path: &Path) -> Option<FileMedia> {
         size: meta.len(),
         modified: modified(&meta),
     })
+}
+
+/// Reads the media info of an opened file. Unbuffered on purpose: the reader asks for
+/// whole elements, and a buffer would refill itself after every seek past a skipped
+/// element, reading far more from disk than the read limit allows (AC-05).
+pub fn read_file<R: Read + Seek>(mut file: R) -> MediaInfo {
+    sofarr_mediainfo::read(&mut file)
 }
 
 /// [`read_path`] off the async threads.
@@ -68,19 +76,16 @@ pub fn parse(stored: &StoredMediaInfo) -> Option<MediaInfo> {
     serde_json::from_str(&stored.info).ok()
 }
 
-/// Stores media info for a file, with the size and modification time it has now.
-pub async fn store(db: &Db, file: FileRef, path: &Path, media: &FileMedia) -> anyhow::Result<()> {
-    // After a move or copy the file's metadata may differ from the source's.
-    let (size, modified) = match fs::metadata(path) {
-        Ok(meta) => (meta.len(), self::modified(&meta)),
-        Err(_) => (media.size, media.modified.clone()),
-    };
+/// Stores media info for a file with the size and modification time it was read at:
+/// taken before the read, so a file that changes while it is read differs from them at
+/// the next scan and is read again.
+pub async fn store(db: &Db, file: FileRef, media: &FileMedia) -> anyhow::Result<()> {
     db.put_media_info(
         file,
         &StoredMediaInfo {
             info: serde_json::to_string(&media.info)?,
-            size,
-            modified,
+            size: media.size,
+            modified: media.modified.clone(),
         },
         Timestamp::now(),
     )
@@ -88,10 +93,45 @@ pub async fn store(db: &Db, file: FileRef, path: &Path, media: &FileMedia) -> an
     Ok(())
 }
 
+/// Stores media info read from a download's file for the library file it was just moved
+/// or copied to, with that file's size and modification time (they may differ from the
+/// source's). If the library file cannot be looked at, size 0 makes the next scan read it.
+pub async fn store_moved(
+    db: &Db,
+    file: FileRef,
+    destination: &Path,
+    info: &MediaInfo,
+) -> anyhow::Result<()> {
+    let (size, modified) = match fs::metadata(destination) {
+        Ok(meta) => (meta.len(), self::modified(&meta)),
+        Err(_) => (0, String::new()),
+    };
+    let media = FileMedia {
+        info: info.clone(),
+        size,
+        modified,
+    };
+    store(db, file, &media).await
+}
+
 /// Reads and stores a library file's media info unless it is current: an unchanged
 /// file (same size and modification time) is not read again, except one that was
 /// `unreadable`. Returns whether it was read.
 pub async fn refresh(db: &Db, file: FileRef, path: &Path) -> anyhow::Result<bool> {
+    refresh_with(db, file, path, read).await
+}
+
+/// [`refresh`] with the function that reads the file.
+pub async fn refresh_with<F, Fut>(
+    db: &Db,
+    file: FileRef,
+    path: &Path,
+    read: F,
+) -> anyhow::Result<bool>
+where
+    F: FnOnce(PathBuf) -> Fut,
+    Fut: Future<Output = Option<FileMedia>>,
+{
     let meta = match fs::metadata(path) {
         Ok(meta) => meta,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(false),
@@ -106,7 +146,7 @@ pub async fn refresh(db: &Db, file: FileRef, path: &Path) -> anyhow::Result<bool
                 size: 0,
                 modified: String::new(),
             };
-            store(db, file, path, &media).await?;
+            store(db, file, &media).await?;
             return Ok(true);
         }
     };
@@ -119,7 +159,7 @@ pub async fn refresh(db: &Db, file: FileRef, path: &Path) -> anyhow::Result<bool
     let Some(media) = read(path.to_path_buf()).await else {
         return Ok(false);
     };
-    store(db, file, path, &media).await?;
+    store(db, file, &media).await?;
     Ok(true)
 }
 
