@@ -64,7 +64,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
-      # The image contains the UI: the container answers / with the app document.
+      # The image contains the UI: the container answers / with the app document. It runs
+      # as UID/GID 1000, its healthcheck passes, and yt-dlp and ffmpeg work in it (spec
+      # trailers AC-14).
       - run: |
           docker run -d --name sofarr -p 7676:7676 --tmpfs /config:uid=1000,gid=1000 amigo-sofarr:ci
           for i in $(seq 1 30); do
@@ -73,3 +75,7 @@ jobs:
           done
           docker logs sofarr
           grep -q '/_app/immutable/' page.html
+          test "$(docker exec sofarr id -u):$(docker exec sofarr id -g)" = "1000:1000"
+          docker exec sofarr /amigo-sofarr healthcheck
+          docker run --rm --entrypoint yt-dlp amigo-sofarr:ci --version
+          docker run --rm --entrypoint ffmpeg amigo-sofarr:ci -version
