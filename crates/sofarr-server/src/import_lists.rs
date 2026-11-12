@@ -18,6 +18,10 @@ pub struct PersonList {
     pub quality_profile_id: i64,
     pub root_folder: String,
     pub search_on_add: bool,
+    /// `minimumAvailability` of added movies.
+    pub minimum_availability: String,
+    /// Tag ids the added movies get.
+    pub tags: Vec<i64>,
 }
 
 fn field<'a>(list: &'a Value, name: &str) -> Option<&'a Value> {
@@ -77,6 +81,11 @@ pub fn person_lists(settings: &Value) -> (Vec<PersonList>, Vec<String>) {
                 .unwrap_or_default()
                 .to_owned(),
             search_on_add: list["searchOnAdd"].as_bool().unwrap_or(false),
+            minimum_availability: list["minimumAvailability"]
+                .as_str()
+                .unwrap_or("released")
+                .to_owned(),
+            tags: crate::library::tag_ids(&list["tags"]),
         });
     }
     (lists, warnings)
@@ -111,7 +120,7 @@ mod tests {
         let settings = json!([
             {"name": "Regisseurin", "implementation": "TMDbPersonImport", "enabled": true, "enableAuto": true,
              "monitor": "movieOnly", "qualityProfileId": 4, "rootFolderPath": "/data/media/movies",
-             "searchOnAdd": true,
+             "searchOnAdd": true, "minimumAvailability": "inCinemas", "tags": [2],
              "fields": [{"name": "personId", "value": "1234"}, {"name": "personCast", "value": false},
                         {"name": "personCastDirector", "value": true}]},
             {"name": "Aus", "implementation": "TMDbPersonImport", "enabled": false, "fields": []},
@@ -126,6 +135,8 @@ mod tests {
         assert!(!list.cast);
         assert_eq!(list.departments, ["Directing"]);
         assert!(list.monitored && list.search_on_add);
+        assert_eq!(list.minimum_availability, "inCinemas");
+        assert_eq!(list.tags, [2]);
 
         let credits = vec![
             CreditedMovie {

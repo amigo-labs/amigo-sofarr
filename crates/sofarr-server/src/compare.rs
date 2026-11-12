@@ -221,6 +221,124 @@ pub async fn history(
     Ok((out, lines.is_empty()))
 }
 
+/// The movie and quality sofarr assigns to a video found in a download folder: the
+/// folder name identifies the movie first, then the file name; the quality comes from
+/// the file name, from the folder name if the file name has none.
+pub fn identify<'a>(
+    index: &crate::rss::MovieIndex<'a>,
+    rules: &library::Rules,
+    folder: &str,
+    file: &str,
+) -> (Option<&'a Movie>, String) {
+    let stem = std::path::Path::new(file)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(file);
+    let probe = sofarr_indexer::IndexerRelease {
+        guid: String::new(),
+        title: String::new(),
+        size_bytes: 0,
+        published: None,
+        download_url: None,
+        categories: Vec::new(),
+        imdb_id: None,
+        indexer: String::new(),
+    };
+    let movie = [folder, stem]
+        .into_iter()
+        .filter(|n| !n.is_empty())
+        .find_map(|name| {
+            let parsed = sofarr_parser::parse(name);
+            let candidates = index.lookup(&probe, &parsed);
+            candidates
+                .iter()
+                .find(|m| parsed.year.is_some() && m.year == parsed.year)
+                .or(candidates.first())
+                .copied()
+        });
+    let quality = [stem, folder]
+        .into_iter()
+        .map(|n| rules.catalog.resolve(&sofarr_parser::parse(n).quality))
+        .find(|q| q.id != sofarr_core::quality::UNKNOWN)
+        .map_or_else(|| "Unknown".to_owned(), |q| q.name.clone());
+    (movie, quality)
+}
+
+/// Import mapping: for every video Radarr's manual import lists below `folder`, the
+/// movie and quality sofarr would assign (`/api/v3/manualimport?folder=…`).
+pub async fn manual_import(
+    app: &App,
+    radarr: &Radarr,
+    folder: &str,
+) -> anyhow::Result<(String, bool)> {
+    let items = match radarr
+        .get(
+            "manualimport",
+            &[("folder", folder), ("filterExistingFiles", "true")],
+        )
+        .await?
+    {
+        Value::Array(items) => items,
+        _ => anyhow::bail!("Radarr: manualimport liefert keine Liste"),
+    };
+    let movies = app.db.movies().await?;
+    let rules = library::load_rules(&app.db).await?;
+    let index = crate::rss::MovieIndex::new(&movies);
+    let mut same = 0;
+    let mut lines = Vec::new();
+    for item in &items {
+        let file = item["relativePath"]
+            .as_str()
+            .or_else(|| item["name"].as_str())
+            .unwrap_or_default();
+        let folder_name = item["folderName"].as_str().unwrap_or_default();
+        let (ours, quality) = identify(&index, &rules, folder_name, file);
+        let their_movie = item["movie"]["tmdbId"].as_i64();
+        let their_quality = item["quality"]["quality"]["name"]
+            .as_str()
+            .unwrap_or("Unknown");
+        let our_movie = ours.map(|m| m.tmdb_id);
+        if their_movie == our_movie && their_quality == quality {
+            same += 1;
+            continue;
+        }
+        let name = |m: Option<i64>| match m {
+            Some(id) => movies
+                .iter()
+                .find(|x| x.tmdb_id == id)
+                .map_or_else(|| format!("tmdb {id}"), |x| x.title.clone()),
+            None => "–".to_owned(),
+        };
+        let rejections: Vec<&str> = item["rejections"]
+            .as_array()
+            .map_or(&[][..], Vec::as_slice)
+            .iter()
+            .filter_map(|r| r["reason"].as_str())
+            .collect();
+        lines.push(format!(
+            "  {file}: Radarr {} / {their_quality} · sofarr {} / {quality}{}",
+            name(their_movie),
+            name(our_movie),
+            if rejections.is_empty() {
+                String::new()
+            } else {
+                format!(" (Radarr lehnt ab: {})", rejections.join("; "))
+            }
+        ));
+    }
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "Manueller Import {folder}: {} Dateien, {same} übereinstimmend, {} abweichend",
+        items.len(),
+        lines.len()
+    );
+    for line in &lines {
+        let _ = writeln!(out, "{line}");
+    }
+    Ok((out, lines.is_empty()))
+}
+
 /// Import lists: movies sofarr's lists select that are neither in Radarr's library nor
 /// excluded there. Radarr adds list movies automatically, so the set should be empty.
 pub async fn import_lists(app: &App, radarr: &Radarr) -> anyhow::Result<(String, bool)> {
@@ -494,4 +612,34 @@ pub async fn series_library(app: &App, sonarr: &Radarr) -> anyhow::Result<(Strin
         }
     );
     Ok((out, clean))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::library::{import_documents, load_rules, tests::documents};
+
+    #[tokio::test]
+    async fn identifies_download_folders() {
+        let db = sofarr_db::Db::in_memory().await.expect("db");
+        import_documents(&db, &documents(), Timestamp::now())
+            .await
+            .expect("import");
+        let movies = db.movies().await.expect("movies");
+        let rules = load_rules(&db).await.expect("rules");
+        let index = crate::rss::MovieIndex::new(&movies);
+        let (movie, quality) = identify(
+            &index,
+            &rules,
+            "Erster.Film.2001.German.1080p.BluRay.x264-GRP",
+            "grp-ef.mkv",
+        );
+        assert_eq!(movie.map(|m| m.tmdb_id), Some(101));
+        assert_eq!(quality, "Bluray-1080p");
+        let (movie, quality) = identify(&index, &rules, "", "First.Film.2001.720p.WEB-DL.mkv");
+        assert_eq!(movie.map(|m| m.tmdb_id), Some(101));
+        assert_eq!(quality, "WEBDL-720p");
+        let (movie, _) = identify(&index, &rules, "Unbekannt.1999.1080p", "x.mkv");
+        assert!(movie.is_none());
+    }
 }

@@ -20,7 +20,7 @@ and imports them into your library.
 
 Written in Rust. Single static binary, single container, SQLite.
 
-> **Status:** early development. Not usable yet. See [`PLAN.md`](PLAN.md).
+> **Status:** early development. Not usable yet. See [`docs/specs/README.md`](docs/specs/README.md).
 
 ## Not affiliated with Servarr
 
@@ -63,8 +63,10 @@ cargo test -p sofarr-parser --test oracle -- --nocapture
 
 ## Docs
 
-- [`docs/specs/sofarr.md`](docs/specs/sofarr.md) — specification and decision log
-- [`PLAN.md`](PLAN.md) — phased implementation plan
+- [`docs/specs/sofarr.md`](docs/specs/sofarr.md) — design spec and decision log
+- [`docs/specs/README.md`](docs/specs/README.md) — feature specs: order, backlog, open items
+- [`docs/parity.md`](docs/parity.md) — parity matrix against Radarr/Sonarr
+- [`AGENTS.md`](AGENTS.md) — rules for coding agents (clean room, architecture, spec workflow)
 
 ## License
 

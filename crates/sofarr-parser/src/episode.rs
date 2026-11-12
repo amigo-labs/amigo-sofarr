@@ -83,14 +83,28 @@ fn cross(key: &str) -> Option<(u16, Vec<u16>)> {
     Some((season, episodes))
 }
 
-/// Continues an episode list with following tokens: `-E03`, `E03`, `-03`.
-fn more_episodes(tokens: &[Token<'_>], mut i: usize, episodes: &mut Vec<u16>) {
+/// Whether token `i` is joined to its predecessor by a single `-` without spaces
+/// (`E01-03`, unlike `E01 - 03 Episode Title`).
+fn tight_dash(tokens: &[Token<'_>], i: usize) -> bool {
+    tokens[i].sep == Sep::Dash && i > 0 && tokens[i - 1].end + 1 == tokens[i].start
+}
+
+/// Continues an episode list with following tokens: `-E03`, `E03`, `-03`, and – with a
+/// known season – a repeated `S01E03` of the same season.
+fn more_episodes(tokens: &[Token<'_>], mut i: usize, season: Option<u16>, episodes: &mut Vec<u16>) {
     while let Some(t) = tokens.get(i) {
+        // A bare number continues a standard episode list only after a tight dash;
+        // absolute numbers (`season == None`) keep the looser anime form `01 - 03`.
+        let bare_ok = t.sep == Sep::Dash && (season.is_none() || tight_dash(tokens, i));
         let next = t
             .key
             .strip_prefix('e')
             .and_then(digits)
-            .or_else(|| (t.sep == Sep::Dash).then(|| digits(&t.key)).flatten());
+            .or_else(|| bare_ok.then(|| digits(&t.key)).flatten())
+            .or_else(|| {
+                let (s, eps) = season_episode(&t.key)?;
+                (Some(s) == season && eps.len() == 1).then(|| eps[0])
+            });
         match next {
             Some(n)
                 if episodes
@@ -131,6 +145,9 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
     let key = t.key.as_str();
     if let Some((season, mut episodes)) = season_episode(key).or_else(|| cross(key)) {
         if episodes.is_empty() {
+            if anime_season_in_title(tokens, i + 1, title_start) {
+                return None;
+            }
             // Season pack, maybe multi-season `S01-S03` or `S01.S02`.
             let last = tokens
                 .get(i + 1)
@@ -139,7 +156,7 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
                 .map(|(s, _)| s);
             return Some(Marker::Season { season, last });
         }
-        more_episodes(tokens, i + 1, &mut episodes);
+        more_episodes(tokens, i + 1, Some(season), &mut episodes);
         return Some(Marker::Episode { season, episodes });
     }
     if season_word(key)
@@ -148,6 +165,9 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
             .and_then(|n| digits(&n.key))
             .filter(|s| *s < 100)
     {
+        if anime_season_in_title(tokens, i + 2, title_start) {
+            return None;
+        }
         // `Season 1 Episode 2`
         if let (Some(word), Some(ep)) = (tokens.get(i + 2), tokens.get(i + 3))
             && matches!(word.key.as_str(), "episode" | "folge" | "ep")
@@ -186,8 +206,20 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
             date: (year, u8::try_from(m).ok()?, u8::try_from(d).ok()?),
         });
     }
-    // Absolute numbering (anime): `Title - 012 [1080p]`, `Title - 12v2`, not a year. Only
-    // before any year or resolution, and followed by a bracket, a dash or nothing.
+    absolute_at(tokens, i, title_start)
+}
+
+/// Behind a leading group (anime style), a season followed by ` - 07` is part of the
+/// title (`[Grp] Show S2 - 07`): the number is absolute, the release is no season pack.
+fn anime_season_in_title(tokens: &[Token<'_>], after: usize, title_start: usize) -> bool {
+    title_start > 0 && after < tokens.len() && absolute_at(tokens, after, title_start).is_some()
+}
+
+/// Absolute numbering (anime): `Title - 012 [1080p]`, `Title - 12v2`, not a year. Only
+/// before any year or resolution, and followed by a bracket, a dash or nothing.
+fn absolute_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marker> {
+    let t = &tokens[i];
+    let key = t.key.as_str();
     let clean_title = tokens[title_start..i].iter().all(|p| {
         let year = p.key.len() == 4 && digits(&p.key).is_some_and(|y| (1900..2100).contains(&y));
         let resolution = p.key.ends_with('p') && digits(&p.key[..p.key.len() - 1]).is_some();
@@ -203,7 +235,7 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
             && !(1900..2100).contains(&n)
         {
             let mut numbers = vec![n];
-            more_episodes(tokens, i + 1, &mut numbers);
+            more_episodes(tokens, i + 1, None, &mut numbers);
             return Some(Marker::Absolute { numbers });
         }
     }
@@ -271,6 +303,10 @@ mod tests {
         assert_eq!(ep("Show.S01E01-E03.720p.HDTV-X").episodes, [1, 2, 3]);
         assert_eq!(ep("Show S01E01-03 720p").episodes, [1, 2, 3]);
         assert_eq!(ep("Show.S01E01.E02.720p").episodes, [1, 2]);
+        assert_eq!(ep("Show.S01E01.S01E02.720p").episodes, [1, 2]);
+        assert_eq!(ep("Show S01E01-E02-E03 720p").episodes, [1, 2, 3]);
+        // A different season is no continuation.
+        assert_eq!(ep("Show.S01E01.S02E02.720p").episodes, [1]);
     }
 
     #[test]
@@ -322,6 +358,34 @@ mod tests {
         assert_eq!(e.absolute_episodes, [12]);
         assert_eq!(e.release.release_group.as_deref(), Some("SubGroup"));
         assert_eq!(ep("[G] Sky Pirates - 12v2 (720p)").absolute_episodes, [12]);
+    }
+
+    #[test]
+    fn anime_season_in_title_is_no_pack() {
+        // Behind a leading group, `S2 - 07` names the second cour, not a season pack.
+        for title in [
+            "[Grp] Sky Pirates S2 - 07 (1080p) [ABCD1234]",
+            "[Grp].Sky.Pirates.Season.2.-.07.[720p.WEB-DL]",
+        ] {
+            let e = ep(title);
+            assert!(!e.full_season, "{title}");
+            assert_eq!(e.season, None, "{title}");
+            assert_eq!(e.absolute_episodes, [7], "{title}");
+        }
+        assert_eq!(
+            ep("[Grp] Sky Pirates S2 - 07 (1080p)").series_title,
+            "Sky Pirates S2"
+        );
+        // Without a leading group a season pack stays a season pack.
+        assert!(ep("Kleine.Insel.S02.German.720p").full_season);
+    }
+
+    #[test]
+    fn spaced_dash_number_is_no_range() {
+        // ` - 23 …` starts the episode title; only a tight `-` makes a range.
+        let e = ep("Cartoon Town - 2017 - S16E06 - 23 Bunte Tage - DL");
+        assert_eq!(e.episodes, [6]);
+        assert_eq!(ep("Show.S03E29-30.720p.WEB-DL").episodes, [29, 30]);
     }
 
     #[test]

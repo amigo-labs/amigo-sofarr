@@ -10,7 +10,7 @@ use sofarr_core::{
     ExistingFile, MovieContext, PropersPolicy, QualityCatalog, QualityId, QualityProfile,
     RadarrConfig, ReleaseFacts, language::LanguageRef, profile::ProfileId, quality::UNKNOWN,
 };
-use sofarr_db::{Db, Grab, Movie, MovieFile, NewMovie};
+use sofarr_db::{Availability, Db, Grab, Movie, MovieFile, NewMovie};
 use sofarr_parser::{Language, Revision};
 
 use crate::radarr::Radarr;
@@ -182,6 +182,51 @@ pub fn context(movie: &Movie, pending: Option<&Grab>, rules: &Rules) -> MovieCon
     }
 }
 
+fn date_part(raw: &str) -> String {
+    raw.get(..10).unwrap_or(raw).to_owned()
+}
+
+/// Tag ids of an API object (`tags: [1, 2]`).
+pub fn tag_ids(value: &Value) -> Vec<i64> {
+    value
+        .as_array()
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .filter_map(Value::as_i64)
+        .collect()
+}
+
+/// Labels of tag ids, from a `tag` setting (`[{"id": 1, "label": "kids"}]`).
+pub fn tag_labels(tags: Option<&Value>, ids: &[i64]) -> Vec<String> {
+    tags.and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .filter(|t| t["id"].as_i64().is_some_and(|id| ids.contains(&id)))
+        .filter_map(|t| t["label"].as_str())
+        .map(str::to_lowercase)
+        .collect()
+}
+
+/// Whether a movie may be grabbed automatically today (`minimumAvailability` plus
+/// `availabilityDelay`).
+pub fn is_available(movie: &Movie, rules: &Rules, today: jiff::civil::Date) -> bool {
+    use sofarr_core::availability::{self, ReleaseInfo, Stage};
+    let a = &movie.availability;
+    let date = |d: &Option<String>| d.as_deref().and_then(availability::parse_date);
+    let info = ReleaseInfo {
+        status: a.status.as_deref().and_then(Stage::from_api),
+        in_cinemas: date(&a.in_cinemas),
+        digital: date(&a.digital_release),
+        physical: date(&a.physical_release),
+    };
+    availability::is_available(
+        Stage::from_api(&a.minimum).unwrap_or_default(),
+        &info,
+        rules.config.settings.availability_delay_days,
+        today,
+    )
+}
+
 /// Reads one movie of Radarr's `/api/v3/movie` answer.
 pub fn movie_from_radarr(
     value: &Value,
@@ -216,6 +261,14 @@ pub fn movie_from_radarr(
             .iter()
             .filter_map(|t| text(&t["title"]))
             .collect(),
+        availability: Availability {
+            minimum: text(&value["minimumAvailability"]).unwrap_or_else(|| "released".to_owned()),
+            status: text(&value["status"]),
+            in_cinemas: text(&value["inCinemas"]).map(|d| date_part(&d)),
+            digital_release: text(&value["digitalRelease"]).map(|d| date_part(&d)),
+            physical_release: text(&value["physicalRelease"]).map(|d| date_part(&d)),
+        },
+        tags: tag_ids(&value["tags"]),
     };
     let file = value["movieFile"].as_object().map(|_| {
         let f = &value["movieFile"];

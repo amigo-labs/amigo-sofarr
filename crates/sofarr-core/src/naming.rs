@@ -63,6 +63,12 @@ pub struct NamingConfig {
 pub enum MultiEpisodeStyle {
     /// `S01E01-02-03`
     Extend,
+    /// `S01E01.S01E02`
+    Duplicate,
+    /// `S01E01E02E03`
+    Repeat,
+    /// `S01E01-E02-E03`
+    Scene,
     /// `S01E01-03`
     Range,
     /// `S01E01-E03`
@@ -71,11 +77,14 @@ pub enum MultiEpisodeStyle {
 }
 
 impl MultiEpisodeStyle {
-    /// Numeric setting (order as listed in the user interface); styles sofarr does not
-    /// implement fall back to the prefixed range.
+    /// Numeric setting (order as listed in the user interface); unknown values fall
+    /// back to the prefixed range.
     pub fn from_setting(value: &serde_json::Value) -> Self {
         match value.as_u64() {
             Some(0) => Self::Extend,
+            Some(1) => Self::Duplicate,
+            Some(2) => Self::Repeat,
+            Some(3) => Self::Scene,
             Some(4) => Self::Range,
             _ => Self::PrefixedRange,
         }
@@ -243,6 +252,55 @@ struct Spec<'a> {
     lead: Option<char>,
 }
 
+/// The token name inside a token body (position, length, normalised name, separator);
+/// the rest of the body is prefix and suffix. The longest match wins.
+fn find_token(body: &str) -> Option<(usize, usize, &'static str, char)> {
+    let lower = body.to_ascii_lowercase();
+    let mut found: Option<(usize, usize, &'static str, char)> = None;
+    for token in TOKENS {
+        for sep in SEPARATORS {
+            let candidate = token.replace(' ', &sep.to_string());
+            if let Some(pos) = lower.find(&candidate)
+                && found.is_none_or(|(_, len, _, _)| candidate.len() > len)
+            {
+                found = Some((pos, candidate.len(), *token, sep));
+            }
+        }
+    }
+    found
+}
+
+/// Every episode title token of a pattern (`{Episode Title}`, `{Episode.CleanTitle:DE}`,
+/// …) with its translation suffix (`Some("DE")`), recognised like [`format`] does.
+pub fn episode_title_tokens(pattern: &str) -> Vec<Option<String>> {
+    let mut out = Vec::new();
+    let mut rest = pattern;
+    while let Some(start) = rest.find('{') {
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('}') else {
+            break;
+        };
+        let raw = &after[..end];
+        let (body, language) = match raw.rsplit_once(':') {
+            Some((body, lang))
+                if lang.len() == 2 && lang.chars().all(|c| c.is_ascii_alphabetic()) =>
+            {
+                (body, Some(lang.to_ascii_uppercase()))
+            }
+            Some((body, _)) => (body, None),
+            None => (raw, None),
+        };
+        if matches!(
+            find_token(body),
+            Some((_, _, "episode title" | "episode cleantitle", _))
+        ) {
+            out.push(language);
+        }
+        rest = &after[end + 1..];
+    }
+    out
+}
+
 fn render_token(
     raw: &str,
     input: &NamingInput,
@@ -266,22 +324,7 @@ fn render_token(
         }
         _ => raw,
     };
-    // Find the token name inside the body; the rest is prefix and suffix.
-    let lower = body.to_ascii_lowercase();
-    let mut found = None;
-    for token in TOKENS {
-        for sep in SEPARATORS {
-            let candidate = token.replace(' ', &sep.to_string());
-            if let Some(pos) = lower.find(&candidate) {
-                let better = found
-                    .is_none_or(|(_, len, _, _): (usize, usize, &str, char)| candidate.len() > len);
-                if better {
-                    found = Some((pos, candidate.len(), *token, sep));
-                }
-            }
-        }
-    }
-    let Some((pos, len, token, sep)) = found else {
+    let Some((pos, len, token, sep)) = find_token(body) else {
         return format!("{{{raw}}}");
     };
     let prefix = &body[..pos];
@@ -368,7 +411,13 @@ fn token_value(token: &str, input: &NamingInput, config: &NamingConfig, spec: Sp
         "air date" => input.air_date.clone().unwrap_or_default(),
         "mediainfo videodynamicrange" => input.dynamic_range.clone().unwrap_or_default(),
         "season" => input.season.map(pad).unwrap_or_default(),
-        "episode" => episode_numbers(&input.episodes, config.multi_episode_style, spec.lead, &pad),
+        "episode" => episode_numbers(
+            &input.episodes,
+            input.season,
+            config.multi_episode_style,
+            spec.lead,
+            &pad,
+        ),
         _ => String::new(),
     }
 }
@@ -447,10 +496,22 @@ fn first_character(title: &str) -> String {
 
 fn episode_numbers(
     episodes: &[u16],
+    season: Option<u16>,
     style: MultiEpisodeStyle,
     lead: Option<char>,
     pad: &dyn Fn(u16) -> String,
 ) -> String {
+    let prefix = lead
+        .filter(char::is_ascii_alphabetic)
+        .map(String::from)
+        .unwrap_or_default();
+    let joined = |sep: &str| {
+        episodes
+            .iter()
+            .map(|&e| pad(e))
+            .collect::<Vec<_>>()
+            .join(sep)
+    };
     let (Some(&first), Some(&last)) = (episodes.first(), episodes.last()) else {
         return String::new();
     };
@@ -458,19 +519,16 @@ fn episode_numbers(
         return pad(first);
     }
     match style {
-        MultiEpisodeStyle::Extend => episodes
-            .iter()
-            .map(|&e| pad(e))
-            .collect::<Vec<_>>()
-            .join("-"),
-        MultiEpisodeStyle::Range => format!("{}-{}", pad(first), pad(last)),
-        MultiEpisodeStyle::PrefixedRange => {
-            let prefix = lead
-                .filter(char::is_ascii_alphabetic)
-                .map(String::from)
-                .unwrap_or_default();
-            format!("{}-{prefix}{}", pad(first), pad(last))
+        MultiEpisodeStyle::Extend => joined("-"),
+        // The season is written with the episode's padding: `{season:00}` is the norm.
+        MultiEpisodeStyle::Duplicate => {
+            let season = season.map(pad).unwrap_or_default();
+            joined(&format!(".S{season}{prefix}"))
         }
+        MultiEpisodeStyle::Repeat => joined(&prefix),
+        MultiEpisodeStyle::Scene => joined(&format!("-{prefix}")),
+        MultiEpisodeStyle::Range => format!("{}-{}", pad(first), pad(last)),
+        MultiEpisodeStyle::PrefixedRange => format!("{}-{prefix}{}", pad(first), pad(last)),
     }
 }
 
@@ -697,6 +755,17 @@ mod tests {
     }
 
     #[test]
+    fn finds_episode_title_tokens() {
+        assert_eq!(
+            episode_title_tokens(
+                "{Series Title} - {episode title} {.Episode CleanTitle:DE} {Episode.Title}"
+            ),
+            [None, Some("DE".to_owned()), None]
+        );
+        assert!(episode_title_tokens("S{season:00}E{episode:00} {Quality Full}").is_empty());
+    }
+
+    #[test]
     fn formats_episodes() {
         let c = NamingConfig {
             colon_replacement: ColonReplacement::Smart,
@@ -714,6 +783,23 @@ mod tests {
             format(pattern, &multi, &c),
             "Small Island - S02E05-E07 - The Storm Part 1 WEBDL-1080p"
         );
+        for (style, expected) in [
+            (MultiEpisodeStyle::Extend, "S02E05-06-07"),
+            (MultiEpisodeStyle::Duplicate, "S02E05.S02E06.S02E07"),
+            (MultiEpisodeStyle::Repeat, "S02E05E06E07"),
+            (MultiEpisodeStyle::Scene, "S02E05-E06-E07"),
+        ] {
+            let styled = NamingConfig {
+                multi_episode_style: style,
+                ..c.clone()
+            };
+            let name = format("S{season:00}E{episode:00}", &multi, &styled);
+            assert_eq!(name, expected);
+            // sofarr reads its own names back (disk scan).
+            let info = sofarr_parser::parse_episode(&format!("Small.Island.{name}.1080p"))
+                .expect("episode");
+            assert_eq!(info.episodes, [5, 6, 7], "{name}");
+        }
         let range = NamingConfig {
             multi_episode_style: MultiEpisodeStyle::Range,
             ..c.clone()

@@ -44,7 +44,35 @@ pub struct Movie {
     pub path: String,
     pub radarr_id: Option<i64>,
     pub alternative_titles: Vec<String>,
+    pub availability: Availability,
+    /// Tag ids (of the `tag` setting).
+    pub tags: Vec<i64>,
     pub file: Option<MovieFile>,
+}
+
+/// When a movie counts as available (`minimumAvailability` and its release dates).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Availability {
+    /// `announced`, `inCinemas` or `released`.
+    pub minimum: String,
+    /// Release status as Radarr or TMDB reports it (`announced`, `inCinemas`, `released`).
+    pub status: Option<String>,
+    /// Dates as `YYYY-MM-DD`.
+    pub in_cinemas: Option<String>,
+    pub digital_release: Option<String>,
+    pub physical_release: Option<String>,
+}
+
+impl Default for Availability {
+    fn default() -> Self {
+        Self {
+            minimum: "released".to_owned(),
+            status: None,
+            in_cinemas: None,
+            digital_release: None,
+            physical_release: None,
+        }
+    }
 }
 
 /// Input for [`Db::upsert_movie`]: everything but the id.
@@ -63,6 +91,8 @@ pub struct NewMovie {
     pub path: String,
     pub radarr_id: Option<i64>,
     pub alternative_titles: Vec<String>,
+    pub availability: Availability,
+    pub tags: Vec<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,6 +192,16 @@ fn to_i64(n: u64) -> i64 {
     i64::try_from(n).unwrap_or(i64::MAX)
 }
 
+pub(crate) fn ids_text(ids: &[i64]) -> String {
+    ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
+}
+
+pub(crate) fn ids_from_text(raw: &str) -> Vec<i64> {
+    raw.split(',')
+        .filter_map(|i| i.trim().parse().ok())
+        .collect()
+}
+
 fn ts(raw: &str) -> Timestamp {
     raw.parse().unwrap_or(Timestamp::UNIX_EPOCH)
 }
@@ -229,15 +269,20 @@ impl Db {
         let mut tx = self.pool.begin().await?;
         let (id,): (i64,) = sqlx::query_as(
             "INSERT INTO movies (tmdb_id, imdb_id, title, original_title, title_de, year, runtime,
-                original_language, monitored, quality_profile_id, path, radarr_id, added_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                original_language, monitored, quality_profile_id, path, radarr_id, added_at,
+                minimum_availability, status, in_cinemas, digital_release, physical_release, tags)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (tmdb_id) DO UPDATE SET
                 imdb_id = excluded.imdb_id, title = excluded.title,
                 original_title = excluded.original_title, title_de = excluded.title_de,
                 year = excluded.year, runtime = excluded.runtime,
                 original_language = excluded.original_language, monitored = excluded.monitored,
                 quality_profile_id = excluded.quality_profile_id, path = excluded.path,
-                radarr_id = COALESCE(excluded.radarr_id, movies.radarr_id)
+                radarr_id = COALESCE(excluded.radarr_id, movies.radarr_id),
+                minimum_availability = excluded.minimum_availability,
+                status = excluded.status, in_cinemas = excluded.in_cinemas,
+                digital_release = excluded.digital_release,
+                physical_release = excluded.physical_release, tags = excluded.tags
              RETURNING id",
         )
         .bind(movie.tmdb_id)
@@ -253,6 +298,12 @@ impl Db {
         .bind(&movie.path)
         .bind(movie.radarr_id)
         .bind(now.to_string())
+        .bind(&movie.availability.minimum)
+        .bind(&movie.availability.status)
+        .bind(&movie.availability.in_cinemas)
+        .bind(&movie.availability.digital_release)
+        .bind(&movie.availability.physical_release)
+        .bind(ids_text(&movie.tags))
         .fetch_one(&mut *tx)
         .await?;
         sqlx::query("DELETE FROM movie_titles WHERE movie_id = ?")
@@ -446,6 +497,8 @@ impl Db {
 const MOVIE_SELECT: &str =
     "SELECT m.id, m.tmdb_id, m.imdb_id, m.title, m.original_title, m.title_de, m.year,
         m.runtime, m.original_language, m.monitored, m.quality_profile_id, m.path, m.radarr_id,
+        m.minimum_availability, m.status, m.in_cinemas, m.digital_release, m.physical_release,
+        m.tags,
         f.relative_path, f.size, f.quality, f.revision_version, f.revision_real,
         f.release_group, f.scene_name, f.custom_format_score
     FROM movies m LEFT JOIN movie_files f ON f.movie_id = m.id";
@@ -478,6 +531,14 @@ fn movie_from_row(row: &SqliteRow) -> Movie {
         path: row.get("path"),
         radarr_id: row.get("radarr_id"),
         alternative_titles: Vec::new(),
+        availability: Availability {
+            minimum: row.get("minimum_availability"),
+            status: row.get("status"),
+            in_cinemas: row.get("in_cinemas"),
+            digital_release: row.get("digital_release"),
+            physical_release: row.get("physical_release"),
+        },
+        tags: ids_from_text(row.get("tags")),
         file,
     }
 }
@@ -525,6 +586,12 @@ mod tests {
             path: "/data/media/movies/Der kleine Garten (2019)".to_owned(),
             radarr_id: Some(7),
             alternative_titles: vec!["Small Garden".to_owned(), "Kleiner Garten".to_owned()],
+            availability: Availability {
+                minimum: "inCinemas".to_owned(),
+                in_cinemas: Some("2019-05-01".to_owned()),
+                ..Availability::default()
+            },
+            tags: vec![1, 3],
         }
     }
 
@@ -560,6 +627,9 @@ mod tests {
         assert_eq!(movie.radarr_id, Some(7), "radarr id is kept");
         assert_eq!(movie.alternative_titles, ["Small Garden"]);
         assert_eq!(movie.file, None);
+        assert_eq!(movie.tags, [1, 3]);
+        assert_eq!(movie.availability.minimum, "inCinemas");
+        assert_eq!(movie.availability.in_cinemas.as_deref(), Some("2019-05-01"));
 
         let file = MovieFile {
             relative_path: "Der kleine Garten (2019) Bluray-1080p.mkv".to_owned(),

@@ -38,6 +38,7 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # categories = [2000]
 # tv_categories = [5000]
 # limit = 100
+# tags = ["kinder"]   # nur für Filme/Serien mit einem dieser Tags (leer: alle)
 
 # Serien (Phase 5): Sonarr für den Import, TVDB für Metadaten.
 # [sonarr]
@@ -57,6 +58,9 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 
 [download]
 check_interval_minutes = 2
+# Nach dem Import: Download aus der nzbget-History entfernen und den Ordner löschen,
+# wenn kein Video mehr darin liegt.
+remove_completed = true
 # Falls nzbget Pfade anders sieht als sofarr (andere Container-Mounts):
 # [[download.path_map]]
 # remote = "/downloads"
@@ -64,3 +68,8 @@ check_interval_minutes = 2
 
 [import_lists]
 interval_hours = 24   # 0 schaltet die Import Lists ab
+
+[library]
+# Metadaten-Refresh (TMDB/TVDB, falls eingetragen) mit anschließendem Festplatten-Scan
+# laut rescanAfterRefresh; 0 schaltet ihn ab. Der erste Lauf folgt ein Intervall nach dem Start.
+refresh_interval_hours = 24

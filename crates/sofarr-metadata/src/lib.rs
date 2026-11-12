@@ -37,6 +37,12 @@ pub struct MovieMetadata {
     pub runtime_minutes: u32,
     pub original_language: Option<Language>,
     pub alternative_titles: Vec<String>,
+    /// TMDB status, e.g. `Released` or `Post Production`.
+    pub status: Option<String>,
+    /// Earliest theatrical, digital and physical release worldwide (`YYYY-MM-DD`).
+    pub in_cinemas: Option<String>,
+    pub digital_release: Option<String>,
+    pub physical_release: Option<String>,
 }
 
 /// A movie in a person's filmography.
@@ -103,7 +109,10 @@ impl Tmdb {
         let value = self
             .get(
                 &format!("movie/{tmdb_id}"),
-                &[("append_to_response", "alternative_titles,translations")],
+                &[(
+                    "append_to_response",
+                    "alternative_titles,translations,release_dates",
+                )],
             )
             .await?;
         movie_from_json(&value)
@@ -217,7 +226,20 @@ pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
     if title_de != title && !alternative_titles.contains(&title_de) {
         alternative_titles.push(title_de.clone());
     }
+    let release = |types: &[u64]| release_date(value, types);
     Ok(MovieMetadata {
+        status: value["status"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+        in_cinemas: release(&[3, 2]).or_else(|| {
+            value["release_date"]
+                .as_str()
+                .filter(|d| d.len() >= 10)
+                .map(|d| d[..10].to_owned())
+        }),
+        digital_release: release(&[4]),
+        physical_release: release(&[5]),
         tmdb_id,
         imdb_id: value["imdb_id"]
             .as_str()
@@ -238,6 +260,30 @@ pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
             .and_then(language_from_iso),
         alternative_titles,
         title,
+    })
+}
+
+/// Earliest date of the first release type in `types` that occurs (TMDB types:
+/// 2 limited theatrical, 3 theatrical, 4 digital, 5 physical).
+fn release_date(value: &Value, types: &[u64]) -> Option<String> {
+    let dates: Vec<(u64, &str)> = value["release_dates"]["results"]
+        .as_array()
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .flat_map(|country| {
+            country["release_dates"]
+                .as_array()
+                .map_or(&[][..], Vec::as_slice)
+        })
+        .filter_map(|r| Some((r["type"].as_u64()?, r["release_date"].as_str()?.get(..10)?)))
+        .collect();
+    types.iter().find_map(|t| {
+        dates
+            .iter()
+            .filter(|(kind, _)| kind == t)
+            .map(|(_, d)| *d)
+            .min()
+            .map(str::to_owned)
     })
 }
 
@@ -289,6 +335,18 @@ mod tests {
                 {"iso_639_1": "de", "iso_3166_1": "AT", "data": {"title": "Der kleine Garten (AT)"}},
                 {"iso_639_1": "de", "iso_3166_1": "DE", "data": {"title": "Der kleine Garten"}},
                 {"iso_639_1": "es", "iso_3166_1": "ES", "data": {"title": "El pequeño jardín"}}
+            ]},
+            "status": "Released",
+            "release_dates": {"results": [
+                {"iso_3166_1": "FR", "release_dates": [
+                    {"type": 3, "release_date": "2019-05-01T00:00:00.000Z"},
+                    {"type": 5, "release_date": "2019-10-02T00:00:00.000Z"}
+                ]},
+                {"iso_3166_1": "DE", "release_dates": [
+                    {"type": 3, "release_date": "2019-06-13T00:00:00.000Z"},
+                    {"type": 4, "release_date": "2019-09-20T00:00:00.000Z"},
+                    {"type": 5, "release_date": "2019-09-27T00:00:00.000Z"}
+                ]}
             ]}
         })
     }
@@ -296,6 +354,10 @@ mod tests {
     #[test]
     fn reads_movie_details() {
         let movie = movie_from_json(&sample_movie()).expect("valid");
+        assert_eq!(movie.status.as_deref(), Some("Released"));
+        assert_eq!(movie.in_cinemas.as_deref(), Some("2019-05-01"));
+        assert_eq!(movie.digital_release.as_deref(), Some("2019-09-20"));
+        assert_eq!(movie.physical_release.as_deref(), Some("2019-09-27"));
         assert_eq!(movie.title_de, "Der kleine Garten");
         assert_eq!(movie.year, Some(2019));
         assert_eq!(movie.runtime_minutes, 104);

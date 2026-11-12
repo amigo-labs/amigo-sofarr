@@ -158,6 +158,8 @@ pub async fn import_documents(
             continue;
         };
         let id = db.upsert_series(&series, now).await?;
+        db.set_series_tags(id, &crate::library::tag_ids(&v["tags"]))
+            .await?;
         summary.series += 1;
         let Some((eps, files)) = series.sonarr_id.and_then(|sid| episodes.get(&sid)) else {
             continue;
@@ -226,7 +228,13 @@ pub async fn refresh(
     now: Timestamp,
 ) -> anyhow::Result<usize> {
     let meta = tvdb.series(series.data.tvdb_id).await?;
-    let mut data = series.data.clone();
+    let fetched = tvdb.episodes(series.data.tvdb_id).await?;
+    // Other jobs may have changed the series while TVDB answered: write onto the
+    // current state.
+    let Some(current) = db.series_by_tvdb(series.data.tvdb_id).await? else {
+        return Ok(0);
+    };
+    let mut data = current.data.clone();
     data.title_de = Some(meta.title_de.clone());
     for alias in meta.aliases {
         if !data.alternative_titles.contains(&alias) {
@@ -239,7 +247,7 @@ pub async fn refresh(
     db.upsert_series(&data, now).await?;
     let existing = db.episodes(Some(series.id)).await?;
     let mut n = 0;
-    for e in tvdb.episodes(series.data.tvdb_id).await? {
+    for e in fetched {
         let known = existing
             .iter()
             .find(|x| x.data.season == e.season && x.data.number == e.number);
@@ -328,7 +336,7 @@ pub fn decide(
     episodes: &[Episode],
     pending: &[SeriesGrab],
     rules: &Rules,
-    seen: &dyn Fn(i64, &str) -> bool,
+    skip: &dyn Fn(&Series, &IndexerRelease) -> bool,
     now: Timestamp,
 ) -> Vec<SelectedEpisodes> {
     let today = today(now);
@@ -358,7 +366,7 @@ pub fn decide(
             continue;
         };
         for s in candidates {
-            if seen(s.id, &release.guid) {
+            if skip(s, release) {
                 continue;
             }
             let Some(profile) = rules.profile(s.data.quality_profile_id) else {
@@ -543,12 +551,55 @@ pub fn plan_episode_import(
     Ok(plans)
 }
 
+/// How long an import waits for missing episode titles after the air date.
+const TITLE_WAIT_HOURS: i64 = 48;
+
+/// `episodeTitleRequired`: whether importing these episodes must wait because the naming
+/// format uses the episode title and one of them has none yet (empty or `TBA`). The wait
+/// ends 48 hours after the air date; `bulkSeasonReleases` only holds back season packs.
+pub fn waits_for_titles(
+    setting: Option<&str>,
+    pattern: &str,
+    eps: &[&Episode],
+    season_pack: bool,
+    now: Timestamp,
+) -> bool {
+    let applies = match setting {
+        Some("always") => true,
+        Some("bulkSeasonReleases") => season_pack,
+        _ => false,
+    };
+    // The title each token would write: `:DE` falls back to the default title.
+    let tokens = naming::episode_title_tokens(pattern);
+    if !applies || tokens.is_empty() {
+        return false;
+    }
+    let deadline = now - jiff::SignedDuration::from_hours(TITLE_WAIT_HOURS);
+    let missing =
+        |t: Option<&str>| t.is_none_or(|t| t.trim().is_empty() || t.eq_ignore_ascii_case("tba"));
+    eps.iter().any(|e| {
+        let untitled = tokens.iter().any(|language| {
+            let title = match language.as_deref() {
+                Some("DE") => e.data.title_de.as_deref().or(e.data.title.as_deref()),
+                _ => e.data.title.as_deref(),
+            };
+            missing(title)
+        });
+        // Without a known air date there is nothing to wait for.
+        let recent = e
+            .data
+            .air_date
+            .as_deref()
+            .and_then(|d| d.parse::<jiff::civil::Date>().ok())
+            .and_then(|d| d.to_zoned(jiff::tz::TimeZone::UTC).ok())
+            .is_some_and(|aired| aired.timestamp() > deadline);
+        untitled && recent
+    })
+}
+
 /// Path of a file relative to the series folder.
 pub fn relative_to(series: &Series, path: &Path) -> String {
-    path.strip_prefix(&series.data.path)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .into_owned()
+    importer::relative_path(Path::new(&series.data.path), path)
 }
 
 #[cfg(test)]
@@ -659,6 +710,7 @@ pub mod tests {
         let series = Series {
             id: 1,
             data: series_from_sonarr(&sonarr_documents().0["series"][0]).expect("series"),
+            tags: vec![],
         };
         let ep = |n: u16, title: &str| Episode {
             id: i64::from(n),
@@ -692,5 +744,92 @@ pub mod tests {
             season_folder(&series, 1, &naming),
             PathBuf::from("/tv/Kleine Insel/Staffel 01")
         );
+    }
+
+    #[test]
+    fn waits_for_episode_titles() {
+        let ep = |title: Option<&str>, air: &str| Episode {
+            id: 1,
+            series_id: 1,
+            data: NewEpisode {
+                tvdb_id: None,
+                season: 1,
+                number: 1,
+                absolute: None,
+                title: title.map(str::to_owned),
+                title_de: None,
+                air_date: Some(air.to_owned()),
+                monitored: true,
+            },
+            file_id: None,
+            file: None,
+        };
+        let now: Timestamp = "2026-11-02T12:00:00Z".parse().expect("ts");
+        let pattern = "{Series Title} - S{season:00}E{episode:00} - {Episode CleanTitle}";
+        let tba = ep(Some("TBA"), "2026-11-01");
+        assert!(waits_for_titles(
+            Some("always"),
+            pattern,
+            &[&tba],
+            false,
+            now
+        ));
+        assert!(!waits_for_titles(
+            Some("never"),
+            pattern,
+            &[&tba],
+            false,
+            now
+        ));
+        assert!(!waits_for_titles(
+            Some("bulkSeasonReleases"),
+            pattern,
+            &[&tba],
+            false,
+            now
+        ));
+        assert!(waits_for_titles(
+            Some("bulkSeasonReleases"),
+            pattern,
+            &[&tba],
+            true,
+            now
+        ));
+        assert!(!waits_for_titles(
+            Some("always"),
+            "S{season:00}E{episode:00}",
+            &[&tba],
+            false,
+            now
+        ));
+        let old = ep(None, "2026-10-01");
+        assert!(!waits_for_titles(
+            Some("always"),
+            pattern,
+            &[&old],
+            false,
+            now
+        ));
+        let titled = ep(Some("Sturm"), "2026-11-01");
+        assert!(!waits_for_titles(
+            Some("always"),
+            pattern,
+            &[&titled],
+            false,
+            now
+        ));
+        let always = |pattern: &str, e: &Episode| {
+            waits_for_titles(Some("always"), pattern, &[e], false, now)
+        };
+        // Token spelling as the renderer accepts it.
+        assert!(always("{Episode.Title}", &tba));
+        // `:DE` uses the German title, falling back to the default one.
+        let mut german = ep(Some("Storm"), "2026-11-01");
+        german.data.title_de = Some("TBA".to_owned());
+        assert!(always("{Episode Title:DE}", &german));
+        assert!(!always("{Episode Title}", &german));
+        let mut undated = ep(None, "2026-11-01");
+        undated.data.air_date = None;
+        assert!(!always(pattern, &undated));
     }
 }

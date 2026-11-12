@@ -357,6 +357,8 @@ struct IndexerSettingsDto {
     retention: u32,
     #[serde(default)]
     allow_hardcoded_subs: bool,
+    #[serde(default)]
+    availability_delay: i32,
 }
 
 #[derive(Deserialize, Default)]
@@ -377,6 +379,7 @@ pub fn settings(raw: &str) -> Result<Settings, ImportError> {
         maximum_size_mb: dto.indexer.maximum_size,
         retention_days: dto.indexer.retention,
         allow_hardcoded_subs: dto.indexer.allow_hardcoded_subs,
+        availability_delay_days: dto.indexer.availability_delay,
         propers,
     })
 }

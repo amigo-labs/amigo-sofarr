@@ -1,0 +1,198 @@
+---
+status: todo
+created: 2026-11-12
+size: M
+design: [sofarr.md §2, sofarr.md §5, sofarr.md §7, sofarr.md §9 D13, sofarr.md §9 D21]
+media: both
+oracle: none
+---
+
+# Failure handling and search
+
+## Context
+
+Today a download that the client reports as failed only sets the grab to `failed`. Nothing
+stops the same release from coming back through a second indexer (only its GUID is remembered),
+nothing searches for a replacement, and a download that disappears from the client entirely keeps
+its grab `queued` forever, which blocks every better release for that movie or episode. There is
+also no search for series at all; only movies can be searched (CLI `amigo-sofarr search <movie-id>`).
+
+The owner's setup has `autoRedownloadFailed` off in Radarr and on in Sonarr (`docs/parity.md`).
+D13 decides failure handling per app with a blocklist by GUID and title; D21 lets `sofarr.toml`
+override the imported setting.
+
+Terms used below:
+
+- **Grab** – a release sofarr decided to take for a movie or for one or more episodes of a series;
+  each grab has its own id.
+- **Shadow mode** – `[automation] mode = "shadow"`: decisions are recorded as shadow grabs,
+  nothing is sent to the download client or moved.
+- **Active grab** – a grab sent to the download client and not yet imported or failed
+  (queued, downloading, or completed but not imported).
+- **Download check** – the periodic job that reads the client's queue and history
+  (`[download] check_interval_minutes`); it is successful when both could be read.
+- **Release failure** – a final client state caused by the release itself: health or par check
+  failed, unpacking failed, or deleted by hand in the client.
+- **Local failure** – any other non-success final state (e.g. moving the files failed, not enough
+  disk space, a post-processing script failed, rejected by the client as a duplicate of an earlier
+  download).
+- **Blocklist** – per movie or per series, releases sofarr never takes again for it. Per item,
+  not global, because a failure only proves a release unusable for the item it was grabbed for,
+  while the same release name can be a valid candidate for another item (e.g. a pack).
+- **Normalized title** – the release title lower-cased, with every run of characters that are not
+  letters or digits treated as one separator, leading and trailing separators ignored
+  (`Film.2020.1080p`, `film 2020 1080p` and `Film_2020-1080p.` are equal).
+- **Allowed indexers** – the indexers whose tags allow the movie or series (`[[indexer]] tags`;
+  an indexer without tags serves everything).
+- **Wanted item** – a monitored movie, or a monitored episode of a monitored series, that has no
+  file or whose file is below the profile's cutoff.
+- **Broken NZB** – the indexer answers the NZB download with HTTP 404 or 410 or with the Newznab
+  error "no such item", or the download client rejects the NZB as invalid.
+- **Outage** – the indexer or the download client cannot be reached, times out, or answers with
+  any HTTP error other than those of a broken NZB (e.g. 401, 403, 429, 5xx).
+- **Season pack** – a release whose name covers one or more whole seasons without episode numbers.
+- **Re-search** – the automatic search right after a failure.
+
+## Scope
+
+### In scope
+
+- Blocklist for movies and series, filled by release failures, broken NZBs and manual marking; listed and edited through the API
+- Re-search after a failure, per media kind, configurable
+- Grabs whose download vanished from the client
+- Search for series (series, season, episode) through the indexers
+- Manual search for a movie, series, season or episode through the API and the CLI
+- Marking an active grab as failed by hand
+
+### Out of scope
+
+- Automatic expiry of blocklist entries — because a broken release stays broken; entries are removed by hand (owner)
+- Importing the blocklists of Radarr/Sonarr — because they are not part of the config export, and sofarr already never re-takes the GUID of one of its own past grabs
+- Marking an already imported grab as failed — because the file is in the library and an upgrade replaces it anyway (owner)
+- Interactive search that lists releases for the user to pick from — because there is no UI yet (spec `web-ui`)
+- Removing failed downloads from the client's history automatically — because nzbget, the only download client (D6), cleans up its history by its own settings
+- Retrying a re-search whose indexers failed, and re-searching after an outage — because automatic retries would hammer an indexer that is down; a manual search (AC-12) repeats it on demand
+
+## Acceptance criteria
+
+- [ ] AC-01 (event): When the download check finds that the download of an active grab ended in a release failure, then sofarr sets the grab to failed with the client's status text and puts the release on the blocklist of that movie or series.
+- [ ] AC-02 (event): When the download check finds that the download of an active grab ended in a local failure, then sofarr sets the grab to failed with the client's status text and does not put the release on the blocklist.
+- [ ] AC-03 (error): If grabbing a release fails with a broken NZB, then sofarr sets the grab to failed with the reason and puts the release on the blocklist.
+- [ ] AC-04 (error): If grabbing a release fails with an outage, then sofarr sets the grab to failed with the reason, does not put the release on the blocklist and starts no re-search.
+- [ ] AC-05 (always): sofarr never grabs a release that is on the blocklist of the movie or series it is considered for, matched by GUID or by normalized title — in the RSS sync, in a re-search and in a manual search; the same release stays allowed for any other movie or series.
+- [ ] AC-22 (always): sofarr does not take a release (by GUID) again for a movie or series it has any earlier grab of that release for, shadow grabs included — unless every such grab failed without a blocklist entry (local failure, outage, vanished download) or its blocklist entry was removed (AC-19).
+- [ ] AC-06 (event): When a movie grab fails by AC-01, AC-02, AC-03, AC-10 or AC-15 while re-search for movies is on and the movie is monitored, then sofarr searches the allowed indexers for the movie and grabs the best release by the same rules as the RSS sync.
+- [ ] AC-07 (event): When a series grab fails by AC-01, AC-02, AC-03, AC-10 or AC-15 while re-search for series is on and the series is monitored, then sofarr searches for its wanted episodes — each season of a season pack, otherwise each covered episode — and grabs the best releases by the same rules as the RSS sync; a season or episode covered by several failed grabs of the same job run is searched once.
+- [ ] AC-08 (state): While re-search for a media kind is off, a failed grab of that kind starts no search; the movie or episodes are no longer held by the grab, so the next RSS sync may take another release for them.
+- [ ] AC-09 (option): Where `sofarr.toml` sets re-search for movies or for series, that value applies; otherwise the `autoRedownloadFailed` imported from Radarr (movies) or Sonarr (series) applies; without an imported value re-search is off.
+- [ ] AC-10 (event): When the download of an active grab is absent from the client's queue and history at a download check, and has been absent at every successful download check since an absence first seen at least 24 hours earlier, then sofarr sets the grab to failed with a reason that names the vanished download, does not put the release on the blocklist, and re-searches as in AC-06 to AC-08; a download seen again in between restarts the 24 hours.
+- [ ] AC-11 (error): If the download client cannot be reached during a download check, then no grab changes its state and the check counts neither as an absence nor as a sighting for AC-10.
+- [ ] AC-12 (event): When the user starts a search for a movie, a series, a season or an episode through the API or the CLI, then sofarr searches the allowed indexers, grabs the best release for each item it covers that has no file or a file below the cutoff, by the same rules as the RSS sync (a series or season search covers only monitored episodes; a search for one movie or one episode also covers it when unmonitored), and answers with the number of distinct releases (by GUID) the indexers returned, the grabs made and the indexer errors. An item with an active grab only takes a release that the RSS sync would rate better.
+- [ ] AC-13 (error): If a manual search names a movie, series, season or episode that is not in the library, or the request names none or more than one target, then sofarr searches nothing and answers with a German error message (API: status 404 for an unknown target, 400 for a malformed request; CLI: exit code ≠ 0).
+- [ ] AC-14 (always): A series search asks every allowed indexer in a form that indexer supports and considers the releases of all of them: an indexer that announces TV search by TVDB id is asked by id; one that does not — and every indexer for a series without a TVDB id — is asked by title with the episode in the numbering the series uses (season and episode, the air date for daily series, the absolute number for anime).
+- [ ] AC-15 (event): When the user marks an active grab as failed, then sofarr removes the download and its files from the download client (if the client still has it), sets the grab to failed with a reason that names the manual marking, puts the release on the blocklist and re-searches as in AC-06 to AC-08.
+- [ ] AC-16 (error): If the user marks a grab as failed that is not active (shadow, imported or already failed), then sofarr changes nothing and answers with a German error message (API: status 409); an unknown grab id answers status 404.
+- [ ] AC-17 (error): If the download client cannot be reached while the user marks a grab as failed, then sofarr changes nothing and answers with a German error message (API: status 503).
+- [ ] AC-18 (event): When the user lists the blocklist through the API, then sofarr answers with the entries page by page (pages counted from 1, newest blocklisting first, 1 to 500 entries per page, default 50; a page past the end is empty), each with movie or series, release title, reason and the time it was blocklisted; a page below 1 or a page size outside 1 to 500 answers status 400.
+- [ ] AC-19 (event): When the user removes a blocklist entry through the API, then the release may be grabbed again for that movie or series; removing an unknown entry answers status 404.
+- [ ] AC-20 (always): A release is on the blocklist of a movie or series at most once; blocklisting it again (same GUID or same normalized title) adds no second entry; removing the movie or series from the library removes its entries.
+- [ ] AC-21 (state): While sofarr runs in shadow mode, a re-search or manual search only records shadow grabs and never contacts the download client.
+- [ ] AC-24 (event): When grabbing the release chosen by a search (re-search or manual) fails with a broken NZB, then sofarr takes the next best candidate for the same item from the same search results, without a new indexer search; an outage ends the search for that item.
+- [ ] AC-23 (error): If no indexer is allowed for the target of a search, then sofarr searches nothing and answers with 0 releases and a German note that no indexer serves the item.
+
+## Technical notes
+
+- Config: `[download] redownload_failed_movies` and `redownload_failed_series` (bool, optional; AC-09).
+- API: `GET /api/blocklist?page=&page_size=` (default page size 50), `DELETE /api/blocklist/{id}`,
+  `POST /api/grabs/movie/{grab-id}/fail`, `POST /api/grabs/series/{grab-id}/fail`,
+  `POST /api/command/search` with a body naming exactly one of: `movie_id`; `series_id`;
+  `series_id` + `season`; `series_id` + `season` + `episode`.
+- CLI: `amigo-sofarr search <movie-id>` keeps working; series via
+  `amigo-sofarr search --series <id> [--season <n> [--episode <n>]]`.
+- The imported settings live in the `settings` table: `config_downloadclient` (Radarr) and
+  `sonarr_config_downloadclient` (Sonarr), field `autoRedownloadFailed`.
+- nzbget history states (prefix of `Status`): release failures are `FAILURE/HEALTH`, `FAILURE/PAR`,
+  `FAILURE/UNPACK`, `DELETED/HEALTH`, `DELETED/MANUAL`; everything else that is not `SUCCESS`
+  (e.g. `DELETED/DUPE`, `FAILURE/MOVE`, `WARNING/SPACE`, `WARNING/SCRIPT`) is a local failure.
+- Broken NZB from Newznab: error code 300 ("No such item").
+- Newznab TV search: `t=tvsearch` with `tvdbid`, `season`, `ep` where the indexer's caps announce
+  them; otherwise `q=<title> S01E02` (or `S01` for a season).
+- Jobs (RSS sync, download check, searches, marking) already run one at a time behind the job
+  lock in `app.rs`; manual actions take the same lock, so they never race a check.
+
+## Edge cases
+
+| Scenario | Expected behavior |
+| -------- | ----------------- |
+| The blocklisted release comes back from another indexer with a new GUID and the same title | Not grabbed (AC-05) |
+| The title differs only in case or separators | Treated as the same release (AC-05) |
+| A failed season pack where some episodes already have files at the cutoff | Season search; those episodes are not wanted, the engine only takes releases for the others |
+| A failed upgrade grab for a movie that has a file | The file stays; the next RSS sync or the re-search may take another upgrade |
+| The re-search finds nothing acceptable or every indexer fails | The grab stays failed, the item stays wanted; the errors are logged; the next RSS sync continues as usual |
+| Two grabs of the same movie fail in the same check | One re-search for the movie |
+| An episode grab and a season pack covering it fail in the same check | The season is searched once (AC-07) |
+| A release blocklisted for one movie appears for another movie | Allowed for the other movie (AC-05) |
+| nzbget restarts and its queue is briefly empty | Not vanished: only 24 hours of absence count (AC-10) |
+| nzbget is down for more than 24 hours | Failed checks count for nothing, nothing vanishes (AC-11) |
+| A download marked as vanished shows up again later and finishes | The grab stays failed and the download is not imported |
+| The user marks a grab as failed while the download check is about to import it | The actions run one after the other; whichever runs second sees the new state (a grab already imported → AC-16) |
+| Re-search is on, but the movie is no longer monitored | No re-search, the grab is failed — because sofarr only grabs for monitored items, as in the RSS sync |
+| A manual search for a season where no episode is monitored | Nothing is grabbed; the answer reports 0 grabs (not an error) |
+| The movie of a blocklist entry is removed from the library | The entry disappears with it (AC-20) |
+| A release covering several seasons fails | Each of those seasons is searched (AC-07) |
+| The movie is removed while its re-search is pending in the same job run | The re-search is skipped |
+| A manual search for a movie with an active grab | Only a release the RSS sync would rate better is taken (AC-12) |
+| A grab fails at grab time with an outage and the indexer is back minutes later | The next RSS sync may take the same release again (AC-04, AC-22) |
+
+## Assumptions
+
+| Assumption | Reason | Risk |
+| ---------- | ------ | ---- |
+| Without an imported `autoRedownloadFailed`, re-search is off | The conservative choice: no unexpected indexer traffic or downloads | A fresh install without import never re-searches until configured |
+| A vanished download triggers a re-search but no blocklist entry | Its release is not proven broken; the title is free again (owner, 2026-11-12) | A release that keeps vanishing for other reasons may be retried |
+| 24 hours of absence before a download counts as vanished | Long enough to ride out restarts, maintenance and a cleared history being refilled; short enough that a missing download does not block a title for days | A download lost right after a grab blocks better releases for a day |
+| A search for one movie or episode also covers it when unmonitored | The user named it explicitly, as with today's CLI `search <movie-id>`; series and season searches stay with monitored episodes | An accidental search grabs an unmonitored title |
+| A download deleted by hand in the client is a release failure | Whoever deletes a download does not want that release (owner, 2026-11-12) | A deletion by mistake blocks a good release until removed from the blocklist |
+
+## Open questions
+
+<!-- One bullet per open question; empty means: everything settled, spec-build may start -->
+
+## Evidence
+
+| AC    | Test | Status | Commit |
+| ----- | ---- | ------ | ------ |
+| AC-01 |      | open   |        |
+| AC-02 |      | open   |        |
+| AC-03 |      | open   |        |
+| AC-04 |      | open   |        |
+| AC-05 |      | open   |        |
+| AC-06 |      | open   |        |
+| AC-07 |      | open   |        |
+| AC-08 |      | open   |        |
+| AC-09 |      | open   |        |
+| AC-10 |      | open   |        |
+| AC-11 |      | open   |        |
+| AC-12 |      | open   |        |
+| AC-13 |      | open   |        |
+| AC-14 |      | open   |        |
+| AC-15 |      | open   |        |
+| AC-16 |      | open   |        |
+| AC-17 |      | open   |        |
+| AC-18 |      | open   |        |
+| AC-19 |      | open   |        |
+| AC-20 |      | open   |        |
+| AC-21 |      | open   |        |
+| AC-22 |      | open   |        |
+| AC-23 |      | open   |        |
+| AC-24 |      | open   |        |
+
+## Decisions
+
+- 2026-11-12: Re-search is configurable per media kind in `sofarr.toml`, defaulting to the imported app setting (owner; D21).
+- 2026-11-12: A download missing from the client for 24 hours counts as failed without a blocklist entry; a download deleted by hand counts as a release failure (owner).
+- 2026-11-12: Only release failures and broken NZBs go on the blocklist; local failures and outages do not, so a good release is never blocked by an outage (owner).
+- 2026-11-12: Blocklist entries never expire (owner).
+- 2026-11-12: `DELETED/DUPE` is a local failure, not a release failure (corrects the list put to the owner): nzbget rejects by name against its own history, which says nothing about the release and would otherwise blocklist a good release that sofarr re-sends after an outage.
+- 2026-11-12: Marking a grab as failed removes its download and files from the client — the owner chose "remove from nzbget" for manual marking, and the files of a failed release are of no use.
+- 2026-11-12: Manual search (API + CLI) belongs to this spec because the series search it needs is built here anyway (owner).

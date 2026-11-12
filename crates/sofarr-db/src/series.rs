@@ -28,6 +28,8 @@ pub struct NewSeries {
 pub struct Series {
     pub id: i64,
     pub data: NewSeries,
+    /// Tag ids (of the `sonarr_tag` setting), see [`Db::set_series_tags`].
+    pub tags: Vec<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,9 +76,7 @@ fn to_i64(n: u64) -> i64 {
     i64::try_from(n).unwrap_or(i64::MAX)
 }
 
-fn ids_text(ids: &[i64]) -> String {
-    ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
-}
+use crate::{ids_from_text, ids_text};
 
 fn series_from_row(row: &SqliteRow) -> Series {
     Series {
@@ -97,6 +97,7 @@ fn series_from_row(row: &SqliteRow) -> Series {
             sonarr_id: row.get("sonarr_id"),
             alternative_titles: Vec::new(),
         },
+        tags: ids_from_text(row.get("tags")),
     }
 }
 
@@ -372,6 +373,41 @@ impl Db {
         Ok(())
     }
 
+    pub async fn set_series_tags(&self, series_id: i64, tags: &[i64]) -> Result<()> {
+        sqlx::query("UPDATE series SET tags = ? WHERE id = ?")
+            .bind(ids_text(tags))
+            .bind(series_id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn set_episodes_monitored(&self, episode_ids: &[i64], monitored: bool) -> Result<()> {
+        for id in episode_ids {
+            sqlx::query("UPDATE episodes SET monitored = ? WHERE id = ?")
+                .bind(monitored)
+                .bind(id)
+                .execute(self.pool())
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Forgets an episode file (the file on disk is gone); its episodes lose their file.
+    pub async fn remove_episode_file(&self, file_id: i64) -> Result<()> {
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("UPDATE episodes SET file_id = NULL WHERE file_id = ?")
+            .bind(file_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM episode_files WHERE id = ?")
+            .bind(file_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn series_grabs(&self, status: Option<GrabStatus>) -> Result<Vec<SeriesGrab>> {
         let rows = sqlx::query(
             "SELECT * FROM series_grabs WHERE (? IS NULL OR status = ?) ORDER BY id DESC",
@@ -498,5 +534,19 @@ mod tests {
             .expect("grabs");
         assert_eq!(grabs[0].episode_ids, [e1, e2]);
         assert_eq!(grabs[0].download_id.as_deref(), Some("9"));
+
+        db.set_series_tags(id, &[2]).await.expect("tags");
+        assert_eq!(db.all_series().await.expect("series")[0].tags, [2]);
+        let shared = db.episodes(Some(id)).await.expect("eps")[1]
+            .file_id
+            .expect("file");
+        db.remove_episode_file(shared).await.expect("remove");
+        db.set_episodes_monitored(&[e2], false)
+            .await
+            .expect("unmonitor");
+        let eps = db.episodes(Some(id)).await.expect("eps");
+        assert_eq!(eps[1].file, None);
+        assert!(!eps[1].data.monitored);
+        assert!(eps[0].file.is_some());
     }
 }

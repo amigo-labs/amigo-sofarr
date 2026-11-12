@@ -95,17 +95,24 @@ impl<'a> MovieIndex<'a> {
 }
 
 /// Decides over a batch of releases. `pending` holds the open grab per movie id,
-/// `seen` tells whether a release (movie id, guid) was taken before.
+/// `skip` tells whether a release must not be taken for a movie (taken before, same
+/// name as an imported release, indexer restricted by tags). Only monitored movies
+/// that are available today count.
 pub fn decide(
     releases: &[IndexerRelease],
     movies: &[Movie],
     rules: &Rules,
     pending: &BTreeMap<i64, Grab>,
-    seen: &dyn Fn(i64, &str) -> bool,
+    skip: &dyn Fn(&Movie, &IndexerRelease) -> bool,
     now: Timestamp,
     report: &mut SyncReport,
 ) -> Vec<Selected> {
-    let monitored: Vec<Movie> = movies.iter().filter(|m| m.monitored).cloned().collect();
+    let today = now.to_zoned(jiff::tz::TimeZone::UTC).date();
+    let monitored: Vec<Movie> = movies
+        .iter()
+        .filter(|m| m.monitored && library::is_available(m, rules, today))
+        .cloned()
+        .collect();
     let index = MovieIndex::new(&monitored);
     let mut best: BTreeMap<i64, Selected> = BTreeMap::new();
     for release in releases {
@@ -116,7 +123,7 @@ pub fn decide(
             report.matched += 1;
         }
         for movie in candidates {
-            if seen(movie.id, &release.guid) {
+            if skip(movie, release) {
                 continue;
             }
             let Some(profile) = rules.profile(movie.quality_profile_id) else {
@@ -225,7 +232,7 @@ mod tests {
             &movies,
             &rules,
             &BTreeMap::new(),
-            &|_, guid| guid == "2",
+            &|_, r| r.guid == "2",
             now,
             &mut report,
         );
@@ -236,5 +243,49 @@ mod tests {
         assert_eq!(picks, [("Erster Film", "3"), ("Zweiter Film", "6")]);
         assert_eq!(report.releases, 9);
         assert_eq!(report.matched, 7);
+    }
+
+    #[tokio::test]
+    async fn waits_for_availability_and_respects_skip() {
+        let db = sofarr_db::Db::in_memory().await.expect("db");
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        import_documents(&db, &documents(), now)
+            .await
+            .expect("import");
+        let rules = load_rules(&db).await.expect("rules");
+        let mut movies = db.movies().await.expect("movies");
+        // Erster Film: in cinemas, home release next month.
+        movies[0].availability = sofarr_db::Availability {
+            minimum: "released".to_owned(),
+            status: Some("inCinemas".to_owned()),
+            in_cinemas: Some("2026-10-01".to_owned()),
+            digital_release: Some("2026-12-01".to_owned()),
+            physical_release: None,
+        };
+        let releases = vec![
+            release("Erster.Film.2001.1080p.BluRay.x264-B", "1"),
+            release("Zweiter.Film.2002.1080p.BluRay.x264-F", "2"),
+        ];
+        let run = |movies: &[Movie], skip: &dyn Fn(&Movie, &IndexerRelease) -> bool| {
+            decide(
+                &releases,
+                movies,
+                &rules,
+                &BTreeMap::new(),
+                skip,
+                now,
+                &mut SyncReport::default(),
+            )
+            .into_iter()
+            .map(|s| s.movie.title)
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(run(&movies, &|_, _| false), ["Zweiter Film"]);
+        movies[0].availability.minimum = "inCinemas".to_owned();
+        assert_eq!(run(&movies, &|_, _| false), ["Erster Film", "Zweiter Film"]);
+        assert_eq!(
+            run(&movies, &|m, _| m.title == "Zweiter Film"),
+            ["Erster Film"]
+        );
     }
 }

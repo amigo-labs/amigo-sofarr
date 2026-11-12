@@ -34,5 +34,7 @@ pub struct Settings {
     pub retention_days: u32,
     /// Whether releases with burnt-in subtitles may be grabbed.
     pub allow_hardcoded_subs: bool,
+    /// Days added to the release date before a movie counts as available (may be negative).
+    pub availability_delay_days: i32,
     pub propers: PropersPolicy,
 }

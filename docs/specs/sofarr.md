@@ -1,132 +1,162 @@
-# Spec: amigo-sofarr
+---
+status: draft
+---
 
-> Lebendes Dokument. Entscheidungen werden im Entscheidungslog (§9) nachgetragen, nicht überschrieben.
+# amigo-sofarr: design
 
-## 1. Ziel
+> Living document. Decisions are appended to the decision log (§9), never overwritten.
 
-amigo-sofarr ersetzt Sonarr und Radarr in **einem** Dienst: Bibliothek von Filmen und Serien
-verwalten, neue Releases über Usenet-Indexer finden, nach Qualitätsregeln entscheiden, an einen
-Download-Client übergeben, fertige Downloads importieren und umbenennen.
+This is the design spec: goal, scope, architecture, parity strategy and decisions. What a feature
+does, its acceptance criteria and the evidence for them (and so its progress) live in the feature
+specs next to this file, indexed in [README.md](README.md). Each feature spec names the sections it
+builds on in its `design:` front matter and never contradicts them; a feature that needs a new
+architectural decision gets a row in §9 first.
 
-Erfolgskriterium: sofarr ersetzt im eigenen Home-Setup (Docker auf Mini-PC, nzbget, Jellyfin)
-erst Radarr, dann Sonarr – ohne Verschlechterung im Alltag.
+## 1. Goal
+
+amigo-sofarr replaces Sonarr and Radarr with **one** service: manage a library of movies and
+series, find new releases through Usenet indexers, decide by quality rules, hand them to a download
+client, import and rename finished downloads.
+
+Success criterion: in the owner's home setup (Docker on a mini PC, nzbget, Jellyfin) sofarr
+replaces first Radarr, then Sonarr – with no loss in day-to-day use.
 
 ## 2. Scope
 
-**Parity-Ziel ist das eigene Setup, nicht Sonarr/Radarr als Ganzes.** Was in der eigenen
-Konfiguration nicht vorkommt (siehe `docs/parity.md`, erzeugt aus `scripts/export-arr-config.sh`),
-ist bis auf Weiteres out of scope.
+**The parity target is the owner's setup, not Sonarr/Radarr as a whole.** What the own
+configuration does not use (see `docs/parity.md`, generated from `scripts/export-arr-config.sh`)
+is out of scope until further notice.
 
-| Stufe | Inhalt |
+| Stage | Content |
 |---|---|
-| v1 | Filme: Parser, Decision Engine, Newznab-RSS, TMDB, nzbget, Import/Rename, Import Lists (TMDb-Personen) |
-| v2 | Serien: Episoden-Parsing, Staffeln, Specials, Serien-Metadaten |
-| später | Web-UI, amigo-downloader als Download-Client, Integrationen mit v3-API-Kompatibilität |
+| v1 | Movies: parser, decision engine, Newznab RSS, TMDB, nzbget, import/rename, import lists (TMDb persons) |
+| v2 | Series: episode parsing, seasons, specials, series metadata |
+| v3 (phase 6) | Operations and comfort: failure handling, backups, optional auth, media info, web UI, discover/people/IMDb rating, subtitles, local trailers |
+| later | amigo-downloader as download client, integrations with v3 API compatibility |
 
-**Nicht-Ziele:** Musik, Bücher, Torrent (Usenet only, bis ein echter Bedarf entsteht),
-Multi-User, vollständige Sonarr/Radarr-API-Kompatibilität.
+**Non-goals:** music, books, torrents (Usenet only until a real need comes up), multiple users and
+requests with approval, full Sonarr/Radarr API compatibility.
 
-## 3. Architektur
+## 3. Architecture
 
-Ein Binary (`amigo-sofarr`), ein Container, SQLite. Cargo-Workspace:
+One binary (`amigo-sofarr`), one container, SQLite. Cargo workspace:
 
-| Crate | Aufgabe | IO? |
+| Crate | Responsibility | IO? |
 |---|---|---|
-| `sofarr-parser` | Release-Name → `ParsedRelease` | nein |
-| `sofarr-core` | Domänenmodell, Qualities, Profile, Custom Formats, Decision Engine | nein |
-| `sofarr-indexer` | Newznab: Caps, RSS, Suche | ja |
-| `sofarr-metadata` | TMDB (Filme), TVDB (Serien, D10) | ja |
-| `sofarr-download` | `DownloadClient`-Trait, nzbget-Implementierung | ja |
-| `sofarr-db` | SQLite via sqlx, Migrations | ja |
-| `sofarr-server` | axum-API, Scheduler, Config, Binary `amigo-sofarr` | ja |
-| `sofarr-parity` | CLI: Orakel-Fixtures sammeln, Verhalten diffen | ja |
+| `sofarr-parser` | Release name → `ParsedRelease` | no |
+| `sofarr-core` | Domain model, qualities, profiles, custom formats, decision engine | no |
+| `sofarr-indexer` | Newznab: caps, RSS, search | yes |
+| `sofarr-metadata` | TMDB (movies), TVDB (series, D10) | yes |
+| `sofarr-download` | `DownloadClient` trait, nzbget implementation | yes |
+| `sofarr-db` | SQLite via sqlx, migrations | yes |
+| `sofarr-server` | axum API, scheduler, config, binary `amigo-sofarr` | yes |
+| `sofarr-parity` | CLI: collect oracle fixtures, diff behavior | yes |
 
-Abhängigkeitsrichtung: `parser` ← `core` ← IO-Crates ← `server`.
-Die Kernlogik (Parsing, Entscheidungen) ist dadurch vollständig ohne Netzwerk testbar.
+Dependency direction: `parser` ← `core` ← IO crates ← `server`.
+The core logic (parsing, decisions) is therefore fully testable without a network.
 
-## 4. Domänenmodell (Entwurf)
+## 4. Domain model (draft)
 
-Begriffe orientieren sich an der Servarr-Nutzerdoku, damit Configs übertragbar bleiben.
-Felder werden in den jeweiligen Phasen präzisiert.
+Terms follow the Servarr user documentation so configurations stay transferable. Fields are made
+precise by the features that use them.
 
-- **Movie** – `tmdb_id`, `imdb_id?`, Titel, Originaltitel, Jahr, `monitored`, Quality Profile, Pfad, Status.
-- **Release** – Rohdaten vom Indexer: GUID, Titel, Größe, Indexer, Veröffentlichungszeit, Download-URL, Kategorien.
-- **ParsedRelease** – Titel-Kandidaten, Jahr, Quality (Source, Resolution, Modifier), Revision
-  (Version, Proper/Repack/Real), Edition, Release Group, Sprachen.
-- **Quality / QualityDefinition** – benannte Qualitätsstufe mit Größengrenzen pro Minute.
-- **QualityProfile** – geordnete erlaubte Qualities, Cutoff, Upgrades erlaubt?,
-  Custom-Format-Scores, Mindest-Score, Cutoff-Score.
-- **CustomFormat** – benannte Menge von Bedingungen (Typ, Wert, `negate`, `required`).
-- **Decision** – Release + ParsedRelease + `approved` + Liste von Rejections
-  (Grund, permanent vs. temporär) + Custom-Format-Score.
+- **Movie** – `tmdb_id`, `imdb_id?`, title, original title, year, `monitored`, quality profile, path, status.
+- **Release** – raw indexer data: GUID, title, size, indexer, publish time, download URL, categories.
+- **ParsedRelease** – title candidates, year, quality (source, resolution, modifier), revision
+  (version, proper/repack/real), edition, release group, languages.
+- **Quality / QualityDefinition** – named quality level with size limits per minute.
+- **QualityProfile** – ordered allowed qualities, cutoff, upgrades allowed?,
+  custom format scores, minimum score, cutoff score.
+- **CustomFormat** – named set of conditions (type, value, `negate`, `required`).
+- **Decision** – release + ParsedRelease + `approved` + list of rejections
+  (reason, permanent vs. temporary) + custom format score.
 
-## 5. Parity-Strategie
+## 5. Parity strategy
 
-Sonarr/Radarr dienen als **Black-Box-Orakel** über ihre HTTP-API. Es wird nie ihr Code
-gelesen (siehe §6).
+Sonarr/Radarr serve as **black-box oracles** through their HTTP API. Their code is never read
+(see §6).
 
-| Was | Orakel-Endpoint | Phase |
+| What | Oracle endpoint | Phase |
 |---|---|---|
 | Parsing | `GET /api/v3/parse?title=…` | 1 |
-| Grab-Entscheidungen | `GET /api/v3/release?movieId=…` (`approved`, `rejections`, Score) | 2 |
-| Bibliotheksstand | `GET /api/v3/movie`, `/api/v3/series` | 3 |
-| Tatsächliche Grabs | `GET /api/v3/history` | 3 |
-| Import-Zuordnung | `GET /api/v3/manualimport?folder=…` | 4 |
-| Benennung | `GET /api/v3/rename?movieId=…`, `/api/v3/config/naming` | 4 |
+| Grab decisions | `GET /api/v3/release?movieId=…` (`approved`, `rejections`, score) | 2 |
+| Library state | `GET /api/v3/movie`, `/api/v3/series` | 3 |
+| Actual grabs | `GET /api/v3/history` | 3 |
+| Import matching | `GET /api/v3/manualimport?folder=…` | 4 |
+| Naming | `GET /api/v3/rename?movieId=…`, `/api/v3/config/naming` | 4 |
 
-Werkzeuge:
+Tools:
 
-1. **Fixtures:** `sofarr-parity collect` sammelt echte Release-Namen und speichert die
-   Orakel-Antwort roh als JSONL. Öffentliche Fixtures (aus RSS) liegen in `fixtures/public/`,
-   private (History, Bibliothek) in `fixtures/private/` (gitignored).
-2. **Ratchet:** Pass-Raten pro Feld werden in `fixtures/parser-baseline.toml` festgehalten.
-   Tests schlagen fehl, wenn eine Rate sinkt. Die Baseline darf nur steigen.
-3. **Shadow-Mode:** sofarr läuft neben Radarr mit read-only `/data` und loggt, was es
-   grabben würde. Abgleich gegen Radarrs History.
-4. **Bewusste Abweichungen** werden in `docs/parity.md` dokumentiert und aus dem Diff ausgenommen.
+1. **Fixtures:** `sofarr-parity collect` collects real release names and stores the oracle's
+   answer raw as JSONL. Public fixtures (from RSS) live in `fixtures/public/`, private ones
+   (history, library) in `fixtures/private/` (gitignored).
+2. **Ratchet:** pass rates per field are recorded in `fixtures/*-baseline.toml`. Tests fail when a
+   rate drops. A baseline may only rise.
+3. **Shadow mode:** sofarr runs next to Radarr with a read-only `/data` and logs what it would
+   grab. Compared against Radarr's history.
+4. **Deliberate deviations** are documented in `docs/parity.md` and excluded from the diff.
 
-## 6. Clean Room
+## 6. Clean room
 
-sofarr ist MIT, die Servarr-Projekte sind GPL-3.0. Verbindliche Regeln: `CLAUDE.md`.
-Kurzfassung: kein Servarr-Code, keine Servarr-Tests, keine aus dem Gedächtnis rekonstruierten
-Regexes. Erlaubt: API-Beobachtung, Nutzer-Doku, allgemeines Wissen über Release-Namen.
+sofarr is MIT, the Servarr projects are GPL-3.0. Binding rules: `AGENTS.md`, "Clean Room".
+Summary: no Servarr code, no Servarr tests, no regexes reconstructed from memory; the same holds
+for HolyArrs (AGPL-3.0) and Bazarr (GPL-3.0). Allowed: API observation, user documentation,
+public specifications, general knowledge of release names.
 
-## 7. Betrieb
+## 7. Operations
 
-- Container: statisches musl-Binary in `scratch`, Port **7676**, UID/GID 1000.
-- Volumes: `/config` (Config, SQLite), `/data` (Downloads + Bibliothek unter **einem** Mount
-  für Hardlinks und atomare Moves – gleiches Layout wie Radarr).
-- Config: TOML unter `/config/sofarr.toml` (`SOFARR_CONFIG`), unbekannte Keys sind ein Fehler.
-- Healthcheck: `amigo-sofarr healthcheck` (kein curl im Image nötig), Endpoint `GET /api/health`.
-- Logging: `tracing`, `RUST_LOG` überschreibt Config, Format `pretty` oder `json`.
+- Container: static musl binary, port **7676**, UID/GID 1000. Base image `scratch`; Alpine with
+  `yt-dlp` and `ffmpeg` once trailers are built (D18).
+- Backups: SQLite via `VACUUM INTO` to `/config/backups`, snapshot before migrations (D14).
+- Auth: can be switched off (`[auth] enabled`), login for the UI and an API key for scripts (D15).
+- Volumes: `/config` (config, SQLite), `/data` (downloads + library under **one** mount for
+  hardlinks and atomic moves – same layout as Radarr).
+- Config: TOML at `/config/sofarr.toml` (`SOFARR_CONFIG`); unknown keys are an error.
+- Health check: `amigo-sofarr healthcheck` (no curl needed in the image), endpoint `GET /api/health`.
+- Logging: `tracing`, `RUST_LOG` overrides the config, format `pretty` or `json`.
 
-## 8. Integrationen
+## 8. Integrations
 
-| Integration | Wann | Wie |
+| Integration | When | How |
 |---|---|---|
-| nzbget | Phase 4 | JSON-RPC, hinter `DownloadClient`-Trait |
-| Jellyfin | – | nicht nötig: Jellyfin überwacht die Bibliothek selbst (D12) |
-| amigo-downloader | nach Radarr-Ablösung | zweite `DownloadClient`-Implementierung (braucht Headless-Modus/Library-Crate) |
-| Prowlarr, Jellyseerr, Bazarr | nur bei Bedarf | genau die v3-Endpoints, die diese Tools aufrufen |
+| nzbget | phase 4 | JSON-RPC behind the `DownloadClient` trait |
+| Jellyfin | – | not needed: Jellyfin watches the library itself (D12); subtitles and trailers are stored by Jellyfin's naming rules (D17, D18) |
+| OpenSubtitles.com | spec `subtitles` | official REST API (movie hash, IMDb/TMDb id) |
+| IMDb datasets | spec `discover` | `title.ratings.tsv.gz`, daily, personal non-commercial use |
+| amigo-downloader | after Radarr is replaced | second `DownloadClient` implementation (needs a headless mode / library crate) |
+| Prowlarr, Jellyseerr, Bazarr | only if needed | exactly the v3 endpoints these tools call |
 
-## 9. Entscheidungslog
+## 9. Decision log
 
-| # | Entscheidung | Begründung |
+| # | Decision | Reason |
 |---|---|---|
-| D1 | Rust-Neuentwicklung statt .NET-10-Fork | Fork = Dauer-Rebase ohne Mehrwert; Neubau = eigenes Modell, Ressourcen, Lernwert |
-| D2 | Ein Dienst für Filme + Serien | Gemeinsame Pipeline (Indexer → Decision → Download → Import) |
-| D3 | MIT + Clean Room | Freiheit im amigo-labs-Ökosystem; GPL-Code wird nie berührt |
-| D4 | SQLite (sqlx) | Single-User, ein Container, Mini-PC |
-| D5 | Filme vor Serien | Radarr-Domäne ist deutlich einfacher; Serien bauen auf fertigem Kern auf |
-| D6 | nzbget als erster Download-Client | Läuft bereits; nie zwei neue Komponenten gleichzeitig live schalten |
-| D7 | Usenet only | Entspricht dem eigenen Setup |
-| D8 | Eigene API, v3-Kompatibilität nur für konkrete Integrationen | Keine Altlasten aus Sonarr-API nachbauen |
-| D9 | Indexer direkt per Newznab, kein Prowlarr | Entspricht dem eigenen Setup; `sofarr-indexer` spricht Newznab direkt, Prowlarr-Kompatibilität bleibt „nur bei Bedarf“ (§8) |
-| D10 | Serien-Metadaten über TVDB, Filme über TMDB | Gleiche Episoden-Reihenfolge wie Sonarr → Parity in Phase 5; ein zweiter Provider wird in Kauf genommen |
-| D11 | Import Lists (TMDb-Personen) vor der Radarr-Ablösung (Phase 4) | 5 aktive Listen im eigenen Setup; ohne sie kämen nach der Abschaltung keine neuen Filme mehr hinzu |
-| D12 | Kein Jellyfin-Refresh nach dem Import | Jellyfin überwacht die Bibliothek selbst; Radarr hat heute ebenfalls keine Notification konfiguriert |
+| D1 | Rewrite in Rust instead of a .NET 10 fork | A fork means rebasing forever with no gain; a rewrite means an own model, resources, learning |
+| D2 | One service for movies + series | Shared pipeline (indexer → decision → download → import) |
+| D3 | MIT + clean room | Freedom within the amigo-labs ecosystem; GPL code is never touched |
+| D4 | SQLite (sqlx) | Single user, one container, mini PC |
+| D5 | Movies before series | The Radarr domain is much simpler; series build on a finished core |
+| D6 | nzbget as the first download client | Already running; never switch two new components live at once |
+| D7 | Usenet only | Matches the owner's setup |
+| D8 | Own API, v3 compatibility only for concrete integrations | Don't rebuild the legacy of the Sonarr API |
+| D9 | Indexers directly via Newznab, no Prowlarr | Matches the owner's setup; `sofarr-indexer` speaks Newznab directly, Prowlarr compatibility stays "only if needed" (§8) |
+| D10 | Series metadata from TVDB, movies from TMDB | Same episode order as Sonarr → parity in phase 5; a second provider is accepted |
+| D11 | Import lists (TMDb persons) before replacing Radarr (phase 4) | 5 active lists in the owner's setup; without them no new movies would arrive after the switch-off |
+| D12 | No Jellyfin refresh after an import | Jellyfin watches the library itself; Radarr has no notification configured today either |
+| D13 | Failure handling per app by `autoRedownloadFailed`; failed releases go on a blocklist (GUID and title) | Sonarr has it on, Radarr off; without a blocklist the same release would come back through another indexer |
+| D14 | Backups via `VACUUM INTO`, snapshot before migrations; the config (secrets) is not part of a backup | Consistent copy while running, without extra tools |
+| D15 | Optional auth: one user (argon2, session cookie) plus an API key | Often unnecessary at home, needed behind a reverse proxy or on the road |
+| D16 | Web UI: Svelte 5 + SvelteKit (`adapter-static`, SPA), Bun, strict TS, embedded with `rust-embed` | A pure static build without SSR; smallest bundles, little boilerplate; one binary stays one binary |
+| D17 | sofarr fetches subtitles itself through the OpenSubtitles.com REST API | Jellyfin's plugin is unreliable (limits, no control); Bazarr is GPL and one more service |
+| D18 | Trailers stored locally in `trailers/` via yt-dlp; the runtime image becomes Alpine | Jellyfin plays local trailers on every client, remote YouTube links often not |
+| D19 | Discover and people pages via TMDB, without requests/approvals | One user; adding directly instead of requesting |
+| D20 | IMDb ratings from the official IMDb datasets | No key, no limit, every title, sortable and filterable locally |
+| D21 | Re-search after a failure is set per media kind in `sofarr.toml`, defaulting to the imported `autoRedownloadFailed` | Parity with the own setup by default, but the owner can deviate without touching Radarr/Sonarr |
+| D22 | Own media info reader as a pure crate `sofarr-mediainfo` (Matroska, MP4) on `Read + Seek`, used by `sofarr-server`; no ffprobe/MediaInfo | Keeps the single static binary and offline operation; pure like `sofarr-parser`, so it is tested with byte fixtures |
+| D23 | UI look after github.com: `@primer/primitives` (design tokens, light/dark) and `@primer/octicons` (icons), both MIT, with own Svelte components | A familiar, calm, dense look for lists and status; tokens and icons ready-made, components fit Svelte; no GitHub branding |
+| D24 | Posters and images reach the browser only through sofarr, which caches them under `/config/cache` | The browser talks to sofarr alone (privacy, works behind auth), images load fast and once |
+| D26 | Series also carry their TMDB id, found through TMDB's lookup by TVDB id at the metadata refresh; TVDB stays the source of episodes (D10) | IMDb fallback, cast, discover and trailers come from TMDB; one id per series avoids lookups everywhere |
+| D25 | Subtitle provider client as an IO crate `sofarr-subtitles` (depends on `sofarr-parser` for release-name matching), used by `sofarr-server` | Keeps the provider's HTTP API and quota logic out of the server's orchestration and testable against a fake provider, like `sofarr-indexer` |
 
-## 10. Offene Fragen
+## 10. Open questions
 
-- Web-UI: Stack und Zeitpunkt (Bun + React + TS, eingebettet per `rust-embed`, ist der Favorit).
-- amigo-downloader: Library-Crate oder Daemon mit API?
+- amigo-downloader: library crate or daemon with an API?
