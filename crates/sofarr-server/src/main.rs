@@ -25,6 +25,8 @@ mod throttle;
 #[cfg(test)]
 mod api_tests;
 #[cfg(test)]
+mod auth_log_tests;
+#[cfg(test)]
 mod auth_tests;
 #[cfg(test)]
 mod backup_api_tests;
@@ -581,8 +583,6 @@ fn router() -> axum::Router {
     axum::Router::new().route("/api/health", axum::routing::get(api::health))
 }
 
-/// `amigo-sofarr hash-password`: typed without echo in a terminal, otherwise one line
-/// from stdin; the password is never an argument and never printed.
 fn init_tracing(config: &Config) {
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.log.level));

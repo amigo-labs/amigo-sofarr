@@ -429,7 +429,7 @@ async fn only_active_grabs_can_be_marked() {
 
 #[tokio::test]
 async fn marking_needs_the_download_client() {
-    let log = crate::auth_tests::Captured::default();
+    let log = crate::auth_log_tests::Captured::default();
     let _guard = log.install();
     let s = movie_services().await;
     let api = Api::start(app(Library::Movies, &live(&s, "")).await).await;

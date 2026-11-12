@@ -36,6 +36,16 @@ pub struct Config {
 /// The longest session lifetime: ten years, far below where timestamps overflow.
 const MAX_SESSION_DAYS: u32 = 3650;
 
+/// `[auth] session_days` as written: anything but an integer that fits becomes 0, which
+/// [`AuthConfig::check`] refuses with a German message naming the key.
+fn lenient_days<'de, D: serde::Deserializer<'de>>(d: D) -> Result<u32, D::Error> {
+    let value = toml::Value::deserialize(d)?;
+    Ok(value
+        .as_integer()
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(0))
+}
+
 /// `[auth]`: optional login, API key, trusted networks and proxies (spec auth).
 #[derive(Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -45,6 +55,7 @@ pub struct AuthConfig {
     /// Argon2id PHC string (`amigo-sofarr hash-password`).
     pub password_hash: Option<String>,
     pub api_key: Option<String>,
+    #[serde(deserialize_with = "lenient_days")]
     pub session_days: u32,
     pub trusted_networks: Vec<String>,
     pub trusted_proxies: Vec<String>,
@@ -104,7 +115,7 @@ impl AuthConfig {
         );
         anyhow::ensure!(
             (1..=MAX_SESSION_DAYS).contains(&self.session_days),
-            "[auth] session_days muss zwischen 1 und {MAX_SESSION_DAYS} liegen"
+            "[auth] session_days muss eine ganze Zahl zwischen 1 und {MAX_SESSION_DAYS} sein"
         );
         for (key, list) in [
             ("trusted_networks", &self.trusted_networks),

@@ -28,7 +28,8 @@ pub fn hash_from_input(
     auth::hash_password(password)
 }
 
-/// The CLI command: the terminal prompt hides what is typed.
+/// `amigo-sofarr hash-password`: typed without echo in a terminal, otherwise one line
+/// from stdin; the password is never an argument and never printed.
 pub fn run() -> anyhow::Result<()> {
     use std::io::IsTerminal;
     let stdin = std::io::stdin();
