@@ -110,6 +110,16 @@ async fn presentation(db: &Db, table: &str) -> Result<HashMap<i64, Presentation>
 }
 
 impl Db {
+    /// A number that changes with every change of movies, series, episodes, their files
+    /// and titles, or the settings.
+    pub async fn library_version(&self) -> Result<i64> {
+        Ok(
+            sqlx::query_scalar("SELECT version FROM library_version WHERE id = 1")
+                .fetch_one(self.pool())
+                .await?,
+        )
+    }
+
     /// Added time, poster path and overview of every movie, by id.
     pub async fn movie_presentation(&self) -> Result<HashMap<i64, Presentation>> {
         presentation(self, "movies").await

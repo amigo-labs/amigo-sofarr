@@ -332,3 +332,49 @@ async fn activity_and_problems_newest_first() {
     assert_eq!(active.len(), 1);
     assert_eq!(active[0].status, GrabStatus::Completed);
 }
+
+#[tokio::test]
+async fn every_library_change_moves_the_version() {
+    let db = Db::in_memory().await.expect("db");
+    let mut last = db.library_version().await.expect("version");
+    let mut moved = async |db: &Db, what: &str| {
+        let now = db.library_version().await.expect("version");
+        assert!(now > last, "{what} keeps the version");
+        last = now;
+    };
+    let m = db.upsert_movie(&movie(1), at(0)).await.expect("movie");
+    moved(&db, "a new movie").await;
+    db.set_file(m, &file("a.mkv"), at(0)).await.expect("file");
+    moved(&db, "a movie file").await;
+    db.set_movie_presentation(m, Some("/p.jpg"), None)
+        .await
+        .expect("poster");
+    moved(&db, "a poster").await;
+    db.put_setting("qualityprofile", &serde_json::json!([]))
+        .await
+        .expect("setting");
+    moved(&db, "a setting").await;
+    let s = db.upsert_series(&series(), at(0)).await.expect("series");
+    moved(&db, "a new series").await;
+    let e = db.upsert_episode(s, &episode(1, 1)).await.expect("episode");
+    moved(&db, "an episode").await;
+    db.set_episode_file(s, &[e], &file("e.mkv"), at(0))
+        .await
+        .expect("episode file");
+    moved(&db, "an episode file").await;
+    db.delete_movie(m).await.expect("delete");
+    moved(&db, "removing a movie").await;
+    let kept = db.upsert_movie(&movie(2), at(0)).await.expect("movie");
+    moved(&db, "another movie").await;
+    db.add_grab(
+        &NewGrab {
+            movie_id: kept,
+            ..grab("x", GrabStatus::Shadow)
+        },
+        at(0),
+    )
+    .await
+    .expect("grab");
+    let now = db.library_version().await.expect("version");
+    assert_eq!(now, last, "grabs are no library change");
+}
