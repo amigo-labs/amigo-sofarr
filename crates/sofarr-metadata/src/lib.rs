@@ -8,6 +8,9 @@ use serde_json::Value;
 use sofarr_parser::Language;
 
 pub mod tvdb;
+pub mod videos;
+
+pub use videos::{Video, VideoOwner, trailer_candidates};
 
 pub const TMDB_API: &str = "https://api.themoviedb.org/3";
 
