@@ -682,3 +682,36 @@ async fn a_failed_pre_migration_pruning_is_shown() {
         error.message
     );
 }
+
+#[test]
+fn pre_migration_backups_keep_the_three_newest_by_time() {
+    let file = |name: &str, time: &str| backup_files::BackupFile {
+        name: name.to_owned(),
+        kind: Kind::PreMigration,
+        size: 1,
+        time: t(time),
+        valid: true,
+    };
+    let files = [
+        file("future", "2099-01-01T00:00:00Z"),
+        file("a", "2026-10-01T00:00:00Z"),
+        file("b", "2026-10-02T00:00:00Z"),
+        file("c", "2026-10-03T00:00:00Z"),
+    ];
+    let now = t("2026-11-12T00:00:00Z");
+    assert_eq!(
+        backup_files::to_prune(&files, Kind::PreMigration, 3, now, None),
+        ["a"]
+    );
+    let scheduled: Vec<_> = files
+        .iter()
+        .map(|f| backup_files::BackupFile {
+            kind: Kind::Scheduled,
+            ..f.clone()
+        })
+        .collect();
+    assert_eq!(
+        backup_files::to_prune(&scheduled, Kind::Scheduled, 3, now, None),
+        ["future"]
+    );
+}

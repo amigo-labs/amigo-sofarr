@@ -475,3 +475,53 @@ async fn a_failed_restore_leaves_the_previous_database() {
     assert_eq!(backup_files::read_marker(&env.db).expect("marker"), None);
     assert!(replaced(&env).is_empty());
 }
+
+#[tokio::test]
+async fn a_failed_cancel_keeps_the_pending_restore() {
+    let env = Env::new("api-cancel-fail");
+    let app = env.app("").await;
+    let a = app
+        .write_backup(Kind::Manual, Timestamp::now())
+        .await
+        .expect("a");
+    app.choose_restore(&a.name).await.expect("choose");
+    let api = Api::start(app).await;
+    let guard = Undeletable::new(&backup_files::marker_path(&env.db));
+    let (status, body) = api
+        .json(reqwest::Method::DELETE, "/api/backups/restore")
+        .await;
+    drop(guard);
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(german(&body).contains("nicht aufgehoben"), "{body}");
+    assert_eq!(
+        backup_files::read_marker(&env.db).expect("marker"),
+        Some(a.name)
+    );
+}
+
+/// Windows only: under unix the guard makes the whole folder read-only, and the start
+/// could not open the database at all.
+#[cfg(windows)]
+#[tokio::test]
+async fn a_restore_is_applied_only_once() {
+    let env = Env::new("restore-once");
+    let app = env.app("").await;
+    add_movie(&app, 1).await;
+    let file = app
+        .write_backup(Kind::Manual, Timestamp::now())
+        .await
+        .expect("backup");
+    app.choose_restore(&file.name).await.expect("choose");
+    close(app).await;
+    // The marker cannot be removed: nothing is restored, so a restart cannot restore
+    // the same backup over newer changes again.
+    let guard = Undeletable::new(&backup_files::marker_path(&env.db));
+    let app = backups::open_for_serve(env.config(""), Timestamp::now())
+        .await
+        .expect("start");
+    drop(guard);
+    add_movie(&app, 2).await;
+    assert_eq!(movie_count(&app).await, 2);
+    assert!(replaced(&env).is_empty(), "not restored");
+    close(app).await;
+}

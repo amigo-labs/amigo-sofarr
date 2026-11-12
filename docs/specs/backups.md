@@ -143,7 +143,7 @@ Terms used below:
 | AC-01 | `backup_tests::a_scheduled_backup_is_due_once_per_interval`, `backup_tests::a_backup_runs_while_the_database_answers` (`crates/sofarr-server/src/backup_tests.rs`); `backup_tests::the_scheduler_writes_a_backup_soon_after_start`, `backup_tests::api_requests_are_answered_while_a_backup_runs` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
 | AC-02 | `backup_tests::a_backup_is_valid_and_consistent` (`crates/sofarr-server/src/backup_tests.rs`); `files::tests::copies_are_valid_sofarr_databases` (`crates/sofarr-db/src/files.rs`) | built |        |
 | AC-03 | `backup_tests::scheduled_backups_beyond_keep_are_pruned` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
-| AC-04 | `backup_tests::a_start_with_pending_migrations_writes_a_pre_migration_backup` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
+| AC-04 | `backup_tests::a_start_with_pending_migrations_writes_a_pre_migration_backup` (`crates/sofarr-server/src/backup_tests.rs`); `backup_tests::pre_migration_backups_keep_the_three_newest_by_time` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
 | AC-05 | `backup_tests::a_start_without_pending_migrations_writes_none` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
 | AC-06 | `backup_api_tests::a_manual_backup_through_the_api` (`crates/sofarr-server/src/backup_api_tests.rs`); `backup_and_restore_through_the_cli`, `a_failing_cli_backup_exits_with_a_german_message` (`crates/sofarr-server/tests/cli_backup.rs`) | built |        |
 | AC-07 | `backup_tests::a_failed_backup_leaves_nothing_and_is_shown` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
@@ -151,8 +151,8 @@ Terms used below:
 | AC-09 | `backup_api_tests::the_backup_list` (`crates/sofarr-server/src/backup_api_tests.rs`); `files::tests::tells_foreign_newer_and_broken_files_apart` (`crates/sofarr-db/src/files.rs`) | built |        |
 | AC-10 | `backup_api_tests::download_and_delete_a_backup` (`crates/sofarr-server/src/backup_api_tests.rs`) | built |        |
 | AC-11 | `backup_api_tests::names_outside_the_folder_or_unknown_are_not_found` (`crates/sofarr-server/src/backup_api_tests.rs`) | built |        |
-| AC-12 | `backup_api_tests::choosing_and_cancelling_a_restore` (`crates/sofarr-server/src/backup_api_tests.rs`) | built |        |
-| AC-13 | `backup_api_tests::a_pending_restore_is_applied_at_start`, `backup_api_tests::an_older_backup_is_migrated_after_the_restore` (`crates/sofarr-server/src/backup_api_tests.rs`); `backup_tests::journal_files_go_aside_with_the_replaced_database` (`crates/sofarr-server/src/backup_tests.rs`) | built |        |
+| AC-12 | `backup_api_tests::choosing_and_cancelling_a_restore` (`crates/sofarr-server/src/backup_api_tests.rs`); `backup_api_tests::a_failed_cancel_keeps_the_pending_restore` (`crates/sofarr-server/src/backup_api_tests.rs`) | built |        |
+| AC-13 | `backup_api_tests::a_pending_restore_is_applied_at_start`, `backup_api_tests::an_older_backup_is_migrated_after_the_restore` (`crates/sofarr-server/src/backup_api_tests.rs`); `backup_tests::journal_files_go_aside_with_the_replaced_database` (`crates/sofarr-server/src/backup_tests.rs`); `backup_api_tests::a_restore_is_applied_only_once` (`crates/sofarr-server/src/backup_api_tests.rs`, Windows) | built |        |
 | AC-14 | `backup_api_tests::an_unusable_pending_restore_is_dropped` (`crates/sofarr-server/src/backup_api_tests.rs`) | built |        |
 | AC-15 | `backup_api_tests::a_failed_restore_leaves_the_previous_database` (`crates/sofarr-server/src/backup_api_tests.rs`) | built |        |
 | AC-16 | `backup_and_restore_through_the_cli` (`crates/sofarr-server/tests/cli_backup.rs`); `a_cli_restore_moves_the_journal_files_aside` (`crates/sofarr-server/tests/cli_backup.rs`) | built |        |
@@ -179,4 +179,5 @@ Terms used below:
 - 2026-11-12: `sofarr-server` gets `sqlx` (already a workspace dependency) as a dev-dependency, to craft broken and newer-version databases in tests.
 - 2026-11-12: The pruning failure test runs under Windows only (an open file cannot be deleted there); under unix a read-only folder would also stop the new backup. The delete failure test runs on both.
 - 2026-11-12: After the first verification round: the scheduler is started by `backups::spawn_schedule` (tested), the due check reads only the names of the scheduled backups (no file is opened every minute), a pruning failure at start is handed to the app and shown in the list, the list skips entries that vanish while it is read, and only sofarr's own `sofarr-*.db.tmp` files are cleaned up at start. All new tests went red with the behavior switched off.
+- 2026-11-12: After the second verification round: the pending restore marker is removed before the backup is put in place (if it cannot be removed, nothing is restored), so a restart never restores the same backup again over newer changes; pre-migration backups keep the three newest by time without the future-first rule of scheduled ones (AC-04 says "by backup time").
 - 2026-11-12: Timestamps in JSON answers are RFC 3339 text (`serialize_with`), without enabling jiff's `serde` feature.

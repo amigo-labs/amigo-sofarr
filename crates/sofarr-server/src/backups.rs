@@ -165,14 +165,16 @@ pub async fn apply_pending_restore(config: &Config, now: Timestamp) -> Option<ba
             None
         }
     };
-    let swap = match marker {
+    // Cleared first: a marker left behind would restore the same backup again at the
+    // next start, over everything changed since.
+    if let Err(e) = backup_files::clear_marker(db) {
+        tracing::warn!(error = %e, "pending restore not cleared, not applied");
+        return None;
+    }
+    match marker {
         Some(name) => restore_named(config, &name, now).await,
         None => None,
-    };
-    if let Err(e) = backup_files::clear_marker(db) {
-        tracing::warn!(error = %e, "pending restore not cleared");
     }
-    swap
 }
 
 async fn restore_named(config: &Config, name: &str, now: Timestamp) -> Option<backup_files::Swap> {

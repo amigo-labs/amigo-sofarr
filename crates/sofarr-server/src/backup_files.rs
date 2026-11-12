@@ -246,8 +246,10 @@ pub fn to_prune(
 ) -> Vec<String> {
     let mut of_kind: Vec<&BackupFile> = files.iter().filter(|f| f.kind == kind).collect();
     let excess = of_kind.len().saturating_sub(keep);
-    // Future ones first, then by time ascending.
-    of_kind.sort_by_key(|f| (f.time <= now, f.time));
+    // Scheduled ones with a time in the future go first (AC-03); pre-migration backups
+    // keep the newest by time (AC-04). Then by time ascending.
+    let future_first = kind == Kind::Scheduled;
+    of_kind.sort_by_key(|f| (!future_first || f.time <= now, f.time));
     of_kind
         .into_iter()
         .filter(|f| Some(f.name.as_str()) != protected)
