@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
 
-# Both jobs only read the repository; the Docker build pushes nothing.
+# The jobs only read the repository; the Docker build pushes nothing.
 permissions:
   contents: read
 
@@ -25,6 +25,29 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
 
+  ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run check
+      - run: bun run test
+      - run: bun run build
+      - run: cargo build -p sofarr-server --locked
+        working-directory: .
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run e2e
+
   docker:
     runs-on: ubuntu-latest
     needs: check
@@ -38,3 +61,13 @@ jobs:
           tags: amigo-sofarr:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          load: true
+      # The image contains the UI: the container answers / with the app document.
+      - run: |
+          docker run -d --name sofarr -p 7676:7676 --tmpfs /config:uid=1000,gid=1000 amigo-sofarr:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:7676/ -o page.html; then break; fi
+            sleep 1
+          done
+          docker logs sofarr
+          grep -q '/_app/immutable/' page.html
