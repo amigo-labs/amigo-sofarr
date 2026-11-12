@@ -151,6 +151,9 @@ public specifications, general knowledge of release names.
 | D19 | Discover and people pages via TMDB, without requests/approvals | One user; adding directly instead of requesting |
 | D20 | IMDb ratings from the official IMDb datasets | No key, no limit, every title, sortable and filterable locally |
 | D21 | Re-search after a failure is set per media kind in `sofarr.toml`, defaulting to the imported `autoRedownloadFailed` | Parity with the own setup by default, but the owner can deviate without touching Radarr/Sonarr |
+| D23 | UI look after github.com: `@primer/primitives` (design tokens, light/dark) and `@primer/octicons` (icons), both MIT, with own Svelte components | A familiar, calm, dense look for lists and status; tokens and icons ready-made, components fit Svelte; no GitHub branding |
+| D24 | Posters and images reach the browser only through sofarr, which caches them under `/config/cache` | The browser talks to sofarr alone (privacy, works behind auth), images load fast and once |
+| D22 | Own media info reader as a pure crate `sofarr-mediainfo` (Matroska, MP4) on `Read + Seek`, used by `sofarr-server`; no ffprobe/MediaInfo | Keeps the single static binary and offline operation; pure like `sofarr-parser`, so it is tested with byte fixtures |
 
 ## 10. Open questions
 

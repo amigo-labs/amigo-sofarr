@@ -19,7 +19,7 @@ The order is binding because later specs build on earlier ones.
 | 1 | [fail-handling](fail-handling.md) | M | – | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) | `/spec-build fail-handling` |
 | 2 | [backups](backups.md) | M | – | Scheduled, manual and pre-migration backups, restore at the next start or by CLI (D14) | `/spec-build backups` |
 | 3 | [auth](auth.md) | M | – | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) | `/spec-build auth` |
-| 4 | mediainfo | L | – | Own MKV/MP4 reader: codecs, HDR, audio and subtitle tracks; real `{MediaInfo…}` tokens | `/spec mediainfo` |
+| 4 | [mediainfo](mediainfo.md) | L | – | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) | `/spec-build mediainfo` |
 | 5 | web-ui | L | auth | Svelte 5 + SvelteKit static, embedded; overview, movies, series, missing, blocklist, backups (D16) | `/spec web-ui` |
 | 6 | discover | L | web-ui | Discover/trending, people pages with filmography, adding titles, IMDb rating from the IMDb datasets (D19, D20) | `/spec discover` |
 | 7 | subtitles | L | mediainfo | OpenSubtitles.com, stored by Jellyfin's naming rules (D17) | `/spec subtitles` |
