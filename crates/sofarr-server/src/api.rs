@@ -15,6 +15,8 @@ use sofarr_db::{GrabStatus, MediaRef};
 
 use crate::{
     app::SharedApp,
+    backup_files::{BackupFile, Kind},
+    backups::{BackupList, BackupRequestError},
     downloads::{GrabRef, MarkError},
     library,
     search::{SearchError, SearchReport, SearchTarget},
@@ -31,6 +33,13 @@ pub fn routes(app: SharedApp) -> Router {
         .route("/api/blocklist/{id}", delete(unblock))
         .route("/api/command/rss-sync", post(rss_sync))
         .route("/api/command/search", post(search))
+        .route("/api/backups", get(backup_list).post(backup_now))
+        .route("/api/backups/restore", delete(cancel_restore))
+        .route(
+            "/api/backups/{name}",
+            get(download_backup).delete(delete_backup),
+        )
+        .route("/api/backups/{name}/restore", post(choose_restore))
         .with_state(app)
 }
 
@@ -318,6 +327,85 @@ async fn mark(app: &SharedApp, grab: GrabRef) -> Result<StatusCode, ApiError> {
         Err(MarkError::Unavailable(m)) => Err(ApiError::new(StatusCode::SERVICE_UNAVAILABLE, m)),
         Err(MarkError::Failed(e)) => Err(e.into()),
     }
+}
+
+impl From<BackupRequestError> for ApiError {
+    fn from(e: BackupRequestError) -> Self {
+        match e {
+            BackupRequestError::NotFound => {
+                Self::new(StatusCode::NOT_FOUND, "Sicherung nicht gefunden")
+            }
+            BackupRequestError::Invalid(m) => Self::new(StatusCode::UNPROCESSABLE_ENTITY, m),
+            BackupRequestError::Unreadable(m) => Self::new(StatusCode::SERVICE_UNAVAILABLE, m),
+            BackupRequestError::Failed(m) => Self::new(StatusCode::INTERNAL_SERVER_ERROR, m),
+        }
+    }
+}
+
+async fn backup_list(State(app): State<SharedApp>) -> Result<Json<BackupList>, ApiError> {
+    Ok(Json(app.backup_list().await?))
+}
+
+async fn backup_now(State(app): State<SharedApp>) -> Result<Json<BackupFile>, ApiError> {
+    app.write_backup(Kind::Manual, jiff::Timestamp::now())
+        .await
+        .map(Json)
+        .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, format!("{e:#}")))
+}
+
+/// The backup file as it is (read whole: backups are a few megabytes).
+async fn download_backup(
+    State(app): State<SharedApp>,
+    Path(name): Path<String>,
+) -> Result<Response, ApiError> {
+    let path = app.backup_path(&name).await?;
+    let bytes = tokio::fs::read(&path)
+        .await
+        .map_err(|_| ApiError::from(BackupRequestError::NotFound))?;
+    Ok((
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                "application/octet-stream".to_owned(),
+            ),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{name}\""),
+            ),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+async fn delete_backup(
+    State(app): State<SharedApp>,
+    Path(name): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    app.delete_backup(&name).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Serialize)]
+struct RestoreAnswer {
+    pending_restore: String,
+    message: &'static str,
+}
+
+async fn choose_restore(
+    State(app): State<SharedApp>,
+    Path(name): Path<String>,
+) -> Result<Json<RestoreAnswer>, ApiError> {
+    app.choose_restore(&name).await?;
+    Ok(Json(RestoreAnswer {
+        pending_restore: name,
+        message: "Die Sicherung wird beim nächsten Start eingespielt",
+    }))
+}
+
+async fn cancel_restore(State(app): State<SharedApp>) -> Result<StatusCode, ApiError> {
+    app.cancel_restore().await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(test)]

@@ -70,6 +70,14 @@ remove_completed = true
 # remote = "/downloads"
 # local = "/data/usenet"
 
+[backup]
+# Sicherungen der Datenbank (ohne diese Datei: sie enthält Zugangsdaten).
+dir = "/config/backups"
+# Stunden zwischen geplanten Sicherungen; 0 schaltet sie ab.
+interval_hours = 24
+# So viele geplante Sicherungen bleiben (mindestens 1); manuelle bleiben immer.
+keep = 7
+
 [import_lists]
 interval_hours = 24   # 0 schaltet die Import Lists ab
 

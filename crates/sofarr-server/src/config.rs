@@ -10,7 +10,7 @@ use serde::Deserialize;
 
 pub const DEFAULT_PORT: u16 = 7676;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub server: ServerConfig,
@@ -29,9 +29,71 @@ pub struct Config {
     pub download: DownloadConfig,
     pub import_lists: ImportListConfig,
     pub library: LibraryConfig,
+    pub backup: BackupConfig,
 }
 
-#[derive(Debug, Deserialize)]
+/// `[backup]`: where backups go, how often and how many scheduled ones are kept.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(try_from = "RawBackupConfig")]
+pub struct BackupConfig {
+    pub dir: PathBuf,
+    /// Hours between scheduled backups; 0 disables them.
+    pub interval_hours: u64,
+    /// Scheduled backups kept (at least 1).
+    pub keep: u32,
+}
+
+impl Default for BackupConfig {
+    fn default() -> Self {
+        Self {
+            dir: PathBuf::from("/config/backups"),
+            interval_hours: 24,
+            keep: 7,
+        }
+    }
+}
+
+/// `[backup]` as written, checked with German messages that name the key.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawBackupConfig {
+    dir: Option<PathBuf>,
+    interval_hours: Option<toml::Value>,
+    keep: Option<toml::Value>,
+}
+
+impl TryFrom<RawBackupConfig> for BackupConfig {
+    type Error = String;
+
+    fn try_from(raw: RawBackupConfig) -> Result<Self, Self::Error> {
+        let defaults = Self::default();
+        let whole = |value: Option<toml::Value>, min: i64, key: &str, rule: &str| match value {
+            None => Ok(None),
+            Some(toml::Value::Integer(n)) if n >= min => Ok(Some(n)),
+            Some(_) => Err(format!("[backup] {key} muss {rule} sein")),
+        };
+        let interval_hours = whole(
+            raw.interval_hours,
+            0,
+            "interval_hours",
+            "eine ganze Zahl ab 0",
+        )?
+        .map_or(Ok(defaults.interval_hours), |n| {
+            u64::try_from(n).map_err(|_| "[backup] interval_hours ist zu groß".to_owned())
+        })?;
+        let keep = whole(raw.keep, 1, "keep", "eine ganze Zahl ab 1")?
+            .map_or(Ok(defaults.keep), |n| {
+                u32::try_from(n).map_err(|_| "[backup] keep ist zu groß".to_owned())
+            })?;
+        Ok(Self {
+            dir: raw.dir.unwrap_or(defaults.dir),
+            interval_hours,
+            keep,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LibraryConfig {
     /// Hours between metadata refreshes (TMDB/TVDB, if configured) with the disk scan
@@ -47,7 +109,7 @@ impl Default for LibraryConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NzbgetConfig {
     /// Base URL, e.g. `http://nzbget:6789`.
@@ -68,7 +130,7 @@ fn default_category() -> String {
     "movies".to_owned()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DownloadConfig {
     /// Minutes between checks of the download client.
@@ -121,7 +183,7 @@ impl DownloadConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ImportListConfig {
     /// Hours between import list syncs; 0 disables them.
@@ -134,7 +196,7 @@ impl Default for ImportListConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DatabaseConfig {
     pub path: PathBuf,
@@ -159,13 +221,13 @@ pub enum Mode {
     Live,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AutomationConfig {
     pub mode: Mode,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RssConfig {
     /// Minutes between RSS syncs; 0 disables the scheduler.
@@ -180,14 +242,14 @@ impl Default for RssConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TmdbConfig {
     /// TMDB v3 API key or v4 read access token.
     pub api_key: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TvdbConfig {
     pub api_key: String,
@@ -196,14 +258,14 @@ pub struct TvdbConfig {
 }
 
 /// The Radarr instance sofarr imports from and compares against.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RadarrConfig {
     pub url: String,
     pub api_key: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IndexerConfig {
     pub name: String,
@@ -235,7 +297,7 @@ fn default_limit() -> u32 {
     100
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ServerConfig {
     pub bind: SocketAddr,
@@ -249,7 +311,7 @@ impl Default for ServerConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LogConfig {
     /// Default filter if `RUST_LOG` is not set, e.g. `info` or `sofarr_server=debug`.
@@ -345,6 +407,34 @@ mod tests {
             PathBuf::from("/downloadsx/a")
         );
         assert_eq!(config.download.check_interval_minutes, 2);
+    }
+
+    #[test]
+    fn backup_settings_are_checked() {
+        let config = Config::parse("").expect("defaults");
+        assert_eq!(config.backup.interval_hours, 24);
+        assert_eq!(config.backup.keep, 7);
+        assert_eq!(config.backup.dir, PathBuf::from("/config/backups"));
+        let config =
+            Config::parse("[backup]\ninterval_hours = 0\nkeep = 1\ndir = \"/b\"\n").expect("valid");
+        assert_eq!((config.backup.interval_hours, config.backup.keep), (0, 1));
+        for (raw, key) in [
+            ("keep = 0", "keep"),
+            ("keep = -3", "keep"),
+            ("keep = 2.5", "keep"),
+            ("interval_hours = -1", "interval_hours"),
+            ("interval_hours = 1.5", "interval_hours"),
+            ("interval_hours = \"24\"", "interval_hours"),
+        ] {
+            let error = Config::parse(&format!("[backup]\n{raw}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{raw} must be rejected"));
+            let message = format!("{error:#}");
+            assert!(
+                message.contains(&format!("[backup] {key} muss")),
+                "{raw}: {message}"
+            );
+        }
     }
 
     #[test]

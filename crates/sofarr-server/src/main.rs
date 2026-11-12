@@ -2,6 +2,8 @@
 
 mod api;
 mod app;
+mod backup_files;
+mod backups;
 mod compare;
 mod config;
 mod downloads;
@@ -18,6 +20,10 @@ mod series;
 
 #[cfg(test)]
 mod api_tests;
+#[cfg(test)]
+mod backup_api_tests;
+#[cfg(test)]
+mod backup_tests;
 #[cfg(test)]
 mod failure_tests;
 #[cfg(test)]
@@ -116,6 +122,14 @@ enum Command {
     },
     /// Prüft den Download-Client und importiert fertige Downloads
     CheckDownloads,
+    /// Schreibt eine Sicherung der Datenbank in den Sicherungsordner
+    Backup,
+    /// Spielt eine Sicherung ein (nur bei gestopptem Server); die bisherige Datenbank
+    /// bleibt als `….replaced-<Zeit>` liegen
+    Restore {
+        /// Name im Sicherungsordner oder Pfad zur Sicherung
+        backup: String,
+    },
     /// Synchronisiert die Import Lists (TMDb-Personen)
     SyncImportLists,
     /// Vergleicht sofarrs Dateinamen mit Radarrs Benennung (Orakel: rename)
@@ -167,6 +181,7 @@ fn main() -> ExitCode {
     let result = match cli.command.unwrap_or(Command::Serve) {
         Command::Serve => runtime.block_on(serve(config)),
         Command::Healthcheck => runtime.block_on(healthcheck(config.server.bind)),
+        Command::Restore { backup } => runtime.block_on(restore(&config, &backup)),
         command => runtime.block_on(run_command(config, command)),
     };
 
@@ -185,7 +200,33 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     let interval = config.rss.interval_minutes;
     let mode = config.automation.mode;
     let bind = config.server.bind;
-    let state = Arc::new(App::new(config).await?);
+    let db_path = config.database.path.clone();
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Verzeichnis {} nicht anlegbar", parent.display()))?;
+    }
+    // Held while the server runs: a CLI restore must not swap the database under it.
+    let _lock = backup_files::lock_server(&db_path)
+        .with_context(|| format!("Sperrdatei neben {} nicht nutzbar", db_path.display()))?
+        .with_context(|| {
+            format!(
+                "Ein anderer sofarr-Server nutzt die Datenbank {} bereits",
+                db_path.display()
+            )
+        })?;
+    match backup_files::remove_stale_tmp(&config.backup.dir, jiff::Timestamp::now()) {
+        Ok(0) => {}
+        Ok(n) => tracing::info!(files = n, "stale backup leftovers removed"),
+        Err(e) => tracing::warn!(error = %e, "backup folder not cleaned"),
+    }
+    let state = Arc::new(backups::open_for_serve(config, jiff::Timestamp::now()).await?);
+    if state.config.backup.interval_hours > 0 {
+        let job = Arc::clone(&state);
+        tokio::spawn(app::every("backup", backups::CHECK_INTERVAL, move || {
+            let job = Arc::clone(&job);
+            async move { job.backup_tick(jiff::Timestamp::now()).await.map(|_| ()) }
+        }));
+    }
     if interval > 0 && !state.indexers.is_empty() {
         let job = Arc::clone(&state);
         tokio::spawn(app::every(
@@ -273,7 +314,18 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
         anyhow::Ok(radarr::Radarr::new(app.http.clone(), config))
     };
     match command {
-        Command::Serve | Command::Healthcheck => unreachable!("handled in main"),
+        Command::Serve | Command::Healthcheck | Command::Restore { .. } => {
+            unreachable!("handled in main")
+        }
+        Command::Backup => {
+            let file = app
+                .write_backup(backup_files::Kind::Manual, jiff::Timestamp::now())
+                .await?;
+            println!(
+                "Sicherung geschrieben: {} ({} Bytes, {})",
+                file.name, file.size, file.time
+            );
+        }
         Command::ImportRadarr { exports } => {
             let docs = match exports {
                 Some(dir) => library::read_export_dir(&dir)?,
@@ -420,6 +472,43 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             print!("{report}");
             anyhow::ensure!(clean, "Grabs weichen von Radarrs History ab");
         }
+    }
+    Ok(())
+}
+
+/// `amigo-sofarr restore`: puts a backup in place while no server runs, without running
+/// migrations (the next start runs them).
+async fn restore(config: &Config, backup: &str) -> anyhow::Result<()> {
+    let db = &config.database.path;
+    let _lock = backup_files::lock_server(db)
+        .with_context(|| format!("Sperrdatei neben {} nicht nutzbar", db.display()))?
+        .context(
+            "Der Server läuft – eine Sicherung lässt sich nur bei gestopptem Server einspielen",
+        )?;
+    let path = if backup_files::is_plain_name(backup) {
+        config.backup.dir.join(backup)
+    } else {
+        std::path::PathBuf::from(backup)
+    };
+    anyhow::ensure!(path.is_file(), "Sicherung {backup} nicht gefunden");
+    let same = match (path.canonicalize(), db.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    };
+    anyhow::ensure!(!same, "{backup} ist die aktuelle Datenbank");
+    anyhow::ensure!(
+        sofarr_db::inspect(&path).await.valid,
+        "{backup} ist keine gültige Sicherung (beschädigt, keine sofarr-Datenbank oder von einer neueren Version)"
+    );
+    let swap = backup_files::put_in_place(&path, db, jiff::Timestamp::now())
+        .await
+        .context("Wiederherstellung fehlgeschlagen; die bisherige Datenbank ist unverändert")?;
+    match &swap.replaced {
+        Some(previous) => println!(
+            "Sicherung {backup} eingespielt; die bisherige Datenbank liegt unter {}",
+            previous.display()
+        ),
+        None => println!("Sicherung {backup} eingespielt"),
     }
     Ok(())
 }

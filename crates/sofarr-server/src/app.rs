@@ -32,6 +32,10 @@ pub struct App {
     pub jobs: Mutex<()>,
     /// TV search capabilities per indexer name, asked once.
     pub tv_caps: Mutex<HashMap<String, TvCaps>>,
+    /// Serialises backup operations (writing, pruning, deleting, choosing a restore).
+    pub backup_lock: Mutex<()>,
+    /// The last failed backup operation (spec backups AC-07).
+    pub backup_error: std::sync::Mutex<Option<crate::backups::BackupError>>,
 }
 
 pub type SharedApp = Arc<App>;
@@ -39,10 +43,20 @@ pub type SharedApp = Arc<App>;
 const USER_AGENT: &str = concat!("amigo-sofarr/", env!("CARGO_PKG_VERSION"));
 
 impl App {
+    /// Opens the database; before pending migrations a pre-migration backup is written.
     pub async fn new(config: Config) -> anyhow::Result<Self> {
+        Self::open(config, true).await
+    }
+
+    /// Opens the database, with or without the pre-migration backup (a restored backup
+    /// is that snapshot itself).
+    pub async fn open(config: Config, pre_migration_backup: bool) -> anyhow::Result<Self> {
         if let Some(parent) = config.database.path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Verzeichnis {} nicht anlegbar", parent.display()))?;
+        }
+        if pre_migration_backup {
+            crate::backups::before_migrations(&config, Timestamp::now()).await?;
         }
         let db = Db::open(&config.database.path).await.with_context(|| {
             format!("Datenbank {} nicht nutzbar", config.database.path.display())
@@ -65,6 +79,8 @@ impl App {
             nzbget,
             jobs: Mutex::new(()),
             tv_caps: Mutex::new(HashMap::new()),
+            backup_lock: Mutex::new(()),
+            backup_error: std::sync::Mutex::new(None),
         })
     }
 
