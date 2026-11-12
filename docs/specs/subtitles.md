@@ -132,23 +132,38 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
+| AC-01 | `an_episode_import_replaces_own_subtitles_and_searches_the_new_file` (crates/sofarr-server/src/subtitles/api_tests.rs) | built | 943c4fd |
+| AC-02 | `a_run_stores_the_best_candidate_in_utf8_next_to_the_video`, `a_used_up_quota_waits_for_the_reset_newest_first` (crates/sofarr-server/src/subtitles/tests.rs); `a_failing_provider_shows_on_the_system_page` (crates/sofarr-server/src/subtitles/api_tests.rs, schedule) | built | 943c4fd |
+| AC-03 | `covered_languages_are_never_searched`, `a_deleted_own_subtitle_is_needed_again` (crates/sofarr-server/src/subtitles/tests.rs); `one_own_subtitle_per_file_language_and_kind` (crates/sofarr-db/src/subtitles/tests.rs); needs tests in crates/sofarr-server/src/subtitles/needs.rs | built | e66a5cc, 943c4fd |
+| AC-04 | `a_run_stores_the_best_candidate_in_utf8_next_to_the_video` (crates/sofarr-server/src/subtitles/tests.rs); `rank::tests::*`, `naming::tests::names_follow_jellyfin`, `text::tests::*`, `hash::tests::*` (crates/sofarr-subtitles) | built | 99e2a2a, 943c4fd |
+| AC-05 | `needs_without_candidates_are_retried_daily_then_weekly`, `a_used_up_quota_waits_for_the_reset_newest_first`, `shadow_mode_searches_but_writes_nothing` (crates/sofarr-server/src/subtitles/tests.rs); `overview_lists_needs_and_recent_subtitles_and_file_subtitles` (crates/sofarr-server/src/subtitles/api_tests.rs, forced not listed); `needs_keep_their_schedule_while_they_stay` (crates/sofarr-db/src/subtitles/tests.rs) | built | e66a5cc, 943c4fd |
+| AC-06 | `foreign_subtitles_cover_their_language_and_stay_untouched` (crates/sofarr-server/src/subtitles/tests.rs); `writing_never_replaces_a_file` (crates/sofarr-server/src/subtitles/files.rs); foreign file kept in `an_episode_import_replaces_own_subtitles_and_searches_the_new_file` (crates/sofarr-server/src/subtitles/api_tests.rs) | built | 943c4fd |
+| AC-07 | `a_used_up_quota_waits_for_the_reset_newest_first`, `a_quota_refusal_stops_downloads_until_the_reset` (crates/sofarr-server/src/subtitles/tests.rs); `quota_refused_login_and_broken_candidates_are_told_apart` (crates/sofarr-subtitles/src/client_tests.rs) | built | 99e2a2a, 943c4fd |
+| AC-08 | `provider_failures_stop_the_run_and_keep_what_was_stored` (crates/sofarr-server/src/subtitles/tests.rs); `a_failing_provider_shows_on_the_system_page` (crates/sofarr-server/src/subtitles/api_tests.rs); `search_failures_end_the_run` (crates/sofarr-subtitles/src/client_tests.rs) | built | 99e2a2a, 943c4fd |
+| AC-09 | `own_subtitles_follow_a_renamed_and_moved_video` (crates/sofarr-subtitles/src/files.rs) with `Db::rename_own_subtitle`; the rename and move of spec web-ui-library are not built yet, so nothing calls it | open | 25cae18 |
+| AC-10 | `an_episode_import_replaces_own_subtitles_and_searches_the_new_file` (crates/sofarr-server/src/subtitles/api_tests.rs); `own_subtitles_leave_with_their_video` (crates/sofarr-server/src/subtitles/files.rs); removing an item (web-ui-library AC-12) is not built yet and has to call `subtitles::remove_with_video` | built | 943c4fd |
+| AC-11 | API: `overview_lists_needs_and_recent_subtitles_and_file_subtitles`, `overview_shows_shadow_candidates_and_needs_with_schedule` (crates/sofarr-server/src/subtitles/api_tests.rs); UI page open | open | 943c4fd |
+| AC-12 | API: `overview_lists_needs_and_recent_subtitles_and_file_subtitles` (crates/sofarr-server/src/subtitles/api_tests.rs); UI part open | open | 943c4fd |
+| AC-13 | `shadow_mode_searches_but_writes_nothing` (crates/sofarr-server/src/subtitles/tests.rs); `overview_shows_shadow_candidates_and_needs_with_schedule` (crates/sofarr-server/src/subtitles/api_tests.rs) | built | 943c4fd |
+| AC-14 | `broken_candidates_are_discarded_and_the_next_one_tried` (crates/sofarr-server/src/subtitles/tests.rs); `text::tests::unusable_downloads_are_refused` (crates/sofarr-subtitles/src/text.rs) | built | 99e2a2a, 943c4fd |
+| AC-15 | `switched_off_subtitles_search_nothing` (crates/sofarr-server/src/subtitles/tests.rs); `switched_off_subtitles_say_why` (crates/sofarr-server/src/subtitles/api_tests.rs); `subtitle_settings_have_defaults_and_are_checked` (crates/sofarr-server/src/config.rs) | built | 943c4fd |
 
 ## Decisions
 
 - 2026-11-12: Wanted languages de and en, fetched only when neither an audio nor a subtitle track nor an external file covers them (owner).
 - 2026-11-12: A forced subtitle in addition when the provider has one; SDH only when nothing else fits (owner).
+- 2026-11-12: The login answer's `base_url` is not followed; every request goes to `[opensubtitles] url` (default `https://api.opensubtitles.com/api/v1`), which tests point at a fake.
+- 2026-11-12: Requests are spaced by `[opensubtitles] pause_ms` (default 250) for the API's request limit; an HTTP 429 stops the run like a server error (AC-08).
+- 2026-11-12: A used-up quota is a `/download` answer with HTTP 406, or a failed one with `remaining` ≤ 0; it lasts until `reset_time_utc` (24 hours without one) and is kept in memory only: after a restart the next refused download sets it again.
+- 2026-11-12: Only the first result page of a search is ranked; ties of match quality go to the more downloaded candidate.
+- 2026-11-12: A candidate whose release names another episode is discarded even when its hash matches (AC-04 wording).
+- 2026-11-12: When every candidate of a need fails to download or convert (AC-14), the need is searched again like one without candidates (a day or a week later), not at the next run.
+- 2026-11-12: A downloaded subtitle must be text with at least one SRT timing line (`-->`); text that is not UTF-8 or UTF-16 with byte-order mark is read as Windows-1252.
+- 2026-11-12: Language parts of external file names: ISO 639-1/639-2 codes, English names (the table of `sofarr-mediainfo`) and common German names; `hi` counts as the hearing-impaired flag, not as Hindi.
+- 2026-11-12: Own subtitles are recorded by file name in the video's folder (a folder move changes nothing in the database); their records belong to the file record and go with it. A disk scan that drops a vanished file record leaves the subtitle files on disk alone (sofarr did not remove the video).
+- 2026-11-12: The search after an import runs in the subtitle schedule's task, woken by the import, so a slow provider never holds up the download check; it covers the files imported since its last run.
+- 2026-11-12: A multi-episode file is searched as its first episode; it counts as monitored when its series and one of its episodes are.
+- 2026-11-12: An upgrade sends the own subtitles of the replaced video to the recycle bin (or deletes them) even when the new video gets the same name.
+- 2026-11-12: `[subtitles] interval_hours = 0` leaves only the search after imports; `[opensubtitles] username` is masked on the system page like the password and API key.
+- 2026-11-12: API: `GET /api/subtitles`, `GET /api/movies/{id}/subtitles`, `GET /api/series/{id}/episodes/{episode_id}/subtitles`, `POST …/subtitles/search` for both; a search while subtitles are off answers 409 with the reason, a provider failure 502 with the provider's German message.
+- 2026-11-12: A file whose video is not there or whose folder cannot be read (e.g. an unmounted share) is skipped by the run: no search, no change to its own subtitles or needs.

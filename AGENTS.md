@@ -35,7 +35,8 @@ deren Quellcode. Wenn du unsicher bist, ob etwas erlaubt ist: **anhalten und fra
 
 ## Architekturregeln
 
-- Abhängigkeitsrichtung: `parser` ← `core` ← (`indexer`, `metadata`, `download`, `db`) ← `server`.
+- Abhängigkeitsrichtung: `parser` ← `core` ← (`indexer`, `metadata`, `download`, `db`) ← `server`;
+  `parser` ← `subtitles` ← `server` (D25).
   `sofarr-parity` darf alles nutzen, aber nichts darf von `sofarr-parity` abhängen.
   `sofarr-mediainfo` hängt von nichts aus sofarr ab und wird nur von `sofarr-server` genutzt
   (D22); es arbeitet auf `Read + Seek`, ohne eigenen Dateizugriff.
@@ -91,10 +92,11 @@ Die Projektfakten, die die gemeinsamen Spec-Skills (`spec`, `spec-build`, `spec-
   Upgrades, Verfügbarkeit, Naming, Serien-Regeln), `crates/sofarr-indexer` (Newznab),
   `crates/sofarr-metadata` (TMDB, TVDB), `crates/sofarr-download` (`DownloadClient`, nzbget),
   `crates/sofarr-db` (SQLite, Migrationen unter `migrations/`), `crates/sofarr-mediainfo`
-  (Media-Infos aus Matroska- und MP4-Headern), `crates/sofarr-server`
+  (Media-Infos aus Matroska- und MP4-Headern), `crates/sofarr-subtitles` (OpenSubtitles.com-Client,
+  Movie-Hash, Ranking der Kandidaten, UTF-8, Jellyfin-Untertitelnamen), `crates/sofarr-server`
   (Binary `amigo-sofarr`: Config `config.rs`, Scheduler und Pipeline `app.rs`, API `api.rs`,
   RSS `rss.rs`, Import `importer.rs`, Festplatten-Scan `rescan.rs`, Serien `series.rs`,
-  Media-Infos `media.rs`, Import Lists, Orakel-Abgleiche `compare.rs` und `compare_media.rs`),
+  Media-Infos `media.rs`, Untertitel `subtitles.rs`, Import Lists, Orakel-Abgleiche `compare.rs` und `compare_media.rs`),
   `crates/sofarr-parity` (Orakel-Fixtures sammeln,
   Matrix, Diff), `fixtures/` (Orakel), `Dockerfile`, `compose.example.yml`, CI unter
   `.github/workflows/`.
