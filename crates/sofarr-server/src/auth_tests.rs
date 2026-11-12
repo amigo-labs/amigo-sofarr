@@ -101,6 +101,8 @@ async fn auth_off_serves_everything() {
         .await
         .expect("logout");
     assert_eq!(logout.status(), StatusCode::OK);
+    // Without effect: not even a cookie is cleared.
+    assert!(logout.headers().get(header::SET_COOKIE).is_none());
     let me = body(server.get("/api/auth/me").send().await.expect("me")).await;
     assert_eq!(me["auth_enabled"], false);
 }
@@ -330,7 +332,10 @@ async fn failed_logins_look_alike() {
     let wrong_password = server.login("daniel", "falsch").await;
     assert_eq!(wrong_user.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(wrong_password.status(), StatusCode::UNAUTHORIZED);
-    assert_eq!(body(wrong_user).await, body(wrong_password).await);
+    let (user_answer, password_answer) = (body(wrong_user).await, body(wrong_password).await);
+    assert_eq!(user_answer, password_answer);
+    // One German message for both, naming neither which part was wrong.
+    assert_eq!(user_answer["error"], "Benutzername oder Passwort falsch");
     let not_json = server
         .post("/api/auth/login")
         .body("kein json")
@@ -486,6 +491,19 @@ fn a_bad_auth_config_stops_the_start() {
         let message = parse(&toml).unwrap_or_else(|| panic!("{key} must be refused"));
         assert!(
             message.contains(&format!("[auth] {key}")),
+            "{key}: {message}"
+        );
+        // German: every message says what is wrong in German words.
+        assert!(
+            [
+                "fehlt",
+                "kein gültiger",
+                "ist leer",
+                "muss",
+                "keine gültige"
+            ]
+            .iter()
+            .any(|w| message.contains(w)),
             "{key}: {message}"
         );
     }

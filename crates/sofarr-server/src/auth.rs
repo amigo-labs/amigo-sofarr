@@ -358,8 +358,10 @@ pub async fn login(
 
 /// `POST /api/auth/logout`: ends the session of the cookie, if any.
 pub async fn logout(State(app): State<SharedApp>, headers: HeaderMap) -> Response {
-    if app.auth_on()
-        && let Some(token) = session_token(&headers)
+    if !app.auth_on() {
+        return ok().into_response();
+    }
+    if let Some(token) = session_token(&headers)
         && let Err(e) = app.db.remove_session(&token_hash(&token)).await
     {
         return internal(&e.into());
