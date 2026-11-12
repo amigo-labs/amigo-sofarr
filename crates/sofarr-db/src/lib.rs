@@ -3,6 +3,7 @@
 mod blocklist;
 mod files;
 mod series;
+mod sessions;
 
 use std::{path::Path, str::FromStr};
 
@@ -11,6 +12,7 @@ pub use files::{
     Inspection, MIGRATOR, Pending, create_at_version, inspect, pending_migrations, snapshot_file,
 };
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
+pub use sessions::Session;
 
 use jiff::Timestamp;
 use serde_json::Value;
