@@ -222,3 +222,6 @@ Project knowledge belongs in the repository, not on one machine:
 - GitHub Code Scanning (CodeQL) meldet jedes String-Literal, das als Passwort oder Schlüssel
   benutzt wird, als kritisches „hard-coded cryptographic value“ – auch in Tests. Test-Passwörter
   entstehen deshalb zur Laufzeit (`crates/sofarr-server/src/test_secret.rs`).
+  Ebenso gilt eine Konstante, die in einen Hash eingeht (`RandomState::new().hash_one(1)`),
+  als hart kodiertes Salt, und eine Assertion-Meldung, die ein Geheimnis oder eine Ausgabe
+  mit Geheimnis ausgibt, als Klartext-Logging: Meldungen nennen nur, *dass* etwas durchsickert.
