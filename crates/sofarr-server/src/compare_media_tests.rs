@@ -83,7 +83,7 @@ fn client(url: &str, which: OracleApp) -> crate::radarr::Radarr {
 /// the subtitle languages `subtitles`.
 fn media(video: &str, subtitles: &str) -> Value {
     json!({"videoCodec": video, "audioCodec": "EAC3", "audioChannels": 5.1,
-           "videoDynamicRangeType": "HDR", "audioLanguages": "German", "subtitles": subtitles})
+           "videoDynamicRangeType": "HDR10", "audioLanguages": "German", "subtitles": subtitles})
 }
 
 fn assert_lines(report: &str, lines: &[&str]) {

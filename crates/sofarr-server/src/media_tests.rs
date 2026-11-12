@@ -177,7 +177,7 @@ fn naming_takes_each_part_from_the_file_where_known() {
     let info = media::read_path(&full).expect("read").info;
     let parts = media::NamingParts::of(Some(&info));
     assert_eq!(parts.simple(release).as_deref(), Some("h265 EAC3"));
-    assert_eq!(parts.dynamic_range(release).as_deref(), Some("HDR"));
+    assert_eq!(parts.dynamic_range(release).as_deref(), Some("HDR10"));
 
     // No audio track in the file: that part comes from the release name.
     let info = media::read_path(&video_only).expect("read").info;
@@ -407,7 +407,7 @@ async fn the_file_endpoints_answer_with_media_info() {
             ("/media_info/labels/video", json!("x265")),
             ("/media_info/labels/audio", json!("EAC3")),
             ("/media_info/labels/channels", json!("5.1")),
-            ("/media_info/labels/dynamic_range", json!("HDR")),
+            ("/media_info/labels/dynamic_range", json!("HDR10")),
         ],
     );
     let missing = client
@@ -483,7 +483,7 @@ async fn the_episode_file_endpoint() {
             ("/media_info/labels/video", json!("h265")),
             ("/media_info/labels/audio", json!("AAC")),
             ("/media_info/labels/channels", json!("2.0")),
-            ("/media_info/labels/dynamic_range", json!("HDR")),
+            ("/media_info/labels/dynamic_range", json!("HDR10")),
         ],
     );
     let missing = client.get(url(without)).send().await.expect("get");

@@ -57,7 +57,7 @@ async fn an_episode_import_names_and_records_from_the_file() {
 
     // Video, audio and dynamic range from the file, not from the release name (AC-06).
     let season = show_dir.join("Staffel 01");
-    let target = season.join("Kleine Insel - S01E02 h265 EAC3 HDR.mkv");
+    let target = season.join("Kleine Insel - S01E02 h265 EAC3 HDR10.mkv");
     let found: Vec<String> = std::fs::read_dir(&season)
         .map(|d| {
             d.flatten()
@@ -81,7 +81,7 @@ async fn an_episode_import_names_and_records_from_the_file() {
         .await
         .expect("stored");
     assert_eq!(info.labels().audio.as_deref(), Some("EAC3"));
-    assert_eq!(info.labels().dynamic_range.as_deref(), Some("HDR"));
+    assert_eq!(info.labels().dynamic_range.as_deref(), Some("HDR10"));
     // Recorded with the library file's size and time: the next scan does not read it.
     let (_, shows) = app.rescan().await.expect("scan");
     assert_eq!(shows.expect("series scan").media_read, 0);
