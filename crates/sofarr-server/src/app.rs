@@ -47,6 +47,10 @@ pub struct App {
     pub queue_cache: crate::overview::QueueCache,
     /// Poster sources and cache (spec web-ui-library).
     pub images: crate::images::Images,
+    /// The subtitle provider; `None` while subtitles are off (spec subtitles).
+    pub opensubtitles: Option<sofarr_subtitles::OpenSubtitles>,
+    /// Run state of the subtitle search.
+    pub subtitles: crate::subtitles::SubtitleState,
 }
 
 pub type SharedApp = Arc<App>;
@@ -90,6 +94,7 @@ impl App {
         let (indexers, nzbget) = Self::build_clients(&config, &http);
         let auth = crate::auth::AuthState::new(&config.auth);
         let images = crate::images::Images::new(&config.database.path);
+        let opensubtitles = crate::subtitles::client(&config, &http);
         Ok(Self {
             config,
             db,
@@ -105,6 +110,8 @@ impl App {
             lists: crate::library_list::ListCache::default(),
             queue_cache: crate::overview::QueueCache::default(),
             images,
+            opensubtitles,
+            subtitles: crate::subtitles::SubtitleState::default(),
         })
     }
 

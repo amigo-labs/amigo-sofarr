@@ -18,16 +18,18 @@ pub enum Job {
     Refresh,
     Backup,
     Imdb,
+    Subtitles,
 }
 
 impl Job {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Rss,
         Self::Downloads,
         Self::ImportLists,
         Self::Refresh,
         Self::Backup,
         Self::Imdb,
+        Self::Subtitles,
     ];
 
     /// The name in the log and the API.
@@ -39,6 +41,7 @@ impl Job {
             Self::Refresh => "refresh",
             Self::Backup => "backup",
             Self::Imdb => "imdb",
+            Self::Subtitles => "subtitles",
         }
     }
 
@@ -51,6 +54,7 @@ impl Job {
             Self::Refresh => "Metadaten aktualisieren",
             Self::Backup => "Sicherung",
             Self::Imdb => "IMDb-Bewertungen",
+            Self::Subtitles => "Untertitel",
         }
     }
 
@@ -79,6 +83,11 @@ impl Job {
             }
             Self::Backup if config.backup.interval_hours > 0 => hours(config.backup.interval_hours),
             Self::Imdb if config.imdb.enabled => hours(24),
+            Self::Subtitles
+                if app.opensubtitles.is_some() && config.subtitles.interval_hours > 0 =>
+            {
+                hours(config.subtitles.interval_hours)
+            }
             _ => None,
         }
     }

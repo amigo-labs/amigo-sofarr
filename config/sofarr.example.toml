@@ -100,3 +100,17 @@ interval_hours = 24   # 0 schaltet die Import Lists ab
 # Metadaten-Refresh (TMDB/TVDB, falls eingetragen) mit anschließendem Festplatten-Scan
 # laut rescanAfterRefresh; 0 schaltet ihn ab. Der erste Lauf folgt ein Intervall nach dem Start.
 refresh_interval_hours = 24
+
+[subtitles]
+# Untertitel von OpenSubtitles.com (nur mit [opensubtitles]); false schaltet sie ab.
+# enabled = true
+# Gewünschte Sprachen (ISO 639-1); geladen wird nur, was weder Tonspur noch Untertitel abdeckt.
+languages = ["de", "en"]
+# Stunden zwischen geplanten Suchen; 0: nur die Suche nach einem Import.
+interval_hours = 12
+
+# OpenSubtitles.com-Zugang (API-Key unter opensubtitles.com/consumers).
+# [opensubtitles]
+# api_key = "dein-api-key"
+# username = "dein-benutzername"
+# password = "dein-passwort"

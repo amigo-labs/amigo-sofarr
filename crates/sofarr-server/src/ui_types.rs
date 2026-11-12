@@ -34,6 +34,7 @@ use crate::{
     library_view::ReleaseStage,
     overview::{ActivityEntry, ActivityQuery, MediaKind, OverviewAnswer, QueueAnswer, QueueItem},
     search::SearchReport,
+    subtitles::api as subtitles,
     system::{ConnectionAnswer, ContactState, JobAnswer, JobResult, PeerKind, SystemAnswer},
     wanted::{
         BulkSearchBody, BulkSearchReport, SearchItem, WantedItem, WantedList, WantedMedia,
@@ -137,6 +138,14 @@ fn generated() -> BTreeMap<String, String> {
     one::<RemoveAnswer>(&cfg, &mut out);
     one::<Page<()>>(&cfg, &mut out);
     one::<crate::imdb::ImdbInfo>(&cfg, &mut out);
+    one::<subtitles::SubtitleOverview>(&cfg, &mut out);
+    one::<subtitles::SubtitleItem>(&cfg, &mut out);
+    one::<subtitles::NeededSubtitle>(&cfg, &mut out);
+    one::<subtitles::FoundSubtitle>(&cfg, &mut out);
+    one::<subtitles::FileSubtitles>(&cfg, &mut out);
+    one::<subtitles::EmbeddedSubtitle>(&cfg, &mut out);
+    one::<subtitles::ExternalSubtitle>(&cfg, &mut out);
+    one::<subtitles::SubtitleSearchReport>(&cfg, &mut out);
     out
 }
 

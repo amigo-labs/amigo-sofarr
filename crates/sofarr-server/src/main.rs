@@ -36,6 +36,7 @@ mod rss;
 mod search;
 mod series;
 mod status;
+mod subtitles;
 mod system;
 mod throttle;
 mod ui;
@@ -301,6 +302,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     let state = Arc::new(backups::open_for_serve(config, jiff::Timestamp::now()).await?);
     backups::spawn_schedule(&state);
     imdb::spawn_schedule(&state);
+    subtitles::spawn_schedule(&state);
     for job in [Job::Rss, Job::Downloads, Job::ImportLists, Job::Refresh] {
         let Some(every) = job.interval(&state) else {
             continue;
@@ -323,6 +325,11 @@ async fn serve(config: Config) -> anyhow::Result<()> {
                         Job::Refresh => app.refresh(true, true, false).await.map(|_| ()),
                         Job::Backup => app.backup_tick(jiff::Timestamp::now()).await.map(|_| ()),
                         Job::Imdb => imdb::load(&app, jiff::Timestamp::now()).await.map(|_| ()),
+                        Job::Subtitles => {
+                            subtitles::run(&app, subtitles::Scope::All, jiff::Timestamp::now())
+                                .await
+                                .map(|_| ())
+                        }
                     }
                 }
             },

@@ -32,6 +32,79 @@ pub struct Config {
     pub backup: BackupConfig,
     pub auth: AuthConfig,
     pub imdb: ImdbConfig,
+    pub subtitles: SubtitlesConfig,
+    /// The OpenSubtitles.com account (spec subtitles); without it no subtitles are fetched.
+    pub opensubtitles: Option<OpenSubtitlesConfig>,
+}
+
+/// `[subtitles]`: which subtitles sofarr fetches and how often it searches (spec subtitles).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SubtitlesConfig {
+    /// Unset: on when `[opensubtitles]` is set; `false` switches subtitles off (AC-15).
+    pub enabled: Option<bool>,
+    /// Wanted languages, ISO 639-1.
+    pub languages: Vec<String>,
+    /// Hours between scheduled searches; 0 leaves only the search after imports.
+    pub interval_hours: u64,
+}
+
+impl Default for SubtitlesConfig {
+    fn default() -> Self {
+        Self {
+            enabled: None,
+            languages: vec!["de".to_owned(), "en".to_owned()],
+            interval_hours: 12,
+        }
+    }
+}
+
+impl SubtitlesConfig {
+    /// Every language is an ISO 639-1 code (German messages naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        for language in &self.languages {
+            anyhow::ensure!(
+                language.len() == 2
+                    && language.chars().all(|c| c.is_ascii_lowercase())
+                    && sofarr_mediainfo::language_code(language) != "und",
+                "[subtitles] languages: „{language}“ ist kein ISO-639-1-Code (z. B. \"de\")"
+            );
+        }
+        Ok(())
+    }
+}
+
+fn default_opensubtitles_url() -> String {
+    "https://api.opensubtitles.com/api/v1".to_owned()
+}
+
+fn default_pause_ms() -> u64 {
+    250
+}
+
+/// `[opensubtitles]`: the account for the OpenSubtitles.com REST API.
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpenSubtitlesConfig {
+    pub api_key: String,
+    pub username: String,
+    pub password: String,
+    /// The API base (tests use a local one).
+    #[serde(default = "default_opensubtitles_url")]
+    pub url: String,
+    /// Milliseconds between two requests (the API limits requests per second).
+    #[serde(default = "default_pause_ms")]
+    pub pause_ms: u64,
+}
+
+/// Secrets never go to the log, not even through a debug print of the config.
+impl std::fmt::Debug for OpenSubtitlesConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenSubtitlesConfig")
+            .field("url", &self.url)
+            .field("pause_ms", &self.pause_ms)
+            .finish_non_exhaustive()
+    }
 }
 
 /// `[imdb]`: the daily IMDb ratings dataset (spec imdb-ratings).
@@ -477,6 +550,7 @@ impl Config {
             "Indexer-Namen müssen eindeutig sein"
         );
         config.auth.check()?;
+        config.subtitles.check()?;
         Ok(config)
     }
 }
@@ -557,6 +631,62 @@ mod tests {
                 "{raw}: {message}"
             );
         }
+    }
+
+    #[test]
+    fn subtitle_settings_have_defaults_and_are_checked() {
+        let config = Config::parse("").expect("defaults");
+        assert_eq!(config.subtitles.languages, ["de", "en"]);
+        assert_eq!(config.subtitles.interval_hours, 12);
+        assert_eq!(config.subtitles.enabled, None);
+        assert!(config.opensubtitles.is_none());
+        let config = Config::parse(
+            "[subtitles]
+languages = [\"de\"]
+interval_hours = 6
+enabled = false
+             [opensubtitles]
+api_key = \"k\"
+username = \"u\"
+password = \"p\"
+",
+        )
+        .expect("valid");
+        assert_eq!(config.subtitles.languages, ["de"]);
+        assert_eq!(config.subtitles.enabled, Some(false));
+        let account = config.opensubtitles.expect("account");
+        assert_eq!(account.url, "https://api.opensubtitles.com/api/v1");
+        assert_eq!(account.pause_ms, 250);
+        assert!(!format!("{account:?}").contains("\"p\""));
+        for bad in ["\"deu\"", "\"DE\"", "\"xx\""] {
+            let error = Config::parse(&format!(
+                "[subtitles]
+languages = [{bad}]
+"
+            ))
+            .err()
+            .unwrap_or_else(|| panic!("{bad} must be rejected"));
+            assert!(
+                format!("{error:#}").contains("[subtitles] languages"),
+                "{error:#}"
+            );
+        }
+        assert!(
+            Config::parse(
+                "[opensubtitles]
+api_key = \"k\"
+"
+            )
+            .is_err()
+        );
+        assert!(
+            Config::parse(
+                "[subtitles]
+sprachen = []
+"
+            )
+            .is_err()
+        );
     }
 
     #[test]

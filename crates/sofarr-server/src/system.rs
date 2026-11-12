@@ -217,13 +217,27 @@ pub fn redact(value: Value) -> Value {
     }
 }
 
+/// The configuration for the system page: every secret masked, and the OpenSubtitles
+/// account name too (spec subtitles counts it among the secrets).
+fn shown_config(app: &App) -> Value {
+    let mut config = redact(serde_json::to_value(&app.config).unwrap_or(Value::Null));
+    if let Some(name) = config
+        .get_mut("opensubtitles")
+        .and_then(|account| account.get_mut("username"))
+        .filter(|name| !name.is_null())
+    {
+        *name = Value::String(MASK.to_owned());
+    }
+    config
+}
+
 pub fn answer(app: &App, now: Timestamp) -> SystemAnswer {
     SystemAnswer {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         mode: app.config.automation.mode,
         jobs: jobs(app, now),
         connections: connections(app),
-        config: redact(serde_json::to_value(&app.config).unwrap_or(Value::Null)),
+        config: shown_config(app),
     }
 }
 

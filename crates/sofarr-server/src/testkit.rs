@@ -247,6 +247,7 @@ pub async fn app(library: Library, toml: &str) -> App {
         .build()
         .expect("client");
     let (indexers, nzbget) = App::build_clients(&app.config, &http);
+    app.opensubtitles = crate::subtitles::client(&app.config, &http);
     app.http = http;
     app.indexers = indexers;
     app.nzbget = nzbget;

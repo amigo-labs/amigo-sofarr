@@ -331,11 +331,17 @@ impl App {
         let quality = grab.quality.as_str();
         let mut n = 0;
         for (plan, episode_ids) in plans {
+            let replaced = replaced_episode_files(show, &episodes, &episode_ids, &plan);
+            let recycle_bin = settings.recycle_bin.clone();
             let settings = settings.clone();
             let p = plan.clone();
             let size = tokio::task::spawn_blocking(move || importer::execute(&p, &settings))
                 .await
                 .context("Import abgebrochen")??;
+            for (old_id, folder) in replaced {
+                self.remove_old_subtitles(FileRef::Episode(old_id), folder, recycle_bin.clone())
+                    .await;
+            }
             let mut file = importer::imported_file(
                 &plan,
                 size,
@@ -352,6 +358,7 @@ impl App {
                 self.store_imported_media(FileRef::Episode(file_id), &plan.destination, info)
                     .await;
             }
+            crate::subtitles::imported(self, FileRef::Episode(file_id)).await;
             tracing::info!(series = %show.data.title, file = %plan.destination.display(), "imported");
             n += 1;
         }
@@ -360,6 +367,22 @@ impl App {
             .await?;
         self.remove_completed(item, &download).await;
         Ok(n)
+    }
+
+    /// Own subtitles of a replaced video go with it (spec subtitles AC-10); a failure is
+    /// only logged.
+    async fn remove_old_subtitles(
+        &self,
+        file: FileRef,
+        folder: std::path::PathBuf,
+        recycle_bin: Option<std::path::PathBuf>,
+    ) {
+        if let Err(e) = crate::subtitles::remove_with_video(self, file, folder, recycle_bin).await {
+            tracing::warn!(
+                error = format!("{e:#}"),
+                "own subtitles of the old file not removed"
+            );
+        }
     }
 
     /// Stores the media info read from a download's file for its library file; a failure
@@ -424,11 +447,16 @@ impl App {
             naming,
             media.get(&source),
         )?;
+        let recycle_bin = settings.recycle_bin.clone();
         let settings = settings.clone();
         let plan_clone = plan.clone();
         let size = tokio::task::spawn_blocking(move || importer::execute(&plan_clone, &settings))
             .await
             .context("Import abgebrochen")??;
+        if let Some(folder) = plan.old_file.as_deref().and_then(std::path::Path::parent) {
+            self.remove_old_subtitles(FileRef::Movie(movie.id), folder.to_path_buf(), recycle_bin)
+                .await;
+        }
         let score = rules.score(
             movie.quality_profile_id,
             &grab.title,
@@ -446,6 +474,7 @@ impl App {
             self.store_imported_media(FileRef::Movie(movie.id), &plan.destination, info)
                 .await;
         }
+        crate::subtitles::imported(self, FileRef::Movie(movie.id)).await;
         self.db
             .update_grab(grab.id, GrabStatus::Imported, None, None, now)
             .await?;
@@ -453,6 +482,32 @@ impl App {
         self.remove_completed(item, &download).await;
         Ok(())
     }
+}
+
+/// The episode files an import plan replaces, with their folders: those of its episodes
+/// when the plan replaces an old file.
+fn replaced_episode_files(
+    show: &sofarr_db::Series,
+    episodes: &[sofarr_db::Episode],
+    episode_ids: &[i64],
+    plan: &importer::ImportPlan,
+) -> Vec<(i64, std::path::PathBuf)> {
+    if plan.old_file.is_none() {
+        return Vec::new();
+    }
+    let mut out: Vec<(i64, std::path::PathBuf)> = Vec::new();
+    for episode in episodes.iter().filter(|e| episode_ids.contains(&e.id)) {
+        let (Some(id), Some(file)) = (episode.file_id, &episode.file) else {
+            continue;
+        };
+        let path = std::path::Path::new(&show.data.path).join(&file.relative_path);
+        if let Some(folder) = path.parent()
+            && !out.iter().any(|(known, _)| *known == id)
+        {
+            out.push((id, folder.to_path_buf()));
+        }
+    }
+    out
 }
 
 /// A grab, by its id in the table of its media kind.
