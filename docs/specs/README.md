@@ -16,7 +16,7 @@ The order is binding because later specs build on earlier ones.
 
 | # | Spec | Size | Depends on | Content | Next |
 | - | ---- | ---- | ---------- | ------- | ---- |
-| 1 | fail-handling | M | – | Blocklist, new search by `autoRedownloadFailed`, series search (`t=tvsearch`), manual search (D13) | `/spec fail-handling` |
+| 1 | [fail-handling](fail-handling.md) | M | – | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) | `/spec-build fail-handling` |
 | 2 | backups | S | – | `VACUUM INTO` on a schedule, snapshot before migrations, `backup`/`restore` (D14) | `/spec backups` |
 | 3 | auth | M | – | Switchable login (argon2, session) and API key, generic error messages (D15) | `/spec auth` |
 | 4 | mediainfo | L | – | Own MKV/MP4 reader: codecs, HDR, audio and subtitle tracks; real `{MediaInfo…}` tokens | `/spec mediainfo` |

@@ -150,6 +150,7 @@ public specifications, general knowledge of release names.
 | D18 | Trailers stored locally in `trailers/` via yt-dlp; the runtime image becomes Alpine | Jellyfin plays local trailers on every client, remote YouTube links often not |
 | D19 | Discover and people pages via TMDB, without requests/approvals | One user; adding directly instead of requesting |
 | D20 | IMDb ratings from the official IMDb datasets | No key, no limit, every title, sortable and filterable locally |
+| D21 | Re-search after a failure is set per media kind in `sofarr.toml`, defaulting to the imported `autoRedownloadFailed` | Parity with the own setup by default, but the owner can deviate without touching Radarr/Sonarr |
 
 ## 10. Open questions
 
