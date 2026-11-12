@@ -40,6 +40,8 @@ deren Quellcode. Wenn du unsicher bist, ob etwas erlaubt ist: **anhalten und fra
   `sofarr-parity` darf alles nutzen, aber nichts darf von `sofarr-parity` abhängen.
   `sofarr-mediainfo` hängt von nichts aus sofarr ab und wird nur von `sofarr-server` genutzt
   (D22); es arbeitet auf `Read + Seek`, ohne eigenen Dateizugriff.
+  `sofarr-subtitles` ist eine IO-Crate (OpenSubtitles.com über HTTP), hängt nur von
+  `sofarr-parser` ab und wird nur von `sofarr-server` genutzt (D25).
 - `sofarr-parser` und `sofarr-core` sind **pure**: kein IO, kein async, kein Netzwerk,
   keine Systemzeit (Zeit wird als Parameter übergeben).
 - Tokio-Runtime, HTTP-Server und Scheduler leben nur in `sofarr-server`.
