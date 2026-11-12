@@ -193,3 +193,68 @@ code,
 .muted {
   color: var(--fgColor-muted);
 }
+
+.btn-danger {
+  color: var(--button-danger-fgColor-rest);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--bgColor-danger-emphasis);
+  border-color: var(--borderColor-danger-emphasis);
+  color: var(--fgColor-onEmphasis);
+}
+
+/* A box of facts: term above value, in columns that wrap. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--base-size-8) var(--base-size-16);
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Form fields of dialogs and settings. */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-4);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.form-field select,
+.form-field input:not([type='checkbox']) {
+  min-height: 2rem;
+  padding: 0 var(--base-size-8);
+  border: var(--borderWidth-thin) solid var(--control-borderColor-emphasis);
+  border-radius: var(--borderRadius-medium);
+  background: var(--bgColor-default);
+  color: var(--fgColor-default);
+  font: inherit;
+  font-weight: var(--base-text-weight-normal);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--base-size-8);
+}
+
+.check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.15rem 0 0;
+  flex: none;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}

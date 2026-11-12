@@ -8,7 +8,9 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PASSWORD, SERVERS, USERNAME } from './servers.ts';
+import { e2ePassword } from './env.mjs';
+import { seed, seedConfig } from './seed.mjs';
+import { SERVERS, USERNAME } from './servers.ts';
 
 const variant = process.argv[2];
 if (!variant || !(variant in SERVERS)) {
@@ -37,7 +39,10 @@ mkdirSync(dir, { recursive: true });
 const literal = (text) => `'${text.replaceAll('\\', '/')}'`;
 
 function hashPassword() {
-  const result = spawnSync(binary, ['hash-password'], { input: `${PASSWORD}\n`, encoding: 'utf8' });
+  const result = spawnSync(binary, ['hash-password'], {
+    input: `${e2ePassword()}\n`,
+    encoding: 'utf8',
+  });
   if (result.status !== 0) {
     process.stderr.write(`hash-password failed: ${result.stderr}\n`);
     process.exit(1);
@@ -70,6 +75,8 @@ if (variant === 'open') {
     'url = "http://indexer-user:indexer-pass@127.0.0.1:9/api?apikey=abc123"',
     'api_key = "indexer-schluessel-e2e"',
   );
+} else if (['library', 'bench', 'live'].includes(variant)) {
+  lines.push(...seedConfig(variant));
 } else {
   lines.push(
     '[auth]',
@@ -82,6 +89,11 @@ if (variant === 'open') {
 
 const config = join(dir, 'sofarr.toml');
 writeFileSync(config, `${lines.join('\n')}\n`, { encoding: 'utf8' });
+
+if (['library', 'bench', 'live'].includes(variant)) {
+  const fixtures = join(root, 'fixtures', 'public', 'config', 'radarr');
+  await seed(variant, { binary, config, dir, fixtures });
+}
 
 const child = spawn(binary, ['--config', config, 'serve'], { stdio: 'inherit' });
 for (const signal of ['SIGINT', 'SIGTERM']) {

@@ -10,6 +10,8 @@
   import { startedCleanly } from '#lib/asset-recovery.ts';
   import { LOGIN_PATH, canLogOut, loginRequired, routeFor } from '#lib/auth/redirect.ts';
   import { dismissInterrupted, loadSession, logOut, session } from '#lib/auth/session.svelte.ts';
+  import Notices from '#lib/library/components/Notices.svelte';
+  import { pageChanged } from '#lib/library/notices.svelte.ts';
 
   let { children }: { children: Snippet } = $props();
 
@@ -26,7 +28,15 @@
     void loadSession();
   });
 
-  afterNavigate(() => startedCleanly());
+  let shownPath: string | null = null;
+
+  afterNavigate(({ to }) => {
+    startedCleanly();
+    // Results of actions belong to the page they were started on.
+    const path = to?.url.pathname ?? null;
+    if (shownPath !== null && path !== shownPath) pageChanged();
+    shownPath = path;
+  });
 
   $effect(() => {
     if (redirect !== null) void goto(redirect, { replaceState: true });
@@ -69,6 +79,8 @@
       <button type="button" class="btn" onclick={dismissInterrupted}>Schließen</button>
     </Flash>
   {/if}
+
+  <Notices />
 
   {#if me === null}
     {#if session.failure !== null}

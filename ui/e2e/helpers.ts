@@ -1,9 +1,10 @@
 import { expect, type Page, type Route } from '@playwright/test';
 import type { SystemAnswer } from '../src/lib/api/generated/SystemAnswer';
-import { PASSWORD, USERNAME } from './servers';
+import { e2ePassword } from './env.mjs';
+import { USERNAME } from './servers';
 
 /** Logs in on the login page that is shown now. */
-export async function logIn(page: Page, password: string = PASSWORD): Promise<void> {
+export async function logIn(page: Page, password: string = e2ePassword()): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Bei sofarr anmelden' })).toBeVisible();
   await page.getByLabel('Benutzername').fill(USERNAME);
   await page.getByLabel('Passwort').fill(password);
@@ -20,6 +21,12 @@ export async function expectNoHorizontalScroll(page: Page): Promise<void> {
 export async function expectSystemPage(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: 'System' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Geplante Aufgaben' })).toBeVisible();
+}
+
+/** The overview at `/` (spec web-ui-library AC-01) once it loaded its data. */
+export async function expectOverview(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: 'Übersicht' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Warteschlange' })).toBeVisible();
 }
 
 /** A system answer covering every state the page shows. */

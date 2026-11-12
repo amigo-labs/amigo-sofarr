@@ -69,7 +69,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
 
     test('page not found', async ({ page }) => {
-      await page.goto(`${SERVERS.open}/filme`);
+      await page.goto(`${SERVERS.open}/entdecken`);
       await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
       await expectNoViolations(page);
     });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PAGES, START_PAGE, isCurrent, navPages } from './nav';
+import { PAGES, isCurrent, navPages } from './nav';
 
 describe('navigation', () => {
   it('keeps the order of the spec', () => {
@@ -17,7 +17,16 @@ describe('navigation', () => {
   });
 
   it('lists only built pages, in order', () => {
-    expect(navPages().map((p) => p.href)).toEqual(['/system']);
+    expect(navPages().map((p) => p.label)).toEqual([
+      'Übersicht',
+      'Filme',
+      'Serien',
+      'Kalender',
+      'Fehlend',
+      'Blocklist',
+      'Backups',
+      'System',
+    ]);
     const built = PAGES.map((p) => ({ label: p.label, href: p.href, built: p.href !== '/filme' }));
     expect(navPages(built).map((p) => p.label)).toEqual([
       'Übersicht',
@@ -29,10 +38,6 @@ describe('navigation', () => {
       'Backups',
       'System',
     ]);
-  });
-
-  it('starts at the system page until the overview exists', () => {
-    expect(START_PAGE).toBe('/system');
   });
 
   it('marks the current page', () => {

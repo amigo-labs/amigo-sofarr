@@ -1,7 +1,7 @@
 // AC-16: the transfer budget of a first visit; AC-19: recovery from assets of an old build.
 
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { expectSystemPage } from './helpers';
+import { expectOverview, expectSystemPage } from './helpers';
 import { SERVERS } from './servers';
 
 const BUDGET_BYTES = 200 * 1024;
@@ -28,7 +28,7 @@ test.describe('transfer budget (AC-16)', () => {
     `${SERVERS.open}/`,
     `${SERVERS.open}/system`,
     `${SERVERS.auth}/anmelden`,
-    `${SERVERS.open}/filme`,
+    `${SERVERS.open}/entdecken`,
   ]) {
     test(`${url} loads at most 200 KB of JavaScript and CSS (gzip)`, async ({ browser }) => {
       const bytes = await scriptAndStyleBytes(browser, url);
@@ -103,7 +103,7 @@ test.describe('assets of an old build (AC-19)', () => {
   test('a page changed by a newer build loads after one reload during navigation', async ({
     page,
   }) => {
-    await page.goto(`${SERVERS.open}/filme`);
+    await page.goto(`${SERVERS.open}/entdecken`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     const documents = countDocuments(page);
     let failed = 0;
@@ -113,7 +113,7 @@ test.describe('assets of an old build (AC-19)', () => {
       return route.abort('failed');
     });
     await page.getByRole('link', { name: 'Zur Startseite' }).click();
-    await expectSystemPage(page);
+    await expectOverview(page);
     expect(failed).toBeGreaterThan(0);
     // One new app document, for the address the navigation went to.
     expect(documents()).toBe(1);

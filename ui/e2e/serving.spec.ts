@@ -1,7 +1,7 @@
 // AC-01, AC-02, AC-17: the binary serves the UI itself, every page address opens directly.
 
 import { expect, test } from '@playwright/test';
-import { expectSystemPage } from './helpers';
+import { expectOverview, expectSystemPage } from './helpers';
 import { SERVERS } from './servers';
 
 test.describe('serving the UI (AC-01, AC-02)', () => {
@@ -10,7 +10,7 @@ test.describe('serving the UI (AC-01, AC-02)', () => {
     expect(response?.status()).toBe(200);
     expect(response?.headers()['content-type']).toContain('text/html');
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-    await expectSystemPage(page);
+    await expectOverview(page);
   });
 
   test('a page address opens directly and survives a reload', async ({ page }) => {
@@ -24,10 +24,10 @@ test.describe('serving the UI (AC-01, AC-02)', () => {
   test('an address of a page not built yet shows "Seite nicht gefunden" with a link to the start', async ({
     page,
   }) => {
-    await page.goto(`${SERVERS.open}/filme`);
+    await page.goto(`${SERVERS.open}/entdecken`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     await page.getByRole('link', { name: 'Zur Startseite' }).click();
-    await expectSystemPage(page);
+    await expectOverview(page);
   });
 
   test('unknown assets and API paths are errors, not the app document', async ({ request }) => {

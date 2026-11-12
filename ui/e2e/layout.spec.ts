@@ -1,7 +1,14 @@
 // AC-08 .. AC-11 (keyboard), AC-14: navigation, narrow screens, theme, German texts.
 
 import { expect, test, type Page } from '@playwright/test';
-import { SAMPLE_SYSTEM, expectNoHorizontalScroll, expectSystemPage, json } from './helpers';
+import {
+  SAMPLE_SYSTEM,
+  expectNoHorizontalScroll,
+  expectOverview,
+  expectSystemPage,
+  json,
+} from './helpers';
+import { e2ePassword } from './env.mjs';
 import { SERVERS } from './servers';
 
 const DARK_BG = 'rgb(13, 17, 23)';
@@ -13,15 +20,30 @@ const background = (page: Page) =>
 test.describe('navigation (AC-08)', () => {
   test('lists the built pages in order and marks the current one', async ({ page }) => {
     await page.goto(`${SERVERS.open}/`);
-    await expectSystemPage(page);
-    expect(new URL(page.url()).pathname).toBe('/system');
+    await expectOverview(page);
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
-    await expect(nav.getByRole('link')).toHaveText(['System']);
+    await expect(nav.getByRole('link')).toHaveText([
+      'Übersicht',
+      'Filme',
+      'Serien',
+      'Kalender',
+      'Fehlend',
+      'Blocklist',
+      'Backups',
+      'System',
+    ]);
+    await expect(nav.getByRole('link', { name: 'Übersicht' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await nav.getByRole('link', { name: 'System' }).click();
+    await expectSystemPage(page);
     await expect(nav.getByRole('link', { name: 'System' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Übersicht' })).not.toHaveAttribute('aria-current');
   });
 
   test('every page reaches every other page through the navigation', async ({ page }) => {
-    await page.goto(`${SERVERS.open}/filme`);
+    await page.goto(`${SERVERS.open}/entdecken`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })
@@ -56,7 +78,7 @@ test.describe('narrow screens (AC-09)', () => {
   for (const [name, url] of [
     ['system page', `${SERVERS.open}/system`],
     ['login page', `${SERVERS.auth}/anmelden`],
-    ['page not found', `${SERVERS.open}/filme`],
+    ['page not found', `${SERVERS.open}/entdecken`],
   ] as const) {
     test(`the ${name} fits 360 px without horizontal scrolling`, async ({ page }) => {
       await page.goto(url);
@@ -149,14 +171,14 @@ test.describe('keyboard (AC-11)', () => {
   test('every control is reachable by Tab with a visible focus', async ({ page }) => {
     await page.goto(`${SERVERS.auth}/system`);
     await page.getByLabel('Benutzername').fill('admin');
-    await page.getByLabel('Passwort').fill('e2e-geheim');
+    await page.getByLabel('Passwort').fill(e2ePassword());
     await page.keyboard.press('Enter');
     await expectSystemPage(page);
     // A fresh document: the Tab order starts at its beginning.
     await page.reload();
     await expectSystemPage(page);
     const reached: string[] = [];
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < 14; i += 1) {
       await page.keyboard.press('Tab');
       const focus = await page.evaluate(() => {
         const el = document.activeElement;
@@ -182,11 +204,11 @@ test.describe('keyboard (AC-11)', () => {
     await page.getByLabel('Benutzername').focus();
     await page.keyboard.type('admin');
     await page.keyboard.press('Tab');
-    await page.keyboard.type('e2e-geheim');
+    await page.keyboard.type(e2ePassword());
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Anmelden' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expectSystemPage(page);
+    await expectOverview(page);
   });
 });
 
@@ -217,7 +239,7 @@ test.describe('German texts (AC-14)', () => {
     await expect(page.getByText('Verbindung abgelehnt').first()).toBeVisible();
     expect(await visibleText(page)).not.toMatch(ENGLISH);
 
-    await page.goto(`${SERVERS.open}/filme`);
+    await page.goto(`${SERVERS.open}/entdecken`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     expect(await visibleText(page)).not.toMatch(ENGLISH);
 

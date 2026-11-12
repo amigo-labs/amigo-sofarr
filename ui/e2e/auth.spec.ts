@@ -1,7 +1,7 @@
 // AC-04 .. AC-07: login, logout, no login page where none is needed, expired sessions.
 
 import { expect, test } from '@playwright/test';
-import { expectSystemPage, json, logIn } from './helpers';
+import { expectOverview, expectSystemPage, json, logIn } from './helpers';
 import { SERVERS } from './servers';
 
 const BAD_LOGIN = 'Benutzername oder Passwort falsch';
@@ -16,17 +16,17 @@ test.describe('login (AC-04)', () => {
     await expectSystemPage(page);
   });
 
-  test('a login without a requested page shows the system page (AC-08)', async ({ page }) => {
+  test('a login without a requested page shows the overview (AC-08)', async ({ page }) => {
     await page.goto(`${SERVERS.auth}/anmelden`);
     await logIn(page);
-    await expect(page).toHaveURL(`${SERVERS.auth}/system`);
-    await expectSystemPage(page);
+    await expect(page).toHaveURL(`${SERVERS.auth}/`);
+    await expectOverview(page);
   });
 
   test('a foreign target after the login leads to the start page', async ({ page }) => {
     await page.goto(`${SERVERS.auth}/anmelden?weiter=${encodeURIComponent('//evil.example/x')}`);
     await logIn(page);
-    await expect(page).toHaveURL(`${SERVERS.auth}/system`);
+    await expect(page).toHaveURL(`${SERVERS.auth}/`);
   });
 });
 
@@ -105,8 +105,8 @@ test.describe('no login where none is needed (AC-06)', () => {
   ] as const) {
     test(`${name}: no login page and no logout; the login address leads to /`, async ({ page }) => {
       await page.goto(`${base}/anmelden?weiter=%2Fsystem`);
-      await expectSystemPage(page);
-      expect(new URL(page.url()).pathname).toBe('/system');
+      await expectOverview(page);
+      expect(new URL(page.url()).pathname).toBe('/');
       await expect(page.getByRole('heading', { name: 'Bei sofarr anmelden' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Abmelden' })).toHaveCount(0);
     });
