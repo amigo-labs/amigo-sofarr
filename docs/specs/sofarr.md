@@ -159,6 +159,7 @@ public specifications, general knowledge of release names.
 | D26 | Series also carry their TMDB id, found through TMDB's lookup by TVDB id at the metadata refresh; TVDB stays the source of episodes (D10) | IMDb fallback, cast, discover and trailers come from TMDB; one id per series avoids lookups everywhere |
 | D25 | Subtitle provider client as an IO crate `sofarr-subtitles` (depends on `sofarr-parser` for release-name matching), used by `sofarr-server` | Keeps the provider's HTTP API and quota logic out of the server's orchestration and testable against a fake provider, like `sofarr-indexer` |
 | D27 | Auth building blocks: `argon2` for the password (D15), `sha2` for stored session-token hashes, `subtle` for constant-time key comparison, `rand` for tokens, `rpassword` for password input without echo (owner) | Established, small crates; no secret is stored or compared in plain form |
+| D28 | Series refresh: a new episode of a known season is monitored only when an episode of that season is monitored; a new season follows the per-series switch `monitor_new_seasons` (default on) | Adding a series with chosen seasons (spec discover AC-08) must not monitor the left-out seasons at the next refresh |
 
 ## 10. Open questions
 

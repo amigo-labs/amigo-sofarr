@@ -120,24 +120,38 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
-| AC-16 |      | open   |        |
-| AC-17 |      | open   |        |
+| AC-01 | `shelves_come_in_order_with_library_state_and_ratings_that_load` (`crates/sofarr-server/src/discover/tests.rs`); UI pending | open |        |
+| AC-02 | `the_filtered_list_merges_movies_and_series_by_popularity` (`crates/sofarr-server/src/discover/tests.rs`); `the_rating_filter_reads_on_until_twenty_titles_are_visible` (`crates/sofarr-server/src/discover/tests.rs`); `genres_of_movies_and_series_are_merged` (`crates/sofarr-server/src/discover/tests.rs`); UI pending | open |        |
+| AC-03 | `search_groups_movies_series_and_people_with_library_state` (`crates/sofarr-server/src/discover/tests.rs`); UI pending | open |        |
+| AC-04 | `previews_show_the_title_and_say_whether_it_is_in_the_library` (`crates/sofarr-server/src/discover/title_tests.rs`); UI pending | open |        |
+| AC-05 | `person_pages_list_cast_and_crew_departments_with_library_state` (`crates/sofarr-server/src/discover/title_tests.rs`); UI pending | open |        |
+| AC-06 | `library_titles_get_their_first_ten_cast_members` (`crates/sofarr-server/src/discover/title_tests.rs`); UI pending | open |        |
+| AC-07 | `an_added_movie_is_put_like_the_import_lists_and_its_folder_scanned` (`crates/sofarr-server/src/add_tests.rs`); `the_import_list_sync_adds_selected_movies_with_the_lists_settings` (`crates/sofarr-server/src/import_list_tests.rs`); UI pending | open |        |
+| AC-08 | `an_added_series_monitors_the_chosen_seasons_and_new_ones_by_the_switch` (`crates/sofarr-server/src/add_tests.rs`); `series::tests::new_episodes_follow_their_season_and_new_seasons_the_switch` (`crates/sofarr-server/src/series/tests.rs`); UI pending | open |        |
+| AC-09 | `a_series_tvdb_cannot_give_is_not_added` (`crates/sofarr-server/src/add_tests.rs`); UI pending | open |        |
+| AC-10 | `add_defaults_are_remembered_per_kind_and_fall_back` (`crates/sofarr-server/src/add_tests.rs`); UI pending | open |        |
+| AC-11 | `duplicates_missing_root_folders_and_excluded_titles_are_refused` (`crates/sofarr-server/src/add_tests.rs`); UI pending | open |        |
+| AC-12 | `a_person_import_list_is_created_once_and_synced_like_any_other` (`crates/sofarr-server/src/add_tests.rs`); UI pending | open |        |
+| AC-13 | `answers_come_from_the_cache_for_six_and_twenty_four_hours` (`crates/sofarr-server/src/discover/tests.rs`); `discover::cache::tests::*` (`crates/sofarr-server/src/discover/cache.rs`); UI pending | open |        |
+| AC-14 | `tmdb_down_shows_cached_data_with_a_notice_or_a_german_message` (`crates/sofarr-server/src/discover/tests.rs`); UI pending | open |        |
+| AC-15 | `without_a_tmdb_key_the_pages_say_what_is_missing` (`crates/sofarr-server/src/discover/tests.rs`); UI pending | open |        |
+| AC-16 | `requests_ask_for_german_texts_and_german_releases` (`crates/sofarr-metadata/src/browse/tests.rs`); `details_fall_back_to_english_texts_and_find_ids_and_the_trailer` (`crates/sofarr-metadata/src/browse/tests.rs`); `list_entries_of_movies_series_and_people` (`crates/sofarr-metadata/src/browse/tests.rs`) | built |        |
+| AC-17 | `tmdb_images_are_loaded_once_and_served_from_the_cache` (`crates/sofarr-server/src/discover/title_tests.rs`); UI pending | open |        |
 
 ## Decisions
 
 - 2026-11-12: The add dialog remembers the last choices per media kind (owner).
+- 2026-11-12: TMDB answers are cached in memory, bounded per kind, and kept up to 7 days as a stale fallback (AC-13, AC-14); one process needs no table, and the cache starts empty after a restart.
+- 2026-11-12: Without a media kind, page n of the result list reads TMDB page n of movies and of series and merges them by popularity; one request reads at most 10 TMDB pages and then returns `next_page`, so a strict rating filter cannot run away (AC-02).
+- 2026-11-12: The person page gets every credit with library state and rating, newest first, undated last; sorting and the "nur fehlende", kind and paging choices are made in the browser, because one TMDB request delivers all credits anyway (AC-05).
+- 2026-11-12: `POST /api/discover/states` gives the current library state and rating of up to 500 titles, so pages refresh ratings still loading and titles added meanwhile without a reload.
+- 2026-11-12: A title TMDB answers 404 for shows no rating instead of staying "pending".
+- 2026-11-12: The new-season switch is stored per series (`series.monitor_new_seasons`, migration 0012, default on so existing series behave as before); Sonarr's own setting is not imported (AC-08).
+- 2026-11-12: The series refresh monitors a new episode of a known season only if an episode of that season is monitored, and a new season by the series' switch; before, every new episode of a monitored series was monitored, which would monitor seasons the user left out when adding (AC-08). Series imported from Sonarr with a fully unmonitored season now keep that season unmonitored.
+- 2026-11-12: A stored default tag that no longer exists is dropped on its own; a profile or root folder that no longer exists falls back to its first-time value (AC-10).
+- 2026-11-12: New series get series type "standard" and season folders; root folders come from `rootfolder` (movies) and `sonarr_rootfolder` (series).
+- 2026-11-12: The search on add runs after the answer: movies once they count as available (the import list rule), series for their missing monitored episodes; import lists keep searching inline.
+- 2026-11-12: A person import list offers cast and the crew departments Directing, Production, Sound and Writing, the ones the existing list filter supports, and is stored as a `TMDbPersonImport` entry of the `importlist` setting (AC-12).
+- 2026-11-12: An excluded title answers 428 until the request carries `confirm_excluded: true` (AC-11).
+- 2026-11-12: The add-movie flow of the import list sync and discover is one function; the import list tests stayed green across the refactoring.
+- 2026-11-12: `App` has a `tvdb_api` field next to `tmdb_api`, so tests point TVDB at a fake (`tmdb_fake.rs`); the series refresh now also builds its TMDB client through `metadata::tmdb`.
