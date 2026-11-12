@@ -10,9 +10,9 @@ Two kinds of spec live here (`AGENTS.md`, "Spec-driven workflow"):
 
 ## Order
 
-Phase 6 "operations and comfort" (decisions D13–D20). The specs are not written yet; each is
-written with `/spec <name>` right before it is built and then moves into this table with a link.
-The order is binding because later specs build on earlier ones.
+Phase 6 "operations and comfort" (decisions D13–D26). All specs are written and committed;
+the next step for each is `/spec-build <name>`, then `/spec-check <name>`. The order is binding
+because later specs build on earlier ones.
 
 | # | Spec | Size | Depends on | Content | Next |
 | - | ---- | ---- | ---------- | ------- | ---- |
@@ -24,8 +24,8 @@ The order is binding because later specs build on earlier ones.
 | 6 | [web-ui-library](web-ui-library.md) | L | web-ui-shell, fail-handling, backups | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) | `/spec-build web-ui-library` |
 | 7 | [imdb-ratings](imdb-ratings.md) | M | web-ui-library | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) | `/spec-build imdb-ratings` |
 | 8 | [discover](discover.md) | L | web-ui-library, imdb-ratings | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) | `/spec-build discover` |
-| 9 | subtitles | L | mediainfo | OpenSubtitles.com, stored by Jellyfin's naming rules (D17) | `/spec subtitles` |
-| 10 | trailers | M | – | TMDB trailers via yt-dlp into `trailers/`, Alpine runtime image (D18) | `/spec trailers` |
+| 9 | [subtitles](subtitles.md) | L | mediainfo, web-ui-library | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) | `/spec-build subtitles` |
+| 10 | [trailers](trailers.md) | M | imdb-ratings | TMDB trailers via yt-dlp into `trailers/` within a daily budget, Alpine runtime image (D18) | `/spec-build trailers` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
