@@ -55,6 +55,8 @@ struct Walk {
     /// The declared end of the `Segment`, `None` for an unknown size.
     seg_declared_end: Option<u64>,
     tracks: Option<Vec<tracks::MkvTrack>>,
+    /// The input ended inside `Tracks`: only its complete `TrackEntry`s were read.
+    tracks_cut: bool,
     tags_read: bool,
     tag_encoder: Option<&'static str>,
     seek_tracks: Option<u64>,
@@ -89,12 +91,12 @@ pub(crate) fn read<R: Read + Seek>(src: &mut Source<'_, R>) -> MediaInfo {
         let _ = frames::scan(src, first, seg_end, &mut entries);
     }
     let drafts: Vec<Draft> = entries.into_iter().map(|entry| entry.draft).collect();
-    track::finish(
-        ReadStatus::Complete,
-        Some(container),
-        drafts,
-        walk.tag_encoder,
-    )
+    let status = if walk.tracks_cut {
+        ReadStatus::Partial
+    } else {
+        ReadStatus::Complete
+    };
+    track::finish(status, Some(container), drafts, walk.tag_encoder)
 }
 
 /// The container named by the DocType of the EBML header; `None` for another document type.
@@ -191,10 +193,7 @@ fn walk_level1<R: Read + Seek>(src: &mut Source<'_, R>, walk: &mut Walk) -> Res<
                     parse_seek_head(&data, walk);
                 }
             }
-            TRACKS if walk.tracks.is_none() => {
-                let data = payload(src, &header, u64::MAX)?;
-                walk.tracks = Some(tracks::parse(&data)?);
-            }
+            TRACKS if walk.tracks.is_none() => read_tracks(src, walk, &header)?,
             TAGS => read_tags(src, walk, &header)?,
             CLUSTER => {
                 walk.first_cluster.get_or_insert(header.start);
@@ -238,9 +237,35 @@ fn follow_seek_heads<R: Read + Seek>(src: &mut Source<'_, R>, walk: &mut Walk) -
     if header.id != TRACKS {
         return Err(Stop::Damaged);
     }
-    let data = payload(src, &header, u64::MAX)?;
-    walk.tracks = Some(tracks::parse(&data)?);
-    Ok(())
+    read_tracks(src, walk, &header)
+}
+
+/// Reads `Tracks`. When the input ends inside it, the complete `TrackEntry`s before the end
+/// are kept (within the read budget) and reading stops there: the file is `partial`.
+fn read_tracks<R: Read + Seek>(
+    src: &mut Source<'_, R>,
+    walk: &mut Walk,
+    header: &Header,
+) -> Res<()> {
+    let size = header.size.ok_or(Stop::Damaged)?;
+    src.seek(header.data);
+    match src.read_vec(size) {
+        Ok(data) => {
+            walk.tracks = Some(tracks::parse(&data)?);
+            Ok(())
+        }
+        Err(Stop::Truncated) => {
+            src.seek(header.data);
+            let data = src.read_some(size)?;
+            let found = tracks::parse_complete(&data)?;
+            if !found.is_empty() {
+                walk.tracks = Some(found);
+                walk.tracks_cut = true;
+            }
+            Err(Stop::Truncated)
+        }
+        Err(stop) => Err(stop),
+    }
 }
 
 /// Records the positions a `SeekHead` names; a damaged `SeekHead` is ignored from there on.

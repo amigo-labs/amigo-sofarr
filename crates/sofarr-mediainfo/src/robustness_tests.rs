@@ -6,23 +6,33 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom};
 use crate::testkit::*;
 use crate::{READ_LIMIT, ReadStatus, read, unreadable};
 
-/// A Matroska file with video, two audio tracks, a subtitle track, tags and a cluster.
-fn mkv_sample() -> (Vec<u8>, usize) {
+/// Where `part` ends inside `file`.
+fn end_of(file: &[u8], part: &[u8]) -> usize {
+    file.windows(part.len())
+        .position(|window| window == part)
+        .expect("part in file")
+        + part.len()
+}
+
+/// A Matroska file with video, two audio tracks, a subtitle track, tags and a cluster, with
+/// the end of its first `TrackEntry` and of its `Tracks`.
+fn mkv_sample() -> (Vec<u8>, usize, usize) {
+    let video = entry(
+        1,
+        1,
+        "V_MPEGH/ISO/HEVC",
+        &[
+            el(0x63A2, &hvcc(4, &[])),
+            master(
+                0xE0,
+                &[el_uint(0xB0, 1920), master(0x55B0, &[el_uint(0x55BA, 16)])],
+            ),
+        ],
+    );
     let tracks = master(
         TRACKS,
         &[
-            entry(
-                1,
-                1,
-                "V_MPEGH/ISO/HEVC",
-                &[
-                    el(0x63A2, &hvcc(4, &[])),
-                    master(
-                        0xE0,
-                        &[el_uint(0xB0, 1920), master(0x55B0, &[el_uint(0x55BA, 16)])],
-                    ),
-                ],
-            ),
+            video.clone(),
             entry(
                 2,
                 2,
@@ -46,16 +56,14 @@ fn mkv_sample() -> (Vec<u8>, usize) {
         simple_block(3, &dts_frame(false, Some([0x41, 0xA2, 0x95, 0x47]))),
     ]);
     let file = mkv("matroska", &[tracks.clone(), blocks]);
-    let tracks_end = file
-        .windows(tracks.len())
-        .position(|window| window == tracks.as_slice())
-        .expect("tracks in file")
-        + tracks.len();
-    (file, tracks_end)
+    let video_end = end_of(&file, &video);
+    let tracks_end = end_of(&file, &tracks);
+    (file, video_end, tracks_end)
 }
 
-/// An MP4 with the moov first and one AVC sample.
-fn mp4_sample() -> Vec<u8> {
+/// An MP4 with the moov first and one AVC sample, with the end of its first `trak` and of
+/// its `moov`.
+fn mp4_sample() -> (Vec<u8>, usize, usize) {
     let sample = length_prefixed(4, &[vec![0x06, 0x05, 0x01, 0x00, 0x80], vec![0x65, 0x88]]);
     let sample_len = sample.len() as u32;
     let moov = |data_at: u32| {
@@ -81,15 +89,20 @@ fn mp4_sample() -> Vec<u8> {
     };
     let head = ftyp(b"isom");
     let data_at = (head.len() + moov(0).len() + 8) as u32;
+    let moov = moov(data_at);
+    // The first `trak` starts right after the `moov` header.
+    let first_trak = u32::from_be_bytes([moov[8], moov[9], moov[10], moov[11]]) as usize;
+    let trak_end = head.len() + 8 + first_trak;
+    let moov_end = head.len() + moov.len();
     let mut out = head;
-    out.extend(moov(data_at));
+    out.extend(moov);
     out.extend(bx(b"mdat", &sample));
-    out
+    (out, trak_end, moov_end)
 }
 
 #[test]
 fn complete_fixtures_read_completely() {
-    let (mkv, _) = mkv_sample();
+    let (mkv, _, _) = mkv_sample();
     let info = read(&mut Cursor::new(&mkv));
     assert_eq!(info.status, ReadStatus::Complete);
     let labels = info.labels();
@@ -98,7 +111,7 @@ fn complete_fixtures_read_completely() {
     assert_eq!(labels.dynamic_range.as_deref(), Some("HDR10+"));
     assert_eq!(info.audio[1].codec, "dts-hd ma");
     assert_eq!(info.subtitles[0].language, "ger");
-    let mp4 = read(&mut Cursor::new(mp4_sample()));
+    let mp4 = read(&mut Cursor::new(mp4_sample().0));
     assert_eq!(mp4.status, ReadStatus::Complete);
     assert_eq!(mp4.labels().audio.as_deref(), Some("AC3"));
     assert_eq!(mp4.labels().channels.as_deref(), Some("5.1"));
@@ -106,11 +119,11 @@ fn complete_fixtures_read_completely() {
 
 #[test]
 fn truncated_files_are_partial_or_damaged_at_every_cut() {
-    let (mkv, tracks_end) = mkv_sample();
+    let (mkv, video_end, tracks_end) = mkv_sample();
     for cut in 0..mkv.len() {
         let info = read(&mut Cursor::new(&mkv[..cut]));
         assert_ne!(info.status, ReadStatus::Unreadable, "cut {cut}");
-        if cut < tracks_end {
+        if cut < video_end {
             assert!(
                 matches!(
                     info.status,
@@ -120,21 +133,41 @@ fn truncated_files_are_partial_or_damaged_at_every_cut() {
                 info.status
             );
             assert!(info.video.is_none() && info.audio.is_empty());
+        } else if cut < tracks_end {
+            // The complete `TrackEntry`s before the cut are kept (AC-04).
+            assert_eq!(info.status, ReadStatus::Partial, "mkv cut {cut}");
+            let video = info.video.as_ref().expect("first track kept");
+            assert_eq!((video.codec.as_str(), video.width), ("h265", Some(1920)));
+            assert!(info.audio.len() <= 2 && info.subtitles.is_empty());
         } else {
             assert_eq!(info.status, ReadStatus::Complete, "mkv cut {cut}");
         }
     }
-    let mp4 = mp4_sample();
+    let (mp4, trak_end, moov_end) = mp4_sample();
     for cut in 0..mp4.len() {
         let info = read(&mut Cursor::new(&mp4[..cut]));
         assert_ne!(info.status, ReadStatus::Unreadable, "cut {cut}");
+        if cut < trak_end {
+            assert!(
+                info.video.is_none() && info.audio.is_empty(),
+                "mp4 cut {cut}"
+            );
+        } else if cut < moov_end {
+            // The complete `trak`s of a cut-off `moov` are kept (AC-04).
+            assert_eq!(info.status, ReadStatus::Partial, "mp4 cut {cut}");
+            let video = info.video.as_ref().expect("first trak kept");
+            assert_eq!((video.codec.as_str(), video.width), ("h264", Some(640)));
+            assert!(info.audio.is_empty(), "mp4 cut {cut}");
+        } else {
+            assert_eq!(info.status, ReadStatus::Complete, "mp4 cut {cut}");
+        }
     }
 }
 
 #[test]
 fn corrupted_and_random_bytes_never_panic() {
-    let (mkv, _) = mkv_sample();
-    let fixtures = [mkv, mp4_sample()];
+    let (mkv, _, _) = mkv_sample();
+    let fixtures = [mkv, mp4_sample().0];
     let mut rng = Prng::new(0x5EED_CAFE);
     for round in 0..4000 {
         let mut data = fixtures[round % fixtures.len()].clone();
@@ -226,7 +259,7 @@ fn empty_and_foreign_inputs_are_unsupported() {
 #[test]
 fn reading_leaves_the_bytes_unchanged() {
     // The API only takes `Read + Seek`; this shows the input is the same afterwards.
-    let (mkv, _) = mkv_sample();
+    let (mkv, _, _) = mkv_sample();
     let mut cursor = Cursor::new(mkv.clone());
     let _ = read(&mut cursor);
     assert_eq!(cursor.into_inner(), mkv);

@@ -87,6 +87,23 @@ pub(super) fn parse(data: &[u8]) -> Res<Vec<MkvTrack>> {
     Ok(tracks)
 }
 
+/// The complete `TrackEntry`s at the start of a `Tracks` element the input ends inside: the
+/// cut-off child ends the list, a damaged complete entry is still damage.
+pub(super) fn parse_complete(data: &[u8]) -> Res<Vec<MkvTrack>> {
+    let mut tracks = Vec::new();
+    for child in Children::new(data) {
+        let Ok((id, body)) = child else {
+            break;
+        };
+        if id == TRACK_ENTRY
+            && let Some(track) = parse_entry(body)?
+        {
+            tracks.push(track);
+        }
+    }
+    Ok(tracks)
+}
+
 fn parse_entry(data: &[u8]) -> Res<Option<MkvTrack>> {
     let mut fields = Fields::default();
     for child in Children::new(data) {

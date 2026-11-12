@@ -33,9 +33,14 @@ pub(crate) fn read<R: Read + Seek>(src: &mut Source<'_, R>) -> MediaInfo {
         Ok(None) => return track::empty(ReadStatus::Partial, Some(container)),
         Err(stop) => return track::empty(track::status_of(stop), Some(container)),
     };
-    let mut tracks = match parse_moov(&moov) {
+    let mut tracks = match parse_moov(&moov.data, moov.cut) {
         Ok(tracks) => tracks,
         Err(stop) => return track::empty(track::status_of(stop), Some(container)),
+    };
+    let status = if moov.cut {
+        ReadStatus::Partial
+    } else {
+        ReadStatus::Complete
     };
     for track in &mut tracks {
         let Some((offset, size)) = track.first_sample else {
@@ -51,14 +56,20 @@ pub(crate) fn read<R: Read + Seek>(src: &mut Source<'_, R>) -> MediaInfo {
         }
     }
     let drafts = tracks.into_iter().map(|track| track.draft).collect();
-    track::finish(ReadStatus::Complete, Some(container), drafts, None)
+    track::finish(status, Some(container), drafts, None)
+}
+
+/// The payload of `moov`; `cut` when the input ends inside it and `data` is only its start.
+struct Moov {
+    data: Vec<u8>,
+    cut: bool,
 }
 
 /// Walks the top-level boxes and returns the payload of `moov`.
 fn find_moov<R: Read + Seek>(
     src: &mut Source<'_, R>,
     container: &mut Container,
-) -> Res<Option<Vec<u8>>> {
+) -> Res<Option<Moov>> {
     let len = src.len();
     let mut pos = 0u64;
     while pos < len {
@@ -86,10 +97,14 @@ fn find_moov<R: Read + Seek>(
                 }
             }
             b"moov" => {
+                let size = size - header_len;
                 if end > len {
-                    return Err(Stop::Truncated);
+                    // Cut off: its complete `trak`s still count (within the read budget).
+                    let data = src.read_some(size)?;
+                    return Ok(Some(Moov { data, cut: true }));
                 }
-                return src.read_vec(size - header_len).map(Some);
+                let data = src.read_vec(size)?;
+                return Ok(Some(Moov { data, cut: false }));
             }
             _ => {}
         }
@@ -158,11 +173,16 @@ struct Mp4Track {
 }
 
 /// The tracks of `moov` in file order; text tracks that serve as chapter lists are left out.
-fn parse_moov(moov: &[u8]) -> Res<Vec<Mp4Track>> {
+/// In a `cut` `moov` the cut-off box ends the list; a damaged complete box is still damage.
+fn parse_moov(moov: &[u8], cut: bool) -> Res<Vec<Mp4Track>> {
     let mut tracks = Vec::new();
     let mut chapters = Vec::new();
     for item in Boxes::new(moov) {
-        let (kind, body) = item?;
+        let (kind, body) = match item {
+            Ok(item) => item,
+            Err(_) if cut => break,
+            Err(stop) => return Err(stop),
+        };
         if &kind == b"trak"
             && let Some(track) = parse_trak(body, &mut chapters)?
         {
