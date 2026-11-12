@@ -4,6 +4,7 @@
 
 import { expect, test } from '@playwright/test';
 import { DISCOVER, PLAIN, cards, release, settle } from './discover-helpers';
+import { expectAttribution } from './helpers';
 import { LIBRARY, movieId, seriesId } from './library-helpers';
 
 const SHELVES = [
@@ -67,6 +68,7 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
     await page.getByRole('link', { name: 'Mehr aus „Beliebte Filme“' }).click();
     await expect(page).toHaveURL(/\/entdecken\/regal\/beliebte-filme$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Beliebte Filme' })).toBeVisible();
+    await expectAttribution(page);
     const tiles = page.getByTestId('title-card');
     await expect(tiles).toHaveCount(20);
     await expect
@@ -185,6 +187,7 @@ test.describe('search and previews (AC-03, AC-04)', () => {
     ]);
     await expect(page.getByRole('list', { name: 'Filme' })).toContainText('Sternenfahrt');
     await expect(page.getByRole('list', { name: 'Serien' })).toContainText('Sternstunden');
+    await expectAttribution(page);
     await expect(page.getByRole('link', { name: 'Stella Stern' })).toHaveAttribute(
       'href',
       '/entdecken/personen/9200',
@@ -206,6 +209,7 @@ test.describe('search and previews (AC-03, AC-04)', () => {
     await expect(page.getByText('Originaltitel: Star Voyage')).toBeVisible();
     await expect(page.getByText('1 Std. 45 Min.')).toBeVisible();
     await expect(page.getByTestId('rating')).toHaveText('IMDb 7,8 (12.345 Stimmen)');
+    await expectAttribution(page);
     await expect(page.getByRole('link', { name: 'Trailer auf YouTube' })).toHaveAttribute(
       'href',
       'https://www.youtube.com/watch?v=e2e502',

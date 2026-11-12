@@ -2,19 +2,11 @@
 // dataset at start (e2e/seed-extras.mjs); the `extras` server has ratings switched off.
 
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll } from './helpers';
+import { expectAttribution, expectNoHorizontalScroll } from './helpers';
 import { EXTRAS, RATINGS, waitForRatings } from './extras-helpers';
 import { expectTotal, items, movieId, seriesId } from './library-helpers';
 
 const titles = (page: Page) => items(page).locator('a.title').allTextContents();
-
-async function expectAttribution(page: Page): Promise<void> {
-  const link = page.getByRole('link', { name: /Information courtesy of IMDb/ });
-  await expect(link).toHaveAttribute('href', 'https://www.imdb.com');
-  await expect(page.locator('.imdb-attribution')).toContainText(
-    /Stand der Bewertungen: \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2}/,
-  );
-}
 
 test.describe('ratings in the lists (AC-04, AC-08)', () => {
   test.beforeEach(async ({ request }) => {

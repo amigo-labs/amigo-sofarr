@@ -3,6 +3,7 @@
 
 import { expect, test } from '@playwright/test';
 import { DISCOVER, PLAIN, cards } from './discover-helpers';
+import { expectAttribution } from './helpers';
 
 const castSection = (page: import('@playwright/test').Page) =>
   page.getByTestId('credits').filter({ has: page.getByRole('heading', { name: /^Darsteller/ }) });
@@ -12,6 +13,7 @@ test.describe('person page (AC-05)', () => {
     await page.goto(`${DISCOVER}/entdecken/personen/9000`);
     await expect(page.getByRole('heading', { level: 1, name: 'Anna Beispiel' })).toBeVisible();
     await expect(page.getByText('Hamburg, Deutschland')).toBeVisible();
+    await expectAttribution(page);
     await expect(page.getByRole('heading', { level: 2 })).toHaveText([
       'Darsteller (65)',
       'Regie (1)',
