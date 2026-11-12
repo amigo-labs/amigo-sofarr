@@ -24,7 +24,26 @@ fn titles(page: &Value) -> Vec<String> {
 
 #[tokio::test]
 async fn movie_list_filters_searches_sorts_and_pages() {
-    let http = Http::start(app(Library::Movies, "").await).await;
+    let app = app(Library::Movies, "").await;
+    // Added on four different days, in an order neither title nor year gives.
+    for (title, added) in [
+        ("Vierter Film", "2020-01-01T00:00:00Z"),
+        ("Zweiter Film", "2021-01-01T00:00:00Z"),
+        ("Erster Film", "2022-01-01T00:00:00Z"),
+        ("Dritter Film", "2023-01-01T00:00:00Z"),
+    ] {
+        sqlx::query("UPDATE movies SET added_at = ? WHERE title = ?")
+            .bind(added)
+            .bind(title)
+            .execute(app.db.pool())
+            .await
+            .expect("added");
+    }
+    sqlx::query("UPDATE movies SET title_de = 'Der vierte Streifen' WHERE title = 'Vierter Film'")
+        .execute(app.db.pool())
+        .await
+        .expect("German title");
+    let http = Http::start(app).await;
     let (status, all) = http.get("/api/library/movies").await;
     assert_eq!(status, StatusCode::OK, "{all}");
     assert_eq!(all["total"], 4);
@@ -57,6 +76,8 @@ async fn movie_list_filters_searches_sorts_and_pages() {
     // Alternative titles count, punctuation and case do not.
     let (_, found) = http.get("/api/library/movies?q=first%20FILM").await;
     assert_eq!(titles(&found), ["Erster Film"]);
+    let (_, german) = http.get("/api/library/movies?q=vierte%20streifen").await;
+    assert_eq!(titles(&german), ["Vierter Film"]);
     let (_, profile) = http.get("/api/library/movies?profile=2").await;
     assert_eq!(profile["total"], 0);
     let (_, by_year) = http
@@ -70,6 +91,26 @@ async fn movie_list_filters_searches_sorts_and_pages() {
     assert_eq!(titles(&page2), ["Erster Film", "Vierter Film"]);
     let (_, by_size) = http.get("/api/library/movies?sort=size&has_file=yes").await;
     assert_eq!(titles(&by_size), ["Dritter Film", "Zweiter Film"]);
+    let (_, by_added) = http.get("/api/library/movies?sort=added").await;
+    assert_eq!(
+        titles(&by_added),
+        [
+            "Vierter Film",
+            "Zweiter Film",
+            "Erster Film",
+            "Dritter Film"
+        ]
+    );
+    let (_, newest) = http.get("/api/library/movies?sort=added&order=desc").await;
+    assert_eq!(
+        titles(&newest),
+        [
+            "Dritter Film",
+            "Erster Film",
+            "Zweiter Film",
+            "Vierter Film"
+        ]
+    );
 
     for bad in [
         "/api/library/movies?missing=vielleicht",
@@ -250,6 +291,14 @@ async fn movie_page_shows_everything_about_one_movie() {
         .set_movie_presentation(movie.id, Some("/zweiter.jpg"), Some("Ein zweiter Film."))
         .await
         .expect("presentation");
+    sqlx::query(
+        "UPDATE movies SET tags = '2', in_cinemas = '2002-03-01', digital_release = '2002-07-15',
+            physical_release = '2002-08-02' WHERE id = ?",
+    )
+    .bind(movie.id)
+    .execute(app.db.pool())
+    .await
+    .expect("tags and dates");
     let grab = app
         .db
         .add_grab(
@@ -291,6 +340,11 @@ async fn movie_page_shows_everything_about_one_movie() {
     assert_eq!(detail["has_poster"], true);
     assert_eq!(detail["quality_profile"], json!({"id": 1, "name": "HD"}));
     assert_eq!(detail["minimum_availability"], "released");
+    assert_eq!(detail["tags"], json!([{"id": 2, "name": "kinder"}]));
+    assert_eq!(
+        detail["release_dates"],
+        json!({"in_cinemas": "2002-03-01", "digital": "2002-07-15", "physical": "2002-08-02"})
+    );
     assert_eq!(detail["file"]["quality"], "WEBDL-1080p");
     assert_eq!(detail["file"]["release_group"], Value::Null);
     assert_eq!(detail["file"]["size"], 1000);
