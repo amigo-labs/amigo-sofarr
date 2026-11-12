@@ -217,3 +217,6 @@ Project knowledge belongs in the repository, not on one machine:
 - `*.jsonl` sind per `.gitattributes` LF, damit angehängte Fixture-Zeilen byte-identisch bleiben.
 - Custom-Format-Regexes mit Lookbehind am Anfang einer Alternative wertet `sofarr_core::pattern`
   selbst aus; fancy-regex matcht z. B. `(?<=\bGerman\b.*)` nie.
+- GitHub Code Scanning (CodeQL) meldet jedes String-Literal, das als Passwort oder Schlüssel
+  benutzt wird, als kritisches „hard-coded cryptographic value“ – auch in Tests. Test-Passwörter
+  entstehen deshalb zur Laufzeit (`crates/sofarr-server/src/test_secret.rs`).
