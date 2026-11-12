@@ -129,7 +129,8 @@ Terms used below:
 | -------- | ----------------- |
 | MP4 with `moov` at the end (not "fast start") | Read via seeking; still within the read limit (AC-05) |
 | MKV whose `Tracks` element is not at the start | Found through `SeekHead` |
-| An audio track without language, or with `und` | Recorded as unknown language |
+| A Matroska track without a `Language` element | Recorded as English (`eng`), the element's default in RFC 9559 |
+| A track with language `und` | Recorded as unknown language |
 | A subtitle track with a three-letter (`ger`) or BCP 47 (`de-DE`) language | Recorded as the same language (German) |
 | Dolby Vision with an HDR10 fallback layer | Dynamic range Dolby Vision plus HDR10; label as the oracle shows it (AC-07) |
 | A file with two audio tracks (German first, English second) | `{MediaInfo Simple}` uses the German one (first in file order); all tracks are stored |
@@ -191,3 +192,5 @@ Terms used below:
 - 2026-11-12: `cli_compare_mediainfo::an_unreachable_or_refusing_oracle_ends_with_a_german_error` was green at once: it pins the exit code and messages the command already had.
 - 2026-11-12: `compare-mediainfo --root <folder>` reads the files below the root folder as the comparing machine sees it (e.g. a network share), because the owner compares from another machine than the library's; sofarr replaces the item's root folder (the imported `rootfolder` / `sonarr_rootfolder`) by it and keeps the path below, so letter folders like `/movies/A/…` work too. `scripts/compare-acceptance.ps1` runs the comparisons of AC-07 and of web-ui-library AC-23 in one go and keeps their logs under `target/acceptance/`.
 - 2026-11-12: The owner's comparison against Sonarr (3,533 files) showed the oracle's dynamic range words consistently: `HDR10` for `HDR`, `HDR10Plus` for `HDR10+`, `DV HDR10Plus` for `DV HDR10+`; the vocabulary takes them (AC-07), also for the `{MediaInfo VideoDynamicRangeType}` naming token. The release-name fallback without media info keeps `HDR` and `DV HDR10`.
+- 2026-11-12: A Matroska track without a `Language` element is English: RFC 9559 gives the element the default `eng`, and muxers omit it for English tracks. The owner's comparison against Radarr (2,341 files) showed it: sofarr reported `und` where Radarr said `eng` for 59 % of the audio and 32 % of the subtitle language lists. The edge case "an audio track without language" is revised accordingly; an explicit `und` and MP4's `mdhd` language stay as they are.
+- 2026-11-12: The channel count also comes from the first frame where the header can be wrong (Radarr comparison: 22 of 2,341 mismatches). A DTS core frame gives AMODE plus LFE (ETSI TS 102 114); some muxers write the core's channels without the LFE into the Matroska header (`5` for 5.1), and because extensions (ES, HD) only add channels, the larger of header and core count wins. An AC-3 syncframe gives `acmod` plus `lfeon` (ETSI TS 102 366) and replaces the header's count, because AC-3 has no extensions; a broadcast recording's header claimed 5.1 for a stereo stream. Three channels stay `2.1`: the stored count does not say whether one of them is the LFE.
