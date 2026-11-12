@@ -56,6 +56,31 @@ impl Db {
         }))
     }
 
+    /// The ratings of every movie and series of the library, by IMDb id.
+    pub async fn library_imdb_ratings(
+        &self,
+    ) -> Result<std::collections::HashMap<String, ImdbRating>> {
+        let rows: Vec<(String, f64, i64)> = sqlx::query_as(
+            "SELECT r.imdb_id, r.rating, r.votes FROM imdb_ratings r
+             WHERE r.imdb_id IN (SELECT imdb_id FROM movies WHERE imdb_id IS NOT NULL
+                                 UNION SELECT imdb_id FROM series WHERE imdb_id IS NOT NULL)",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, rating, votes)| {
+                (
+                    id,
+                    ImdbRating {
+                        rating: rating as f32,
+                        votes: u32::try_from(votes).unwrap_or(0),
+                    },
+                )
+            })
+            .collect())
+    }
+
     /// How many titles the current ratings data has.
     pub async fn imdb_rating_count(&self) -> Result<u64> {
         let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM imdb_ratings")
