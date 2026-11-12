@@ -821,3 +821,62 @@ async fn an_unknown_status_filter_is_a_bad_request() {
             .is_some_and(|m| m.contains("kaputt"))
     );
 }
+
+#[tokio::test]
+async fn a_new_username_ends_every_session() {
+    let root = std::env::temp_dir().join(format!("sofarr-auth-username-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("root");
+    let hash = auth::hash_password(PASSWORD).expect("hash");
+    let config = |user: &str| {
+        crate::config::Config::parse(&format!(
+            "[database]\npath = '{}'\n[backup]\ndir = '{}'\n\
+             [auth]\nenabled = true\nusername = \"{user}\"\npassword_hash = \"{hash}\"\n",
+            root.join("sofarr.db").display(),
+            root.join("backups").display(),
+        ))
+        .expect("config")
+    };
+    let first = Server::start(App::new(config("daniel")).await.expect("app")).await;
+    let cookie = session_cookie(&first.login("daniel", PASSWORD).await);
+    first.app.db.pool().close().await;
+    let renamed = Server::start(App::new(config("dani")).await.expect("app")).await;
+    let refused = renamed
+        .get("/api/movies")
+        .header(header::COOKIE, &cookie)
+        .send()
+        .await
+        .expect("get");
+    assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
+    renamed.app.db.pool().close().await;
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn unknown_clients_are_throttled_under_the_proxy() {
+    let (server, _) = on("trusted_proxies = [\"127.0.0.1\"]\n").await;
+    for _ in 0..5 {
+        let response = server
+            .post("/api/auth/login")
+            .header("x-forwarded-for", "garbage")
+            .json(&json!({"username": "daniel", "password": "falsch"}))
+            .send()
+            .await
+            .expect("login");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    // The proxy's own address (no header) is the one that waits now …
+    assert_eq!(
+        server.login("daniel", PASSWORD).await.status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    // … while a known client behind the proxy is not throttled.
+    let other = server
+        .post("/api/auth/login")
+        .header("x-forwarded-for", "203.0.113.9")
+        .json(&json!({"username": "daniel", "password": PASSWORD}))
+        .send()
+        .await
+        .expect("login");
+    assert_eq!(other.status(), StatusCode::OK);
+}

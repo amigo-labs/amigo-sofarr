@@ -230,6 +230,14 @@ mod tests {
     }
 
     #[test]
+    fn an_unknown_client_is_throttled_under_its_peer() {
+        let peer = ip("10.0.0.2");
+        assert_eq!(Client::Unknown { peer }.throttle_key(), throttle_key(peer));
+        assert!(!Client::Unknown { peer }.in_any(&[cidr("10.0.0.0/8")]));
+        assert!(Client::Known(peer).in_any(&[cidr("10.0.0.0/8")]));
+    }
+
+    #[test]
     fn throttling_counts_ipv6_by_its_64() {
         assert_eq!(
             throttle_key(ip("2001:db8:1:2:aaaa::1")),

@@ -22,7 +22,7 @@ Terms used below:
 - **Auth on / off** – `[auth] enabled`; default off, so an existing setup keeps working unchanged.
 - **Credential** – a valid session cookie or the configured API key in the `X-Api-Key` header.
 - **Open endpoints** – endpoints that never need a credential: the health endpoint, the login,
-  logout and "who am I" endpoints, and the files of the web UI (every path outside `/api/`); every other path
+ ; `auth_tests::unknown_clients_are_throttled_under_the_proxy` (`crates/sofarr-server/src/auth_tests.rs`); `auth_net::tests::an_unknown_client_is_throttled_under_its_peer` (`crates/sofarr-server/src/auth_net.rs`); `auth_tests::a_new_username_ends_every_session` (`crates/sofarr-server/src/auth_tests.rs`) logout and "who am I" endpoints, and the files of the web UI (every path outside `/api/`); every other path
   under `/api/` needs a credential. The UI itself asks for a login through the API.
 - **Client address** – the address a request counts as coming from: the peer address, or – when
   the peer is a trusted proxy – the address from `X-Forwarded-For` (see AC-10). An IPv4-mapped
