@@ -461,10 +461,22 @@ pub fn episode_name(
     naming: &NamingConfig,
     media: Option<&sofarr_mediainfo::MediaInfo>,
 ) -> String {
+    let input = episode_input(series, eps, release_title, quality, media);
+    naming::format(episode_pattern(series, naming), &input, naming)
+}
+
+/// The naming input of episodes from a release (the import's view of a file).
+pub fn episode_input(
+    series: &Series,
+    eps: &[&Episode],
+    release_title: &str,
+    quality: &str,
+    media: Option<&sofarr_mediainfo::MediaInfo>,
+) -> NamingInput {
     let parsed = sofarr_parser::parse(release_title);
     let parts = crate::media::NamingParts::of(media);
     let first = eps.first();
-    let input = NamingInput {
+    NamingInput {
         title: series.data.title.clone(),
         title_de: series.data.title_de.clone(),
         year: series.data.year,
@@ -480,13 +492,16 @@ pub fn episode_name(
         air_date: first.and_then(|e| e.data.air_date.clone()),
         dynamic_range: parts.dynamic_range(release_title),
         ..NamingInput::default()
-    };
-    let pattern = match series.data.series_type.as_str() {
+    }
+}
+
+/// The episode format of a series type.
+pub fn episode_pattern<'a>(series: &Series, naming: &'a NamingConfig) -> &'a str {
+    match series.data.series_type.as_str() {
         "daily" => &naming.daily_episode_format,
         "anime" => &naming.anime_episode_format,
         _ => &naming.standard_episode_format,
-    };
-    naming::format(pattern, &input, naming)
+    }
 }
 
 /// Folder of a season inside the series folder.

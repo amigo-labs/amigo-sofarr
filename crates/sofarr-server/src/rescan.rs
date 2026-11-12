@@ -152,7 +152,7 @@ fn holds_no_files(dir: &Path) -> bool {
 /// Removes empty folders below `dir` (deepest first); `dir` itself only if `with_root`.
 /// `remove_dir` only removes empty folders, so a file that arrives meanwhile stays;
 /// symbolic links are never followed.
-fn remove_empty(dir: &Path, with_root: bool) -> usize {
+pub(crate) fn remove_empty(dir: &Path, with_root: bool) -> usize {
     let mut removed = 0;
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {

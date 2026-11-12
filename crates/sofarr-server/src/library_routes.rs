@@ -6,7 +6,8 @@ use axum::{
 };
 
 use crate::{
-    app::SharedApp, calendar, library_detail, library_edit, library_list, overview, wanted,
+    app::SharedApp, calendar, library_detail, library_edit, library_files, library_list, overview,
+    wanted,
 };
 
 pub fn routes(app: SharedApp) -> Router {
@@ -29,6 +30,30 @@ pub fn routes(app: SharedApp) -> Router {
         .route(
             "/api/library/series/{id}/change-preview",
             post(library_edit::series_preview),
+        )
+        .route(
+            "/api/library/movies/{id}/rename",
+            get(library_files::movie_rename_preview).post(library_files::rename_movie),
+        )
+        .route(
+            "/api/library/series/{id}/rename",
+            get(library_files::series_rename_preview).post(library_files::rename_series),
+        )
+        .route(
+            "/api/library/movies/{id}/folder",
+            get(library_files::movie_folder_preview).post(library_files::move_movie_folder),
+        )
+        .route(
+            "/api/library/series/{id}/folder",
+            get(library_files::series_folder_preview).post(library_files::move_series_folder),
+        )
+        .route(
+            "/api/library/movies/{id}/remove",
+            post(library_files::remove_movie),
+        )
+        .route(
+            "/api/library/series/{id}/remove",
+            post(library_files::remove_series),
         )
         .route("/api/library/monitor", post(library_edit::monitor))
         .route("/api/library/wanted", get(wanted::wanted))
