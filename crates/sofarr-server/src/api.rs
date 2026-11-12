@@ -166,9 +166,9 @@ async fn grabs(
     Query(q): Query<GrabQuery>,
 ) -> Result<Json<Vec<GrabSummary>>, ApiError> {
     let status = match q.status.as_deref() {
-        Some(s) => {
-            Some(GrabStatus::parse(s).ok_or_else(|| anyhow::anyhow!("unbekannter Status {s}"))?)
-        }
+        Some(s) => Some(GrabStatus::parse(s).ok_or_else(|| {
+            ApiError::new(StatusCode::BAD_REQUEST, format!("unbekannter Status {s}"))
+        })?),
         None => None,
     };
     let grabs = app.db.grabs(status, q.limit.unwrap_or(100)).await?;
@@ -497,6 +497,6 @@ mod tests {
             .send()
             .await
             .expect("get");
-        assert_eq!(bad.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(bad.status(), StatusCode::BAD_REQUEST);
     }
 }

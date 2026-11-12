@@ -24,7 +24,7 @@ use subtle::ConstantTimeEq;
 
 use crate::{
     app::SharedApp,
-    auth_net::{self, Cidr},
+    auth_net::{self, Cidr, Client},
     config::AuthConfig,
     throttle::{Gate, Throttle},
 };
@@ -52,9 +52,9 @@ pub enum Method {
     TrustedNetwork,
 }
 
-/// The client address of a request, set by [`guard`] for every request.
+/// The client of a request, set by [`guard`] for every request.
 #[derive(Debug, Clone, Copy)]
-pub struct ClientAddr(pub IpAddr);
+pub struct ClientAddr(pub Client);
 
 /// Authentication state of the running app.
 #[derive(Debug, Default)]
@@ -135,7 +135,11 @@ fn forwarded(headers: &HeaderMap, name: &str) -> Vec<String> {
     headers
         .get_all(name)
         .iter()
-        .filter_map(|v| v.to_str().ok().map(str::to_owned))
+        // A value that is not text is an invalid entry (it makes the client unknown).
+        .map(|v| {
+            v.to_str()
+                .map_or_else(|_| "invalid".to_owned(), str::to_owned)
+        })
         .collect()
 }
 
@@ -157,16 +161,11 @@ impl crate::app::App {
     async fn authenticate(
         &self,
         headers: &HeaderMap,
-        client: IpAddr,
+        client: Client,
         now: Timestamp,
     ) -> anyhow::Result<Option<Method>> {
         let auth = &self.config.auth;
-        if self
-            .auth
-            .trusted_networks
-            .iter()
-            .any(|c| c.contains(client))
-        {
+        if client.in_any(&self.auth.trusted_networks) {
             return Ok(Some(Method::TrustedNetwork));
         }
         if let Some(token) = session_token(headers) {
@@ -203,7 +202,7 @@ impl crate::app::App {
         Ok(None)
     }
 
-    fn client_address(&self, request: &Request) -> IpAddr {
+    fn client_address(&self, request: &Request) -> Client {
         let headers = forwarded(request.headers(), "x-forwarded-for");
         let headers: Vec<&str> = headers.iter().map(String::as_str).collect();
         auth_net::client_address(peer(request), &headers, &self.auth.trusted_proxies)
@@ -231,10 +230,22 @@ pub async fn guard(State(app): State<SharedApp>, mut request: Request, next: Nex
     if !app.auth_on() || !path.starts_with("/api/") || OPEN.contains(&path) {
         return next.run(request).await;
     }
+    let token = session_token(request.headers());
     match app
         .authenticate(request.headers(), client, Timestamp::now())
         .await
     {
+        Ok(Some(Method::Session)) => {
+            // A used session slides: the browser keeps the cookie as long as the server.
+            let mut response = next.run(request).await;
+            if let Some(token) = token {
+                let max_age = i64::from(app.config.auth.session_days) * 24 * 3600;
+                response
+                    .headers_mut()
+                    .insert(header::SET_COOKIE, cookie(&token, max_age, https));
+            }
+            response
+        }
         Ok(Some(_)) => next.run(request).await,
         Ok(None) => error(StatusCode::UNAUTHORIZED, UNAUTHORIZED),
         Err(e) => internal(&e),
@@ -274,7 +285,7 @@ pub async fn login(
         return ok().into_response();
     }
     let _one_at_a_time = app.auth.login.lock().await;
-    let key = auth_net::throttle_key(client);
+    let key = client.throttle_key();
     let now = Timestamp::now();
     let gate = app
         .auth
@@ -325,11 +336,15 @@ pub async fn login(
     let mut token = [0u8; 32];
     rand::rngs::OsRng.fill_bytes(&mut token);
     let token = hex(&token);
-    if let Err(e) = app
-        .db
-        .add_session(&token_hash(&token), &fingerprint(&username, &hash), now)
-        .await
-    {
+    let unused = now - SignedDuration::from_hours(i64::from(auth.session_days) * 24);
+    let stored = async {
+        // Sessions nobody used within `session_days` are gone for good.
+        app.db.remove_sessions_unused_since(unused).await?;
+        app.db
+            .add_session(&token_hash(&token), &fingerprint(&username, &hash), now)
+            .await
+    };
+    if let Err(e) = stored.await {
         return internal(&e.into());
     }
     tracing::info!(client = %client, "login");

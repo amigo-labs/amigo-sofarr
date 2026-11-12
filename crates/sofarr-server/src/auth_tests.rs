@@ -690,3 +690,134 @@ async fn secrets_never_reach_the_log() {
     }
     assert!(logged.contains("login"), "the log was captured: {logged}");
 }
+
+// --- after the first verification (AC-06, AC-09, AC-10) -------------------------------
+
+#[tokio::test]
+async fn using_a_session_renews_its_cookie() {
+    let (server, _) = on("session_days = 30\n").await;
+    let cookie = session_cookie(&server.login("daniel", PASSWORD).await);
+    let used = server
+        .get("/api/movies")
+        .header(header::COOKIE, &cookie)
+        .send()
+        .await
+        .expect("get");
+    assert_eq!(used.status(), StatusCode::OK);
+    let set = used
+        .headers()
+        .get(header::SET_COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .expect("the cookie is set again")
+        .to_owned();
+    assert!(set.starts_with(&cookie), "{set}");
+    assert!(
+        set.contains(&format!("Max-Age={}", 30 * 24 * 3600)),
+        "{set}"
+    );
+    assert!(
+        set.contains("HttpOnly") && set.contains("SameSite=Strict"),
+        "{set}"
+    );
+    // A request with an API key gets no cookie.
+    let keyed = server
+        .get("/api/movies")
+        .header("x-api-key", API_KEY)
+        .send()
+        .await
+        .expect("get");
+    assert!(keyed.headers().get(header::SET_COOKIE).is_none());
+}
+
+fn retry_after(response: &reqwest::Response) -> u64 {
+    response
+        .headers()
+        .get(header::RETRY_AFTER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok())
+        .expect("Retry-After")
+}
+
+#[tokio::test]
+async fn attempts_during_a_wait_do_not_extend_it() {
+    let (server, _) = on("").await;
+    // Bodies that are no JSON count as failed attempts too.
+    for _ in 0..5 {
+        let response = server
+            .post("/api/auth/login")
+            .body("kein json")
+            .send()
+            .await
+            .expect("login");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+    let first = server.login("daniel", "falsch").await;
+    assert_eq!(first.status(), StatusCode::TOO_MANY_REQUESTS);
+    let first = retry_after(&first);
+    for _ in 0..3 {
+        let again = server.login("daniel", "falsch").await;
+        assert_eq!(again.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(retry_after(&again) <= first, "the wait grew");
+    }
+}
+
+#[tokio::test]
+async fn a_successful_login_resets_the_count() {
+    let (server, _) = on("").await;
+    for _ in 0..4 {
+        server.login("daniel", "falsch").await;
+    }
+    assert_eq!(
+        server.login("daniel", PASSWORD).await.status(),
+        StatusCode::OK
+    );
+    // Five failures again before the first wait.
+    for attempt in 1..=5 {
+        assert_eq!(
+            server.login("daniel", "falsch").await.status(),
+            StatusCode::UNAUTHORIZED,
+            "attempt {attempt}"
+        );
+    }
+    assert_eq!(
+        server.login("daniel", "falsch").await.status(),
+        StatusCode::TOO_MANY_REQUESTS
+    );
+}
+
+#[tokio::test]
+async fn an_invalid_forwarded_entry_is_no_trusted_client() {
+    // The proxy itself lies in the trusted network.
+    let (server, _) =
+        on("trusted_networks = [\"127.0.0.0/8\"]\ntrusted_proxies = [\"127.0.0.1\"]\n").await;
+    let from = |forwarded: Option<&str>| {
+        let mut request = server.get("/api/movies");
+        if let Some(f) = forwarded {
+            request = request.header("x-forwarded-for", f);
+        }
+        async move { request.send().await.expect("get").status() }
+    };
+    assert_eq!(from(Some("garbage")).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        from(Some("203.0.113.7, garbage")).await,
+        StatusCode::UNAUTHORIZED
+    );
+    // Without the header the proxy's own address counts.
+    assert_eq!(from(None).await, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn an_unknown_status_filter_is_a_bad_request() {
+    let server = Server::start(app(Library::Movies, "").await).await;
+    let response = server
+        .get("/api/grabs?status=kaputt")
+        .send()
+        .await
+        .expect("get");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(
+        body(response).await["error"]
+            .as_str()
+            .is_some_and(|m| m.contains("kaputt"))
+    );
+}

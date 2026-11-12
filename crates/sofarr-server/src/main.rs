@@ -165,6 +165,16 @@ enum Command {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    // Hashing a password needs no config: it is used while `[auth]` is being written.
+    if matches!(cli.command, Some(Command::HashPassword)) {
+        return match hash_password() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("Fehler: {err:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let config = match Config::load(&cli.config) {
         Ok(config) => config,
         Err(err) => {
@@ -188,7 +198,6 @@ fn main() -> ExitCode {
         Command::Serve => runtime.block_on(serve(config)),
         Command::Healthcheck => runtime.block_on(healthcheck(config.server.bind)),
         Command::Restore { backup } => runtime.block_on(restore(&config, &backup)),
-        Command::HashPassword => hash_password(),
         command => runtime.block_on(run_command(config, command)),
     };
 

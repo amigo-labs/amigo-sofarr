@@ -84,28 +84,65 @@ fn trusted(proxies: &[Cidr], ip: IpAddr) -> bool {
     proxies.iter().any(|c| c.contains(ip))
 }
 
-/// The address a request counts as coming from: from a trusted proxy the rightmost
-/// `X-Forwarded-For` entry that is not a trusted proxy itself (the leftmost if all are),
-/// otherwise — and when the header is missing or holds an invalid entry — the peer.
-pub fn client_address(peer: IpAddr, forwarded: &[&str], proxies: &[Cidr]) -> IpAddr {
-    let peer = canonical(peer);
-    if !trusted(proxies, peer) {
-        return peer;
-    }
-    let mut chain = Vec::new();
-    for entry in forwarded.iter().flat_map(|h| h.split(',')) {
-        match IpAddr::from_str(entry.trim()) {
-            Ok(ip) => chain.push(canonical(ip)),
-            Err(_) => return peer,
+/// Where a request counts as coming from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Client {
+    Known(IpAddr),
+    /// A trusted proxy forwarded an invalid address: in no trusted network, throttled
+    /// under the proxy's address.
+    Unknown {
+        peer: IpAddr,
+    },
+}
+
+impl Client {
+    /// Whether the client lies in one of the ranges; an unknown client never does.
+    pub fn in_any(&self, ranges: &[Cidr]) -> bool {
+        match self {
+            Self::Known(ip) => ranges.iter().any(|c| c.contains(*ip)),
+            Self::Unknown { .. } => false,
         }
     }
-    chain
-        .iter()
-        .rev()
-        .find(|ip| !trusted(proxies, **ip))
-        .or(chain.first())
-        .copied()
-        .unwrap_or(peer)
+
+    /// What the login throttling counts the client by.
+    pub fn throttle_key(&self) -> IpAddr {
+        match self {
+            Self::Known(ip) | Self::Unknown { peer: ip } => throttle_key(*ip),
+        }
+    }
+}
+
+impl std::fmt::Display for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Known(ip) => write!(f, "{ip}"),
+            Self::Unknown { peer } => write!(f, "unknown via {peer}"),
+        }
+    }
+}
+
+/// The client of a request: from a trusted proxy the rightmost `X-Forwarded-For` entry
+/// that is not a trusted proxy itself (the leftmost if all are), the peer if the header
+/// is missing; an invalid entry met (from the right) before such an address makes the
+/// client unknown. From any other peer the header is ignored.
+pub fn client_address(peer: IpAddr, forwarded: &[&str], proxies: &[Cidr]) -> Client {
+    let peer = canonical(peer);
+    if !trusted(proxies, peer) {
+        return Client::Known(peer);
+    }
+    let entries: Vec<&str> = forwarded.iter().flat_map(|h| h.split(',')).collect();
+    let mut leftmost = None;
+    for entry in entries.iter().rev() {
+        let Ok(ip) = IpAddr::from_str(entry.trim()) else {
+            return Client::Unknown { peer };
+        };
+        let ip = canonical(ip);
+        if !trusted(proxies, ip) {
+            return Client::Known(ip);
+        }
+        leftmost = Some(ip);
+    }
+    Client::Known(leftmost.unwrap_or(peer))
 }
 
 /// What the login throttling counts by: an IPv4 address, or the /64 of an IPv6 one.
@@ -154,31 +191,41 @@ mod tests {
         // The rightmost entry that is not a trusted proxy.
         assert_eq!(
             client_address(peer, &["203.0.113.7, 10.0.0.9"], &proxies),
-            ip("203.0.113.7")
+            Client::Known(ip("203.0.113.7"))
         );
         assert_eq!(
             client_address(peer, &["1.1.1.1", "203.0.113.7, 10.0.0.9"], &proxies),
-            ip("203.0.113.7")
+            Client::Known(ip("203.0.113.7"))
         );
         // Only proxies: the leftmost.
         assert_eq!(
             client_address(peer, &["10.0.0.5, 10.0.0.9"], &proxies),
-            ip("10.0.0.5")
+            Client::Known(ip("10.0.0.5"))
         );
-        // Missing header or an invalid entry: the peer.
-        assert_eq!(client_address(peer, &[], &proxies), peer);
+        // Missing header: the peer.
+        assert_eq!(client_address(peer, &[], &proxies), Client::Known(peer));
+        // An invalid entry before any non-proxy address (read from the right): unknown.
         assert_eq!(
             client_address(peer, &["203.0.113.7, unknown"], &proxies),
-            peer
+            Client::Unknown { peer }
+        );
+        assert_eq!(
+            client_address(peer, &["garbage, 10.0.0.9"], &proxies),
+            Client::Unknown { peer }
+        );
+        // A valid non-proxy address right of the invalid entry counts.
+        assert_eq!(
+            client_address(peer, &["garbage, 203.0.113.9"], &proxies),
+            Client::Known(ip("203.0.113.9"))
         );
         // From an untrusted peer the header is ignored.
         assert_eq!(
             client_address(ip("203.0.113.9"), &["192.168.1.5"], &proxies),
-            ip("203.0.113.9")
+            Client::Known(ip("203.0.113.9"))
         );
         assert_eq!(
             client_address(ip("::ffff:203.0.113.9"), &[], &[]),
-            ip("203.0.113.9")
+            Client::Known(ip("203.0.113.9"))
         );
     }
 
