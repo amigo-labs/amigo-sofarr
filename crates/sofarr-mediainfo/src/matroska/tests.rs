@@ -174,7 +174,7 @@ fn tracks_after_sized_clusters_are_found_without_seek_head() {
 
 #[test]
 fn colour_marks_hdr10_and_hlg() {
-    for (transfer, label) in [(16, Some("HDR")), (18, Some("HLG")), (1, None)] {
+    for (transfer, label) in [(16, Some("HDR10")), (18, Some("HLG")), (1, None)] {
         let info = info(&hevc_file(&[colour(transfer)], &[]));
         assert_eq!(info.labels().dynamic_range.as_deref(), label, "{transfer}");
     }
@@ -297,7 +297,7 @@ fn hdr10_plus_from_t35_sei() {
             dolby_vision: false
         })
     );
-    assert_eq!(info.labels().dynamic_range.as_deref(), Some("HDR10+"));
+    assert_eq!(info.labels().dynamic_range.as_deref(), Some("HDR10Plus"));
 }
 
 fn single_audio(codec: &str, channels: u64, extra: &[Vec<u8>], block: Vec<u8>) -> MediaInfo {

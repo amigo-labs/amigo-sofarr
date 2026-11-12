@@ -108,7 +108,7 @@ fn complete_fixtures_read_completely() {
     let labels = info.labels();
     assert_eq!(labels.video.as_deref(), Some("x265"));
     assert_eq!(labels.audio.as_deref(), Some("EAC3 Atmos"));
-    assert_eq!(labels.dynamic_range.as_deref(), Some("HDR10+"));
+    assert_eq!(labels.dynamic_range.as_deref(), Some("HDR10Plus"));
     assert_eq!(info.audio[1].codec, "dts-hd ma");
     assert_eq!(info.subtitles[0].language, "ger");
     let mp4 = read(&mut Cursor::new(mp4_sample().0));

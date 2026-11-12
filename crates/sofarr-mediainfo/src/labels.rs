@@ -78,11 +78,12 @@ fn channels_label(channels: u8) -> Option<String> {
     Some(label.to_string())
 }
 
-/// `None` for SDR.
+/// `None` for SDR. The words are Radarr's and Sonarr's `videoDynamicRangeType`
+/// (spec mediainfo AC-07: the oracle's word wins where it differs consistently).
 fn dynamic_range_label(range: &DynamicRange) -> Option<String> {
     let label = if range.dolby_vision {
         if range.hdr10_plus {
-            "DV HDR10+"
+            "DV HDR10Plus"
         } else if range.hdr10 {
             "DV HDR10"
         } else if range.hlg {
@@ -91,9 +92,9 @@ fn dynamic_range_label(range: &DynamicRange) -> Option<String> {
             "DV"
         }
     } else if range.hdr10_plus {
-        "HDR10+"
+        "HDR10Plus"
     } else if range.hdr10 {
-        "HDR"
+        "HDR10"
     } else if range.hlg {
         "HLG"
     } else {
@@ -211,12 +212,12 @@ mod tests {
         };
         let cases = [
             (range(false, false, false, false), None),
-            (range(true, false, false, false), Some("HDR")),
-            (range(true, true, false, false), Some("HDR10+")),
+            (range(true, false, false, false), Some("HDR10")),
+            (range(true, true, false, false), Some("HDR10Plus")),
             (range(false, false, true, false), Some("HLG")),
             (range(false, false, false, true), Some("DV")),
             (range(true, false, false, true), Some("DV HDR10")),
-            (range(true, true, false, true), Some("DV HDR10+")),
+            (range(true, true, false, true), Some("DV HDR10Plus")),
             (range(false, false, true, true), Some("DV HLG")),
         ];
         for (dynamic_range, expected) in cases {
