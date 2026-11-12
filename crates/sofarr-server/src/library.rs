@@ -341,6 +341,12 @@ pub async fn import_documents(
             continue;
         };
         let id = db.upsert_movie(&movie, now).await?;
+        db.set_movie_presentation(
+            id,
+            crate::images::poster_of(value, crate::images::tmdb_path).as_deref(),
+            value["overview"].as_str().filter(|o| !o.trim().is_empty()),
+        )
+        .await?;
         summary.movies += 1;
         match file {
             Some(file) => {

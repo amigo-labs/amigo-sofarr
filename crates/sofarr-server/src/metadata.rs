@@ -85,12 +85,28 @@ pub async fn refresh_all(app: &App) -> anyhow::Result<usize> {
                 app.db
                     .upsert_movie(&merge(&current, &meta), Timestamp::now())
                     .await?;
+                store_presentation(app, current.id, &meta).await?;
                 done += 1;
             }
             Err(e) => tracing::warn!(movie = %movie.title, error = %e, "metadata refresh failed"),
         }
     }
     Ok(done)
+}
+
+/// Poster path and overview TMDB offers for a movie (a new path loads the new poster).
+pub async fn store_presentation(app: &App, id: i64, meta: &MovieMetadata) -> anyhow::Result<()> {
+    app.db
+        .set_movie_presentation(
+            id,
+            meta.poster_path
+                .as_deref()
+                .and_then(crate::images::tmdb_path)
+                .as_deref(),
+            meta.overview.as_deref(),
+        )
+        .await?;
+    Ok(())
 }
 
 /// A new library movie from TMDB data (import lists).

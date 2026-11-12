@@ -159,6 +159,12 @@ pub async fn import_documents(
             continue;
         };
         let id = db.upsert_series(&series, now).await?;
+        db.set_series_presentation(
+            id,
+            crate::images::poster_of(v, crate::images::tvdb_path).as_deref(),
+            v["overview"].as_str().filter(|o| !o.trim().is_empty()),
+        )
+        .await?;
         db.set_series_tags(id, &crate::library::tag_ids(&v["tags"]))
             .await?;
         summary.series += 1;
@@ -246,6 +252,15 @@ pub async fn refresh(
         data.imdb_id = meta.imdb_id;
     }
     db.upsert_series(&data, now).await?;
+    db.set_series_presentation(
+        current.id,
+        meta.poster
+            .as_deref()
+            .and_then(crate::images::tvdb_path)
+            .as_deref(),
+        meta.overview.as_deref(),
+    )
+    .await?;
     let existing = db.episodes(Some(series.id)).await?;
     let mut n = 0;
     for e in fetched {

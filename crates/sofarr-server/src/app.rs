@@ -45,6 +45,8 @@ pub struct App {
     pub lists: crate::library_list::ListCache,
     /// The download client's last answer, shown while it cannot be reached.
     pub queue_cache: crate::overview::QueueCache,
+    /// Poster sources and cache (spec web-ui-library).
+    pub images: crate::images::Images,
 }
 
 pub type SharedApp = Arc<App>;
@@ -87,6 +89,7 @@ impl App {
             .context("HTTP-Client nicht erzeugbar")?;
         let (indexers, nzbget) = Self::build_clients(&config, &http);
         let auth = crate::auth::AuthState::new(&config.auth);
+        let images = crate::images::Images::new(&config.database.path);
         Ok(Self {
             config,
             db,
@@ -101,6 +104,7 @@ impl App {
             status: crate::status::Status::default(),
             lists: crate::library_list::ListCache::default(),
             queue_cache: crate::overview::QueueCache::default(),
+            images,
         })
     }
 
@@ -518,6 +522,7 @@ impl App {
                 .to_string_lossy()
                 .into_owned();
                 let id = self.db.upsert_movie(&movie, Timestamp::now()).await?;
+                metadata::store_presentation(self, id, &meta).await?;
                 tracing::info!(list = %list.name, movie = %movie.title, "added from import list");
                 added.push(movie.title.clone());
                 // Like an RSS grab, the search on add waits until the movie is available.

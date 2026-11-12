@@ -6,8 +6,8 @@ use axum::{
 };
 
 use crate::{
-    app::SharedApp, calendar, library_detail, library_edit, library_files, library_list, overview,
-    wanted,
+    app::SharedApp, calendar, images, library_detail, library_edit, library_files, library_list,
+    overview, wanted,
 };
 
 pub fn routes(app: SharedApp) -> Router {
@@ -62,6 +62,7 @@ pub fn routes(app: SharedApp) -> Router {
         .route("/api/queue", get(overview::queue))
         .route("/api/activity", get(overview::activity))
         .route("/api/calendar", get(calendar::calendar))
+        .route("/api/images/{kind}/{id}/{size}", get(images::poster))
         .route(
             "/api/library/series/{id}/seasons/{season}",
             get(library_detail::season),

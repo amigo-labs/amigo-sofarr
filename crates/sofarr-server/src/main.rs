@@ -14,6 +14,7 @@ mod downloads;
 mod failures;
 mod file_ops;
 mod folders;
+mod images;
 mod import_lists;
 mod importer;
 mod library;
@@ -56,6 +57,8 @@ mod failure_tests;
 mod media_import_tests;
 #[cfg(test)]
 mod media_refresh_tests;
+#[cfg(test)]
+mod image_tests;
 #[cfg(test)]
 mod library_api_tests;
 #[cfg(test)]
