@@ -57,9 +57,14 @@ describe('list rows (AC-02, AC-06)', () => {
     expect(row.subtitle).toBeNull();
     expect(row.labels).toEqual([{ text: 'fehlt', tone: 'danger' }]);
     expect(row.href).toBe('/filme/7');
-    expect(
-      movieRow({ ...movie, quality: 'Bluray-1080p', missing: false, cutoff_unmet: true }).file,
-    ).toBe('Bluray-1080p');
+    const below = movieRow({
+      ...movie,
+      quality: 'Bluray-1080p',
+      missing: false,
+      cutoff_unmet: true,
+    });
+    expect(below.file).toBe('Bluray-1080p');
+    expect(below.labels).toEqual([{ text: 'Cutoff nicht erreicht', tone: 'neutral' }]);
   });
 
   it('a series shows its number of files and episode labels', () => {

@@ -2,6 +2,7 @@
 // AC-17, AC-21, AC-24 against the seeded shadow-mode library server.
 
 import { expect, test } from '@playwright/test';
+import { dateText } from '../src/lib/library/format';
 import { json } from './helpers';
 import { LIBRARY, apiTotal, movieId, seriesId } from './library-helpers';
 
@@ -28,6 +29,24 @@ test.describe('movie page (AC-05, AC-21)', () => {
     const poster = page.locator('.poster img').first();
     await expect(poster).toHaveAttribute('src', `/api/images/movie/${id}/detail`);
     await expect.poll(() => poster.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1);
+  });
+
+  test('shows cinema, digital and disc dates and the tags', async ({ page, request }) => {
+    const fact = (name: string) =>
+      page
+        .locator('dl > div')
+        .filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
+        .locator('dd');
+    const id = await movieId(request, LIBRARY, 'Kalenderfilm');
+    const detail = await (await request.get(`${LIBRARY}/api/library/movies/${id}`)).json();
+    const dates = detail.release_dates as { in_cinemas: string; digital: string; physical: string };
+    await page.goto(`${LIBRARY}/filme/${id}`);
+    await expect(fact('Im Kino')).toHaveText(dateText(dates.in_cinemas));
+    await expect(fact('Digital')).toHaveText(dateText(dates.digital));
+    await expect(fact('Disc')).toHaveText(dateText(dates.physical));
+    await expect(fact('Tags')).toHaveText('keine');
+    await page.goto(`${LIBRARY}/filme/${await movieId(request, LIBRARY, 'Sammel A')}`);
+    await expect(fact('Tags')).toHaveText('sammlung');
   });
 
   test('an unavailable poster shows the initial; no request leaves for anyone but sofarr', async ({
