@@ -136,6 +136,7 @@ fn generated() -> BTreeMap<String, String> {
     one::<RemoveBody>(&cfg, &mut out);
     one::<RemoveAnswer>(&cfg, &mut out);
     one::<Page<()>>(&cfg, &mut out);
+    one::<crate::imdb::ImdbInfo>(&cfg, &mut out);
     out
 }
 

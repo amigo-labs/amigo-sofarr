@@ -31,6 +31,26 @@ pub struct Config {
     pub library: LibraryConfig,
     pub backup: BackupConfig,
     pub auth: AuthConfig,
+    pub imdb: ImdbConfig,
+}
+
+/// `[imdb]`: the daily IMDb ratings dataset (spec imdb-ratings).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ImdbConfig {
+    /// `false`: nothing is downloaded from IMDb and no ratings are shown (AC-09).
+    pub enabled: bool,
+    /// Where the dataset comes from (tests use a local one).
+    pub url: String,
+}
+
+impl Default for ImdbConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            url: "https://datasets.imdbws.com/title.ratings.tsv.gz".to_owned(),
+        }
+    }
 }
 
 /// The longest session lifetime: ten years, far below where timestamps overflow.

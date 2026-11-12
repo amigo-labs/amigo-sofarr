@@ -82,6 +82,7 @@ pub async fn health() -> Json<Health> {
 pub fn routes(app: SharedApp) -> Router {
     Router::new()
         .route("/api/system", get(crate::system::system))
+        .route("/api/imdb", get(crate::imdb::info))
         .route("/api/movies", get(movies))
         .route("/api/movies/{id}/file", get(movie_file))
         .route(

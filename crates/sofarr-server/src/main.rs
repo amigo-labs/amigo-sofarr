@@ -16,6 +16,7 @@ mod failures;
 mod file_ops;
 mod folders;
 mod images;
+mod imdb;
 mod import_lists;
 mod importer;
 mod library;
@@ -56,6 +57,10 @@ mod compare_media_tests;
 mod failure_tests;
 #[cfg(test)]
 mod image_tests;
+#[cfg(test)]
+mod imdb_ids_tests;
+#[cfg(test)]
+mod imdb_tests;
 #[cfg(test)]
 mod library_api_tests;
 #[cfg(test)]
@@ -293,6 +298,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     }
     let state = Arc::new(backups::open_for_serve(config, jiff::Timestamp::now()).await?);
     backups::spawn_schedule(&state);
+    imdb::spawn_schedule(&state);
     for job in [Job::Rss, Job::Downloads, Job::ImportLists, Job::Refresh] {
         let Some(every) = job.interval(&state) else {
             continue;
@@ -314,6 +320,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
                         Job::ImportLists => app.sync_import_lists().await.map(|_| ()),
                         Job::Refresh => app.refresh(true, true, false).await.map(|_| ()),
                         Job::Backup => app.backup_tick(jiff::Timestamp::now()).await.map(|_| ()),
+                        Job::Imdb => imdb::load(&app, jiff::Timestamp::now()).await.map(|_| ()),
                     }
                 }
             },

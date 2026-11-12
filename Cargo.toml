@@ -23,6 +23,7 @@ sofarr-mediainfo = { path = "crates/sofarr-mediainfo" }
 # External crates
 anyhow = "1"
 argon2 = "0.5"
+flate2 = "1"
 axum = "0.8"
 base64 = "0.22"
 clap = { version = "4", features = ["derive", "env"] }
@@ -41,7 +42,7 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
 subtle = "2.6"
 ts-rs = "12"
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time", "io-util"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "time", "io-util", "sync"] }
 toml = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

@@ -17,15 +17,17 @@ pub enum Job {
     ImportLists,
     Refresh,
     Backup,
+    Imdb,
 }
 
 impl Job {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Rss,
         Self::Downloads,
         Self::ImportLists,
         Self::Refresh,
         Self::Backup,
+        Self::Imdb,
     ];
 
     /// The name in the log and the API.
@@ -36,6 +38,7 @@ impl Job {
             Self::ImportLists => "import-lists",
             Self::Refresh => "refresh",
             Self::Backup => "backup",
+            Self::Imdb => "imdb",
         }
     }
 
@@ -47,6 +50,7 @@ impl Job {
             Self::ImportLists => "Import-Listen",
             Self::Refresh => "Metadaten aktualisieren",
             Self::Backup => "Sicherung",
+            Self::Imdb => "IMDb-Bewertungen",
         }
     }
 
@@ -74,6 +78,7 @@ impl Job {
                 hours(config.library.refresh_interval_hours)
             }
             Self::Backup if config.backup.interval_hours > 0 => hours(config.backup.interval_hours),
+            Self::Imdb if config.imdb.enabled => hours(24),
             _ => None,
         }
     }

@@ -625,8 +625,15 @@ impl App {
                     &config.api_key,
                     config.pin.clone(),
                 );
+                let tmdb = self
+                    .config
+                    .tmdb
+                    .as_ref()
+                    .map(|c| sofarr_metadata::Tmdb::new(self.http.clone(), &c.api_key));
                 for show in self.db.all_series().await? {
-                    match series::refresh(&self.db, &tvdb, &show, Timestamp::now()).await {
+                    match series::refresh(&self.db, &tvdb, tmdb.as_ref(), &show, Timestamp::now())
+                        .await
+                    {
                         Ok(n) => report.episodes += n,
                         Err(e) => {
                             tracing::warn!(series = %show.data.title, error = format!("{e:#}"), "series refresh failed");

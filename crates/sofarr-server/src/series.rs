@@ -226,15 +226,52 @@ pub async fn fetch_from_sonarr(sonarr: &Radarr) -> anyhow::Result<(Documents, Ep
     Ok((docs, episodes))
 }
 
+/// The series' TMDB id: the stored one, else TMDB's lookup by TVDB id, stored when
+/// found; a series TMDB does not know is looked up again next time (AC-12).
+async fn tmdb_id(
+    db: &Db,
+    tmdb: Option<&sofarr_metadata::Tmdb>,
+    series: &Series,
+) -> anyhow::Result<Option<i64>> {
+    if let Some(id) = db.series_tmdb_id(series.id).await? {
+        return Ok(Some(id));
+    }
+    let Some(tmdb) = tmdb else {
+        return Ok(None);
+    };
+    match tmdb.find_series_by_tvdb(series.data.tvdb_id).await {
+        Ok(Some(id)) => {
+            db.set_series_tmdb_id(series.id, id).await?;
+            Ok(Some(id))
+        }
+        Ok(None) => Ok(None),
+        Err(e) => {
+            tracing::warn!(series = %series.data.title, error = %e, "TMDB lookup failed");
+            Ok(None)
+        }
+    }
+}
+
 /// Refreshes one series from TVDB: German title, aliases, episodes (new ones are
 /// monitored like the series).
 pub async fn refresh(
     db: &Db,
     tvdb: &sofarr_metadata::tvdb::Tvdb,
+    tmdb: Option<&sofarr_metadata::Tmdb>,
     series: &Series,
     now: Timestamp,
 ) -> anyhow::Result<usize> {
     let meta = tvdb.series(series.data.tvdb_id).await?;
+    let tmdb_id = tmdb_id(db, tmdb, series).await?;
+    // The IMDb id: TVDB's, else TMDB's, else the one we have (spec imdb-ratings AC-05).
+    let imdb_id = match (&meta.imdb_id, tmdb, tmdb_id) {
+        (Some(id), _, _) => Some(id.clone()),
+        (None, Some(tmdb), Some(id)) => tmdb.series_imdb_id(id).await.unwrap_or_else(|e| {
+            tracing::warn!(series = %series.data.title, error = %e, "TMDB external ids failed");
+            None
+        }),
+        _ => None,
+    };
     let fetched = tvdb.episodes(series.data.tvdb_id).await?;
     // Other jobs may have changed the series while TVDB answered: write onto the
     // current state.
@@ -248,8 +285,8 @@ pub async fn refresh(
             data.alternative_titles.push(alias);
         }
     }
-    if data.imdb_id.is_none() {
-        data.imdb_id = meta.imdb_id;
+    if imdb_id.is_some() {
+        data.imdb_id = imdb_id;
     }
     db.upsert_series(&data, now).await?;
     db.set_series_presentation(
