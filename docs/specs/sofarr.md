@@ -156,6 +156,7 @@ public specifications, general knowledge of release names.
 | D24 | Posters and images reach the browser only through sofarr, which caches them under `/config/cache` | The browser talks to sofarr alone (privacy, works behind auth), images load fast and once |
 | D26 | Series also carry their TMDB id, found through TMDB's lookup by TVDB id at the metadata refresh; TVDB stays the source of episodes (D10) | IMDb fallback, cast, discover and trailers come from TMDB; one id per series avoids lookups everywhere |
 | D25 | Subtitle provider client as an IO crate `sofarr-subtitles` (depends on `sofarr-parser` for release-name matching), used by `sofarr-server` | Keeps the provider's HTTP API and quota logic out of the server's orchestration and testable against a fake provider, like `sofarr-indexer` |
+| D27 | Auth building blocks: `argon2` for the password (D15), `sha2` for stored session-token hashes, `subtle` for constant-time key comparison, `rand` for tokens, `rpassword` for password input without echo (owner) | Established, small crates; no secret is stored or compared in plain form |
 
 ## 10. Open questions
 
