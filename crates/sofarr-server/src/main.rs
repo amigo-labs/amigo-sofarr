@@ -9,6 +9,7 @@ mod backups;
 mod calendar;
 mod compare;
 mod compare_media;
+mod compare_rename;
 mod config;
 mod downloads;
 mod failures;
@@ -183,11 +184,14 @@ enum Command {
     },
     /// Synchronisiert die Import Lists (TMDb-Personen)
     SyncImportLists,
-    /// Vergleicht sofarrs Dateinamen mit Radarrs Benennung (Orakel: rename)
+    /// Vergleicht sofarrs Dateinamen mit Radarrs bzw. Sonarrs Benennung (Orakel: rename)
     CompareRename {
-        /// Höchstens so viele Filme prüfen
+        /// Höchstens so viele Filme bzw. Serien prüfen
         #[arg(long, default_value_t = 200)]
         limit: usize,
+        /// Orakel: radarr (Filme) oder sonarr (Serien)
+        #[arg(long, value_enum, default_value = "radarr")]
+        app: compare_media::OracleApp,
     },
     /// Vergleicht sofarrs Zuordnung von Downloads (Film, Qualität) mit Radarrs manuellem
     /// Import (Orakel: manualimport)
@@ -488,10 +492,21 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
                 println!("  {title}");
             }
         }
-        Command::CompareRename { limit } => {
+        Command::CompareRename {
+            limit,
+            app: compare_media::OracleApp::Radarr,
+        } => {
             let (report, clean) = compare::rename(&app, &radarr()?, limit).await?;
             print!("{report}");
             anyhow::ensure!(clean, "Dateinamen weichen von Radarr ab");
+        }
+        Command::CompareRename {
+            limit,
+            app: compare_media::OracleApp::Sonarr,
+        } => {
+            let (report, clean) = compare_rename::series(&app, &sonarr()?, limit).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Dateinamen weichen von Sonarr ab");
         }
         Command::CompareManualImport { folder } => {
             let (report, clean) = compare::manual_import(&app, &radarr()?, &folder).await?;
