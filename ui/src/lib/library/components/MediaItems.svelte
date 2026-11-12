@@ -6,16 +6,18 @@
   import Poster from './Poster.svelte';
 
   // The rows of a movie or series list as list or poster grid; cards on narrow screens
-  // (spec web-ui-library AC-02, AC-06, AC-22).
+  // (spec web-ui-library AC-02, AC-06, AC-22); the IMDb rating while ratings are on (spec
+  // imdb-ratings AC-04, AC-09).
   type Props = {
     rows: readonly Row[];
     view: ListView;
+    ratings: boolean;
     selected: ReadonlySet<number>;
     busy: ReadonlySet<number>;
     onselect: (id: number, on: boolean) => void;
     onmonitor: (row: Row) => void;
   };
-  let { rows, view, selected, busy, onselect, onmonitor }: Props = $props();
+  let { rows, view, ratings, selected, busy, onselect, onmonitor }: Props = $props();
 </script>
 
 <ul class="items" class:grid={view === 'poster'} data-testid="library-items">
@@ -40,6 +42,9 @@
           >{row.file}{#if view === 'liste'}
             · {row.size}{/if}</span
         >
+        {#if ratings}
+          <span class="meta" data-testid="rating">IMDb {row.rating}</span>
+        {/if}
         {#if row.labels.length > 0}
           <span class="labels">
             {#each row.labels as label (label.text)}<Label

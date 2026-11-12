@@ -4,6 +4,7 @@ import type { MediaKind } from '../api/generated/MediaKind';
 import type { MovieListItem } from '../api/generated/MovieListItem';
 import type { SeriesListItem } from '../api/generated/SeriesListItem';
 import type { Tone } from '../system/format';
+import { ratingWithVotesText } from '../imdb/imdb';
 import { bytesText } from './format';
 
 export type RowLabel = { readonly text: string; readonly tone: Tone };
@@ -18,6 +19,8 @@ export type Row = {
   /** The file's quality, "fehlt", or the number of files of a series. */
   readonly file: string;
   readonly size: string;
+  /** IMDb rating with votes, e.g. "7,7 (4.242 Stimmen)"; "–" without (imdb-ratings AC-04). */
+  readonly rating: string;
   readonly monitored: boolean;
   readonly hasPoster: boolean;
   readonly labels: readonly RowLabel[];
@@ -39,6 +42,7 @@ export function movieRow(item: MovieListItem): Row {
     year: item.year,
     file: item.quality ?? 'fehlt',
     size: item.size === null ? '–' : bytesText(item.size),
+    rating: ratingWithVotesText(item.imdb_rating, item.imdb_votes),
     monitored: item.monitored,
     hasPoster: item.has_poster,
     labels,
@@ -61,6 +65,7 @@ export function seriesRow(item: SeriesListItem): Row {
     year: item.year,
     file: `${item.files} von ${item.episodes} ${item.episodes === 1 ? 'Datei' : 'Dateien'}`,
     size: bytesText(item.size),
+    rating: ratingWithVotesText(item.imdb_rating, item.imdb_votes),
     monitored: item.monitored,
     hasPoster: item.has_poster,
     labels,

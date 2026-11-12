@@ -77,6 +77,15 @@ describe('list rows (AC-02, AC-06)', () => {
     ]);
   });
 
+  it('rows carry the IMDb rating with votes, "–" without (imdb-ratings AC-04)', () => {
+    expect(movieRow(movie).rating).toBe('–');
+    expect(movieRow({ ...movie, imdb_rating: 8.4, imdb_votes: 271_000 }).rating).toBe(
+      '8,4 (271.000 Stimmen)',
+    );
+    expect(seriesRow({ ...series, imdb_rating: 7, imdb_votes: 1 }).rating).toBe('7,0 (1 Stimme)');
+    expect(seriesRow(series).rating).toBe('–');
+  });
+
   it('the placeholder shows the first letter or digit (AC-21)', () => {
     expect(initial('Das Boot')).toBe('D');
     expect(initial(' „über“ alles')).toBe('Ü');

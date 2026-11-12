@@ -6,13 +6,24 @@
   import type { Order } from '../../api/generated/Order';
   import type { Sort } from '../../api/generated/Sort';
   import type { Tri } from '../../api/generated/Tri';
-  import { SORTS, TRI_FILTERS, type ListFilters, type ListKind, type TriKey } from '../list-query';
+  import { ratingText } from '../../imdb/imdb';
+  import {
+    SORTS,
+    TRI_FILTERS,
+    sortsFor,
+    type ListFilters,
+    type ListKind,
+    type TriKey,
+  } from '../list-query';
   import type { ListView } from '../view';
 
-  // Search, filters, sorting and the view switch of a library list (AC-02, AC-03, AC-06).
+  // Search, filters, sorting and the view switch of a library list (AC-02, AC-03, AC-06);
+  // rating sort and minimums only while IMDb ratings are on (spec imdb-ratings AC-06,
+  // AC-07, AC-09).
   type Props = {
     kind: ListKind;
     filters: ListFilters;
+    ratings: boolean;
     search: string;
     profiles: readonly Choice[];
     tags: readonly Choice[];
@@ -21,7 +32,19 @@
     onchange: (filters: ListFilters) => void;
     onview: (view: ListView) => void;
   };
-  let { kind, filters, search, profiles, tags, view, onsearch, onchange, onview }: Props = $props();
+  let { kind, filters, ratings, search, profiles, tags, view, onsearch, onchange, onview }: Props =
+    $props();
+
+  const RATINGS: readonly number[] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9];
+  const VOTES: readonly number[] = [100, 1000, 10_000, 100_000];
+  const VOTES_TEXT = new Intl.NumberFormat('de-DE');
+
+  /** The offered choices plus the one from the page address, sorted. */
+  const choices = (offered: readonly number[], current: number | null): readonly number[] =>
+    current === null || offered.includes(current)
+      ? offered
+      : [...offered, current].toSorted((a, b) => a - b);
+  const numberOf = (value: string): number | null => (value === '' ? null : Number(value));
 
   const setTri = (key: TriKey, value: string): void => {
     const tri: Tri = value === 'yes' || value === 'no' ? value : 'any';
@@ -29,6 +52,7 @@
   };
   const idOf = (value: string): number | null => (value === '' ? null : Number(value));
   const sortOf = (value: string): Sort => SORTS.find((s) => s.value === value)?.value ?? 'title';
+  const sorts = $derived(sortsFor(ratings));
   const orderOf = (value: string): Order => (value === 'desc' ? 'desc' : 'asc');
 </script>
 
@@ -83,6 +107,34 @@
       {/each}
     </select>
   </div>
+  {#if ratings}
+    <div class="field">
+      <label for="liste-mindestbewertung">Mindestbewertung</label>
+      <select
+        id="liste-mindestbewertung"
+        value={filters.minRating === null ? '' : String(filters.minRating)}
+        onchange={(e) => onchange({ ...filters, minRating: numberOf(e.currentTarget.value) })}
+      >
+        <option value="">Alle</option>
+        {#each choices(RATINGS, filters.minRating) as rating (rating)}
+          <option value={String(rating)}>ab {ratingText(rating)}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="field">
+      <label for="liste-mindeststimmen">Mindeststimmen</label>
+      <select
+        id="liste-mindeststimmen"
+        value={filters.minVotes === null ? '' : String(filters.minVotes)}
+        onchange={(e) => onchange({ ...filters, minVotes: numberOf(e.currentTarget.value) })}
+      >
+        <option value="">Alle</option>
+        {#each choices(VOTES, filters.minVotes) as votes (votes)}
+          <option value={String(votes)}>ab {VOTES_TEXT.format(votes)}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
   <div class="field">
     <label for="liste-sortierung">Sortierung</label>
     <select
@@ -90,7 +142,7 @@
       value={filters.sort}
       onchange={(e) => onchange({ ...filters, sort: sortOf(e.currentTarget.value) })}
     >
-      {#each SORTS as sort (sort.value)}
+      {#each sorts as sort (sort.value)}
         <option value={sort.value}>{sort.label}</option>
       {/each}
     </select>

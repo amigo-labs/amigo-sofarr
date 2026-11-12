@@ -5,6 +5,9 @@ import {
   filterParams,
   isFiltered,
   parseFilters,
+  sortsFor,
+  usesRatings,
+  withoutRatings,
   type ListFilters,
 } from './list-query';
 
@@ -23,6 +26,8 @@ describe('list filters in the page address (AC-03, AC-06)', () => {
       profile: 4,
       tag: 2,
       q: 'Boot',
+      minRating: null,
+      minVotes: null,
       sort: 'year',
       order: 'desc',
     });
@@ -49,6 +54,8 @@ describe('list filters in the page address (AC-03, AC-06)', () => {
       profile: 5,
       tag: null,
       q: '  Das Boot ',
+      minRating: null,
+      minVotes: null,
       sort: 'added',
       order: 'desc',
     };
@@ -76,5 +83,61 @@ describe('list filters in the page address (AC-03, AC-06)', () => {
     expect(isFiltered({ ...EMPTY_FILTERS, sort: 'year' })).toBe(false);
     expect(isFiltered({ ...EMPTY_FILTERS, q: 'x' })).toBe(true);
     expect(isFiltered({ ...EMPTY_FILTERS, tris: { missing: 'no' } })).toBe(true);
+  });
+});
+
+describe('IMDb rating sort and minimums in the page address (imdb-ratings AC-06, AC-07, AC-09)', () => {
+  it('reads the minimums and the rating sort', () => {
+    const filters = parseFilters(
+      'movie',
+      params('mindestbewertung=7,5&mindeststimmen=1000&sortierung=bewertung'),
+    );
+    expect(filters).toEqual({ ...EMPTY_FILTERS, minRating: 7.5, minVotes: 1000, sort: 'rating' });
+    expect(parseFilters('series', params('mindestbewertung=8')).minRating).toBe(8);
+  });
+
+  it('ignores minimums outside 0 to 10, with more decimals or not numbers', () => {
+    for (const text of ['11', '7.55', '-1', 'gut', '', '1e3']) {
+      expect(parseFilters('movie', params(`mindestbewertung=${text}`)).minRating).toBeNull();
+    }
+    for (const text of ['-5', '1.5', 'viele', '']) {
+      expect(parseFilters('movie', params(`mindeststimmen=${text}`)).minVotes).toBeNull();
+    }
+    expect(parseFilters('movie', params('mindestbewertung=10')).minRating).toBe(10);
+    expect(parseFilters('movie', params('mindeststimmen=0')).minVotes).toBe(0);
+  });
+
+  it('round-trips through the address and builds the API query', () => {
+    const filters: ListFilters = { ...EMPTY_FILTERS, minRating: 6.5, minVotes: 50, sort: 'rating' };
+    const text = filterParams('series', filters).toString();
+    expect(text).toBe('mindestbewertung=6.5&mindeststimmen=50&sortierung=bewertung');
+    expect(parseFilters('series', params(text))).toEqual(filters);
+    expect(apiQuery('series', filters, 1, 50)).toBe(
+      '?min_rating=6.5&min_votes=50&sort=rating&order=asc&page=1&page_size=50',
+    );
+  });
+
+  it('counts the minimums as filters, the rating sort not', () => {
+    expect(isFiltered({ ...EMPTY_FILTERS, minRating: 7 })).toBe(true);
+    expect(isFiltered({ ...EMPTY_FILTERS, minVotes: 0 })).toBe(true);
+    expect(isFiltered({ ...EMPTY_FILTERS, sort: 'rating' })).toBe(false);
+  });
+
+  it('offers and sends nothing by rating while ratings are off', () => {
+    expect(sortsFor(true).map((s) => s.value)).toContain('rating');
+    expect(sortsFor(false).map((s) => s.value)).toEqual(['title', 'year', 'added', 'size']);
+    const rated: ListFilters = {
+      ...EMPTY_FILTERS,
+      q: 'Boot',
+      minRating: 7,
+      minVotes: 10,
+      sort: 'rating',
+      order: 'desc',
+    };
+    expect(usesRatings(rated)).toBe(true);
+    expect(withoutRatings(rated)).toEqual({ ...EMPTY_FILTERS, q: 'Boot', order: 'desc' });
+    expect(usesRatings(withoutRatings(rated))).toBe(false);
+    const plain = { ...EMPTY_FILTERS, sort: 'year' as const };
+    expect(withoutRatings(plain)).toBe(plain);
   });
 });

@@ -6,6 +6,7 @@
   import { ensureOptions, options } from '../options.svelte';
   import { searchBody } from '../actions';
   import Label from '../components/Label.svelte';
+  import RatingLine from '../../imdb/RatingLine.svelte';
   import DetailHead from './DetailHead.svelte';
   import FileBox from './FileBox.svelte';
   import FilesBox from './FilesBox.svelte';
@@ -53,6 +54,7 @@
     onsearch={() => void actions.search('search', m.title, searchBody({ movie_id: m.id }))}
   >
     {#snippet facts()}
+      <RatingLine rating={m.imdb_rating} votes={m.imdb_votes} />
       <div class="labels">
         {#if m.missing}<Label text="fehlt" tone="danger" />{/if}
         {#if m.cutoff_unmet}<Label text="Cutoff nicht erreicht" />{/if}

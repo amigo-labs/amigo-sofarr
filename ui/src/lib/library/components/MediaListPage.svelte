@@ -8,6 +8,8 @@
   import type { MovieListItem } from '../../api/generated/MovieListItem';
   import type { SeriesListItem } from '../../api/generated/SeriesListItem';
   import { listMovies, listSeries, monitor } from '../../api/library';
+  import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
+  import { imdb, loadImdb } from '../../imdb/info.svelte';
   import { ensureOptions, options } from '../options.svelte';
   import { itemCount } from '../format';
   import {
@@ -15,6 +17,8 @@
     filterParams,
     isFiltered,
     parseFilters,
+    usesRatings,
+    withoutRatings,
     type ListFilters,
   } from '../list-query';
   import { notify } from '../notices.svelte';
@@ -25,7 +29,8 @@
   import ListControls from './ListControls.svelte';
   import MediaItems from './MediaItems.svelte';
 
-  // The movie or series list (spec web-ui-library AC-02 to AC-04, AC-06, AC-10, AC-22).
+  // The movie or series list (spec web-ui-library AC-02 to AC-04, AC-06, AC-10, AC-22) with
+  // IMDb ratings while they are on (spec imdb-ratings AC-04, AC-06 to AC-09).
   type Props = { kind: 'movie' | 'series' };
   let { kind }: Props = $props();
 
@@ -44,7 +49,13 @@
   let bulkBusy = $state(false);
   let sentinel: HTMLElement | undefined = $state();
 
-  const filters = $derived(parseFilters(kind, page.url.searchParams));
+  const addressFilters = $derived(parseFilters(kind, page.url.searchParams));
+  // While ratings are off the server refuses rating sort and minimums (AC-09).
+  const filters = $derived(
+    imdb.info?.enabled === false ? withoutRatings(addressFilters) : addressFilters,
+  );
+  // A list sorted or filtered by rating waits for the ratings state; others load at once.
+  const ready = $derived(imdb.settled || !usesRatings(addressFilters));
   const query = $derived(apiQuery(kind, filters, 1, PAGE_SIZE));
   const rows = $derived(
     list.items.map((item) => ('episodes' in item ? seriesRow(item) : movieRow(item))),
@@ -57,10 +68,12 @@
 
   onMount(() => {
     view = readView(storage, key);
+    void loadImdb();
   });
 
   // A new query (filters, search, sorting) replaces the list and the selection.
   $effect(() => {
+    if (!ready) return;
     void query;
     untrack(() => {
       selected = new Set();
@@ -162,6 +175,7 @@
 <ListControls
   {kind}
   {filters}
+  ratings={imdb.shown}
   {search}
   profiles={(kind === 'movie' ? options.value?.movie_profiles : options.value?.series_profiles) ??
     []}
@@ -171,6 +185,8 @@
   onchange={apply}
   {onview}
 />
+
+<ImdbAttribution info={imdb.info} />
 
 {#if selected.size > 0}
   <div class="bulk" role="region" aria-label="Auswahl">
@@ -201,6 +217,7 @@
   <MediaItems
     {rows}
     {view}
+    ratings={imdb.shown}
     {selected}
     {busy}
     onselect={select}

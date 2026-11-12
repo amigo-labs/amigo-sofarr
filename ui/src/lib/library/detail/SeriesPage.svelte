@@ -9,6 +9,7 @@
   import { bytesText } from '../format';
   import { notify } from '../notices.svelte';
   import Label from '../components/Label.svelte';
+  import RatingLine from '../../imdb/RatingLine.svelte';
   import DetailHead from './DetailHead.svelte';
   import FilesBox from './FilesBox.svelte';
   import HistoryBox from './HistoryBox.svelte';
@@ -54,6 +55,7 @@
     onsearch={() => void actions.search('search', s.title, searchBody({ series_id: s.id }))}
   >
     {#snippet facts()}
+      <RatingLine rating={s.imdb_rating} votes={s.imdb_votes} />
       <div class="labels">
         {#if s.missing > 0}<Label text={`${s.missing} fehlen`} tone="danger" />{/if}
         {#if s.cutoff_unmet > 0}<Label text={`${s.cutoff_unmet} unter Cutoff`} />{/if}

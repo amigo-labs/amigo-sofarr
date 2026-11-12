@@ -1,5 +1,6 @@
 // Filters, search and sorting of the movie and series lists, kept in the page address
-// with German names (spec web-ui-library AC-03, AC-06), and the matching API query.
+// with German names (spec web-ui-library AC-03, AC-06; IMDb ratings: spec imdb-ratings
+// AC-06, AC-07, AC-09), and the matching API query.
 
 import type { Order } from '../api/generated/Order';
 import type { Sort } from '../api/generated/Sort';
@@ -15,6 +16,10 @@ export type ListFilters = {
   readonly profile: number | null;
   readonly tag: number | null;
   readonly q: string;
+  /** Lowest IMDb rating (0 to 10), `null`: any. */
+  readonly minRating: number | null;
+  /** Lowest number of IMDb votes, `null`: any. */
+  readonly minVotes: number | null;
   readonly sort: Sort;
   readonly order: Order;
 };
@@ -42,13 +47,20 @@ export const SORTS: readonly {
   { value: 'year', param: 'jahr', label: 'Jahr' },
   { value: 'added', param: 'hinzugefuegt', label: 'Hinzugefügt' },
   { value: 'size', param: 'groesse', label: 'Größe' },
+  { value: 'rating', param: 'bewertung', label: 'Bewertung' },
 ];
+
+/** The sort choices while IMDb ratings are on or off (AC-09: no rating sort while off). */
+export const sortsFor = (ratings: boolean): typeof SORTS =>
+  ratings ? SORTS : SORTS.filter((s) => s.value !== 'rating');
 
 export const EMPTY_FILTERS: ListFilters = {
   tris: {},
   profile: null,
   tag: null,
   q: '',
+  minRating: null,
+  minVotes: null,
   sort: 'title',
   order: 'asc',
 };
@@ -65,6 +77,19 @@ function idOf(text: string | null): number | null {
   return Number.isSafeInteger(id) ? id : null;
 }
 
+/** A minimum rating from the address, "7.5" or "7,5"; one decimal, 0 to 10. */
+function ratingOf(text: string | null): number | null {
+  if (text === null || !/^\d{1,2}([.,]\d)?$/.test(text)) return null;
+  const rating = Number(text.replace(',', '.'));
+  return rating <= 10 ? rating : null;
+}
+
+/** A minimum number of votes from the address. */
+function votesOf(text: string | null): number | null {
+  if (text === null || !/^\d{1,9}$/.test(text)) return null;
+  return Number(text);
+}
+
 /** The filters of a page address; unknown or invalid values fall back to the default. */
 export function parseFilters(kind: ListKind, params: Pick<URLSearchParams, 'get'>): ListFilters {
   const tris: Partial<Record<TriKey, Tri>> = {};
@@ -78,6 +103,8 @@ export function parseFilters(kind: ListKind, params: Pick<URLSearchParams, 'get'
     profile: idOf(params.get('profil')),
     tag: idOf(params.get('tag')),
     q: params.get('suche')?.trim() ?? '',
+    minRating: ratingOf(params.get('mindestbewertung')),
+    minVotes: votesOf(params.get('mindeststimmen')),
     sort,
     order: params.get('richtung') === 'ab' ? 'desc' : 'asc',
   };
@@ -93,6 +120,8 @@ export function filterParams(kind: ListKind, filters: ListFilters): URLSearchPar
   if (filters.profile !== null) params.set('profil', String(filters.profile));
   if (filters.tag !== null) params.set('tag', String(filters.tag));
   if (filters.q.trim() !== '') params.set('suche', filters.q.trim());
+  if (filters.minRating !== null) params.set('mindestbewertung', String(filters.minRating));
+  if (filters.minVotes !== null) params.set('mindeststimmen', String(filters.minVotes));
   if (filters.sort !== 'title') {
     params.set('sortierung', SORTS.find((s) => s.value === filters.sort)?.param ?? 'titel');
   }
@@ -115,6 +144,8 @@ export function apiQuery(
   if (filters.profile !== null) params.set('profile', String(filters.profile));
   if (filters.tag !== null) params.set('tag', String(filters.tag));
   if (filters.q.trim() !== '') params.set('q', filters.q.trim());
+  if (filters.minRating !== null) params.set('min_rating', String(filters.minRating));
+  if (filters.minVotes !== null) params.set('min_votes', String(filters.minVotes));
   params.set('sort', filters.sort);
   params.set('order', filters.order);
   params.set('page', String(page));
@@ -128,6 +159,27 @@ export function isFiltered(filters: ListFilters): boolean {
     Object.values(filters.tris).some((t) => t !== 'any') ||
     filters.profile !== null ||
     filters.tag !== null ||
-    filters.q.trim() !== ''
+    filters.q.trim() !== '' ||
+    filters.minRating !== null ||
+    filters.minVotes !== null
   );
+}
+
+/** Whether the filters sort or filter by IMDb rating. */
+export function usesRatings(filters: ListFilters): boolean {
+  return filters.sort === 'rating' || filters.minRating !== null || filters.minVotes !== null;
+}
+
+/**
+ * The filters without rating sort and minimums: while IMDb ratings are off the server
+ * refuses them, so an old address still shows the list (AC-09).
+ */
+export function withoutRatings(filters: ListFilters): ListFilters {
+  if (!usesRatings(filters)) return filters;
+  return {
+    ...filters,
+    minRating: null,
+    minVotes: null,
+    sort: filters.sort === 'rating' ? 'title' : filters.sort,
+  };
 }
