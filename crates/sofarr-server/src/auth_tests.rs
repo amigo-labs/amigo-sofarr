@@ -470,6 +470,7 @@ fn a_bad_auth_config_stops_the_start() {
         ),
         (auth_toml(&hash, "").replace(API_KEY, ""), "api_key"),
         (auth_toml(&hash, "session_days = 0\n"), "session_days"),
+        (auth_toml(&hash, "session_days = 4000000\n"), "session_days"),
         (
             auth_toml(&hash, "trusted_networks = [\"10.0.0.0/33\"]\n"),
             "trusted_networks",
@@ -504,7 +505,7 @@ async fn health_needs_no_credential() {
 
 /// Everything written to the log while the guard lives.
 #[derive(Clone, Default)]
-struct Captured(Arc<Mutex<Vec<u8>>>);
+pub(crate) struct Captured(Arc<Mutex<Vec<u8>>>);
 
 impl std::io::Write for Captured {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
@@ -520,11 +521,11 @@ impl std::io::Write for Captured {
 }
 
 impl Captured {
-    fn text(&self) -> String {
+    pub(crate) fn text(&self) -> String {
         String::from_utf8_lossy(&self.0.lock().map(|l| l.clone()).unwrap_or_default()).into_owned()
     }
 
-    fn install(&self) -> tracing::subscriber::DefaultGuard {
+    pub(crate) fn install(&self) -> tracing::subscriber::DefaultGuard {
         let writer = self.clone();
         let subscriber = tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)

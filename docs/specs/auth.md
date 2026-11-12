@@ -139,7 +139,7 @@ Terms used below:
 | AC-11 | `auth_tests::trusted_networks_and_proxies` (`crates/sofarr-server/src/auth_tests.rs`); `auth_net::tests::ranges_contain_addresses` (`crates/sofarr-server/src/auth_net.rs`) | built |        |
 | AC-12 | `auth_tests::a_bad_auth_config_stops_the_start` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
 | AC-13 | `hashes_a_piped_password`, `refuses_an_empty_password` (`crates/sofarr-server/tests/cli_auth.rs`); `auth::tests::password_hashes_verify` (`crates/sofarr-server/src/auth.rs`); `works_while_the_auth_config_is_still_incomplete` (`crates/sofarr-server/tests/cli_auth.rs`) | built |        |
-| AC-14 | `auth_tests::server_errors_answer_generically_and_log_the_details`, `auth_tests::upstream_errors_name_no_urls` (`crates/sofarr-server/src/auth_tests.rs`); both tests also scan the captured log for the details of each error source (database, file system, upstream HTTP) | built |        |
+| AC-14 | `auth_tests::server_errors_answer_generically_and_log_the_details`, `auth_tests::upstream_errors_name_no_urls` (`crates/sofarr-server/src/auth_tests.rs`); both tests also scan the captured log for the details of each error source (database, file system, upstream HTTP); `api_tests::marking_needs_the_download_client` (`crates/sofarr-server/src/api_tests.rs`) | built |        |
 | AC-15 | `auth_tests::secrets_never_reach_the_log` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
 | AC-16 | `auth_tests::health_needs_no_credential` (`crates/sofarr-server/src/auth_tests.rs`) | built |        |
 
@@ -158,3 +158,6 @@ Terms used below:
 - 2026-11-12: After the first verification round: every request served by a session sets its cookie again with a fresh `Max-Age`, so the browser keeps it as long as the server does (AC-06); `hash-password` runs before the config is read (AC-13); sessions unused for `session_days` are deleted at each login; `GET /api/grabs?status=…` with an unknown status answers 400.
 - 2026-11-12: Argon2 and BLAKE2 are compiled optimised in the dev profile, because the tests log in many times.
 - 2026-11-12: `AuthConfig` has a hand-written `Debug` that hides username, hash and key, so no debug print of the config can put them into the log.
+- 2026-11-12: Marking a grab as failed while the download client is unreachable answers 503 with the fixed text "Download-Client nicht erreichbar – Details stehen im Log"; the upstream error is logged (AC-14).
+- 2026-11-12: `[auth] session_days` is limited to 1..=3650, because far larger values overflow the session timestamps (AC-12).
+

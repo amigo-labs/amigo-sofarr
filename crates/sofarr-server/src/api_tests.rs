@@ -429,6 +429,8 @@ async fn only_active_grabs_can_be_marked() {
 
 #[tokio::test]
 async fn marking_needs_the_download_client() {
+    let log = crate::auth_tests::Captured::default();
+    let _guard = log.install();
     let s = movie_services().await;
     let api = Api::start(app(Library::Movies, &live(&s, "")).await).await;
     api.app.rss_sync().await.expect("rss");
@@ -436,7 +438,17 @@ async fn marking_needs_the_download_client() {
     s.lock().nzbget_down = true;
     let (status, answer) = api.post(&format!("/api/grabs/movie/{id}/fail"), "").await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
-    assert!(german(&answer).contains("Download-Client"), "{answer}");
+    // A generic German message (auth AC-14); the upstream error goes to the log.
+    assert_eq!(
+        german(&answer),
+        "Download-Client nicht erreichbar – Details stehen im Log",
+        "{answer}"
+    );
+    let logged = log.text();
+    assert!(
+        logged.contains("download client unreachable") && logged.contains("nzbget"),
+        "{logged}"
+    );
     let after = api.app.db.grab(id).await.expect("db").expect("grab");
     assert_eq!(after.status, GrabStatus::Queued);
     assert!(api.app.db.blocks().await.expect("blocks").is_empty());

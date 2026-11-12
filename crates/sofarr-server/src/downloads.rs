@@ -495,7 +495,11 @@ impl App {
             MarkError::Unavailable("Kein Download-Client konfiguriert".to_owned())
         })?;
         let unavailable = |e: sofarr_download::DownloadError| {
-            MarkError::Unavailable(format!("Download-Client nicht erreichbar: {e}"))
+            // The upstream error stays in the log (auth AC-14).
+            tracing::warn!(error = %e, "download client unreachable");
+            MarkError::Unavailable(
+                "Download-Client nicht erreichbar – Details stehen im Log".to_owned(),
+            )
         };
         let items = client.items().await.map_err(unavailable)?;
         if let Some(item) = download_id

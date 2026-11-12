@@ -33,6 +33,9 @@ pub struct Config {
     pub auth: AuthConfig,
 }
 
+/// The longest session lifetime: ten years, far below where timestamps overflow.
+const MAX_SESSION_DAYS: u32 = 3650;
+
 /// `[auth]`: optional login, API key, trusted networks and proxies (spec auth).
 #[derive(Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -100,8 +103,8 @@ impl AuthConfig {
             "[auth] api_key ist leer"
         );
         anyhow::ensure!(
-            self.session_days >= 1,
-            "[auth] session_days muss mindestens 1 sein"
+            (1..=MAX_SESSION_DAYS).contains(&self.session_days),
+            "[auth] session_days muss zwischen 1 und {MAX_SESSION_DAYS} liegen"
         );
         for (key, list) in [
             ("trusted_networks", &self.trusted_networks),
