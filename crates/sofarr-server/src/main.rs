@@ -14,6 +14,7 @@ mod import_lists;
 mod importer;
 mod library;
 mod metadata;
+mod password_input;
 mod radarr;
 mod rescan;
 mod rss;
@@ -167,7 +168,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     // Hashing a password needs no config: it is used while `[auth]` is being written.
     if matches!(cli.command, Some(Command::HashPassword)) {
-        return match hash_password() {
+        return match password_input::run() {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
                 eprintln!("Fehler: {err:#}");
@@ -582,25 +583,6 @@ fn router() -> axum::Router {
 
 /// `amigo-sofarr hash-password`: typed without echo in a terminal, otherwise one line
 /// from stdin; the password is never an argument and never printed.
-fn hash_password() -> anyhow::Result<()> {
-    use std::io::{BufRead, IsTerminal};
-    let stdin = std::io::stdin();
-    let line = if stdin.is_terminal() {
-        rpassword::prompt_password("Passwort: ").context("Passwort nicht lesbar")?
-    } else {
-        let mut line = String::new();
-        stdin
-            .lock()
-            .read_line(&mut line)
-            .context("Passwort nicht lesbar")?;
-        line
-    };
-    let password = line.trim_end_matches(['\r', '\n']);
-    anyhow::ensure!(!password.is_empty(), "Leeres Passwort – kein Hash erzeugt");
-    println!("{}", auth::hash_password(password)?);
-    Ok(())
-}
-
 fn init_tracing(config: &Config) {
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.log.level));
