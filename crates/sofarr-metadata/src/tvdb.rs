@@ -24,6 +24,10 @@ pub struct SeriesMetadata {
     pub aliases: Vec<String>,
     /// `Continuing`, `Ended`, …
     pub status: String,
+    /// URL of the series poster (`image`).
+    pub poster: Option<String>,
+    /// German overview text, else the default one.
+    pub overview: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,7 +134,22 @@ pub fn series_from_json(data: &Value) -> Result<SeriesMetadata, MetadataError> {
     {
         aliases.push(de.clone());
     }
+    let text = |v: &Value| {
+        v.as_str()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    };
+    let overview = data["translations"]["overviewTranslations"]
+        .as_array()
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .find(|t| t["language"].as_str() == Some("deu"))
+        .and_then(|t| text(&t["overview"]))
+        .or_else(|| text(&data["overview"]));
     Ok(SeriesMetadata {
+        poster: text(&data["image"]),
+        overview,
         tvdb_id,
         title_de: german.unwrap_or_else(|| title.clone()),
         year,
@@ -331,7 +350,10 @@ mod tests {
             "status": {"name": "Continuing"},
             "aliases": [{"language": "eng", "name": "The Small Island"}],
             "remoteIds": [{"id": "tt7777777", "sourceName": "IMDB"}],
-            "translations": {"nameTranslations": [{"language": "deu", "name": "Kleine Insel"}]}
+            "image": "https://artworks.thetvdb.com/banners/v4/series/77/posters/insel.jpg",
+            "overview": "An island.",
+            "translations": {"nameTranslations": [{"language": "deu", "name": "Kleine Insel"}],
+                "overviewTranslations": [{"language": "deu", "overview": "Eine Insel."}]}
         })
     }
 
@@ -343,6 +365,15 @@ mod tests {
         assert_eq!(s.imdb_id.as_deref(), Some("tt7777777"));
         assert_eq!(s.original_language, Some(Language::English));
         assert_eq!(s.aliases, ["The Small Island", "Kleine Insel"]);
+        assert_eq!(
+            s.poster.as_deref(),
+            Some("https://artworks.thetvdb.com/banners/v4/series/77/posters/insel.jpg")
+        );
+        assert_eq!(s.overview.as_deref(), Some("Eine Insel."));
+        let plain =
+            series_from_json(&json!({"id": 1, "name": "X", "overview": "Text"})).expect("plain");
+        assert_eq!(plain.overview.as_deref(), Some("Text"));
+        assert_eq!(plain.poster, None);
         let e = episodes_from_json(&json!({"episodes": [
             {"id": 1, "seasonNumber": 1, "number": 1, "absoluteNumber": 1, "name": "Pilot", "aired": "2019-01-01"},
             {"id": 2, "seasonNumber": 0, "number": 1, "absoluteNumber": 0, "name": "Special", "aired": null},

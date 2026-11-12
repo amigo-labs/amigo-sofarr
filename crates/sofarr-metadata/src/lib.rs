@@ -43,6 +43,10 @@ pub struct MovieMetadata {
     pub in_cinemas: Option<String>,
     pub digital_release: Option<String>,
     pub physical_release: Option<String>,
+    /// TMDB file path of the poster, e.g. `/abc.jpg`.
+    pub poster_path: Option<String>,
+    /// German overview text, else the default one.
+    pub overview: Option<String>,
 }
 
 /// A movie in a person's filmography.
@@ -154,6 +158,8 @@ struct Translation {
 struct TranslationData {
     #[serde(default)]
     title: String,
+    #[serde(default)]
+    overview: String,
 }
 
 fn year_of(date: &Value) -> Option<u16> {
@@ -226,8 +232,22 @@ pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
     if title_de != title && !alternative_titles.contains(&title_de) {
         alternative_titles.push(title_de.clone());
     }
+    let german_overview = translations
+        .iter()
+        .filter(|t| t.iso_639_1 == "de")
+        .map(|t| t.data.overview.trim())
+        .find(|o| !o.is_empty())
+        .map(str::to_owned);
+    let text = |v: &Value| {
+        v.as_str()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    };
     let release = |types: &[u64]| release_date(value, types);
     Ok(MovieMetadata {
+        poster_path: text(&value["poster_path"]),
+        overview: german_overview.or_else(|| text(&value["overview"])),
         status: value["status"]
             .as_str()
             .filter(|s| !s.is_empty())
@@ -333,10 +353,10 @@ mod tests {
             "alternative_titles": {"titles": [{"iso_3166_1": "US", "title": "Small Garden"}]},
             "translations": {"translations": [
                 {"iso_639_1": "de", "iso_3166_1": "AT", "data": {"title": "Der kleine Garten (AT)"}},
-                {"iso_639_1": "de", "iso_3166_1": "DE", "data": {"title": "Der kleine Garten"}},
+                {"iso_639_1": "de", "iso_3166_1": "DE", "data": {"title": "Der kleine Garten", "overview": "Ein Garten in Paris."}},
                 {"iso_639_1": "es", "iso_3166_1": "ES", "data": {"title": "El pequeño jardín"}}
             ]},
-            "status": "Released",
+            "status": "Released", "poster_path": "/garten.jpg", "overview": "A garden in Paris.",
             "release_dates": {"results": [
                 {"iso_3166_1": "FR", "release_dates": [
                     {"type": 3, "release_date": "2019-05-01T00:00:00.000Z"},
@@ -359,6 +379,8 @@ mod tests {
         assert_eq!(movie.digital_release.as_deref(), Some("2019-09-20"));
         assert_eq!(movie.physical_release.as_deref(), Some("2019-09-27"));
         assert_eq!(movie.title_de, "Der kleine Garten");
+        assert_eq!(movie.poster_path.as_deref(), Some("/garten.jpg"));
+        assert_eq!(movie.overview.as_deref(), Some("Ein Garten in Paris."));
         assert_eq!(movie.year, Some(2019));
         assert_eq!(movie.runtime_minutes, 104);
         assert_eq!(movie.original_language, Some(Language::French));
@@ -370,8 +392,13 @@ mod tests {
 
     #[test]
     fn german_title_falls_back() {
-        let movie = movie_from_json(&json!({"id": 1, "title": "Only English"})).expect("valid");
+        let movie = movie_from_json(
+            &json!({"id": 1, "title": "Only English", "overview": "Text", "poster_path": null}),
+        )
+        .expect("valid");
         assert_eq!(movie.title_de, "Only English");
+        assert_eq!(movie.overview.as_deref(), Some("Text"));
+        assert_eq!(movie.poster_path, None);
         assert_eq!(movie.original_title, "Only English");
         assert_eq!(movie.year, None);
     }
