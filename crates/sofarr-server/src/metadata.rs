@@ -164,3 +164,44 @@ pub fn as_library_movie(movie: &NewMovie) -> Movie {
         file: None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use sofarr_metadata::MovieMetadata;
+
+    use super::{as_library_movie, merge, new_movie};
+
+    fn meta(imdb: Option<&str>) -> MovieMetadata {
+        MovieMetadata {
+            tmdb_id: 603,
+            imdb_id: imdb.map(str::to_owned),
+            title: "Matrix".to_owned(),
+            original_title: "The Matrix".to_owned(),
+            title_de: "Matrix".to_owned(),
+            year: Some(1999),
+            runtime_minutes: 136,
+            original_language: None,
+            alternative_titles: Vec::new(),
+            status: None,
+            in_cinemas: None,
+            digital_release: None,
+            physical_release: None,
+            poster_path: None,
+            overview: None,
+        }
+    }
+
+    /// Spec imdb-ratings AC-05 for movies: the refresh sets a missing or changed IMDb id
+    /// from TMDB and keeps the previous one when TMDB reports none.
+    #[test]
+    fn the_refresh_takes_tmdbs_imdb_id_and_keeps_the_old_one_without() {
+        let without = as_library_movie(&new_movie(&meta(None), true, 1, "released", Vec::new()));
+        let set = merge(&without, &meta(Some("tt0133093")));
+        assert_eq!(set.imdb_id.as_deref(), Some("tt0133093"));
+        let known = as_library_movie(&set);
+        let changed = merge(&known, &meta(Some("tt9999999")));
+        assert_eq!(changed.imdb_id.as_deref(), Some("tt9999999"));
+        let kept = merge(&known, &meta(None));
+        assert_eq!(kept.imdb_id.as_deref(), Some("tt0133093"));
+    }
+}
