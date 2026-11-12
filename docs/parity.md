@@ -204,3 +204,5 @@ Radarrs manuellen Import (Spec §5).
 | Serien: `multiEpisodeStyle` | 0 Extend, 1 Duplicate, 2 Repeat, 3 Scene, 4 Range, 5 Prefixed Range; Duplicate schreibt die Staffel mit der Auffüllung der Episode. |
 | Serien: `colonReplacementFormat` (numerisch) | 0 Delete, 1 Dash, 2 Space Dash, 3 Space Dash Space, 4 Smart. |
 | Serien: Episoden-Import | jede Videodatei wird über ihren Namen (sonst den Grab-Titel) Episoden zugeordnet. |
+| Fehlgeschlagene Downloads | Release-Fehler (`FAILURE/HEALTH`, `/PAR`, `/UNPACK`, `DELETED/HEALTH`, `/MANUAL`) und kaputte NZBs (HTTP 404/410, Newznab-Fehler 300, von nzbget abgelehnt) kommen auf die Blocklist des Films bzw. der Serie (GUID und normalisierter Titel, ohne Ablauf); lokale Fehler, Ausfälle und verschwundene Downloads nicht. Re-Suche je Medienart laut `[download] redownload_failed_*`, sonst `autoRedownloadFailed` aus dem Import, sonst aus (Spec `fail-handling`). |
+| Verschwundene Downloads | Ein aktiver Grab, dessen Download bei jedem erfolgreichen Download-Check seit 24 Stunden weder in Queue noch History steht, gilt als fehlgeschlagen; nicht erreichbare Checks zählen nicht. |
