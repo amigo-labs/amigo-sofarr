@@ -8,11 +8,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
+import { portBase } from './env.mjs';
 
 /** Movies of the large library (AC-04); the named movies below come on top. */
 export const FILLER_MOVIES = 2490;
 /** The fake Sonarr of each seeded variant (they start at the same time). */
-const SONARR_PORTS = { library: 47830, bench: 47831 };
+const SONARR_PORTS = { library: portBase() + 20, bench: portBase() + 21 };
 /** The fake Sonarr's API key, made per run: test keys are never literals. */
 export const SONARR_KEY = `fake-sonarr-${randomUUID()}`;
 
