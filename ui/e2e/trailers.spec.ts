@@ -167,13 +167,13 @@ test.describe('"Trailer laden" (AC-09)', () => {
     const id = await movieId(request, EXTRAS, 'Trailerfilm');
     await page.route(`**/api/movies/${id}/trailer`, (route) =>
       route.request().method() === 'POST'
-        ? json(route, { error: 'Für diesen Eintrag läuft schon ein Trailer-Download' }, 409)
+        ? json(route, { error: 'Für diesen Titel läuft schon ein Trailer-Download' }, 409)
         : json(route, NONE),
     );
     await page.goto(`${EXTRAS}/filme/${id}`);
     await box(page).getByRole('button', { name: 'Trailer laden' }).click();
     await expect(page.getByRole('alert')).toContainText(
-      'Trailer nicht geladen: Für diesen Eintrag läuft schon ein Trailer-Download',
+      'Trailer nicht geladen: Für diesen Titel läuft schon ein Trailer-Download',
     );
   });
 });
