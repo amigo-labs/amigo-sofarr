@@ -6,18 +6,25 @@
   (compare-rename), each for movies (Radarr) and series (Sonarr).
 
 .DESCRIPTION
+  Without a sofarr configuration (config/sofarr.toml or -Config) the script prepares one:
+  it takes the [radarr] and [sonarr] blocks of fixtures/private/parity.toml, writes
+  target/acceptance/sofarr.toml (shadow mode, its own database next to it; target/ is
+  gitignored) and imports the library fresh from the running Radarr and Sonarr.
+
   Every run writes its full output to a log file under target/acceptance/<time>/ and the
   script ends with a summary. A comparison that finds differences exits non-zero; that is
-  expected and not an error of the script. Credentials are read by amigo-sofarr from the
-  config file only; this script never reads or prints them.
+  expected and not an error of the script. The script never prints API keys.
 
 .EXAMPLE
   pwsh scripts/compare-acceptance.ps1
   pwsh scripts/compare-acceptance.ps1 -MoviesRoot 'Z:\Filme' -SeriesRoot 'Z:\Serien' -Limit 5000
 #>
 param(
-    # The sofarr configuration with [radarr], [sonarr] and the database.
-    [string] $Config = 'config/sofarr.toml',
+    # The sofarr configuration with [radarr], [sonarr] and the database; empty: the
+    # project's config/sofarr.toml, else one prepared from fixtures/private/parity.toml.
+    [string] $Config = '',
+    # Where the [radarr] and [sonarr] blocks come from when there is no configuration.
+    [string] $Parity = 'fixtures/private/parity.toml',
     # Radarr's root folder as this machine sees it (compare-mediainfo reads the files).
     [string] $MoviesRoot = '\\wdnas\media\Filme',
     # Sonarr's root folder as this machine sees it.
@@ -33,13 +40,64 @@ $ErrorActionPreference = 'Stop'
 $OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location (Join-Path $PSScriptRoot '..')
 
-if (-not (Test-Path $Config)) {
-    throw "Konfiguration nicht gefunden: $Config"
-}
 if (-not (Test-Path $Binary)) {
     Write-Host 'amigo-sofarr wird gebaut …'
     cargo build -p sofarr-server --locked
     if ($LASTEXITCODE -ne 0) { throw 'Build fehlgeschlagen' }
+}
+
+# The `key = "value"` lines of one [section] of a TOML file (no nested tables needed).
+function Read-TomlSection([string] $Path, [string] $Section) {
+    $values = @{}
+    $inside = $false
+    foreach ($line in Get-Content -Encoding utf8 $Path) {
+        $text = $line.Trim()
+        if ($text -match '^\[+([^\]]+)\]+$') { $inside = ($Matches[1] -eq $Section); continue }
+        if ($inside -and $text -match '^([A-Za-z_]+)\s*=\s*["''](.*)["'']\s*(#.*)?$') {
+            $values[$Matches[1]] = $Matches[2]
+        }
+    }
+    $values
+}
+
+# A TOML literal string (single quotes keep Windows backslashes as they are).
+function ConvertTo-TomlLiteral([string] $Value) {
+    if ($Value.Contains("'")) { throw "Wert mit einfachem Anführungszeichen wird nicht unterstützt" }
+    "'$Value'"
+}
+
+$acceptance = 'target/acceptance'
+New-Item -ItemType Directory -Force -Path $acceptance | Out-Null
+$prepared = $false
+if ($Config -eq '') {
+    if (Test-Path 'config/sofarr.toml') {
+        $Config = 'config/sofarr.toml'
+    } else {
+        if (-not (Test-Path $Parity)) {
+            throw "Weder config/sofarr.toml noch $Parity gefunden – bitte -Config angeben"
+        }
+        $lines = @(
+            '# Prepared by scripts/compare-acceptance.ps1 for the manual comparisons only.',
+            '[automation]', 'mode = "shadow"',
+            '[database]', "path = $(ConvertTo-TomlLiteral ((Join-Path (Resolve-Path $acceptance) 'sofarr.db') -replace '\\', '/'))",
+            '[imdb]', 'enabled = false',
+            '[trailers]', 'enabled = false'
+        )
+        foreach ($app in @('radarr', 'sonarr')) {
+            $block = Read-TomlSection $Parity $app
+            if (-not $block.ContainsKey('url') -or -not $block.ContainsKey('api_key')) {
+                throw "[$app] mit url und api_key fehlt in $Parity"
+            }
+            $lines += "[$app]", "url = $(ConvertTo-TomlLiteral $block['url'])", "api_key = $(ConvertTo-TomlLiteral $block['api_key'])"
+        }
+        $Config = Join-Path $acceptance 'sofarr.toml'
+        Set-Content -Encoding utf8NoBOM -Path $Config -Value ($lines -join "`n")
+        Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $acceptance 'sofarr.db*')
+        $prepared = $true
+        Write-Host "Konfiguration aus $Parity vorbereitet: $Config (Radarr und Sonarr aus parity.toml)"
+    }
+} elseif (-not (Test-Path $Config)) {
+    throw "Konfiguration nicht gefunden: $Config"
 }
 foreach ($root in @($MoviesRoot, $SeriesRoot)) {
     if (-not (Test-Path $root)) {
@@ -47,8 +105,18 @@ foreach ($root in @($MoviesRoot, $SeriesRoot)) {
     }
 }
 
-$out = Join-Path 'target/acceptance' (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss')
+$out = Join-Path $acceptance (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss')
 New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+if ($prepared) {
+    foreach ($import in @('import-radarr', 'import-sonarr')) {
+        $log = Join-Path $out "$import.log"
+        Write-Host ''
+        Write-Host "=== $import (Bibliothek aus der laufenden Instanz) ==="
+        & $Binary --config $Config $import 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $log
+        if ($LASTEXITCODE -ne 0) { throw "$import fehlgeschlagen (Exitcode $LASTEXITCODE), siehe $log" }
+    }
+}
 
 $runs = @(
     @{ Name = 'mediainfo-radarr'; Spec = 'mediainfo AC-07';
