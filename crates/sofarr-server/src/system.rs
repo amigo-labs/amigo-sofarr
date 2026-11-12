@@ -279,7 +279,7 @@ mod tests {
             "other": {"token": "t", "secret": "s", "key": "k"}
         });
         let text = redact(config).to_string();
-        for secret in [
+        for (n, secret) in [
             "$argon2id$x",
             "k1",
             "k2",
@@ -289,8 +289,12 @@ mod tests {
             "\"t\"",
             "\"s\"",
             "\"k\"",
-        ] {
-            assert!(!text.contains(secret), "{secret} in {text}");
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            // The message names the value's position only: a test never prints a secret.
+            assert!(!text.contains(secret), "secret #{n} is not masked");
         }
         assert!(text.contains("daniel") && text.contains("idx"), "{text}");
         assert!(text.contains("\"api_key\":null"), "{text}");

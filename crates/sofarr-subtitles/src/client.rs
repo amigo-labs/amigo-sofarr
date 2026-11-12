@@ -437,14 +437,17 @@ mod tests {
 
     #[test]
     fn debug_output_hides_secrets() {
-        use std::hash::BuildHasher;
-        let random = |salt: u8| {
+        use std::hash::{BuildHasher, Hasher};
+        // Every `RandomState` has its own random keys: hashing nothing gives a fresh value.
+        let random = || {
             format!(
                 "{:016x}",
-                std::collections::hash_map::RandomState::new().hash_one(salt)
+                std::collections::hash_map::RandomState::new()
+                    .build_hasher()
+                    .finish()
             )
         };
-        let (key, password) = (random(1), random(2));
+        let (key, password) = (random(), random());
         let config = ProviderConfig {
             url: "u".to_owned(),
             api_key: key.clone(),
@@ -456,7 +459,7 @@ mod tests {
         let text = format!("{config:?}");
         assert!(
             !text.contains(&key) && !text.contains(&password) && !text.contains("nutzer"),
-            "{text}"
+            "the debug output shows an account detail"
         );
     }
 }

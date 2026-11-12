@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashMap,
-    hash::BuildHasher,
+    hash::{BuildHasher, Hasher},
     net::SocketAddr,
     sync::{Arc, Mutex, OnceLock},
     time::Duration,
@@ -19,18 +19,21 @@ use serde_json::{Value, json};
 
 use crate::{DownloadError, Feature, OpenSubtitles, ProviderConfig, ProviderError, SearchQuery};
 
-/// A random hex string made at run time: test credentials are never literals.
-fn secret(salt: u64) -> String {
+/// A random hex string made at run time: test credentials are never literals. Every
+/// `RandomState` has its own random keys, so hashing nothing gives a fresh value.
+fn secret() -> String {
     format!(
         "{:016x}",
-        std::collections::hash_map::RandomState::new().hash_one(salt)
+        std::collections::hash_map::RandomState::new()
+            .build_hasher()
+            .finish()
     )
 }
 
 /// The test account's API key and password, the same for the whole test run.
 fn credentials() -> &'static (String, String) {
     static CREDENTIALS: OnceLock<(String, String)> = OnceLock::new();
-    CREDENTIALS.get_or_init(|| (secret(1), secret(2)))
+    CREDENTIALS.get_or_init(|| (secret(), secret()))
 }
 
 #[derive(Default)]
