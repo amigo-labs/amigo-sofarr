@@ -158,3 +158,22 @@ Terms used below:
 - 2026-11-12: List view by default, switchable to posters; calendar as its own page (owner).
 - 2026-11-12: Actions: monitoring, profile, remove, rename, and moving a folder whose title changed since it was added (owner).
 - 2026-11-12: Posters through sofarr with a cache (owner; D24).
+- 2026-11-12: New endpoints live under `/api/library/...`; the existing `/api/movies` and `/api/wanted` keep their shape so existing clients and scripts keep working.
+- 2026-11-12: List cache: a counter `library_version` (migration 0008, triggers on movies, series, episodes, files, titles and settings) keeps a computed list in memory until the library or the day changes; without it an answer took 120–200 ms in a debug build, with it under 10 ms (AC-04).
+- 2026-11-12: "Missing" as the spec defines it: a movie counts as missing only once it is available by its minimum availability; the CLI `wanted` and `/api/wanted` stay unchanged.
+- 2026-11-12: Switching a series on monitors its episodes except season 0, like the metadata refresh; switching it off affects all episodes.
+- 2026-11-12: "Today" is UTC, as everywhere else in sofarr.
+- 2026-11-12: The calendar answers at most 62 days per request (a month view with its weeks); the overview shows only effectively monitored dates, the calendar also unmonitored episodes of monitored series, shown as neutral.
+- 2026-11-12: Remaining time is the remaining bytes divided by nzbget's `DownloadRate`, only while downloading, else none.
+- 2026-11-12: While the download client cannot be reached, the last known queue stays in memory and is shown with "Download-Client nicht erreichbar – Stand von …".
+- 2026-11-12: Import problems are grabs in state completed with a message (including "waiting for episode titles"), dated by their last change (`updated_at`).
+- 2026-11-12: A bulk search runs synchronously in one request under the jobs lock; a season is searched as a whole once two or more of its episodes are wanted, else per episode; an unknown target is an error in the report instead of failing the request.
+- 2026-11-12: A rename gives the name the import would give: the release title is the scene name, else the file name; a missing release group and revision come from the file record; only video files are renamed, companion files (.srt, .nfo) are not — own subtitles of spec `subtitles` follow their video there.
+- 2026-11-12: No ring swaps: an existing target is always refused, even when it is a source of the same run; a change of letter case only goes through a temporary name; duplicate targets are detected ignoring case.
+- 2026-11-12: Folder move: the root folder is the longest matching path of the `rootfolder` setting (series: `sonarr_rootfolder`), else the parent folder; paths keep their separator convention.
+- 2026-11-12: Removing with files moves every file of the item's folder to `<recycleBin>/<folder name>/<relative path>` (an occupied name gets " (1)"), or deletes them without a recycle bin; then empty folders including the item's folder are removed; after a partial failure the item stays in the library but forgets the moved files; without a configured download client no downloads are removed.
+- 2026-11-12: Exclusion list: movies go to Radarr's `exclusions` (`tmdbId`, `movieTitle`, `movieYear`); series to a new setting `sonarr_importlistexclusion` (`tvdbId`, `title`), because sofarr has no series import lists yet.
+- 2026-11-12: Image cache under `<database folder>/cache/images` (`/config/cache/images` by default, no new config key), keyed by the SHA-256 of the provider path, stored by kind and size: TMDB w342 for lists and w780 for pages, TVDB's `…_t.<ext>` thumbnail for v4 paths with the poster as fallback; only paths of image.tmdb.org and artworks.thetvdb.com without `..` are taken; the browser may cache an image for a day (`private, max-age=86400`).
+- 2026-11-12: Poster paths and overview texts come from the Radarr/Sonarr import (`images`, `overview`), the TMDB/TVDB refresh and the import lists; an empty value never overwrites a known one.
+- 2026-11-12: Status codes of file actions: 409 when refused up front (shadow mode, active download, target exists, source gone, duplicate names, nothing to move), 422 when something fails midway, 503 when the download client cannot be reached while removing; 5xx answers stay generic.
+- 2026-11-12: `compare-rename --app sonarr [--limit N]` compares series names with Sonarr's rename preview; the default stays `radarr` (AC-23).
