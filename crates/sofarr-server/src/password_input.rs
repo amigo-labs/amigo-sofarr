@@ -59,23 +59,26 @@ mod tests {
 
     #[test]
     fn a_typed_password_comes_from_the_hidden_prompt() {
+        let typed = crate::test_secret::secret();
+        let piped = crate::test_secret::secret();
         let prompted = Cell::new(false);
         let hash = hash_from_input(
             true,
             || {
                 prompted.set(true);
-                Ok("im Terminal getippt".to_owned())
+                Ok(typed.clone())
             },
-            &mut Cursor::new("nicht gelesen\n"),
+            &mut Cursor::new(format!("{piped}\n")),
         )
         .expect("hash");
         assert!(prompted.get());
-        assert!(verifies("im Terminal getippt", &hash));
-        assert!(!verifies("nicht gelesen", &hash));
+        assert!(verifies(&typed, &hash));
+        assert!(!verifies(&piped, &hash));
     }
 
     #[test]
     fn a_piped_password_is_one_line_of_stdin() {
+        let piped = crate::test_secret::secret();
         let prompted = Cell::new(false);
         let hash = hash_from_input(
             false,
@@ -83,11 +86,11 @@ mod tests {
                 prompted.set(true);
                 Ok(String::new())
             },
-            &mut Cursor::new("gepipet\r\nzweite Zeile\n"),
+            &mut Cursor::new(format!("{piped}\r\nzweite Zeile\n")),
         )
         .expect("hash");
         assert!(!prompted.get());
-        assert!(verifies("gepipet", &hash));
+        assert!(verifies(&piped, &hash));
     }
 
     #[test]

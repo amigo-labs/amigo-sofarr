@@ -9,7 +9,7 @@ use serde_json::json;
 use crate::{
     app::App,
     auth,
-    auth_tests::{API_KEY, PASSWORD, Server, auth_toml, body, on, session_cookie},
+    auth_tests::{API_KEY, Server, auth_toml, body, on, password, session_cookie, wrong},
     testkit::{Library, Services, app},
 };
 
@@ -78,7 +78,7 @@ async fn server_errors_answer_generically_and_log_the_details() {
         std::fs::create_dir_all(&root).expect("root");
         // The backup folder cannot be created: a file is in the way.
         std::fs::write(root.join("blocker"), b"file").expect("blocker");
-        let hash = auth::hash_password(PASSWORD).expect("hash");
+        let hash = auth::hash_password(password()).expect("hash");
         let extra = if auth_on {
             auth_toml(&hash, "")
         } else {
@@ -92,7 +92,7 @@ async fn server_errors_answer_generically_and_log_the_details() {
         .expect("config");
         let server = Server::start(App::new(config).await.expect("app")).await;
         let cookie = if auth_on {
-            Some(session_cookie(&server.login("daniel", PASSWORD).await))
+            Some(session_cookie(&server.login("daniel", password()).await))
         } else {
             None
         };
@@ -180,8 +180,8 @@ async fn secrets_never_reach_the_log() {
     let log = Captured::default();
     let _guard = log.install();
     let (server, hash) = on("").await;
-    let cookie = session_cookie(&server.login("daniel", PASSWORD).await);
-    server.login("daniel", "Falsch-Passwort-17").await;
+    let cookie = session_cookie(&server.login("daniel", password()).await);
+    server.login("daniel", wrong()).await;
     server
         .get("/api/movies")
         .header("x-api-key", API_KEY)
@@ -203,13 +203,7 @@ async fn secrets_never_reach_the_log() {
     tracing::debug!(config = ?server.app.config, "config");
     let logged = log.text();
     let token = cookie.split_once('=').expect("pair").1;
-    for secret in [
-        PASSWORD,
-        "Falsch-Passwort-17",
-        hash.as_str(),
-        API_KEY,
-        token,
-    ] {
+    for secret in [password(), wrong(), hash.as_str(), API_KEY, token] {
         assert!(!logged.contains(secret), "secret in the log");
     }
     assert!(logged.contains("login"), "the log was captured: {logged}");

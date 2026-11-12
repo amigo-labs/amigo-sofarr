@@ -419,11 +419,12 @@ mod tests {
 
     #[test]
     fn password_hashes_verify() {
-        let hash = hash_password("geheim").expect("hash");
+        let password = crate::test_secret::secret();
+        let hash = hash_password(&password).expect("hash");
         assert!(hash.starts_with("$argon2id$"));
         assert!(is_argon2id(&hash));
-        assert!(verify_password("geheim", &hash));
-        assert!(!verify_password("falsch", &hash));
+        assert!(verify_password(&password, &hash));
+        assert!(!verify_password(crate::test_secret::wrong(), &hash));
         assert!(!is_argon2id("$2b$12$abc"));
         assert!(!is_argon2id("geheim"));
     }

@@ -52,6 +52,8 @@ mod search_tests;
 #[cfg(test)]
 mod series_search_tests;
 #[cfg(test)]
+mod test_secret;
+#[cfg(test)]
 mod testkit;
 #[cfg(test)]
 mod ui_tests;

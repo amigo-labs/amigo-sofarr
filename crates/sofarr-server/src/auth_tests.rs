@@ -14,7 +14,7 @@ use crate::{
     testkit::{Library, Services, app},
 };
 
-pub(crate) const PASSWORD: &str = "Sofa-Passwort-91";
+pub(crate) use crate::test_secret::{password, wrong};
 pub(crate) const API_KEY: &str = "schluessel-0815-geheim";
 
 pub(crate) fn auth_toml(hash: &str, extra: &str) -> String {
@@ -82,7 +82,7 @@ pub(crate) async fn body(response: reqwest::Response) -> Value {
 }
 
 pub(crate) async fn on(extra: &str) -> (Server, String) {
-    let hash = auth::hash_password(PASSWORD).expect("hash");
+    let hash = auth::hash_password(password()).expect("hash");
     let server = Server::start(app(Library::Movies, &auth_toml(&hash, extra)).await).await;
     (server, hash)
 }
@@ -92,7 +92,7 @@ async fn auth_off_serves_everything() {
     let server = Server::start(app(Library::Movies, "").await).await;
     let movies = server.get("/api/movies").send().await.expect("get");
     assert_eq!(movies.status(), StatusCode::OK);
-    let login = server.login("x", "y").await;
+    let login = server.login("x", wrong()).await;
     assert_eq!(login.status(), StatusCode::OK);
     assert!(login.headers().get(header::SET_COOKIE).is_none());
     let logout = server
@@ -110,7 +110,7 @@ async fn auth_off_serves_everything() {
 #[tokio::test]
 async fn auth_on_refuses_requests_without_a_credential() {
     let s = Services::start().await;
-    let hash = auth::hash_password(PASSWORD).expect("hash");
+    let hash = auth::hash_password(password()).expect("hash");
     let config = format!("{}{}", s.indexer_toml("idx", &[]), auth_toml(&hash, ""));
     let server = Server::start(app(Library::Movies, &config).await).await;
     for (method, path) in [
@@ -144,7 +144,7 @@ async fn auth_on_refuses_requests_without_a_credential() {
 #[tokio::test]
 async fn login_gives_a_strict_http_only_session_cookie() {
     let (server, _) = on("").await;
-    let response = server.login("daniel", PASSWORD).await;
+    let response = server.login("daniel", password()).await;
     assert_eq!(response.status(), StatusCode::OK);
     let set = response
         .headers()
@@ -185,7 +185,7 @@ async fn the_cookie_is_secure_behind_an_https_proxy() {
     let response = server
         .post("/api/auth/login")
         .header("x-forwarded-proto", "https")
-        .json(&json!({"username": "daniel", "password": PASSWORD}))
+        .json(&json!({"username": "daniel", "password": password()}))
         .send()
         .await
         .expect("login");
@@ -212,7 +212,7 @@ async fn the_api_key_header_authenticates() {
         StatusCode::UNAUTHORIZED
     );
     // A valid session with a wrong key is enough.
-    let cookie = session_cookie(&server.login("daniel", PASSWORD).await);
+    let cookie = session_cookie(&server.login("daniel", password()).await);
     let both = server
         .get("/api/movies")
         .header(header::COOKIE, &cookie)
@@ -226,8 +226,8 @@ async fn the_api_key_header_authenticates() {
 #[tokio::test]
 async fn logout_ends_only_its_session() {
     let (server, _) = on("").await;
-    let phone = session_cookie(&server.login("daniel", PASSWORD).await);
-    let laptop = session_cookie(&server.login("daniel", PASSWORD).await);
+    let phone = session_cookie(&server.login("daniel", password()).await);
+    let laptop = session_cookie(&server.login("daniel", password()).await);
     let logout = server
         .post("/api/auth/logout")
         .header(header::COOKIE, &phone)
@@ -252,7 +252,7 @@ async fn logout_ends_only_its_session() {
 #[tokio::test]
 async fn sessions_slide_and_expire() {
     let (server, _) = on("session_days = 30\n").await;
-    let cookie = session_cookie(&server.login("daniel", PASSWORD).await);
+    let cookie = session_cookie(&server.login("daniel", password()).await);
     let token = cookie.split_once('=').expect("pair").1.to_owned();
     let hash = auth::token_hash(&token);
     let status = || {
@@ -289,7 +289,7 @@ async fn sessions_survive_a_restart_but_not_a_new_password() {
     let root = std::env::temp_dir().join(format!("sofarr-auth-restart-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).expect("root");
-    let hash = auth::hash_password(PASSWORD).expect("hash");
+    let hash = auth::hash_password(password()).expect("hash");
     let config = |hash: &str| {
         crate::config::Config::parse(&format!(
             "[database]\npath = '{}'\n[backup]\ndir = '{}'\n{}",
@@ -300,7 +300,7 @@ async fn sessions_survive_a_restart_but_not_a_new_password() {
         .expect("config")
     };
     let first = Server::start(App::new(config(&hash)).await.expect("app")).await;
-    let cookie = session_cookie(&first.login("daniel", PASSWORD).await);
+    let cookie = session_cookie(&first.login("daniel", password()).await);
     first.app.db.pool().close().await;
 
     let restarted = Server::start(App::new(config(&hash)).await.expect("app")).await;
@@ -313,7 +313,7 @@ async fn sessions_survive_a_restart_but_not_a_new_password() {
     assert_eq!(ok.status(), StatusCode::OK);
     restarted.app.db.pool().close().await;
 
-    let other = auth::hash_password("anderes-Passwort").expect("hash");
+    let other = auth::hash_password(&crate::test_secret::secret()).expect("hash");
     let changed = Server::start(App::new(config(&other)).await.expect("app")).await;
     let refused = changed
         .get("/api/movies")
@@ -329,8 +329,8 @@ async fn sessions_survive_a_restart_but_not_a_new_password() {
 #[tokio::test]
 async fn failed_logins_look_alike() {
     let (server, _) = on("").await;
-    let wrong_user = server.login("jemand", PASSWORD).await;
-    let wrong_password = server.login("daniel", "falsch").await;
+    let wrong_user = server.login("jemand", password()).await;
+    let wrong_password = server.login("daniel", wrong()).await;
     assert_eq!(wrong_user.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(wrong_password.status(), StatusCode::UNAUTHORIZED);
     let (user_answer, password_answer) = (body(wrong_user).await, body(wrong_password).await);
@@ -357,11 +357,11 @@ async fn five_failures_make_the_address_wait() {
     let (server, _) = on("trusted_networks = [\"127.0.0.0/8\"]\n").await;
     for _ in 0..5 {
         assert_eq!(
-            server.login("daniel", "falsch").await.status(),
+            server.login("daniel", wrong()).await.status(),
             StatusCode::UNAUTHORIZED
         );
     }
-    let blocked = server.login("daniel", PASSWORD).await;
+    let blocked = server.login("daniel", password()).await;
     assert_eq!(
         blocked.status(),
         StatusCode::TOO_MANY_REQUESTS,
@@ -388,7 +388,7 @@ async fn concurrent_logins_never_pass_more_than_five_failures() {
     let attempts: Vec<_> = (0..12)
         .map(|_| {
             let server = Arc::clone(&server);
-            tokio::spawn(async move { server.login("daniel", "falsch").await.status() })
+            tokio::spawn(async move { server.login("daniel", wrong()).await.status() })
         })
         .collect();
     let mut checked = 0;
@@ -446,7 +446,7 @@ async fn trusted_networks_and_proxies() {
 
 #[test]
 fn a_bad_auth_config_stops_the_start() {
-    let hash = auth::hash_password(PASSWORD).expect("hash");
+    let hash = auth::hash_password(password()).expect("hash");
     let parse = |toml: &str| {
         crate::config::Config::parse(toml)
             .err()
@@ -528,7 +528,7 @@ async fn health_needs_no_credential() {
 #[tokio::test]
 async fn using_a_session_renews_its_cookie() {
     let (server, _) = on("session_days = 30\n").await;
-    let cookie = session_cookie(&server.login("daniel", PASSWORD).await);
+    let cookie = session_cookie(&server.login("daniel", password()).await);
     let used = server
         .get("/api/movies")
         .header(header::COOKIE, &cookie)
@@ -583,11 +583,11 @@ async fn attempts_during_a_wait_do_not_extend_it() {
             .expect("login");
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
-    let first = server.login("daniel", "falsch").await;
+    let first = server.login("daniel", wrong()).await;
     assert_eq!(first.status(), StatusCode::TOO_MANY_REQUESTS);
     let first = retry_after(&first);
     for _ in 0..3 {
-        let again = server.login("daniel", "falsch").await;
+        let again = server.login("daniel", wrong()).await;
         assert_eq!(again.status(), StatusCode::TOO_MANY_REQUESTS);
         assert!(retry_after(&again) <= first, "the wait grew");
     }
@@ -597,22 +597,22 @@ async fn attempts_during_a_wait_do_not_extend_it() {
 async fn a_successful_login_resets_the_count() {
     let (server, _) = on("").await;
     for _ in 0..4 {
-        server.login("daniel", "falsch").await;
+        server.login("daniel", wrong()).await;
     }
     assert_eq!(
-        server.login("daniel", PASSWORD).await.status(),
+        server.login("daniel", password()).await.status(),
         StatusCode::OK
     );
     // Five failures again before the first wait.
     for attempt in 1..=5 {
         assert_eq!(
-            server.login("daniel", "falsch").await.status(),
+            server.login("daniel", wrong()).await.status(),
             StatusCode::UNAUTHORIZED,
             "attempt {attempt}"
         );
     }
     assert_eq!(
-        server.login("daniel", "falsch").await.status(),
+        server.login("daniel", wrong()).await.status(),
         StatusCode::TOO_MANY_REQUESTS
     );
 }
@@ -659,7 +659,7 @@ async fn a_new_username_ends_every_session() {
     let root = std::env::temp_dir().join(format!("sofarr-auth-username-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).expect("root");
-    let hash = auth::hash_password(PASSWORD).expect("hash");
+    let hash = auth::hash_password(password()).expect("hash");
     let config = |user: &str| {
         crate::config::Config::parse(&format!(
             "[database]\npath = '{}'\n[backup]\ndir = '{}'\n\
@@ -670,7 +670,7 @@ async fn a_new_username_ends_every_session() {
         .expect("config")
     };
     let first = Server::start(App::new(config("daniel")).await.expect("app")).await;
-    let cookie = session_cookie(&first.login("daniel", PASSWORD).await);
+    let cookie = session_cookie(&first.login("daniel", password()).await);
     first.app.db.pool().close().await;
     let renamed = Server::start(App::new(config("dani")).await.expect("app")).await;
     let refused = renamed
@@ -691,7 +691,7 @@ async fn unknown_clients_are_throttled_under_the_proxy() {
         let response = server
             .post("/api/auth/login")
             .header("x-forwarded-for", "garbage")
-            .json(&json!({"username": "daniel", "password": "falsch"}))
+            .json(&json!({"username": "daniel", "password": wrong()}))
             .send()
             .await
             .expect("login");
@@ -699,14 +699,14 @@ async fn unknown_clients_are_throttled_under_the_proxy() {
     }
     // The proxy's own address (no header) is the one that waits now …
     assert_eq!(
-        server.login("daniel", PASSWORD).await.status(),
+        server.login("daniel", password()).await.status(),
         StatusCode::TOO_MANY_REQUESTS
     );
     // … while a known client behind the proxy is not throttled.
     let other = server
         .post("/api/auth/login")
         .header("x-forwarded-for", "203.0.113.9")
-        .json(&json!({"username": "daniel", "password": PASSWORD}))
+        .json(&json!({"username": "daniel", "password": password()}))
         .send()
         .await
         .expect("login");

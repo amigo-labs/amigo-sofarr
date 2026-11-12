@@ -140,7 +140,7 @@ async fn unknown_assets_and_api_paths_are_not_found() {
 
 #[tokio::test]
 async fn with_auth_on_unknown_api_paths_ask_for_a_login_first() {
-    let hash = crate::auth::hash_password("geheim").expect("hash");
+    let hash = crate::auth::hash_password(crate::test_secret::password()).expect("hash");
     let config =
         format!("[auth]\nenabled = true\nusername = \"daniel\"\npassword_hash = \"{hash}\"\n");
     let server = Server::start(app(Library::Movies, &config).await, build()).await;
