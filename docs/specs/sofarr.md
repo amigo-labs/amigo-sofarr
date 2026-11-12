@@ -1,6 +1,16 @@
-# Spec: amigo-sofarr
+---
+status: draft
+---
+
+# amigo-sofarr: Design
 
 > Lebendes Dokument. Entscheidungen werden im Entscheidungslog (§9) nachgetragen, nicht überschrieben.
+
+Das ist die Design-Spec: Ziel, Scope, Architektur, Parity-Strategie und Entscheidungen. Was ein
+Feature tut, seine Akzeptanzkriterien und die Belege dafür (und damit sein Fortschritt) stehen in
+den Feature-Specs daneben, indiziert in [README.md](README.md). Jede Feature-Spec nennt im
+Front Matter `design:` die Abschnitte, auf denen sie aufbaut, und widerspricht ihnen nie; braucht
+ein Feature eine neue Architekturentscheidung, bekommt sie zuerst eine Zeile in §9.
 
 ## 1. Ziel
 
