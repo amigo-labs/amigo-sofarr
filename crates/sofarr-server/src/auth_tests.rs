@@ -614,11 +614,18 @@ async fn server_errors_answer_generically_and_log_the_details() {
         let _ = std::fs::remove_dir_all(&root);
     }
     let logged = log.text();
+    // Database and file system: the details the answers left out are in the log.
     assert!(logged.contains("closed"), "details in the log: {logged}");
+    assert!(
+        logged.contains("backup failed") && logged.contains("blocker"),
+        "details in the log: {logged}"
+    );
 }
 
 #[tokio::test]
 async fn upstream_errors_name_no_urls() {
+    let log = Captured::default();
+    let _guard = log.install();
     let s = Services::start().await;
     s.lock().indexer_status.insert("idx".to_owned(), 502);
     let config = format!(
@@ -648,6 +655,12 @@ async fn upstream_errors_name_no_urls() {
     assert!(
         !errors.contains("http://") && !errors.contains("apikey"),
         "{errors}"
+    );
+    // Upstream HTTP: the failing indexer and its status are in the log.
+    let logged = log.text();
+    assert!(
+        logged.contains("search failed") && logged.contains("idx") && logged.contains("502"),
+        "details in the log: {logged}"
     );
 }
 
