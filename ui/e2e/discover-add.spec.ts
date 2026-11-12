@@ -48,11 +48,12 @@ test('a movie added from a shelf goes into the library with the chosen settings 
   // The card changes its state without a reload and links to the library page.
   await expect(card.getByText('In der Bibliothek')).toBeVisible();
   await card.getByRole('link', { name: 'Standardwerte' }).click();
-  await expect(page).toHaveURL(/\/filme\/\d+$/);
+  // The library page, not the preview `/entdecken/filme/…`: the path starts with it.
+  await page.waitForURL((url) => /^\/filme\/\d+$/.test(url.pathname));
   const id = new URL(page.url()).pathname.split('/').pop() ?? '';
-  const movie = (await (
-    await page.request.get(`${DISCOVER}/api/library/movies/${id}`)
-  ).json()) as MovieDetail;
+  const answer = await page.request.get(`${DISCOVER}/api/library/movies/${id}`);
+  expect(answer.status()).toBe(200);
+  const movie = (await answer.json()) as MovieDetail;
   expect(movie.minimum_availability).toBe('inCinemas');
   expect(movie.tags.map((t) => t.name)).toEqual(['kinder']);
 
@@ -143,11 +144,12 @@ test('a series is added with the chosen seasons, without specials by default (AC
   await d.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(page.getByText(/„Großes Meer“ wurde hinzugefügt/)).toBeVisible();
   await page.getByRole('link', { name: 'Zur Bibliothek' }).click();
-  await expect(page).toHaveURL(/\/serien\/\d+$/);
+  // The library page, not the preview `/entdecken/serien/601` this test started on.
+  await page.waitForURL((url) => /^\/serien\/\d+$/.test(url.pathname));
   const id = Number(new URL(page.url()).pathname.split('/').pop());
-  const series = (await (
-    await page.request.get(`${DISCOVER}/api/library/series/${id}`)
-  ).json()) as SeriesDetail;
+  const answer = await page.request.get(`${DISCOVER}/api/library/series/${id}`);
+  expect(answer.status()).toBe(200);
+  const series = (await answer.json()) as SeriesDetail;
   expect(series.seasons.map((s) => [s.number, s.episodes_monitored])).toEqual([
     [0, 0],
     [1, 2],
