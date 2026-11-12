@@ -136,8 +136,9 @@ async fn auth_on_refuses_requests_without_a_credential() {
         let response = server.get(path).send().await.expect("open");
         assert_eq!(response.status(), StatusCode::OK, "{path}");
     }
+    // Outside /api/ the UI answers without a credential (spec web-ui-shell).
     let outside = server.get("/index.html").send().await.expect("ui");
-    assert_eq!(outside.status(), StatusCode::NOT_FOUND);
+    assert_eq!(outside.status(), StatusCode::OK);
 }
 
 #[tokio::test]

@@ -45,6 +45,7 @@ const INTERNAL: &str = "Interner Fehler – Details stehen im Log";
 
 /// How a request was authenticated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum Method {
     Session,
@@ -144,7 +145,7 @@ fn forwarded(headers: &HeaderMap, name: &str) -> Vec<String> {
 }
 
 fn error(status: StatusCode, message: &str) -> Response {
-    (status, Json(serde_json::json!({ "error": message }))).into_response()
+    (status, Json(crate::api::ErrorBody::new(message))).into_response()
 }
 
 fn internal(e: &anyhow::Error) -> Response {
@@ -257,7 +258,8 @@ pub async fn guard(State(app): State<SharedApp>, mut request: Request, next: Nex
 pub struct Https(pub bool);
 
 #[derive(Deserialize)]
-struct LoginBody {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct LoginBody {
     username: String,
     password: String,
 }
@@ -270,8 +272,8 @@ fn cookie(value: &str, max_age: i64, secure: bool) -> HeaderValue {
     .unwrap_or_else(|_| HeaderValue::from_static("sofarr_session=; Max-Age=0"))
 }
 
-fn ok() -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "ok": true }))
+fn ok() -> Json<crate::api::OkBody> {
+    Json(crate::api::OkBody { ok: true })
 }
 
 /// `POST /api/auth/login`.
@@ -374,7 +376,8 @@ pub async fn logout(State(app): State<SharedApp>, headers: HeaderMap) -> Respons
 }
 
 #[derive(Serialize)]
-struct Me {
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct Me {
     auth_enabled: bool,
     authenticated: bool,
     method: Option<Method>,

@@ -22,7 +22,10 @@ mod rescan;
 mod rss;
 mod search;
 mod series;
+mod status;
+mod system;
 mod throttle;
+mod ui;
 
 #[cfg(test)]
 mod api_tests;
@@ -44,6 +47,10 @@ mod search_tests;
 mod series_search_tests;
 #[cfg(test)]
 mod testkit;
+#[cfg(test)]
+mod ui_tests;
+#[cfg(test)]
+mod ui_types;
 
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -64,6 +71,7 @@ use tracing_subscriber::EnvFilter;
 use crate::{
     app::App,
     config::{Config, LogFormat},
+    status::Job,
 };
 
 #[derive(Parser)]
@@ -251,50 +259,29 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     }
     let state = Arc::new(backups::open_for_serve(config, jiff::Timestamp::now()).await?);
     backups::spawn_schedule(&state);
-    if interval > 0 && !state.indexers.is_empty() {
-        let job = Arc::clone(&state);
+    for job in [Job::Rss, Job::Downloads, Job::ImportLists, Job::Refresh] {
+        let Some(every) = job.interval(&state) else {
+            continue;
+        };
+        let runner = Arc::clone(&state);
+        // The metadata refresh is too expensive for every container start.
+        let delayed = job == Job::Refresh;
         tokio::spawn(app::every(
-            "rss",
-            Duration::from_secs(interval * 60),
+            Arc::clone(&state),
+            job,
+            every,
+            delayed,
             move || {
-                let job = Arc::clone(&job);
-                async move { job.rss_sync().await.map(|_| ()) }
-            },
-        ));
-    }
-    let check = state.config.download.check_interval_minutes;
-    if mode == config::Mode::Live && state.nzbget.is_some() && check > 0 {
-        let job = Arc::clone(&state);
-        tokio::spawn(app::every(
-            "downloads",
-            Duration::from_secs(check * 60),
-            move || {
-                let job = Arc::clone(&job);
-                async move { job.check_downloads().await.map(|_| ()) }
-            },
-        ));
-    }
-    let lists = state.config.import_lists.interval_hours;
-    if mode == config::Mode::Live && state.config.tmdb.is_some() && lists > 0 {
-        let job = Arc::clone(&state);
-        tokio::spawn(app::every(
-            "import-lists",
-            Duration::from_secs(lists * 3600),
-            move || {
-                let job = Arc::clone(&job);
-                async move { job.sync_import_lists().await.map(|_| ()) }
-            },
-        ));
-    }
-    let refresh = state.config.library.refresh_interval_hours;
-    if refresh > 0 {
-        let job = Arc::clone(&state);
-        tokio::spawn(app::every_later(
-            "refresh",
-            Duration::from_secs(refresh * 3600),
-            move || {
-                let job = Arc::clone(&job);
-                async move { job.refresh(true, true, false).await.map(|_| ()) }
+                let app = Arc::clone(&runner);
+                async move {
+                    match job {
+                        Job::Rss => app.rss_sync().await.map(|_| ()),
+                        Job::Downloads => app.check_downloads().await.map(|_| ()),
+                        Job::ImportLists => app.sync_import_lists().await.map(|_| ()),
+                        Job::Refresh => app.refresh(true, true, false).await.map(|_| ()),
+                        Job::Backup => app.backup_tick(jiff::Timestamp::now()).await.map(|_| ()),
+                    }
+                }
             },
         ));
     }

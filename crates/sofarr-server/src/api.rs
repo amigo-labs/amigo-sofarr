@@ -24,6 +24,11 @@ use crate::{
 
 /// Everything sofarr serves over HTTP, behind the authentication middleware.
 pub fn app_router(app: SharedApp) -> Router {
+    app_router_with(app, crate::ui::Files::Embedded)
+}
+
+/// [`app_router`] with the UI files from `ui`.
+pub fn app_router_with(app: SharedApp, ui: crate::ui::Files) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/auth/login", post(crate::auth::login))
@@ -31,13 +36,37 @@ pub fn app_router(app: SharedApp) -> Router {
         .route("/api/auth/me", get(crate::auth::me))
         .with_state(std::sync::Arc::clone(&app))
         .merge(routes(std::sync::Arc::clone(&app)))
+        .fallback(move |request| crate::ui::serve(ui.clone(), request))
         .layer(axum::middleware::from_fn_with_state(
             app,
             crate::auth::guard,
         ))
 }
 
+/// The answer of every failed API request: a German message.
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct ErrorBody {
+    pub error: String,
+}
+
+impl ErrorBody {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            error: message.into(),
+        }
+    }
+}
+
+/// The answer of a request that only says it worked.
+#[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+pub struct OkBody {
+    pub ok: bool,
+}
+
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct Health {
     status: &'static str,
     version: &'static str,
@@ -52,6 +81,7 @@ pub async fn health() -> Json<Health> {
 
 pub fn routes(app: SharedApp) -> Router {
     Router::new()
+        .route("/api/system", get(crate::system::system))
         .route("/api/movies", get(movies))
         .route("/api/movies/{id}/file", get(movie_file))
         .route(
@@ -93,11 +123,7 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
-            self.status,
-            Json(serde_json::json!({ "error": self.message })),
-        )
-            .into_response()
+        (self.status, Json(ErrorBody::new(self.message))).into_response()
     }
 }
 

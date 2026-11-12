@@ -210,7 +210,13 @@ impl App {
         };
         let mut releases = Vec::new();
         for indexer in allowed {
-            match indexer.search_movie(movie.imdb_id.as_deref(), &query).await {
+            let found = indexer.search_movie(movie.imdb_id.as_deref(), &query).await;
+            self.status.contact(
+                crate::status::Peer::Indexer(indexer.name().to_owned()),
+                jiff::Timestamp::now(),
+                &found,
+            );
+            match found {
                 Ok(mut batch) => releases.append(&mut batch),
                 Err(e) => {
                     tracing::warn!(indexer = indexer.name(), error = %e, "search failed");
@@ -315,7 +321,13 @@ impl App {
                 }
             };
             for request in &requests {
-                match indexer.search_tv(&caps, request).await {
+                let found = indexer.search_tv(&caps, request).await;
+                self.status.contact(
+                    crate::status::Peer::Indexer(indexer.name().to_owned()),
+                    jiff::Timestamp::now(),
+                    &found,
+                );
+                match found {
                     Ok((batch, by_id)) => {
                         returned.extend(batch.iter().map(|r| r.guid.clone()));
                         candidates.extend(batch.into_iter().filter_map(|release| {

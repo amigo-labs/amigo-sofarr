@@ -20,6 +20,7 @@ use crate::{
     rescan::{self, RescanAfterRefresh, ScanReport, ScanSettings},
     rss::{self, Selected, SyncReport},
     series,
+    status::{Job, Peer},
 };
 
 pub struct App {
@@ -38,6 +39,8 @@ pub struct App {
     pub backup_error: std::sync::Mutex<Option<crate::backups::BackupError>>,
     /// Trusted networks and proxies, login throttling (spec auth).
     pub auth: crate::auth::AuthState,
+    /// Job runs and contacts for the system page (spec web-ui-shell).
+    pub status: crate::status::Status,
 }
 
 pub type SharedApp = Arc<App>;
@@ -91,6 +94,7 @@ impl App {
             backup_lock: Mutex::new(()),
             backup_error: std::sync::Mutex::new(None),
             auth,
+            status: crate::status::Status::default(),
         })
     }
 
@@ -140,7 +144,13 @@ impl App {
         let mut report = SyncReport::default();
         let mut releases = Vec::new();
         for indexer in &self.indexers {
-            match indexer.rss().await {
+            let fetched = indexer.rss().await;
+            self.status.contact(
+                Peer::Indexer(indexer.name().to_owned()),
+                Timestamp::now(),
+                &fetched,
+            );
+            match fetched {
                 Ok(mut batch) => releases.append(&mut batch),
                 Err(e) => {
                     tracing::warn!(indexer = indexer.name(), error = %e, "rss fetch failed");
@@ -390,13 +400,13 @@ impl App {
                 NzbError::Broken(_) => SendError::Broken(e.to_string()),
                 NzbError::Unavailable(_) => SendError::Outage(e.to_string()),
             })?;
-        client
-            .add_nzb(&release.title, &nzb, category)
-            .await
-            .map_err(|e| match e {
-                DownloadError::Rejected { .. } => SendError::Broken(e.to_string()),
-                _ => SendError::Outage(e.to_string()),
-            })
+        let added = client.add_nzb(&release.title, &nzb, category).await;
+        self.status
+            .contact(Peer::DownloadClient, Timestamp::now(), &added);
+        added.map_err(|e| match e {
+            DownloadError::Rejected { .. } => SendError::Broken(e.to_string()),
+            _ => SendError::Outage(e.to_string()),
+        })
     }
 
     async fn decide_and_grab(
@@ -626,37 +636,26 @@ impl App {
     }
 }
 
-/// Runs a job every `interval` until the process ends.
-pub async fn every<F, Fut>(name: &'static str, interval: Duration, job: F)
+/// Runs a job every `interval` until the process ends; the first run is right away, or
+/// one `interval` after the start when `delayed` (jobs too expensive for every container
+/// start). A run that takes longer than `interval` is followed by the next at once.
+pub async fn every<F, Fut>(app: SharedApp, job: Job, interval: Duration, delayed: bool, run: F)
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<()>>,
 {
-    run_every(name, tokio::time::interval(interval), job).await;
-}
-
-/// Like [`every`], but the first run is one `interval` after the start (jobs that are
-/// too expensive for every container start).
-pub async fn every_later<F, Fut>(name: &'static str, interval: Duration, job: F)
-where
-    F: Fn() -> Fut,
-    Fut: std::future::Future<Output = anyhow::Result<()>>,
-{
-    let start = tokio::time::Instant::now() + interval;
-    run_every(name, tokio::time::interval_at(start, interval), job).await;
-}
-
-async fn run_every<F, Fut>(name: &'static str, mut ticker: tokio::time::Interval, job: F)
-where
-    F: Fn() -> Fut,
-    Fut: std::future::Future<Output = anyhow::Result<()>>,
-{
-    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut wait = if delayed { interval } else { Duration::ZERO };
     loop {
-        ticker.tick().await;
-        if let Err(e) = job().await {
-            tracing::error!(job = name, error = format!("{e:#}"), "job failed");
+        app.status.job_waits(job, Timestamp::now(), wait);
+        tokio::time::sleep(wait).await;
+        let started = tokio::time::Instant::now();
+        let at = Timestamp::now();
+        let result = run().await.map_err(|e| format!("{e:#}"));
+        if let Err(e) = &result {
+            tracing::error!(job = job.name(), error = %e, "job failed");
         }
+        app.status.job_ran(job, at, &result);
+        wait = interval.saturating_sub(started.elapsed());
     }
 }
 

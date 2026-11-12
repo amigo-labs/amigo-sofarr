@@ -69,7 +69,13 @@ impl App {
         let Some(client) = &self.nzbget else {
             return Ok(0);
         };
-        let items = client.items().await?;
+        let listed = client.items().await;
+        self.status.contact(
+            crate::status::Peer::DownloadClient,
+            Timestamp::now(),
+            &listed,
+        );
+        let items = listed?;
         let mut research = Research::default();
         let mut imported = self
             .check_series_downloads(&items, now, &mut research)
@@ -557,7 +563,13 @@ impl App {
                 "Download-Client nicht erreichbar – Details stehen im Log".to_owned(),
             )
         };
-        let items = client.items().await.map_err(unavailable)?;
+        let listed = client.items().await;
+        self.status.contact(
+            crate::status::Peer::DownloadClient,
+            Timestamp::now(),
+            &listed,
+        );
+        let items = listed.map_err(unavailable)?;
         if let Some(item) = download_id
             .as_deref()
             .and_then(|d| items.iter().find(|i| i.id == d))

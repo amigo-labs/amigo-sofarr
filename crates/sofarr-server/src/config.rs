@@ -6,11 +6,11 @@ use std::{
 };
 
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_PORT: u16 = 7676;
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub server: ServerConfig,
@@ -47,7 +47,7 @@ fn lenient_days<'de, D: serde::Deserializer<'de>>(d: D) -> Result<u32, D::Error>
 }
 
 /// `[auth]`: optional login, API key, trusted networks and proxies (spec auth).
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AuthConfig {
     pub enabled: bool,
@@ -133,7 +133,7 @@ impl AuthConfig {
 }
 
 /// `[backup]`: where backups go, how often and how many scheduled ones are kept.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(try_from = "RawBackupConfig")]
 pub struct BackupConfig {
     pub dir: PathBuf,
@@ -193,7 +193,7 @@ impl TryFrom<RawBackupConfig> for BackupConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LibraryConfig {
     /// Hours between metadata refreshes (TMDB/TVDB, if configured) with the disk scan
@@ -209,7 +209,7 @@ impl Default for LibraryConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NzbgetConfig {
     /// Base URL, e.g. `http://nzbget:6789`.
@@ -230,7 +230,7 @@ fn default_category() -> String {
     "movies".to_owned()
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DownloadConfig {
     /// Minutes between checks of the download client.
@@ -259,7 +259,7 @@ impl Default for DownloadConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PathMap {
     /// Prefix as the download client reports it.
@@ -283,7 +283,7 @@ impl DownloadConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ImportListConfig {
     /// Hours between import list syncs; 0 disables them.
@@ -296,7 +296,7 @@ impl Default for ImportListConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DatabaseConfig {
     pub path: PathBuf,
@@ -311,7 +311,8 @@ impl Default for DatabaseConfig {
 }
 
 /// Whether sofarr acts or only logs what it would do.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     /// Read-only: decisions are logged and stored, nothing is sent or moved.
@@ -321,13 +322,13 @@ pub enum Mode {
     Live,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AutomationConfig {
     pub mode: Mode,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RssConfig {
     /// Minutes between RSS syncs; 0 disables the scheduler.
@@ -342,14 +343,14 @@ impl Default for RssConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TmdbConfig {
     /// TMDB v3 API key or v4 read access token.
     pub api_key: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TvdbConfig {
     pub api_key: String,
@@ -358,14 +359,14 @@ pub struct TvdbConfig {
 }
 
 /// The Radarr instance sofarr imports from and compares against.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RadarrConfig {
     pub url: String,
     pub api_key: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IndexerConfig {
     pub name: String,
@@ -397,7 +398,7 @@ fn default_limit() -> u32 {
     100
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ServerConfig {
     pub bind: SocketAddr,
@@ -411,7 +412,7 @@ impl Default for ServerConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LogConfig {
     /// Default filter if `RUST_LOG` is not set, e.g. `info` or `sofarr_server=debug`.
@@ -428,7 +429,7 @@ impl Default for LogConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
     #[default]

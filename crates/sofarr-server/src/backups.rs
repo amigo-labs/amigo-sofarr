@@ -235,14 +235,17 @@ pub fn spawn_schedule(app: &std::sync::Arc<App>) -> Option<tokio::task::JoinHand
         return None;
     }
     let job = std::sync::Arc::clone(app);
-    Some(tokio::spawn(crate::app::every(
-        "backup",
-        CHECK_INTERVAL,
-        move || {
-            let job = std::sync::Arc::clone(&job);
-            async move { job.backup_tick(Timestamp::now()).await.map(|_| ()) }
-        },
-    )))
+    Some(tokio::spawn(async move {
+        // A look every minute; only a written (or failed) backup counts as a run.
+        let mut ticker = tokio::time::interval(CHECK_INTERVAL);
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        loop {
+            ticker.tick().await;
+            if let Err(e) = job.backup_tick(Timestamp::now()).await {
+                tracing::error!(job = "backup", error = format!("{e:#}"), "job failed");
+            }
+        }
+    }))
 }
 
 impl App {
@@ -298,6 +301,25 @@ impl App {
 
     /// Whether a scheduled backup is due: the interval has passed since the newest
     /// scheduled backup that does not lie in the future, or there is none.
+    /// When the next scheduled backup is due: one interval after the newest, or now
+    /// when there is none (the scheduler looks every minute). `None` when switched off.
+    pub fn next_backup(&self, now: Timestamp) -> anyhow::Result<Option<Timestamp>> {
+        let hours = self.config.backup.interval_hours;
+        if hours == 0 {
+            return Ok(None);
+        }
+        let newest = backup_files::scheduled_times(&self.config.backup.dir)?
+            .into_iter()
+            .filter(|t| *t <= now)
+            .max();
+        let interval = SignedDuration::from_hours(i64::try_from(hours).unwrap_or(i64::MAX));
+        Ok(Some(
+            newest
+                .and_then(|t| t.checked_add(interval).ok())
+                .map_or(now, |due| due.max(now)),
+        ))
+    }
+
     pub async fn backup_due(&self, now: Timestamp) -> anyhow::Result<bool> {
         let hours = self.config.backup.interval_hours;
         if hours == 0 {
@@ -317,7 +339,11 @@ impl App {
         if !self.backup_due(now).await? {
             return Ok(None);
         }
-        self.write_backup(Kind::Scheduled, now).await.map(Some)
+        let written = self.write_backup(Kind::Scheduled, now).await;
+        let outcome = written.as_ref().map(|_| ()).map_err(|e| format!("{e:#}"));
+        self.status
+            .job_ran(crate::status::Job::Backup, now, &outcome);
+        written.map(Some)
     }
 
     pub async fn backup_list(&self) -> Result<BackupList, BackupRequestError> {
