@@ -2,7 +2,11 @@
 //! (movies) or TVDB (series) by the provider path stored with the item, kept in a cache
 //! next to the database and served from it, also while the provider is down.
 
-use std::path::{Path as FsPath, PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path as FsPath, PathBuf},
+    sync::{Arc, Mutex},
+};
 
 use axum::{
     body::Body,
@@ -26,6 +30,9 @@ pub struct Images {
     /// TVDB artwork host; the artwork path follows.
     pub tvdb: String,
     pub cache: PathBuf,
+    /// The TMDB images (`{size}/{file}`) sofarr handed out in an answer: only these are
+    /// loaded from TMDB, so the image route is no open proxy (spec discover AC-17).
+    issued: Arc<Mutex<HashSet<String>>>,
 }
 
 impl Images {
@@ -39,7 +46,23 @@ impl Images {
                 .unwrap_or_else(|| FsPath::new("."))
                 .join("cache")
                 .join("images"),
+            issued: Arc::default(),
         }
+    }
+
+    /// sofarr's URL of a TMDB image in one size, remembered as handed out.
+    pub fn tmdb_url(&self, size: &str, path: &str) -> Option<String> {
+        let url = tmdb_image_url(size, path)?;
+        let key = url.strip_prefix("/api/images/tmdb/")?.to_owned();
+        if let Ok(mut issued) = self.issued.lock() {
+            issued.insert(key);
+        }
+        Some(url)
+    }
+
+    /// The handed-out TMDB image `{size}/{file}`, as sofarr stored it.
+    fn issued(&self, key: &str) -> Option<String> {
+        self.issued.lock().ok()?.get(key).cloned()
     }
 }
 
@@ -245,7 +268,11 @@ pub async fn tmdb_image(
     if let Ok(bytes) = tokio::fs::read(&cached).await {
         return Ok(image(bytes, &path));
     }
-    match fetch(&app.http, &format!("{}/{size}{path}", images.tmdb)).await {
+    // A file sofarr never handed out is not asked of TMDB; the URL uses the stored value.
+    let Some(issued) = images.issued(&format!("{size}/{file}")) else {
+        return Ok(not_found());
+    };
+    match fetch(&app.http, &format!("{}/{issued}", images.tmdb)).await {
         Some(bytes) => {
             store(&cached, &bytes).await;
             Ok(image(bytes, &path))

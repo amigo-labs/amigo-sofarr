@@ -150,7 +150,7 @@ pub async fn page(
         birthday: p.birthday.clone(),
         deathday: p.deathday.clone(),
         place_of_birth: p.place_of_birth.clone(),
-        photo: image(p.profile_path.as_deref(), "h632"),
+        photo: image(&app, p.profile_path.as_deref(), "h632"),
         department: p.department.clone(),
         cast,
         crew,

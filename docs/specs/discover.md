@@ -155,3 +155,4 @@ Terms used below:
 - 2026-11-12: An excluded title answers 428 until the request carries `confirm_excluded: true` (AC-11).
 - 2026-11-12: The add-movie flow of the import list sync and discover is one function; the import list tests stayed green across the refactoring.
 - 2026-11-12: `App` has a `tvdb_api` field next to `tmdb_api`, so tests point TVDB at a fake (`tmdb_fake.rs`); the series refresh now also builds its TMDB client through `metadata::tmdb`.
+- 2026-11-12: `/api/images/tmdb/{size}/{file}` loads from TMDB only images sofarr handed out in an answer (remembered in memory per process), so the route is no open proxy to TMDB; cached images are served also after a restart, others come back with the next answer that hands them out (AC-17; code scanning `rust/request-forgery`).

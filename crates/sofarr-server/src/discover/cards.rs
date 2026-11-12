@@ -225,8 +225,8 @@ pub struct Cards<'a> {
 }
 
 /// sofarr's URL of a TMDB image in one size (D24).
-pub fn image(path: Option<&str>, size: &str) -> Option<String> {
-    crate::images::tmdb_image_url(size, path?)
+pub fn image(app: &App, path: Option<&str>, size: &str) -> Option<String> {
+    app.images.tmdb_url(size, path?)
 }
 
 impl<'a> Cards<'a> {
@@ -291,7 +291,7 @@ impl<'a> Cards<'a> {
             title: title.title.clone(),
             original_title: title.original_title.clone(),
             year: title.year,
-            poster: image(title.poster_path.as_deref(), "w342"),
+            poster: image(self.app, title.poster_path.as_deref(), "w342"),
             popularity: title.popularity,
             library,
             rating,

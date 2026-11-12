@@ -207,7 +207,15 @@ async fn tmdb_images_are_loaded_once_and_served_from_the_cache() {
     let _ = std::fs::remove_dir_all(&root);
     let mut app = providers.app(Library::Movies, "").await;
     app.images.cache = root.join("cache");
+    // Only images sofarr handed out in an answer are loaded: no open proxy to TMDB.
+    assert_eq!(
+        app.images.tmdb_url("w342", "/abc.jpg").as_deref(),
+        Some("/api/images/tmdb/w342/abc.jpg")
+    );
     let http = Http::start(app).await;
+    let (status, _) = http.get("/api/images/tmdb/w342/never-handed-out.jpg").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(providers.lock().images.is_empty(), "nothing asked of TMDB");
     for _ in 0..2 {
         let response = http
             .client

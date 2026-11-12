@@ -140,7 +140,7 @@ async fn search(
             SearchHit::Person(p) => answer.people.push(PersonCard {
                 tmdb_id: p.tmdb_id,
                 name: p.name.clone(),
-                photo: image(p.profile_path.as_deref(), "w185"),
+                photo: image(&app, p.profile_path.as_deref(), "w185"),
                 department: p.department.clone(),
                 known_for: p.known_for.clone(),
             }),

@@ -125,7 +125,7 @@ pub struct TitlePreview {
     pub freshness: Freshness,
 }
 
-fn cast(detail: &TitleDetail, n: usize) -> Vec<CastCard> {
+fn cast(app: &App, detail: &TitleDetail, n: usize) -> Vec<CastCard> {
     detail
         .cast
         .iter()
@@ -134,12 +134,12 @@ fn cast(detail: &TitleDetail, n: usize) -> Vec<CastCard> {
             person_id: c.person_id,
             name: c.name.clone(),
             character: c.character.clone(),
-            photo: image(c.profile_path.as_deref(), "w185"),
+            photo: image(app, c.profile_path.as_deref(), "w185"),
         })
         .collect()
 }
 
-fn crew(detail: &TitleDetail) -> Vec<CrewCard> {
+fn crew(app: &App, detail: &TitleDetail) -> Vec<CrewCard> {
     let mut out: Vec<CrewCard> = Vec::new();
     for job in PREVIEW_JOBS {
         for c in detail.crew.iter().filter(|c| c.job == *job) {
@@ -152,7 +152,7 @@ fn crew(detail: &TitleDetail) -> Vec<CrewCard> {
                     name: c.name.clone(),
                     job: c.job.clone(),
                     department: c.department.clone(),
-                    photo: image(c.profile_path.as_deref(), "w185"),
+                    photo: image(app, c.profile_path.as_deref(), "w185"),
                 });
             }
         }
@@ -192,8 +192,8 @@ pub async fn preview(
         year: d.summary.year,
         date: d.summary.date.clone(),
         overview: d.overview.clone(),
-        poster: image(d.summary.poster_path.as_deref(), "w780"),
-        backdrop: image(d.backdrop_path.as_deref(), "w1280"),
+        poster: image(&app, d.summary.poster_path.as_deref(), "w780"),
+        backdrop: image(&app, d.backdrop_path.as_deref(), "w1280"),
         genres: d.genres.clone(),
         runtime_minutes: d.runtime_minutes,
         seasons: d
@@ -209,8 +209,8 @@ pub async fn preview(
         status: d.status.clone(),
         imdb_id: d.imdb_id.clone(),
         rating,
-        cast: cast(d, PREVIEW_CAST),
-        crew: crew(d),
+        cast: cast(&app, d, PREVIEW_CAST),
+        crew: crew(&app, d),
         trailer: d.trailer.clone(),
         library,
         freshness: Freshness::one(&cached, now),
@@ -237,7 +237,7 @@ async fn library_cast(app: &App, kind: Kind, tmdb_id: Option<i64>) -> Result<Cas
     let now = Timestamp::now();
     let cached = detail(app, kind, tmdb_id, now).await?;
     Ok(CastAnswer {
-        cast: cast(&cached.value, LIBRARY_CAST),
+        cast: cast(app, &cached.value, LIBRARY_CAST),
         freshness: Some(Freshness::one(&cached, now)),
     })
 }
