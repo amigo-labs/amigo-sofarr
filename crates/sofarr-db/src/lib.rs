@@ -1,9 +1,11 @@
 //! Persistence: SQLite via sqlx, migrations, repositories.
 
+mod blocklist;
 mod series;
 
 use std::{path::Path, str::FromStr};
 
+pub use blocklist::{BlockEntry, MediaRef, NewBlock};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 
 use jiff::Timestamp;
@@ -167,6 +169,8 @@ pub struct Grab {
     pub download_id: Option<String>,
     pub message: Option<String>,
     pub grabbed_at: Timestamp,
+    /// First successful download check that did not find the download.
+    pub absent_since: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -457,7 +461,7 @@ impl Db {
     pub async fn grabs(&self, status: Option<GrabStatus>, limit: u32) -> Result<Vec<Grab>> {
         let rows = sqlx::query(
             "SELECT id, movie_id, title, guid, indexer, download_url, quality, custom_format_score,
-                size, status, download_id, message, grabbed_at
+                size, status, download_id, message, grabbed_at, absent_since
              FROM grabs WHERE (? IS NULL OR status = ?) ORDER BY grabbed_at DESC, id DESC LIMIT ?",
         )
         .bind(status.map(GrabStatus::as_str))
@@ -479,11 +483,29 @@ impl Db {
         Ok(n > 0)
     }
 
+    pub async fn grab(&self, id: i64) -> Result<Option<Grab>> {
+        let row = sqlx::query("SELECT * FROM grabs WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.as_ref().map(grab_from_row))
+    }
+
+    /// Records when the download of a grab was first missing (`None`: seen again).
+    pub async fn set_grab_absent(&self, id: i64, since: Option<Timestamp>) -> Result<()> {
+        sqlx::query("UPDATE grabs SET absent_since = ? WHERE id = ?")
+            .bind(since.map(|t| t.to_string()))
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     /// The newest grab of a movie that still waits for download or import.
     pub async fn active_grab(&self, movie_id: i64) -> Result<Option<Grab>> {
         let row = sqlx::query(
             "SELECT id, movie_id, title, guid, indexer, download_url, quality, custom_format_score,
-                size, status, download_id, message, grabbed_at
+                size, status, download_id, message, grabbed_at, absent_since
              FROM grabs WHERE movie_id = ? AND status IN ('queued', 'downloading', 'completed')
              ORDER BY id DESC LIMIT 1",
         )
@@ -558,6 +580,9 @@ fn grab_from_row(row: &SqliteRow) -> Grab {
         download_id: row.get("download_id"),
         message: row.get("message"),
         grabbed_at: ts(row.get("grabbed_at")),
+        absent_since: row
+            .get::<Option<String>, _>("absent_since")
+            .map(|raw| ts(&raw)),
     }
 }
 
@@ -680,6 +705,19 @@ mod tests {
             db.active_grab(movie).await.expect("active").map(|g| g.id),
             Some(id)
         );
+        let absent: Timestamp = "2026-11-01T13:00:00Z".parse().expect("ts");
+        db.set_grab_absent(id, Some(absent)).await.expect("absent");
+        let read = db.grab(id).await.expect("read").expect("grab");
+        assert_eq!(read.absent_since, Some(absent));
+        db.set_grab_absent(id, None).await.expect("seen");
+        assert_eq!(
+            db.grab(id)
+                .await
+                .expect("read")
+                .and_then(|g| g.absent_since),
+            None
+        );
+        assert_eq!(db.grab(id + 1).await.expect("unknown"), None);
         db.update_grab(id, GrabStatus::Imported, Some("nzb-7"), None, now())
             .await
             .expect("update");
