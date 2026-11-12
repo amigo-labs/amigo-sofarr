@@ -599,10 +599,7 @@ pub fn waits_for_titles(
 
 /// Path of a file relative to the series folder.
 pub fn relative_to(series: &Series, path: &Path) -> String {
-    path.strip_prefix(&series.data.path)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .into_owned()
+    importer::relative_path(Path::new(&series.data.path), path)
 }
 
 #[cfg(test)]

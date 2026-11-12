@@ -266,11 +266,7 @@ pub async fn movies(
                     }
                 }
                 MovieAction::Found(video) => {
-                    let relative = video
-                        .strip_prefix(&folder)
-                        .unwrap_or(&video)
-                        .to_string_lossy()
-                        .into_owned();
+                    let relative = importer::relative_path(&folder, &video);
                     let name = video
                         .file_stem()
                         .and_then(|s| s.to_str())
@@ -443,6 +439,12 @@ mod tests {
         dir
     }
 
+    /// A path as it must appear inside a JSON string (Windows backslashes escaped).
+    fn json_path(path: &Path) -> String {
+        let quoted = serde_json::to_string(&path.to_string_lossy()).expect("path");
+        quoted[1..quoted.len() - 1].to_owned()
+    }
+
     #[test]
     fn reads_settings() {
         let v = serde_json::json!({"autoUnmonitorPreviouslyDownloadedMovies": true,
@@ -464,8 +466,8 @@ mod tests {
         // Point the library at the temp folder.
         let raw = docs["movie"]
             .to_string()
-            .replace("/data/media/movies", &root.to_string_lossy())
-            .replace("\"/x\"", &format!("\"{}/missing/x\"", root.display()));
+            .replace("/data/media/movies", &json_path(&root))
+            .replace("\"/x\"", &format!("\"{}/missing/x\"", json_path(&root)));
         docs.insert(
             "movie".to_owned(),
             serde_json::from_str(&raw).expect("json"),
@@ -520,8 +522,8 @@ mod tests {
         let mut docs = documents();
         let raw = docs["movie"]
             .to_string()
-            .replace("/data/media/movies", &format!("{}/lib", root.display()))
-            .replace("\"/x\"", &format!("\"{}/unmounted/x\"", root.display()));
+            .replace("/data/media/movies", &format!("{}/lib", json_path(&root)))
+            .replace("\"/x\"", &format!("\"{}/unmounted/x\"", json_path(&root)));
         docs.insert(
             "movie".to_owned(),
             serde_json::from_str(&raw).expect("json"),
@@ -593,9 +595,7 @@ mod tests {
         let db = Db::in_memory().await.expect("db");
         let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
         let (mut docs, eps) = series::tests::sonarr_documents();
-        let raw = docs["series"]
-            .to_string()
-            .replace("/tv", &root.to_string_lossy());
+        let raw = docs["series"].to_string().replace("/tv", &json_path(&root));
         docs.insert(
             "series".to_owned(),
             serde_json::from_str(&raw).expect("json"),

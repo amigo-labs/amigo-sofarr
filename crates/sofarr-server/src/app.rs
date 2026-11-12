@@ -1008,7 +1008,7 @@ mod tests {
             "[automation]\nmode = \"live\"\n\
              [[indexer]]\nname = \"idx\"\nurl = \"http://{addr}/api\"\napi_key = \"k\"\n\
              [nzbget]\nurl = \"http://{addr}\"\nusername = \"u\"\npassword = \"p\"\n\
-             [[download.path_map]]\nremote = \"/remote\"\nlocal = \"{}\"\n",
+             [[download.path_map]]\nremote = \"/remote\"\nlocal = '{}'\n",
             root.join("downloads").display()
         ))
         .expect("config");
@@ -1121,7 +1121,7 @@ mod tests {
         let config = Config::parse(&format!(
             "[automation]\nmode = \"live\"\n\
              [nzbget]\nurl = \"http://{addr}\"\nusername = \"u\"\npassword = \"p\"\n\
-             [[download.path_map]]\nremote = \"/remote\"\nlocal = \"{}\"\n",
+             [[download.path_map]]\nremote = \"/remote\"\nlocal = '{}'\n",
             root.join("downloads").display()
         ))
         .expect("config");
