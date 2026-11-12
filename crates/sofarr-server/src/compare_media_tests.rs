@@ -231,6 +231,44 @@ async fn an_unknown_language_name_is_a_mismatch_with_its_raw_name() {
 }
 
 #[tokio::test]
+async fn oracle_codes_map_like_names_and_unknown_languages_are_left_out_like_the_oracle() {
+    let root = dir("compare-codes");
+    let app = app(Library::Movies, "").await;
+    let folder = root.join("Erster Film (2001)");
+    std::fs::create_dir_all(&folder).expect("folder");
+    let file = mkv_full(
+        Some(("A_EAC3", 6, "ger")),
+        Some(("S_TEXT/UTF8", "und")),
+        None,
+    );
+    std::fs::write(folder.join("film.mkv"), file).expect("file");
+    place(&app, 101, &folder, "film.mkv").await;
+    let mut info = media("h265", "");
+    // Some files carry the ISO 639-2/T code, which the oracle prints as it is.
+    info["audioLanguages"] = json!("deu");
+    let url = radarr_oracle(json!([
+        {"id": 1, "movieFile": {"relativePath": "film.mkv", "mediaInfo": info}}
+    ]))
+    .await;
+    let (report, _) = run(
+        &app,
+        &client(&url, OracleApp::Radarr),
+        OracleApp::Radarr,
+        None,
+    )
+    .await
+    .expect("compare");
+    assert_lines(
+        &report,
+        &[
+            "Audiosprachen: 1/1 gleich",
+            "Untertitelsprachen: 1/1 gleich",
+        ],
+    );
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
 async fn at_most_twenty_mismatches_are_listed_per_field() {
     let root = dir("compare-many");
     let app = app(Library::Movies, "").await;

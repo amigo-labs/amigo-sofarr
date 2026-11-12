@@ -45,14 +45,32 @@ struct Field {
     mismatches: Vec<(String, String, String)>,
 }
 
-/// The oracle's languages (`German/English`) as ISO 639-2/B; a name that cannot be
-/// mapped stays as it is, so it shows up as a mismatch.
+/// The language code a comparison shows for undetermined tracks; the oracle leaves such
+/// tracks out of its lists, so both sides drop them.
+const UNDETERMINED: &str = "und";
+
+/// The oracle's languages (`German/English`, for some files codes like `deu`) as
+/// ISO 639-2/B; a value that cannot be mapped stays as it is, so it shows up as a mismatch.
 fn oracle_languages(raw: &str) -> Vec<String> {
     raw.split(['/', ','])
         .map(str::trim)
         .filter(|n| !n.is_empty())
-        .map(|n| sofarr_mediainfo::language_from_name(n).unwrap_or_else(|| n.to_owned()))
+        .map(|n| {
+            sofarr_mediainfo::language_from_name(n)
+                .or_else(|| Some(sofarr_mediainfo::language_code(n)).filter(|c| c != UNDETERMINED))
+                .unwrap_or_else(|| n.to_owned())
+        })
+        .filter(|code| code != UNDETERMINED)
         .collect()
+}
+
+/// sofarr's languages of the tracks, without undetermined ones (see [`UNDETERMINED`]).
+fn known_languages<'a>(languages: impl Iterator<Item = &'a String>) -> String {
+    languages
+        .filter(|l| *l != UNDETERMINED)
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn channels(value: &Value) -> String {
@@ -67,9 +85,6 @@ fn channels(value: &Value) -> String {
 fn values(info: &MediaInfo, oracle: &Value) -> [(String, String); 6] {
     let labels = info.labels();
     let text = |v: &Value| v.as_str().unwrap_or_default().to_owned();
-    let audio_languages: Vec<String> = info.audio.iter().map(|a| a.language.clone()).collect();
-    let subtitle_languages: Vec<String> =
-        info.subtitles.iter().map(|s| s.language.clone()).collect();
     [
         (
             labels.video.unwrap_or_default(),
@@ -88,11 +103,11 @@ fn values(info: &MediaInfo, oracle: &Value) -> [(String, String); 6] {
             text(&oracle["videoDynamicRangeType"]),
         ),
         (
-            audio_languages.join("/"),
+            known_languages(info.audio.iter().map(|a| &a.language)),
             oracle_languages(&text(&oracle["audioLanguages"])).join("/"),
         ),
         (
-            subtitle_languages.join("/"),
+            known_languages(info.subtitles.iter().map(|s| &s.language)),
             oracle_languages(&text(&oracle["subtitles"])).join("/"),
         ),
     ]
