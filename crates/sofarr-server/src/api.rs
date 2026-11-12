@@ -103,17 +103,18 @@ pub fn routes(app: SharedApp) -> Router {
             get(download_backup).delete(delete_backup),
         )
         .route("/api/backups/{name}/restore", post(choose_restore))
-        .with_state(app)
+        .with_state(std::sync::Arc::clone(&app))
+        .merge(crate::library_routes::routes(app))
 }
 
 /// An error answer: status and a German message.
-struct ApiError {
+pub(crate) struct ApiError {
     status: StatusCode,
     message: String,
 }
 
 impl ApiError {
-    fn new(status: StatusCode, message: impl Into<String>) -> Self {
+    pub(crate) fn new(status: StatusCode, message: impl Into<String>) -> Self {
         Self {
             status,
             message: message.into(),
@@ -343,7 +344,7 @@ async fn blocklist(
     }))
 }
 
-fn bad_id() -> ApiError {
+pub(crate) fn bad_id() -> ApiError {
     ApiError::new(StatusCode::BAD_REQUEST, "Ungültige ID")
 }
 

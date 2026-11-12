@@ -11,9 +11,15 @@ mod compare_media;
 mod config;
 mod downloads;
 mod failures;
+mod folders;
 mod import_lists;
 mod importer;
 mod library;
+mod library_detail;
+mod library_edit;
+mod library_list;
+mod library_routes;
+mod library_view;
 mod media;
 mod metadata;
 mod password_input;
@@ -26,6 +32,7 @@ mod status;
 mod system;
 mod throttle;
 mod ui;
+mod wanted;
 
 #[cfg(test)]
 mod api_tests;
@@ -45,6 +52,10 @@ mod failure_tests;
 mod media_import_tests;
 #[cfg(test)]
 mod media_refresh_tests;
+#[cfg(test)]
+mod library_api_tests;
+#[cfg(test)]
+mod library_edit_tests;
 #[cfg(test)]
 mod media_tests;
 #[cfg(test)]

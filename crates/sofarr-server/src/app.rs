@@ -41,6 +41,8 @@ pub struct App {
     pub auth: crate::auth::AuthState,
     /// Job runs and contacts for the system page (spec web-ui-shell).
     pub status: crate::status::Status,
+    /// The computed movie and series lists (spec web-ui-library).
+    pub lists: crate::library_list::ListCache,
 }
 
 pub type SharedApp = Arc<App>;
@@ -95,6 +97,7 @@ impl App {
             backup_error: std::sync::Mutex::new(None),
             auth,
             status: crate::status::Status::default(),
+            lists: crate::library_list::ListCache::default(),
         })
     }
 

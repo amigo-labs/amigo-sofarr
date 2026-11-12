@@ -100,6 +100,11 @@ impl App {
     /// A manual search (API, CLI); takes the jobs lock.
     pub async fn search(&self, target: SearchTarget) -> Result<SearchReport, SearchError> {
         let _guard = self.jobs.lock().await;
+        self.search_locked(target).await
+    }
+
+    /// [`App::search`] for a caller that holds the jobs lock.
+    pub async fn search_locked(&self, target: SearchTarget) -> Result<SearchReport, SearchError> {
         match target {
             SearchTarget::Movie(id) => {
                 let movie = self.db.movie(id).await?.ok_or_else(|| {

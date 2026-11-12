@@ -248,3 +248,55 @@ pub async fn app(library: Library, toml: &str) -> App {
     app.nzbget = nzbget;
     app
 }
+
+/// sofarr's API routes (without the login guard) on a local port.
+pub struct Http {
+    pub base: String,
+    pub client: reqwest::Client,
+    pub app: Arc<App>,
+}
+
+impl Http {
+    pub async fn start(app: App) -> Self {
+        let app = Arc::new(app);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let routes = crate::api::routes(Arc::clone(&app));
+        tokio::spawn(async move { axum::serve(listener, routes).await });
+        Self {
+            base: format!("http://{addr}"),
+            client: reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .expect("client"),
+            app,
+        }
+    }
+
+    /// Status and JSON body (`null` when the body is no JSON).
+    pub async fn send(
+        &self,
+        method: reqwest::Method,
+        path: &str,
+        body: Option<Value>,
+    ) -> (StatusCode, Value) {
+        let mut request = self.client.request(method, format!("{}{path}", self.base));
+        if let Some(body) = body {
+            request = request.json(&body);
+        }
+        let response = request.send().await.expect("request");
+        let status = StatusCode::from_u16(response.status().as_u16()).expect("status");
+        let text = response.text().await.expect("body");
+        (status, serde_json::from_str(&text).unwrap_or(Value::Null))
+    }
+
+    pub async fn get(&self, path: &str) -> (StatusCode, Value) {
+        self.send(reqwest::Method::GET, path, None).await
+    }
+
+    pub async fn post(&self, path: &str, body: Value) -> (StatusCode, Value) {
+        self.send(reqwest::Method::POST, path, Some(body)).await
+    }
+}
