@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { e2ePassword } from './env.mjs';
 import { seed, seedConfig } from './seed.mjs';
+import { EXTRA_VARIANTS, extrasConfig, seedExtras } from './seed-extras.mjs';
 import { SERVERS, USERNAME } from './servers.ts';
 
 const variant = process.argv[2];
@@ -77,6 +78,8 @@ if (variant === 'open') {
   );
 } else if (['library', 'bench', 'live'].includes(variant)) {
   lines.push(...seedConfig(variant));
+} else if (EXTRA_VARIANTS.includes(variant)) {
+  lines.push(...extrasConfig(variant));
 } else {
   lines.push(
     '[auth]',
@@ -87,12 +90,22 @@ if (variant === 'open') {
   if (variant === 'trusted') lines.push('trusted_networks = ["127.0.0.1/32"]');
 }
 
+// The e2e servers never fetch IMDb's real dataset: `ratings` loads a local one, `extras`
+// has ratings off, and the others try a closed port.
+if (!EXTRA_VARIANTS.includes(variant)) {
+  lines.push('[imdb]', 'url = "http://127.0.0.1:9/title.ratings.tsv.gz"');
+}
+
 const config = join(dir, 'sofarr.toml');
 writeFileSync(config, `${lines.join('\n')}\n`, { encoding: 'utf8' });
 
 if (['library', 'bench', 'live'].includes(variant)) {
   const fixtures = join(root, 'fixtures', 'public', 'config', 'radarr');
   await seed(variant, { binary, config, dir, fixtures });
+}
+if (EXTRA_VARIANTS.includes(variant)) {
+  const fixtures = join(root, 'fixtures', 'public', 'config', 'radarr');
+  await seedExtras(variant, { binary, config, dir, fixtures });
 }
 
 const child = spawn(binary, ['--config', config, 'serve'], { stdio: 'inherit' });

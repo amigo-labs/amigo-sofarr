@@ -32,7 +32,7 @@ bunx playwright install chromium # once per machine
 bun run e2e
 ```
 
-Playwright starts seven instances through `e2e/serve.mjs` (fresh configuration and database
+Playwright starts nine instances through `e2e/serve.mjs` (fresh configuration and database
 in the temp folder; the login password is generated per run in `e2e/env.mjs` and hashed with
 `amigo-sofarr hash-password`) on fixed ports:
 
@@ -45,11 +45,16 @@ in the temp folder; the login password is generated per run in `e2e/env.mjs` and
 | 47815 | auth off, shadow mode, 2,501 movies and 23 series (`e2e/seed.mjs`)  |
 | 47816 | auth off, live mode, movies with real files for the file actions    |
 | 47817 | the library of 47815 again, only read by the AC-04 time measurement |
+| 47822 | auth off, shadow mode, a small library with IMDb ratings            |
+| 47823 | auth off, live mode, ratings off, subtitles and trailers            |
 
 sofarr has no seed command, so `e2e/seed.mjs` imports the test libraries the way a real one
 comes in: `import-radarr --exports` reads a Radarr export it writes (quality profiles from
 `fixtures/public/config/radarr`), and `import-sonarr` reads a fake Sonarr API it serves on
-port 47830/47831 for the duration of the import. The time measurement of AC-04
+port 47830/47831 for the duration of the import. `e2e/seed-extras.mjs` seeds 47822 and 47823:
+47822 loads a generated IMDb dataset from a fake on port 47850, 47823 searches a fake
+OpenSubtitles.com on port 47851; their Sonarr imports use ports 47852/47853. No instance fetches
+IMDb's real dataset. The time measurement of AC-04
 (`e2e/library-perf.spec.ts`) runs in the Playwright project `perf` after all other tests.
 
 A debug binary reads `ui/build` at runtime, so after a UI change `bun run build` is enough; a

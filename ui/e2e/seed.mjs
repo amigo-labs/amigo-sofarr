@@ -33,7 +33,7 @@ function day(days) {
   return date.toISOString().slice(0, 10);
 }
 
-function file(relativePath, quality) {
+export function file(relativePath, quality) {
   return {
     relativePath,
     size: 4_500_000_000,
@@ -42,7 +42,7 @@ function file(relativePath, quality) {
   };
 }
 
-function movie(n, root, fields) {
+export function movie(n, root, fields) {
   const year = fields.year ?? 2000;
   return {
     id: n,
@@ -161,7 +161,7 @@ function writeLiveFiles(root, movies) {
   writeFileSync(join(root, 'Ziel Belegt (2005)', 'Ziel Belegt (2005) Bluray-1080p.mkv'), 'da');
 }
 
-function episode(id, season, number, fields) {
+export function episode(id, season, number, fields) {
   return {
     id,
     tvdbId: 900_000 + id,
@@ -236,7 +236,7 @@ function librarySeries(root) {
 }
 
 /** Serves Sonarr's v3 API for the import: settings, series, episodes, episode files. */
-function fakeSonarr(fixtures, root, data) {
+export function fakeSonarr(fixtures, root, data) {
   const lists = {
     qualityprofile: fixtures.qualityprofile,
     qualitydefinition: fixtures.qualitydefinition,
@@ -262,7 +262,7 @@ function fakeSonarr(fixtures, root, data) {
   });
 }
 
-function run(binary, args) {
+export function run(binary, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { stdio: ['ignore', 'ignore', 'inherit'] });
     child.on('error', reject);

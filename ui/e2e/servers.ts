@@ -23,6 +23,10 @@ export const SERVERS = {
   bench: at(7),
   /** Auth off, live mode, movies with real files for the file actions. */
   live: at(6),
+  /** Auth off, shadow mode, a small library with IMDb ratings from a local dataset. */
+  ratings: at(12),
+  /** Auth off, live mode, IMDb ratings off, a fake OpenSubtitles, trailers without TMDB. */
+  extras: at(13),
 };
 
 export type Variant = keyof typeof SERVERS;
