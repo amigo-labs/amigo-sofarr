@@ -118,6 +118,24 @@ async fn presentation_is_kept_unless_given() {
         .expect("series");
     let p = &db.series_presentation().await.expect("read")[&s];
     assert_eq!(p.poster_path.as_deref(), Some("/banners/x.jpg"));
+    assert_eq!(
+        db.poster_path(MediaRef::Series(s))
+            .await
+            .expect("poster")
+            .as_deref(),
+        Some("/banners/x.jpg")
+    );
+    assert_eq!(
+        db.poster_path(MediaRef::Movie(id))
+            .await
+            .expect("poster")
+            .as_deref(),
+        Some("/p2.jpg")
+    );
+    assert_eq!(
+        db.poster_path(MediaRef::Movie(999)).await.expect("none"),
+        None
+    );
     assert_eq!(p.added_at, at(1));
 }
 

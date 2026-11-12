@@ -130,6 +130,20 @@ impl Db {
         presentation(self, "series").await
     }
 
+    /// The poster path of one movie or series.
+    pub async fn poster_path(&self, media: MediaRef) -> Result<Option<String>> {
+        let (table, id) = match media {
+            MediaRef::Movie(id) => ("movies", id),
+            MediaRef::Series(id) => ("series", id),
+        };
+        let path: Option<Option<String>> =
+            sqlx::query_scalar(&format!("SELECT poster_path FROM {table} WHERE id = ?"))
+                .bind(id)
+                .fetch_optional(self.pool())
+                .await?;
+        Ok(path.flatten())
+    }
+
     /// Stores what the provider says; `None` keeps the stored value.
     pub async fn set_movie_presentation(
         &self,
