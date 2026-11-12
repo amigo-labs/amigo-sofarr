@@ -12,7 +12,11 @@ mod api_tests;
 #[cfg(test)]
 mod fake;
 #[cfg(test)]
+mod import_tests;
+#[cfg(test)]
 mod rename_tests;
+#[cfg(test)]
+mod schedule_tests;
 #[cfg(test)]
 mod tests;
 
@@ -474,22 +478,29 @@ pub async fn remove_with_video(
     Ok(())
 }
 
-/// When the next scheduled run is due: `interval` after the last one, or at the quota's
-/// reset when that comes earlier (AC-07).
+/// How long the schedule sleeps before its next full run: `interval` after the last one
+/// (at once before the first), or until the quota's reset when that comes earlier
+/// (AC-07); `None` without an interval and without a used-up quota, when only imports
+/// wake it.
 fn next_wait(
     app: &App,
     last: Option<tokio::time::Instant>,
-    interval: std::time::Duration,
+    interval: Option<std::time::Duration>,
     now: Timestamp,
-) -> std::time::Duration {
-    let by_interval = last.map_or(std::time::Duration::ZERO, |l| {
-        interval.saturating_sub(l.elapsed())
+) -> Option<std::time::Duration> {
+    let by_interval = interval.map(|every| {
+        last.map_or(std::time::Duration::ZERO, |l| {
+            every.saturating_sub(l.elapsed())
+        })
     });
     let by_quota = app
         .subtitles
         .quota_until(now)
         .and_then(|until| std::time::Duration::try_from(until.duration_since(now)).ok());
-    by_quota.map_or(by_interval, |q| q.min(by_interval))
+    match (by_interval, by_quota) {
+        (Some(interval), Some(quota)) => Some(interval.min(quota)),
+        (interval, quota) => interval.or(quota),
+    }
 }
 
 /// Starts the subtitle schedule (AC-02, AC-07) and the search after imports (AC-01);
@@ -502,13 +513,7 @@ pub fn spawn_schedule(app: &SharedApp) -> Option<tokio::task::JoinHandle<()>> {
         let mut last_full: Option<tokio::time::Instant> = None;
         loop {
             let now = Timestamp::now();
-            let wait = match interval {
-                Some(every) => Some(next_wait(&app, last_full, every, now)),
-                None => app
-                    .subtitles
-                    .quota_until(now)
-                    .and_then(|u| std::time::Duration::try_from(u.duration_since(now)).ok()),
-            };
+            let wait = next_wait(&app, last_full, interval, now);
             if let Some(wait) = wait {
                 app.status.job_waits(Job::Subtitles, now, wait);
             }
