@@ -18,6 +18,7 @@ sofarr-indexer = { path = "crates/sofarr-indexer" }
 sofarr-metadata = { path = "crates/sofarr-metadata" }
 sofarr-download = { path = "crates/sofarr-download" }
 sofarr-db = { path = "crates/sofarr-db" }
+sofarr-mediainfo = { path = "crates/sofarr-mediainfo" }
 
 # External crates
 anyhow = "1"
