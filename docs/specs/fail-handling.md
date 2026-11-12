@@ -181,7 +181,7 @@ Terms used below:
 | AC-17 |      | open   |        |
 | AC-18 |      | open   |        |
 | AC-19 |      | open   |        |
-| AC-20 |      | open   |        |
+| AC-20 | `blocklist::tests::blocklist_holds_a_release_once_per_item`, `blocklist::tests::removing_entries_and_items` (`crates/sofarr-db/src/blocklist.rs`) | built |        |
 | AC-21 |      | open   |        |
 | AC-22 |      | open   |        |
 | AC-23 |      | open   |        |
