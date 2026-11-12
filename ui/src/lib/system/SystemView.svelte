@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { SystemAnswer } from '../api/generated/SystemAnswer';
+  import { supportText } from '../trailers/trailers';
   import ConfigBox from './ConfigBox.svelte';
   import ConnectionsBox from './ConnectionsBox.svelte';
   import JobsBox from './JobsBox.svelte';
   import { modeText } from './format';
 
-  // The system page's content (spec web-ui-shell AC-12).
+  // The system page's content (spec web-ui-shell AC-12), with whether trailers are
+  // downloaded (spec trailers AC-12).
   type Props = { system: SystemAnswer };
   let { system }: Props = $props();
 
@@ -22,6 +24,10 @@
     <div>
       <dt>Modus</dt>
       <dd data-testid="mode"><strong>{mode.name}</strong> – {mode.hint}</dd>
+    </div>
+    <div>
+      <dt>Trailer</dt>
+      <dd data-testid="trailers">{supportText(system.trailers)}</dd>
     </div>
   </dl>
 </section>

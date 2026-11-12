@@ -10,6 +10,7 @@
   import { notify } from '../notices.svelte';
   import Label from '../components/Label.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
+  import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
   import FilesBox from './FilesBox.svelte';
   import HistoryBox from './HistoryBox.svelte';
@@ -96,6 +97,7 @@
   </section>
 
   <div class="grid">
+    <TrailerBox kind="series" id={s.id} title={s.title} />
     <SettingsBox
       profiles={options.value?.series_profiles ?? []}
       profile={s.quality_profile}

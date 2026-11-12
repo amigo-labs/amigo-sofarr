@@ -8,6 +8,7 @@
   import Label from '../components/Label.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
   import SubtitlesBox from '../../subtitles/SubtitlesBox.svelte';
+  import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
   import FileBox from './FileBox.svelte';
   import FilesBox from './FilesBox.svelte';
@@ -104,6 +105,7 @@
   <div class="grid">
     <FileBox file={m.file} cutoffReason={m.cutoff_reason} />
     <SubtitlesBox movieId={m.id} title={m.title} hasFile={m.file !== null} />
+    <TrailerBox kind="movie" id={m.id} title={m.title} />
     <SettingsBox
       profiles={options.value?.movie_profiles ?? []}
       profile={m.quality_profile}
