@@ -25,6 +25,8 @@ pub(crate) enum Probe {
         length_size: usize,
     },
     Mpeg4Part2,
+    /// AC-3 without a configuration box: the channels come from the first syncframe.
+    Ac3,
     Eac3,
     TrueHd,
     Dts,
@@ -86,6 +88,12 @@ impl Draft {
                     self.codec = vendor.to_string();
                 }
             }
+            // AC-3 has no extensions that add channels: the syncframe is the stream's layout.
+            Probe::Ac3 => {
+                if let Some(channels) = audio::ac3_channels(frame) {
+                    self.channels = Some(channels);
+                }
+            }
             Probe::Eac3 => {
                 if audio::eac3_joc(frame) == Some(true) {
                     self.object_audio = true;
@@ -99,6 +107,11 @@ impl Draft {
             Probe::Dts => {
                 if let Some(profile) = audio::dts_profile(frame) {
                     self.codec = profile.to_string();
+                }
+                // Some muxers leave the LFE out of the header's count; extensions (ES, HD)
+                // only add channels to the core, so the larger count is the stream's.
+                if let Some(core) = audio::dts_core_channels(frame) {
+                    self.channels = Some(self.channels.map_or(core, |header| header.max(core)));
                 }
             }
         }

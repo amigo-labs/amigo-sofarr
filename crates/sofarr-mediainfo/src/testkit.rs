@@ -338,6 +338,29 @@ pub(crate) fn dv_record(profile: u8, compatibility: u8) -> Vec<u8> {
     out
 }
 
+/// An AC-3 syncframe header: fscod 0, frmsizecod 0, bsid 8, bsmod 0, `acmod` and `lfe`.
+pub(crate) fn ac3_frame(acmod: u64, lfe: bool) -> Vec<u8> {
+    let mut bits = BitWriter::new();
+    bits.put(16, 0x0B77)
+        .put(16, 0)
+        .put(2, 0)
+        .put(6, 0)
+        .put(5, 8)
+        .put(3, 0)
+        .put(3, acmod);
+    if acmod & 1 == 1 && acmod != 1 {
+        bits.put(2, 0);
+    }
+    if acmod & 4 != 0 {
+        bits.put(2, 0);
+    }
+    if acmod == 2 {
+        bits.put(2, 0);
+    }
+    bits.put(1, u64::from(lfe));
+    bits.finish(32)
+}
+
 /// An E-AC-3 syncframe header (5.1, six blocks); `metadata` adds mixing and informational
 /// metadata before the additional bit stream information that carries the JOC flag.
 pub(crate) fn eac3_frame(joc: bool, metadata: bool) -> Vec<u8> {
@@ -398,20 +421,7 @@ pub(crate) fn truehd_frame(substreams: u8) -> Vec<u8> {
 /// A 64-byte DTS core frame, optionally followed by a 64-byte extension substream whose
 /// first asset component starts with `component`.
 pub(crate) fn dts_frame(es: bool, component: Option<[u8; 4]>) -> Vec<u8> {
-    let mut core = BitWriter::new();
-    core.put(32, 0x7FFE_8001)
-        .put(1, 1)
-        .put(5, 31)
-        .put(1, 0)
-        .put(7, 15)
-        .put(14, 63);
-    core.put(6, 9)
-        .put(4, 13)
-        .put(5, 15)
-        .put(5, 0)
-        .put(3, 0)
-        .put(1, u64::from(es));
-    let mut out = core.finish(64);
+    let mut out = dts_core(es, false);
     if let Some(sync) = component {
         let mut ext = BitWriter::new();
         ext.put(32, 0x6458_2025)
@@ -427,6 +437,27 @@ pub(crate) fn dts_frame(es: bool, component: Option<[u8; 4]>) -> Vec<u8> {
         out.extend(substream);
     }
     out
+}
+
+/// A 64-byte DTS core frame with AMODE 9 (C, L, R, SL, SR), a channel extension flag and
+/// an LFE flag.
+pub(crate) fn dts_core(es: bool, lfe: bool) -> Vec<u8> {
+    let mut core = BitWriter::new();
+    core.put(32, 0x7FFE_8001)
+        .put(1, 1)
+        .put(5, 31)
+        .put(1, 0)
+        .put(7, 15)
+        .put(14, 63);
+    core.put(6, 9)
+        .put(4, 13)
+        .put(5, 15)
+        .put(5, 0)
+        .put(3, 0)
+        .put(1, u64::from(es))
+        .put(1, 0)
+        .put(2, u64::from(lfe));
+    core.finish(64)
 }
 
 // --- Readers ------------------------------------------------------------------------------

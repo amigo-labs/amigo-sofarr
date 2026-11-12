@@ -69,6 +69,32 @@ pub(crate) fn parse_dec3(data: &[u8]) -> Option<Dec3> {
     Some(Dec3 { channels, joc })
 }
 
+/// The channels of an AC-3 syncframe: `acmod` plus `lfeon` (ETSI TS 102 366, 5.4.2).
+pub(crate) fn ac3_channels(frame: &[u8]) -> Option<u8> {
+    if frame.get(..2)? != [0x0B, 0x77] {
+        return None;
+    }
+    let mut bits = BitReader::new(frame.get(2..)?);
+    bits.skip(16 + 2 + 6)?;
+    // bsid up to 8 is AC-3, 9 and 10 its reduced-rate variants; above is E-AC-3.
+    if bits.read(5)? > 10 {
+        return None;
+    }
+    bits.skip(3)?;
+    let acmod = bits.read(3)?;
+    if acmod & 1 == 1 && acmod != 1 {
+        bits.skip(2)?;
+    }
+    if acmod & 4 != 0 {
+        bits.skip(2)?;
+    }
+    if acmod == 2 {
+        bits.skip(2)?;
+    }
+    let lfe = bits.read(1)?;
+    Some(acmod_channels(acmod) + lfe as u8)
+}
+
 /// Whether the first E-AC-3 syncframe of `frame` signals Joint Object Coding in its
 /// additional bit stream information; `None` when `frame` starts with no E-AC-3 syncframe.
 pub(crate) fn eac3_joc(frame: &[u8]) -> Option<bool> {
@@ -253,6 +279,31 @@ pub(crate) fn dts_profile(frame: &[u8]) -> Option<&'static str> {
     profile
 }
 
+/// The channels of a DTS core frame: AMODE plus the LFE (ETSI TS 102 114, 5.3.1).
+pub(crate) fn dts_core_channels(frame: &[u8]) -> Option<u8> {
+    if be32(frame, 0)? != DTS_CORE_SYNC {
+        return None;
+    }
+    let mut bits = BitReader::new(frame);
+    bits.skip(32 + 1 + 5 + 1 + 7 + 14)?;
+    let amode = bits.read(6)?;
+    bits.skip(4 + 5 + 1 + 1 + 1 + 1 + 1 + 3 + 1 + 1)?;
+    let lfe = bits.read(2)?;
+    let channels: u8 = match amode {
+        0 => 1,
+        1..=4 => 2,
+        5 | 6 => 3,
+        7 | 8 => 4,
+        9 => 5,
+        10..=12 => 6,
+        13 => 7,
+        14 | 15 => 8,
+        // User-defined layouts say nothing about the channel count.
+        _ => return None,
+    };
+    Some(channels + u8::from(matches!(lfe, 1 | 2)))
+}
+
 fn extension_substream_profile(data: &[u8]) -> Option<&'static str> {
     let mut bits = BitReader::new(data);
     bits.skip(32 + 8 + 2)?;
@@ -272,7 +323,7 @@ fn extension_substream_profile(data: &[u8]) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testkit::{dts_frame, eac3_frame, truehd_frame};
+    use crate::testkit::{ac3_frame, dts_core, dts_frame, eac3_frame, truehd_frame};
 
     #[test]
     fn dac3_and_dec3_channels() {
@@ -330,5 +381,24 @@ mod tests {
             Some("dts-hd hra")
         );
         assert_eq!(dts_profile(&[0x7F, 0xFE, 0x80, 0x01]), None);
+    }
+
+    #[test]
+    fn ac3_channels_from_the_syncframe() {
+        assert_eq!(ac3_channels(&ac3_frame(2, false)), Some(2));
+        assert_eq!(ac3_channels(&ac3_frame(7, true)), Some(6));
+        assert_eq!(ac3_channels(&ac3_frame(1, false)), Some(1));
+        assert_eq!(ac3_channels(&ac3_frame(3, true)), Some(4));
+        // E-AC-3 (bsid 16) and anything without a syncword are not AC-3.
+        assert_eq!(ac3_channels(&eac3_frame(false, false)), None);
+        assert_eq!(ac3_channels(&[0; 16]), None);
+    }
+
+    #[test]
+    fn dts_core_channels_count_the_lfe() {
+        assert_eq!(dts_core_channels(&dts_core(false, false)), Some(5));
+        assert_eq!(dts_core_channels(&dts_core(false, true)), Some(6));
+        assert_eq!(dts_core_channels(&[0x7F, 0xFE, 0x80, 0x01]), None);
+        assert_eq!(dts_core_channels(&[0; 16]), None);
     }
 }

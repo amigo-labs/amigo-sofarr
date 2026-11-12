@@ -16,6 +16,8 @@ const CODEC_ID: u32 = 0x86;
 const CODEC_PRIVATE: u32 = 0x63A2;
 const LANGUAGE: u32 = 0x22_B59C;
 const LANGUAGE_BCP47: u32 = 0x22_B59D;
+/// The default value of the Language element (RFC 9559).
+const DEFAULT_LANGUAGE: &str = "eng";
 const VIDEO: u32 = 0xE0;
 const PIXEL_WIDTH: u32 = 0xB0;
 const PIXEL_HEIGHT: u32 = 0xBA;
@@ -221,12 +223,13 @@ fn parse_encodings(data: &[u8], fields: &mut Fields) -> Res<()> {
 
 fn build(kind: Kind, fields: Fields) -> MkvTrack {
     let mut draft = Draft::new(kind);
-    // LanguageBCP47 overrides Language; missing or `und` both mean undetermined.
+    // LanguageBCP47 overrides Language; a missing Language element has RFC 9559's
+    // default `eng` (muxers omit it for English), only an explicit `und` is undetermined.
     let raw_language = fields
         .language_bcp47
         .filter(|tag| !tag.is_empty())
         .or(fields.language)
-        .unwrap_or_default();
+        .unwrap_or_else(|| DEFAULT_LANGUAGE.to_owned());
     draft.language = language_code(&raw_language);
     draft.default = fields.default.unwrap_or(true);
     draft.forced = fields.forced;
@@ -305,7 +308,10 @@ fn mpeg4(private: &[u8], draft: &mut Draft) -> &'static str {
 
 fn audio_codec(codec_id: &str, private: &[u8], draft: &mut Draft) {
     let codec = match codec_id {
-        "A_AC3" | "A_AC3/BSID9" | "A_AC3/BSID10" => "ac3",
+        "A_AC3" | "A_AC3/BSID9" | "A_AC3/BSID10" => {
+            draft.probe = Probe::Ac3;
+            "ac3"
+        }
         "A_EAC3" => {
             draft.probe = Probe::Eac3;
             "eac3"

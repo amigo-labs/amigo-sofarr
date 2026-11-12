@@ -114,8 +114,9 @@ fn tracks_languages_and_flags() {
                 audio("aac", 2, false, "ger")
             ],
             subtitles: vec![
+                // No Language element: RFC 9559's default `eng`.
                 Subtitle {
-                    language: "und".to_string(),
+                    language: "eng".to_string(),
                     format: "srt".to_string(),
                     forced: true,
                     default: false,
@@ -155,7 +156,7 @@ fn tracks_reachable_only_through_seek_head() {
     );
     let found = info(&with_head);
     assert_eq!(found.status, ReadStatus::Complete);
-    assert_eq!(found.audio, vec![audio("flac", 2, false, "und")]);
+    assert_eq!(found.audio, vec![audio("flac", 2, false, "eng")]);
 
     let without_head = mkv("matroska", &[cluster, tracks]);
     let missing = info(&without_head);
@@ -337,6 +338,16 @@ fn header_stripping_is_undone_before_frame_analysis() {
 }
 
 #[test]
+fn ac3_channels_from_the_first_frame_override_the_header() {
+    // A broadcast recording whose header claims 5.1 for a stereo stream.
+    let stereo = single_audio("A_AC3", 6, &[], simple_block(1, &ac3_frame(2, false)));
+    assert_eq!(stereo.labels().audio.as_deref(), Some("AC3"));
+    assert_eq!(stereo.labels().channels.as_deref(), Some("2.0"));
+    let surround = single_audio("A_AC3", 2, &[], simple_block(1, &ac3_frame(7, true)));
+    assert_eq!(surround.labels().channels.as_deref(), Some("5.1"));
+}
+
+#[test]
 fn dts_profiles_and_truehd_atmos_from_first_frames() {
     let ma = single_audio(
         "A_DTS",
@@ -349,6 +360,18 @@ fn dts_profiles_and_truehd_atmos_from_first_frames() {
     let es = single_audio("A_DTS", 7, &[], simple_block(1, &dts_frame(true, None)));
     assert_eq!(es.labels().audio.as_deref(), Some("DTS-ES"));
     assert_eq!(es.labels().channels.as_deref(), Some("6.1"));
+    // A header that leaves the LFE out: the core frame counts it.
+    let lfe = single_audio("A_DTS", 5, &[], simple_block(1, &dts_core(false, true)));
+    assert_eq!(lfe.labels().audio.as_deref(), Some("DTS"));
+    assert_eq!(lfe.labels().channels.as_deref(), Some("5.1"));
+    // A 7.1 DTS-HD MA keeps its header channels over the 5.1 core.
+    let wide = single_audio(
+        "A_DTS",
+        8,
+        &[],
+        simple_block(1, &dts_frame(false, Some([0x41, 0xA2, 0x95, 0x47]))),
+    );
+    assert_eq!(wide.labels().channels.as_deref(), Some("7.1"));
     // TrueHD in a BlockGroup.
     let mut block = vec![0x81, 0, 0, 0];
     block.extend(truehd_frame(4));
@@ -423,7 +446,7 @@ fn a_file_without_video_track_has_the_video_fields_unknown() {
     let info = info(&mkv("matroska", &[tracks]));
     assert_eq!(info.status, ReadStatus::Complete);
     assert_eq!(info.video, None);
-    assert_eq!(info.audio, vec![audio("flac", 2, false, "und")]);
+    assert_eq!(info.audio, vec![audio("flac", 2, false, "eng")]);
     let labels = info.labels();
     assert_eq!(labels.video, None);
     assert_eq!(labels.dynamic_range, None);
