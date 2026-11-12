@@ -110,6 +110,15 @@ impl App {
                 max_height: config.trailers.max_height,
                 limits: crate::trailers::ytdlp::Limits::trailer(),
             }));
+        // The API roots: the real ones unless a test setup points elsewhere.
+        let tmdb_api = config
+            .tmdb
+            .as_ref()
+            .map_or_else(|| sofarr_metadata::TMDB_API.to_owned(), |t| t.url.clone());
+        let tvdb_api = config.tvdb.as_ref().map_or_else(
+            || sofarr_metadata::tvdb::TVDB_API.to_owned(),
+            |t| t.url.clone(),
+        );
         Ok(Self {
             config,
             db,
@@ -127,8 +136,8 @@ impl App {
             images,
             opensubtitles,
             subtitles: crate::subtitles::SubtitleState::default(),
-            tmdb_api: sofarr_metadata::TMDB_API.to_owned(),
-            tvdb_api: sofarr_metadata::tvdb::TVDB_API.to_owned(),
+            tmdb_api,
+            tvdb_api,
             discover: crate::discover::Discover::default(),
             trailers,
         })

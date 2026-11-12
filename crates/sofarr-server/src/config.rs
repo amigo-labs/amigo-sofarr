@@ -490,11 +490,22 @@ impl Default for RssConfig {
     }
 }
 
+fn default_tmdb_url() -> String {
+    sofarr_metadata::TMDB_API.to_owned()
+}
+
+fn default_tvdb_url() -> String {
+    sofarr_metadata::tvdb::TVDB_API.to_owned()
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TmdbConfig {
     /// TMDB v3 API key or v4 read access token.
     pub api_key: String,
+    /// The API root (test setups use a local one).
+    #[serde(default = "default_tmdb_url")]
+    pub url: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -503,6 +514,9 @@ pub struct TvdbConfig {
     pub api_key: String,
     /// Subscriber PIN, if the key needs one.
     pub pin: Option<String>,
+    /// The API root (test setups use a local one).
+    #[serde(default = "default_tvdb_url")]
+    pub url: String,
 }
 
 /// The Radarr instance sofarr imports from and compares against.
@@ -742,6 +756,38 @@ sprachen = []
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn tmdb_and_tvdb_api_roots_default_to_the_real_ones() {
+        let config = Config::parse(
+            "[tmdb]
+api_key = \"k\"
+[tvdb]
+api_key = \"k\"
+",
+        )
+        .expect("valid");
+        assert_eq!(
+            config.tmdb.expect("tmdb").url,
+            "https://api.themoviedb.org/3"
+        );
+        assert_eq!(
+            config.tvdb.expect("tvdb").url,
+            "https://api4.thetvdb.com/v4"
+        );
+        let config = Config::parse(
+            "[tmdb]
+api_key = \"k\"
+url = \"http://127.0.0.1:9/3\"
+             [tvdb]
+api_key = \"k\"
+url = \"http://127.0.0.1:9/tvdb\"
+",
+        )
+        .expect("valid");
+        assert_eq!(config.tmdb.expect("tmdb").url, "http://127.0.0.1:9/3");
+        assert_eq!(config.tvdb.expect("tvdb").url, "http://127.0.0.1:9/tvdb");
     }
 
     #[test]

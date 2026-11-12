@@ -24,6 +24,7 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # TMDB-Zugang (v3-API-Key oder v4-Read-Token) – für Metadaten und Import Lists.
 # [tmdb]
 # api_key = "dein-tmdb-key"
+# url = "https://api.themoviedb.org/3"   # API-Adresse; nur für Testaufbauten ändern
 
 # Radarr-Instanz für den einmaligen Import und die Abgleiche.
 # [radarr]
@@ -47,6 +48,7 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # [tvdb]
 # api_key = "dein-tvdb-key"
 # pin = "optional"
+# url = "https://api4.thetvdb.com/v4"   # API-Adresse; nur für Testaufbauten ändern
 
 # Download-Client (nur im Modus "live" genutzt).
 # [nzbget]
