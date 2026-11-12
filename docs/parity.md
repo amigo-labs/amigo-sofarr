@@ -99,6 +99,7 @@ Diese Fälle werden aus dem Parity-Diff ausgenommen.
 | Feature | Abweichung | Begründung |
 |---|---|---|
 | Public-Fixtures: `response` | Aus der `/api/v3/parse`-Antwort werden nur `title`, `parsedMovieInfo` und `languages` gespeichert, nicht die komplette Antwort. | Ein Treffer in der Bibliothek liefert ein `movie`-Objekt mit Pfaden und Bibliotheksdaten; die gehören nicht ins öffentliche Repo. Private History-Fixtures bleiben roh. |
+| Media-Infos: Atmos in E-AC-3 | sofarr erkennt Joint Object Coding nur in den ersten Frames; Radarr/Sonarr finden es auch weiter hinten im Datenstrom. | sofarr liest nur Header und die ersten Frames jeder Spur (Spec `mediainfo`, „Header data“), damit ein Scan großer Bibliotheken über das Netz schnell bleibt; im Abgleich betrifft das unter 1 % der Filme und höchstens 3,8 % der Episoden (alle Audio-Abweichungen bei Sonarr). |
 
 ## Stand Release-Orakel
 
@@ -168,6 +169,55 @@ Noch nicht abgedeckt:
   Custom Formats mit nicht-`required` Bedingungen, ein erreichter CF-Cutoff-Score bei
   einem Profil mit Upgrades.
 
+## Stand Media-Infos
+
+`amigo-sofarr compare-mediainfo --app radarr|sonarr --root <Freigabe>` (Spec `mediainfo`
+AC-07, AC-08); `scripts/compare-acceptance.ps1` führt alle Abgleiche in einem Lauf aus.
+Lauf vom 12.11.2026 gegen die Bibliothek des Owners (MKV und MP4; AVI liegt außerhalb des
+Scopes), erst ohne, dann mit den Korrekturen aus dem Abgleich (Sprach-Default, Kanäle aus den
+ersten Frames):
+
+| Feld | Radarr (2.341 Dateien) | Sonarr (3.533 Dateien) |
+|---|---|---|
+| Video | 99,7 % | 97,3 % |
+| Audio | 99,1 % | 96,2 % |
+| Kanäle | 99,1 % → 99,9 % | 99,7 % → 99,97 % |
+| Dynamikumfang | 99,96 % | 99,8 % |
+| Audiosprachen | 41,3 % → 99,2 % | 55,4 % → 98,8 % |
+| Untertitelsprachen | 68,3 % → 99,3 % | 68,9 % → 99,7 % |
+
+Übersprungen: Radarr 5 Dateien in nicht unterstützten Containern und 2 ohne `mediaInfo` beim
+Orakel, Sonarr 92 in nicht unterstützten Containern (91 AVI).
+
+Abweichungen nach Ursache:
+
+| Feld | Orakel → sofarr | Ursache | Stand |
+|---|---|---|---|
+| Video | `h265` → `x265`, seltener `x265` → `h265` | sofarr nennt den Encoder, wenn der erste Frame eine x265-SEI trägt; das Orakel nennt für einen Teil dieser Dateien den Codec und umgekehrt, ein Muster ist von außen nicht zu erkennen | offen (unter 5 %) |
+| Video | `x264` → `h264` (Sonarr), `AVC` → `h264` (Radarr, 3 Dateien) | keine Encoder-SEI im ersten Frame; `AVC` ist ein Rohname des Orakels | offen |
+| Audio | `EAC3 Atmos` → `EAC3` | die Datei zeigt Joint Object Coding erst nach den ersten Frames; sofarr liest nur Header und erste Frames (Spec `mediainfo`) | bewusst |
+| Audio | `DTS-ES` → `DTS` (Radarr, 3 Dateien) | der erste Kern-Frame zeigt keine Kanalerweiterung | offen |
+| Kanäle | `5.1` → `5.0` (DTS) | der Matroska-Header zählt den LFE nicht mit (`Channels` 5); jetzt aus dem DTS-Kern-Frame | behoben |
+| Kanäle | `2.0` → `5.1` (AC-3, Fernsehaufnahmen) | der Header meldet 6 Kanäle für einen Stereo-Strom; jetzt aus dem AC-3-Syncframe | behoben |
+| Kanäle | `3.0` → `2.1` (1 Datei) | sofarr speichert nur die Anzahl, drei Kanäle heißen `2.1` | offen |
+| Kanäle | `8.0` → `7.1`, `6.0` → `5.1` (je 1 Datei) | nicht untersucht | offen |
+| Dynamikumfang | leer → `HDR10` (7 Dateien) | die Header tragen PQ-Transfer, BT.2020 und Mastering-Daten (mit ffprobe geprüft); das Orakel meldet nichts, bei einer Staffel mit H.266-Video liest es den Videostrom gar nicht | sofarr korrekt |
+| Sprachen | `eng` → `und` | Spuren ohne `Language`-Element sind nach RFC 9559 Englisch, sofarr las sie als unbestimmt | behoben |
+| Sprachen | `deu` → `ger`, leer → `und` | das Orakel gibt bei manchen Dateien den Code `deu` (ISO 639-2/T) aus und lässt Spuren unbestimmter Sprache weg; der Abgleich bildet Codes jetzt wie Namen ab und lässt `und` auf beiden Seiten weg | behoben (Abgleich) |
+| Kanäle | `7.1` → `5.1` (E-AC-3, 1 Datei) | nicht untersucht | offen |
+
+## Stand Dateinamen
+
+`amigo-sofarr compare-rename --app radarr|sonarr` (Spec `web-ui-library` AC-23), Lauf vom
+12.11.2026: Radarr 200 Filme, 43 abweichend; Sonarr 3.625 Episodendateien, 1.684 abweichend.
+
+| Abweichung | Ursache | Stand |
+|---|---|---|
+| Umlaute: Radarr `Fack ju Gohte`, `Der grosse Gatsby`; sofarr `Göhte`, `große` | Radarrs `{Movie CleanTitle}` transliteriert Umlaute und `ß` | offen, Entscheidung des Owners |
+| Satzzeichen: Radarr behält `-` (`Super-Pets`), `.` (`Bros.`, `vs.`) und `–`; sofarr entfernt sie | die Annahme zu `{Movie CleanTitle}` (unten) ist zu streng | offen |
+| Sonarr: `h265` → `x265`, fehlendes `Atmos` | die Abgleich-Datenbank kennt die Dateien nicht (die Pfade des Servers sind auf dem vergleichenden Rechner nicht erreichbar), sofarr nimmt Codec und Atmos deshalb aus dem Release-Namen; im Betrieb liest sofarr die Dateien | Artefakt des Abgleichs, Rest wie bei den Media-Infos |
+| Sonarr: `Trompe L'Oeil` → `Trompe LOeil` | Sonarr behält den Apostroph im Episodentitel | offen |
+
 ## Annahmen ab Phase 3
 
 Verhalten, das ohne Orakel-Daten festgelegt wurde. Die Abgleiche (`compare-library`,
@@ -193,7 +243,7 @@ Radarrs manuellen Import (Spec §5).
 | CF-Score vorhandener Dateien | aus `customFormatScore` der Radarr-Antwort, sonst aus Szene- bzw. Dateiname berechnet. |
 | Import | Die größte Videodatei ohne `sample` im Namen wird verschoben (gleiches Dateisystem: `rename`, sonst kopieren und löschen); Extras bleiben liegen. |
 | Alte Datei bei Upgrade | in den Papierkorb (`recycleBin`), falls gesetzt, sonst gelöscht. |
-| `{Movie CleanTitle}` | Buchstaben, Ziffern und Leerzeichen bleiben; `&` wird `and`, übrige Satzzeichen entfallen. |
+| `{Movie CleanTitle}` | Buchstaben, Ziffern und Leerzeichen bleiben; `&` wird `and`, übrige Satzzeichen entfallen. Abgleich vom 12.11.2026: Radarr transliteriert Umlaute und behält `-`, `.` und `–` (siehe „Stand Dateinamen“). |
 | `{Movie TitleFirstCharacter}` | erster Buchstabe/Ziffer des Titels ohne führenden Artikel (The/A/An/Der/Die/Das), groß. |
 | Unerlaubte Zeichen | `/` und `\\` werden `+`, `? * " < > \|` entfallen. |
 | `{Quality Full}` | Quality-Name, dann `Proper`/`Repack` (ab Version 2, ab 3 mit Zahl) und `REAL`. |
