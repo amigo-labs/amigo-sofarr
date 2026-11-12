@@ -1,2 +1,6 @@
 # Fixtures are appended to on every platform; keep them LF so lines stay byte-identical.
 *.jsonl text eol=lf
+
+# Mirrors written by .agents/sync.mjs (edit .agents/skills or amigo-labs/skills instead)
+.claude/skills/**          linguist-generated=true
+.agents/skills.lock.json   linguist-generated=true
