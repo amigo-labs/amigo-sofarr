@@ -107,8 +107,8 @@ public specifications, general knowledge of release names.
 
 ## 7. Operations
 
-- Container: static musl binary, port **7676**, UID/GID 1000. Base image `scratch`; Alpine with
-  `yt-dlp` and `ffmpeg` once trailers are built (D18).
+- Container: static musl binary, port **7676**, UID/GID 1000. Base image Alpine (pinned by
+  digest) with `yt-dlp` and `ffmpeg` for the trailers (D18).
 - Backups: SQLite via `VACUUM INTO` to `/config/backups`, snapshot before migrations (D14).
 - Auth: can be switched off (`[auth] enabled`), login for the UI and an API key for scripts (D15).
 - Volumes: `/config` (config, SQLite), `/data` (downloads + library under **one** mount for

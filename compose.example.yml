@@ -4,6 +4,7 @@
 services:
   amigo-sofarr:
     build: ./amigo-sofarr          # oder später: image: ghcr.io/amigo-labs/amigo-sofarr:latest
+    # Das Image basiert auf Alpine und bringt yt-dlp und ffmpeg für die Trailer mit.
     container_name: amigo-sofarr
     user: "1000:1000"              # gleiche UID/GID wie Radarr/Sonarr
     ports:
