@@ -55,6 +55,7 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # url = "http://nzbget:6789"
 # username = "nzbget"
 # password = "dein-passwort"
+
 # category = "movies"
 # tv_category = "tv"
 
@@ -116,6 +117,12 @@ interval_hours = 12
 # api_key = "dein-api-key"
 # username = "dein-benutzername"
 # password = "dein-passwort"
+
+[imdb]
+# IMDb-Bewertungen aus dem offiziellen IMDb-Datensatz, täglich geladen (nur für die eigene,
+# nicht kommerzielle Nutzung); false lädt nichts und zeigt keine Bewertungen.
+enabled = true
+
 [trailers]
 # Trailer von TMDB (YouTube) per yt-dlp in den Ordner "trailers" jedes Films und jeder Serie,
 # für Jellyfin. Im Container sind yt-dlp und ffmpeg dabei.
