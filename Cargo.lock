@@ -2130,6 +2130,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sofarr-subtitles"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "jiff",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sofarr-parser",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
