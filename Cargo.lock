@@ -2006,6 +2006,7 @@ dependencies = [
  "sofarr-db",
  "sofarr-download",
  "sofarr-indexer",
+ "sofarr-mediainfo",
  "sofarr-metadata",
  "sofarr-parser",
  "sqlx",

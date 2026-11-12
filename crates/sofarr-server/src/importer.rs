@@ -119,9 +119,16 @@ pub fn relative_path(base: &Path, path: &Path) -> String {
     }
 }
 
-/// Naming input for a release of a movie.
-pub fn naming_input(movie: &Movie, release_title: &str, quality: &str) -> NamingInput {
+/// Naming input for a release of a movie; the `{MediaInfo…}` parts come from the file's
+/// media info where it knows them, otherwise from the release name.
+pub fn naming_input(
+    movie: &Movie,
+    release_title: &str,
+    quality: &str,
+    media: Option<&sofarr_mediainfo::MediaInfo>,
+) -> NamingInput {
     let parsed = sofarr_parser::parse(release_title);
+    let parts = crate::media::NamingParts::of(media);
     NamingInput {
         title: movie.title.clone(),
         title_de: movie.title_de.clone(),
@@ -131,7 +138,8 @@ pub fn naming_input(movie: &Movie, release_title: &str, quality: &str) -> Naming
         revision: parsed.revision,
         release_group: parsed.release_group,
         edition: parsed.edition,
-        media_info_simple: naming::media_info_from_name(release_title),
+        media_info_simple: parts.simple(release_title),
+        dynamic_range: parts.dynamic_range(release_title),
         imdb_id: movie.imdb_id.clone(),
         tmdb_id: Some(movie.tmdb_id),
         ..NamingInput::default()
@@ -158,6 +166,7 @@ pub fn plan(
     quality: &str,
     download: &Path,
     naming: &NamingConfig,
+    media: Option<&sofarr_mediainfo::MediaInfo>,
 ) -> anyhow::Result<ImportPlan> {
     let source = find_video(download)?;
     let extension = source
@@ -168,7 +177,7 @@ pub fn plan(
     let stem = if naming.rename_movies {
         naming::format(
             &naming.standard_movie_format,
-            &naming_input(movie, release_title, quality),
+            &naming_input(movie, release_title, quality, media),
             naming,
         )
     } else {
@@ -360,6 +369,7 @@ mod tests {
             "Bluray-1080p",
             &download,
             &naming,
+            None,
         )
         .expect("plan");
         assert_eq!(plan.source, download.join("grp-garten.mkv"));
@@ -427,7 +437,7 @@ mod tests {
             ..NamingConfig::default()
         };
         let m = movie(Path::new(""), None);
-        let input = naming_input(&m, "x", "Unknown");
+        let input = naming_input(&m, "x", "Unknown", None);
         assert_eq!(
             movie_folder(Path::new("/data/media/movies"), &input, &naming),
             PathBuf::from("/data/media/movies/K/Der kleine Garten (2019)")

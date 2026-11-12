@@ -488,8 +488,12 @@ impl App {
                     &list.minimum_availability,
                     list.tags.clone(),
                 );
-                let input =
-                    importer::naming_input(&metadata::as_library_movie(&movie), "", "Unknown");
+                let input = importer::naming_input(
+                    &metadata::as_library_movie(&movie),
+                    "",
+                    "Unknown",
+                    None,
+                );
                 movie.path = importer::movie_folder(
                     std::path::Path::new(&list.root_folder),
                     &input,

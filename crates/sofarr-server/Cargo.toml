@@ -27,6 +27,7 @@ sofarr-core.workspace = true
 sofarr-db.workspace = true
 sofarr-download.workspace = true
 sofarr-indexer.workspace = true
+sofarr-mediainfo.workspace = true
 sofarr-metadata.workspace = true
 sofarr-parser.workspace = true
 subtle.workspace = true

@@ -19,12 +19,12 @@ use std::{
 use jiff::Timestamp;
 use serde::Serialize;
 use serde_json::Value;
-use sofarr_db::{Db, Episode, Movie, MovieFile, Series};
+use sofarr_db::{Db, Episode, FileRef, Movie, MovieFile, Series};
 
 use crate::{
     importer,
     library::{self, Rules},
-    series,
+    media, series,
 };
 
 /// The media-management switches of the disk scan.
@@ -99,6 +99,8 @@ pub struct ScanReport {
     /// Files found on disk and recorded.
     pub found: usize,
     pub removed_folders: usize,
+    /// Files whose media info was read (new, changed or never read).
+    pub media_read: usize,
 }
 
 /// The root folder (parent of the movie or series folder) is usable: it exists and is
@@ -286,6 +288,11 @@ pub async fn movies(
                 }
             }
         }
+        if let Some(file) = db.movie(movie.id).await?.and_then(|m| m.file) {
+            let path = folder.join(&file.relative_path);
+            report.media_read +=
+                usize::from(media::refresh(db, FileRef::Movie(movie.id), &path).await?);
+        }
     }
     Ok(report)
 }
@@ -423,6 +430,18 @@ async fn scan_series(
     }
     if folder.is_dir() && settings.delete_empty_folders {
         report.removed_folders += remove_empty(&folder, !settings.keep_empty_root);
+    }
+    // Media info of every episode file (new, changed, or never read).
+    let mut seen = BTreeSet::new();
+    for e in db.episodes(Some(show.id)).await? {
+        let (Some(file_id), Some(file)) = (e.file_id, &e.file) else {
+            continue;
+        };
+        if seen.insert(file_id) {
+            let path = folder.join(&file.relative_path);
+            report.media_read +=
+                usize::from(media::refresh(db, FileRef::Episode(file_id), &path).await?);
+        }
     }
     Ok(())
 }

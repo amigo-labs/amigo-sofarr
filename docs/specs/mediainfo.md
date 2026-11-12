@@ -156,20 +156,27 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
+| AC-01 | `media_tests::the_disk_scan_reads_new_and_changed_files_only`, `media_tests::an_import_names_and_records_from_the_file`, `media_tests::broken_files_get_a_status_and_unreadable_ones_are_retried` (`crates/sofarr-server/src/media_tests.rs`); `media::tests::media_info_follows_its_file` (`crates/sofarr-db/src/media.rs`) | built |  |
+| AC-02 | `media_tests::the_disk_scan_reads_new_and_changed_files_only` (`crates/sofarr-server/src/media_tests.rs`) | built |  |
+| AC-03 | `matroska::tests::tracks_languages_and_flags`, `matroska::tests::colour_marks_hdr10_and_hlg`, `matroska::tests::dolby_vision_from_block_addition_mapping`, `matroska::tests::x265_encoder_from_sei_in_first_simple_block`, `matroska::tests::encoder_from_hvcc_sei_and_from_tags`, `matroska::tests::hdr10_plus_from_t35_sei`, `matroska::tests::eac3_atmos_from_joc`, `matroska::tests::dts_profiles_and_truehd_atmos_from_first_frames`, `matroska::tests::legacy_codec_ids`, `matroska::tests::tracks_reachable_only_through_seek_head`, `matroska::tests::a_file_without_video_track_has_the_video_fields_unknown` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `mp4::tests::aac_channels_language_and_x264_sample`, `mp4::tests::quicktime_brand_and_chapter_text_tracks`, `mp4::tests::content_decides_not_the_extension` (`crates/sofarr-mediainfo/src/mp4/tests.rs`); `robustness_tests::complete_fixtures_read_completely` (`crates/sofarr-mediainfo/src/robustness_tests.rs`) | built |  |
+| AC-04 | `robustness_tests::truncated_files_are_partial_or_damaged_at_every_cut`, `robustness_tests::corrupted_and_random_bytes_never_panic`, `robustness_tests::reader_errors_are_unreadable`, `robustness_tests::empty_and_foreign_inputs_are_unsupported` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `mp4::tests::invalid_box_sizes_are_damage_and_missing_moov_is_partial` (`crates/sofarr-mediainfo/src/mp4/tests.rs`); `matroska::tests::other_doc_types_and_invalid_structures` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `media_tests::broken_files_get_a_status_and_unreadable_ones_are_retried` (`crates/sofarr-server/src/media_tests.rs`) | built |  |
+| AC-05 | `robustness_tests::huge_input_reads_at_most_the_limit` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `mp4::tests::moov_after_a_huge_mdat_is_reached_by_seeking`, `mp4::tests::moov_beyond_the_limit_is_partial_without_reading_it` (`crates/sofarr-mediainfo/src/mp4/tests.rs`) | built |  |
+| AC-06 | `media_tests::naming_takes_each_part_from_the_file_where_known`, `media_tests::an_import_names_and_records_from_the_file` (`crates/sofarr-server/src/media_tests.rs`); `naming::tests::media_info_parts_come_from_the_file_where_known` (`crates/sofarr-core/src/naming.rs`) | built |  |
 | AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-08 | `media_tests::the_comparison_reports_per_field_and_skips_with_reasons` (`crates/sofarr-server/src/media_tests.rs`); `language::tests::names_map_to_codes` (`crates/sofarr-mediainfo/src/language.rs`) | built |  |
+| AC-09 | `media_tests::the_comparison_reports_per_field_and_skips_with_reasons`, `media_tests::an_unreachable_oracle_stops_with_a_german_message` (`crates/sofarr-server/src/media_tests.rs`) | built |  |
+| AC-10 | `media_tests::the_file_endpoints_answer_with_media_info`, `media_tests::the_episode_file_endpoint` (`crates/sofarr-server/src/media_tests.rs`) | built |  |
+| AC-11 | `robustness_tests::reading_leaves_the_bytes_unchanged` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `media_tests::the_disk_scan_reads_new_and_changed_files_only` (`crates/sofarr-server/src/media_tests.rs`) | built |  |
+| AC-12 | `media_tests::the_disk_scan_reads_new_and_changed_files_only` (`crates/sofarr-server/src/media_tests.rs`) | built |  |
 
 ## Decisions
 
 - 2026-11-12: Matroska/WebM and MP4/M4V/MOV only; other containers keep the release-name guess (owner).
 - 2026-11-12: An oracle comparison against Radarr's/Sonarr's `mediaInfo` belongs to this spec; running it against the live instances is a manual step of the owner (owner).
+- 2026-11-12: Media info lives in its own table `media_info` (one row per movie file or episode file, JSON of `sofarr-mediainfo` plus size, modification time and read time), deleted with its file by foreign key; a JSON column keeps the reader's model free to grow without migrations.
+- 2026-11-12: A file is read again when its size or modification time (RFC 3339, UTC) differs from the stored ones or its stored status is `unreadable`; a file that cannot even be looked at (metadata error other than "not found") is stored as `unreadable` with size 0.
+- 2026-11-12: At import the videos are read in the download folder before they are moved, so the name of the target file already uses the file's media info; the stored row is keyed to the recorded library file.
+- 2026-11-12: The API answer's `labels` also carries `channels` (e.g. `5.1`), because the comparison and the web UI show it and it costs nothing; the fields of the Technical notes are all present.
+- 2026-11-12: `compare-mediainfo` reuses the Radarr/Sonarr client of the other `compare-*` commands and maps library paths through sofarr's own movie and series folders (matched by `radarr_id` / `sonarr_id`); an oracle file sofarr does not know is skipped with the reason "nicht in sofarrs Bibliothek".
+- 2026-11-12: A file without a video track keeps the release-name guess for `{MediaInfo VideoDynamicRange}`, because SDR cannot be told from a missing track.
+- 2026-11-12: `a_file_without_video_track_has_the_video_fields_unknown` was green at once: the reader already left the video fields empty; the test pins the behavior.

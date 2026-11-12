@@ -53,6 +53,11 @@ pub async fn health() -> Json<Health> {
 pub fn routes(app: SharedApp) -> Router {
     Router::new()
         .route("/api/movies", get(movies))
+        .route("/api/movies/{id}/file", get(movie_file))
+        .route(
+            "/api/series/{id}/episodes/{episode_id}/file",
+            get(episode_file),
+        )
         .route("/api/wanted", get(wanted))
         .route("/api/grabs", get(grabs))
         .route("/api/grabs/movie/{id}/fail", post(fail_movie_grab))
@@ -355,6 +360,101 @@ async fn mark(app: &SharedApp, grab: GrabRef) -> Result<StatusCode, ApiError> {
         Err(MarkError::Unavailable(m)) => Err(ApiError::new(StatusCode::SERVICE_UNAVAILABLE, m)),
         Err(MarkError::Failed(e)) => Err(e.into()),
     }
+}
+
+/// A library file with its media info (spec mediainfo AC-10).
+#[derive(Serialize)]
+struct FileAnswer {
+    path: String,
+    size: u64,
+    quality: String,
+    media_info: Option<crate::media::MediaInfoAnswer>,
+}
+
+async fn file_answer(
+    app: &SharedApp,
+    file: sofarr_db::FileRef,
+    folder: &str,
+    recorded: &sofarr_db::MovieFile,
+) -> Result<Json<FileAnswer>, ApiError> {
+    let media_info = app
+        .db
+        .media_info(file)
+        .await?
+        .as_ref()
+        .and_then(crate::media::parse)
+        .map(crate::media::MediaInfoAnswer::of);
+    Ok(Json(FileAnswer {
+        path: std::path::Path::new(folder)
+            .join(&recorded.relative_path)
+            .to_string_lossy()
+            .into_owned(),
+        size: recorded.size,
+        quality: recorded.quality.clone(),
+        media_info,
+    }))
+}
+
+async fn movie_file(
+    State(app): State<SharedApp>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<Json<FileAnswer>, ApiError> {
+    let Path(id) = id.map_err(|_| bad_id())?;
+    let movie = app.db.movie(id).await?;
+    let Some((movie, file)) = movie.and_then(|m| m.file.clone().map(|f| (m, f))) else {
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("Film {id} hat keine Datei"),
+        ));
+    };
+    file_answer(
+        &app,
+        sofarr_db::FileRef::Movie(movie.id),
+        &movie.path,
+        &file,
+    )
+    .await
+}
+
+async fn episode_file(
+    State(app): State<SharedApp>,
+    ids: Result<Path<(i64, i64)>, PathRejection>,
+) -> Result<Json<FileAnswer>, ApiError> {
+    let Path((series_id, episode_id)) = ids.map_err(|_| bad_id())?;
+    let show = app
+        .db
+        .all_series()
+        .await?
+        .into_iter()
+        .find(|s| s.id == series_id);
+    let episode = match &show {
+        Some(_) => app
+            .db
+            .episodes(Some(series_id))
+            .await?
+            .into_iter()
+            .find(|e| e.id == episode_id),
+        None => None,
+    };
+    let (Some(show), Some(episode)) = (show, episode) else {
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("Episode {episode_id} der Serie {series_id} nicht gefunden"),
+        ));
+    };
+    let (Some(file_id), Some(file)) = (episode.file_id, episode.file.clone()) else {
+        return Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("Episode {episode_id} hat keine Datei"),
+        ));
+    };
+    file_answer(
+        &app,
+        sofarr_db::FileRef::Episode(file_id),
+        &show.data.path,
+        &file,
+    )
+    .await
 }
 
 impl From<BackupRequestError> for ApiError {

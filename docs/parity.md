@@ -61,13 +61,13 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Media Management: setPermissionsLinux | radarr: = false; sonarr: = false | 4 | umgesetzt (aus) |
 | Media Management: skipFreeSpaceCheckWhenImporting | radarr: = false; sonarr: = false | 4 | umgesetzt – Orakel-Abgleich offen |
 | Media Management: minimumFreeSpaceWhenImporting | radarr: = 50000; sonarr: = 10000 | 4 | umgesetzt – Orakel-Abgleich offen |
-| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | offen – sofarr liest keine Mediainfo aus Dateien; `{MediaInfo…}`-Tokens werden aus dem Release-Namen geschätzt (Phase 6.4) |
+| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | umgesetzt – eigener Leser für MKV/MP4 (`sofarr-mediainfo`), andere Container per Release-Namen; Orakel-Abgleich (`compare-mediainfo`) offen |
 | Media Management: recycleBinCleanupDays | radarr: = 7; sonarr: = 7 | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: renameMovies | radarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: replaceIllegalCharacters | radarr: = true; sonarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: colonReplacementFormat | radarr: = spaceDashSpace; sonarr: = 4 | 4 | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{-Release Group}` | radarr: standardMovieFormat; sonarr: standardEpisodeFormat | 4 | umgesetzt – Orakel-Abgleich offen |
-| Naming-Token `{.MediaInfo.Simple}` | radarr: standardMovieFormat; sonarr: standardEpisodeFormat | 4 | umgesetzt – aus dem Release-Namen geschätzt (keine Mediainfo) |
+| Naming-Token `{.MediaInfo.Simple}` | radarr: standardMovieFormat; sonarr: standardEpisodeFormat | 4 | umgesetzt – je Teil aus der Datei, sonst aus dem Release-Namen; Orakel-Abgleich offen |
 | Naming-Token `{Movie CleanTitle:DE}` | radarr: standardMovieFormat | 4 | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{Movie Title:DE}` | radarr: movieFolderFormat | 4 | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{Movie TitleFirstCharacter:DE}` | radarr: movieFolderFormat | 4 | umgesetzt – Orakel-Abgleich offen |
@@ -79,7 +79,7 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Media Management: episodeTitleRequired | sonarr: = always | 5+ | umgesetzt (Import wartet bis 48 h nach Ausstrahlung) – Orakel-Abgleich offen |
 | Benennung: renameEpisodes | sonarr: = true | 5+ | umgesetzt – Orakel-Abgleich offen |
 | Benennung: multiEpisodeStyle | sonarr: = 5 | 5+ | umgesetzt – Orakel-Abgleich offen |
-| Naming-Token `{.MediaInfo.VideoDynamicRange}` | sonarr: standardEpisodeFormat | 5+ | umgesetzt – aus dem Release-Namen geschätzt (keine Mediainfo) |
+| Naming-Token `{.MediaInfo.VideoDynamicRange}` | sonarr: standardEpisodeFormat | 5+ | umgesetzt – aus der Datei, sonst aus dem Release-Namen; Orakel-Abgleich offen |
 | Naming-Token `{Air-Date}` | sonarr: dailyEpisodeFormat | 5+ | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{Episode CleanTitle}` | sonarr: standardEpisodeFormat | 5+ | umgesetzt – Orakel-Abgleich offen |
 | Naming-Token `{Episode Title}` | sonarr: animeEpisodeFormat, dailyEpisodeFormat | 5+ | umgesetzt – Orakel-Abgleich offen |

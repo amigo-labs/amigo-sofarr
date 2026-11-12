@@ -459,8 +459,10 @@ pub fn episode_name(
     release_title: &str,
     quality: &str,
     naming: &NamingConfig,
+    media: Option<&sofarr_mediainfo::MediaInfo>,
 ) -> String {
     let parsed = sofarr_parser::parse(release_title);
+    let parts = crate::media::NamingParts::of(media);
     let first = eps.first();
     let input = NamingInput {
         title: series.data.title.clone(),
@@ -469,14 +471,14 @@ pub fn episode_name(
         quality: Some(quality.to_owned()),
         revision: parsed.revision,
         release_group: parsed.release_group,
-        media_info_simple: naming::media_info_from_name(release_title),
+        media_info_simple: parts.simple(release_title),
         imdb_id: series.data.imdb_id.clone(),
         season: first.map(|e| e.data.season),
         episodes: eps.iter().map(|e| e.data.number).collect(),
         episode_title: first.and_then(|e| e.data.title.clone()),
         episode_title_de: first.and_then(|e| e.data.title_de.clone()),
         air_date: first.and_then(|e| e.data.air_date.clone()),
-        dynamic_range: naming::dynamic_range_from_name(release_title),
+        dynamic_range: parts.dynamic_range(release_title),
         ..NamingInput::default()
     };
     let pattern = match series.data.series_type.as_str() {
@@ -502,12 +504,14 @@ pub fn season_folder(series: &Series, season: u16, naming: &NamingConfig) -> Pat
 }
 
 /// Video files of a download with the episodes each one holds.
+/// `media` holds the media info of the download's videos, by path.
 pub fn plan_episode_import(
     series: &Series,
     grab: &SeriesGrab,
     episodes: &[Episode],
     download: &Path,
     naming: &NamingConfig,
+    media: &HashMap<PathBuf, sofarr_mediainfo::MediaInfo>,
 ) -> anyhow::Result<Vec<(importer::ImportPlan, Vec<i64>)>> {
     let videos = importer::find_videos(download)?;
     anyhow::ensure!(
@@ -548,7 +552,14 @@ pub fn plan_episode_import(
             continue;
         }
         let stem = if naming.rename_episodes {
-            episode_name(series, &eps, &grab.title, quality, naming)
+            episode_name(
+                series,
+                &eps,
+                &grab.title,
+                quality,
+                naming,
+                media.get(&video),
+            )
         } else {
             name.to_owned()
         };

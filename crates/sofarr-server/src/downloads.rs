@@ -3,7 +3,7 @@
 
 use anyhow::Context;
 use jiff::{SignedDuration, Timestamp};
-use sofarr_db::{GrabStatus, MediaRef};
+use sofarr_db::{FileRef, GrabStatus, MediaRef};
 use sofarr_download::{DownloadClient, DownloadItem, DownloadState, Failure};
 
 use crate::{
@@ -34,6 +34,25 @@ fn sighting<'a>(
                 .is_some_and(|since| now - SignedDuration::from_hours(VANISH_HOURS) >= since),
         },
     }
+}
+
+/// The media info of every video of a download, read off the async threads.
+async fn videos_media(
+    download: &std::path::Path,
+) -> std::collections::HashMap<std::path::PathBuf, sofarr_mediainfo::MediaInfo> {
+    let dir = download.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        importer::find_videos(&dir)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|video| {
+                let media = crate::media::read_path(&video)?;
+                Some((video, media.info))
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 impl App {
@@ -267,7 +286,8 @@ impl App {
             .as_deref()
             .context("Download-Client meldet keinen Ordner")?;
         let download = self.config.download.map_path(remote);
-        let plans = series::plan_episode_import(show, grab, &episodes, &download, naming)?;
+        let videos = videos_media(&download).await;
+        let plans = series::plan_episode_import(show, grab, &episodes, &download, naming, &videos)?;
         let media = self
             .db
             .setting(&format!("{}config_mediamanagement", series::PREFIX))
@@ -318,9 +338,14 @@ impl App {
                 grab.custom_format_score,
             );
             file.relative_path = series::relative_to(show, &plan.destination);
-            self.db
+            let file_id = self
+                .db
                 .set_episode_file(show.id, &episode_ids, &file, Timestamp::now())
                 .await?;
+            if let Some(info) = videos.get(&plan.source) {
+                self.store_imported_media(FileRef::Episode(file_id), &plan.destination, info)
+                    .await;
+            }
             tracing::info!(series = %show.data.title, file = %plan.destination.display(), "imported");
             n += 1;
         }
@@ -329,6 +354,24 @@ impl App {
             .await?;
         self.remove_completed(item, &download).await;
         Ok(n)
+    }
+
+    /// Stores the media info read from a download's file for its library file; a failure
+    /// is only logged (the next disk scan reads the file again).
+    async fn store_imported_media(
+        &self,
+        file: FileRef,
+        destination: &std::path::Path,
+        info: &sofarr_mediainfo::MediaInfo,
+    ) {
+        let media = crate::media::FileMedia {
+            info: info.clone(),
+            size: 0,
+            modified: String::new(),
+        };
+        if let Err(e) = crate::media::store(&self.db, file, destination, &media).await {
+            tracing::warn!(error = format!("{e:#}"), "media info not stored");
+        }
     }
 
     /// "Remove Completed": the imported download leaves the client's history and its
@@ -370,7 +413,16 @@ impl App {
             .context("Download-Client meldet keinen Ordner")?;
         let download = self.config.download.map_path(remote);
         let quality = grab.quality.as_str();
-        let plan = importer::plan(&movie, &grab.title, quality, &download, naming)?;
+        let media = videos_media(&download).await;
+        let source = importer::find_video(&download)?;
+        let plan = importer::plan(
+            &movie,
+            &grab.title,
+            quality,
+            &download,
+            naming,
+            media.get(&source),
+        )?;
         let settings = settings.clone();
         let plan_clone = plan.clone();
         let size = tokio::task::spawn_blocking(move || importer::execute(&plan_clone, &settings))
@@ -389,6 +441,10 @@ impl App {
                 now,
             )
             .await?;
+        if let Some(info) = media.get(&plan.source) {
+            self.store_imported_media(FileRef::Movie(movie.id), &plan.destination, info)
+                .await;
+        }
         self.db
             .update_grab(grab.id, GrabStatus::Imported, None, None, now)
             .await?;

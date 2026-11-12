@@ -130,7 +130,8 @@ fn names_episodes() {
             &[&a, &b],
             "Kleine.Insel.S01E01E02.1080p.WEB-DL-G",
             "WEBDL-1080p",
-            &naming
+            &naming,
+            None
         ),
         "Kleine Insel - S01E01-E02 - Ankunft WEBDL-1080p"
     );

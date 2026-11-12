@@ -7,12 +7,14 @@ mod auth_net;
 mod backup_files;
 mod backups;
 mod compare;
+mod compare_media;
 mod config;
 mod downloads;
 mod failures;
 mod import_lists;
 mod importer;
 mod library;
+mod media;
 mod metadata;
 mod password_input;
 mod radarr;
@@ -34,6 +36,8 @@ mod backup_api_tests;
 mod backup_tests;
 #[cfg(test)]
 mod failure_tests;
+#[cfg(test)]
+mod media_tests;
 #[cfg(test)]
 mod search_tests;
 #[cfg(test)]
@@ -158,6 +162,13 @@ enum Command {
     CompareImportLists,
     /// Vergleicht die Bibliothek mit Radarr (Gate Phase 3)
     CompareLibrary,
+    /// Vergleicht die aus den Dateien gelesenen Media-Infos mit Radarrs bzw. Sonarrs
+    /// `mediaInfo` (Orakel: moviefile/episodefile)
+    CompareMediainfo {
+        /// Orakel: radarr (Filme) oder sonarr (Serien)
+        #[arg(long, value_enum, default_value = "radarr")]
+        app: compare_media::OracleApp,
+    },
     /// Vergleicht sofarrs Grabs mit Radarrs History (Gate Phase 3)
     CompareHistory {
         /// Beginn des Zeitraums (RFC 3339), Standard: 14 Tage zurück
@@ -479,6 +490,15 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             let (report, clean) = compare::library(&app, &radarr()?).await?;
             print!("{report}");
             anyhow::ensure!(clean, "Bibliothek weicht von Radarr ab");
+        }
+        Command::CompareMediainfo { app: which } => {
+            let oracle = match which {
+                compare_media::OracleApp::Radarr => radarr()?,
+                compare_media::OracleApp::Sonarr => sonarr()?,
+            };
+            let (report, clean) = compare_media::run(&app, &oracle, which).await?;
+            print!("{report}");
+            anyhow::ensure!(clean, "Media-Infos weichen vom Orakel ab");
         }
         Command::CompareHistory { since } => {
             let since = since.unwrap_or_else(|| {
