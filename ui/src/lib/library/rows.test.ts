@@ -22,6 +22,8 @@ const movie: MovieListItem = {
   quality_profile_id: 4,
   tags: [],
   added_at: '2026-11-12T00:00:00Z',
+  imdb_rating: null,
+  imdb_votes: null,
 };
 
 const series: SeriesListItem = {
@@ -43,6 +45,8 @@ const series: SeriesListItem = {
   quality_profile_id: 4,
   tags: [],
   added_at: '2026-11-12T00:00:00Z',
+  imdb_rating: null,
+  imdb_votes: null,
 };
 
 describe('list rows (AC-02, AC-06)', () => {
