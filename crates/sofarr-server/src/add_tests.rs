@@ -540,3 +540,37 @@ async fn a_person_import_list_is_created_once_and_synced_like_any_other() {
     assert!(movie.path.starts_with(&text(&root)));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// AC-10: without stored defaults the dialog offers the first quality profile by name,
+/// not the one with the lowest id.
+#[tokio::test]
+async fn the_first_profile_by_name_is_the_first_time_default() {
+    let providers = Providers::start().await;
+    let services = Services::start().await;
+    let root = temp_root("profile-by-name");
+    let http = movie_app(&providers, &services, &root).await;
+    let mut profiles = http
+        .app
+        .db
+        .setting("qualityprofile")
+        .await
+        .expect("db")
+        .expect("profiles");
+    let mut alpha = profiles[0].clone();
+    alpha["id"] = json!(2);
+    alpha["name"] = json!("Alpha");
+    profiles.as_array_mut().expect("list").push(alpha);
+    http.app
+        .db
+        .put_setting("qualityprofile", &profiles)
+        .await
+        .expect("profiles");
+    let (status, options) = http.get("/api/discover/add/movie/options").await;
+    assert_eq!(status, StatusCode::OK, "{options}");
+    assert_eq!(
+        options["profiles"],
+        json!([{"id": 2, "name": "Alpha"}, {"id": 1, "name": "HD"}])
+    );
+    assert_eq!(options["defaults"]["quality_profile_id"], 2);
+    let _ = std::fs::remove_dir_all(&root);
+}
