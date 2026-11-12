@@ -4,3 +4,6 @@
 # Mirrors written by .agents/sync.mjs (edit .agents/skills or amigo-labs/skills instead)
 .claude/skills/**          linguist-generated=true
 .agents/skills.lock.json   linguist-generated=true
+
+# The UI formatter (oxfmt) expects LF; keep UI files LF on Windows checkouts too.
+ui/** text eol=lf
