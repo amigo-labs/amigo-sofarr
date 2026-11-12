@@ -16,7 +16,7 @@ because later specs build on earlier ones.
 
 | # | Spec | Size | Depends on | Content | Next |
 | - | ---- | ---- | ---------- | ------- | ---- |
-| 1 | [fail-handling](fail-handling.md) | M | – | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) | `/spec-build fail-handling` |
+| 1 | [fail-handling](fail-handling.md) | M | – | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) | done |
 | 2 | [backups](backups.md) | M | – | Scheduled, manual and pre-migration backups, restore at the next start or by CLI (D14) | `/spec-build backups` |
 | 3 | [auth](auth.md) | M | – | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) | `/spec-build auth` |
 | 4 | [mediainfo](mediainfo.md) | L | – | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) | `/spec-build mediainfo` |
@@ -32,7 +32,9 @@ Large specs (L) are split while being written when they need more than a few ses
 
 ## Done
 
-No feature spec accepted yet.
+| Spec | Completed | Content |
+| ---- | --------- | ------- |
+| [fail-handling](fail-handling.md) | 2026-11-12 | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) |
 
 ## Existing behavior without a feature spec
 
