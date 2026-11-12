@@ -1,6 +1,7 @@
 //! Persistence: SQLite via sqlx, migrations, repositories.
 
 mod blocklist;
+mod discover;
 mod files;
 mod imdb;
 mod library;
@@ -13,6 +14,7 @@ mod trailers;
 use std::{path::Path, str::FromStr};
 
 pub use blocklist::{BlockEntry, MediaRef, NewBlock};
+pub use discover::{MovieKey, SeriesKey};
 pub use files::{
     Inspection, MIGRATOR, Pending, create_at_version, inspect, pending_migrations, snapshot_file,
 };
