@@ -352,6 +352,40 @@ async fn marking_a_series_grab_failed() {
 }
 
 #[tokio::test]
+async fn marking_a_series_grab_failed_searches_its_episodes() {
+    const ALT: &str = "Kleine.Insel.S01E02.1080p.WEB-DL.h264-ALT";
+    let s = Services::start().await;
+    s.feed("idx", &[s.item(S1, "s1", 2_000_000_000)]);
+    let api = Api::start(
+        app(
+            Library::Series,
+            &live(&s, "[download]\nredownload_failed_series = true\n"),
+        )
+        .await,
+    )
+    .await;
+    api.app.rss_sync().await.expect("rss");
+    s.feed(
+        "idx",
+        &[
+            s.item(S1, "s1", 2_000_000_000),
+            s.item(ALT, "s2", 2_000_000_000),
+        ],
+    );
+    let grab = api.app.db.series_grabs(None).await.expect("grabs")[0].clone();
+    let (status, _) = api
+        .post(&format!("/api/grabs/series/{}/fail", grab.id), "")
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(s.requests_with("Kleine+Insel+S01E02").len(), 1);
+    // S1 is blocklisted now: the re-search takes the other release.
+    assert_eq!(
+        s.lock().appended,
+        [format!("{S1}.nzb"), format!("{ALT}.nzb")]
+    );
+}
+
+#[tokio::test]
 async fn only_active_grabs_can_be_marked() {
     let s = movie_services().await;
     // Shadow grab.

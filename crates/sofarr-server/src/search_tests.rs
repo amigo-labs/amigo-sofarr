@@ -289,6 +289,80 @@ async fn vanished_download_is_re_searched() {
     assert_eq!(appended(&s), [format!("{G1}.nzb"), format!("{G1}.nzb")]);
 }
 
+#[tokio::test]
+async fn local_failure_of_a_movie_grab_is_re_searched() {
+    let s = movie_services().await;
+    let app = app(Library::Movies, &live(&s, MOVIES_ON)).await;
+    app.rss_sync().await.expect("rss");
+    s.finish(77, G1, "FAILURE/MOVE", "/remote/a");
+    app.check_downloads().await.expect("check");
+    assert_eq!(s.requests_with("t=movie").len(), 1);
+    // Not blocklisted: the re-search may take G1 again.
+    assert_eq!(appended(&s), [format!("{G1}.nzb"), format!("{G1}.nzb")]);
+}
+
+#[tokio::test]
+async fn broken_nzb_in_the_rss_sync_is_re_searched() {
+    let s = movie_services().await;
+    s.lock().nzb_status.insert("g1".to_owned(), 404);
+    let app = app(Library::Movies, &live(&s, MOVIES_ON)).await;
+    app.rss_sync().await.expect("rss");
+    assert_eq!(s.requests_with("t=movie").len(), 1);
+    assert_eq!(appended(&s), [format!("{G2}.nzb")]);
+}
+
+async fn series_services(items: &[(&str, &str)]) -> Services {
+    let s = Services::start().await;
+    let items: Vec<String> = items
+        .iter()
+        .map(|(title, guid)| s.item(title, guid, 2_000_000_000))
+        .collect();
+    s.feed("idx", &items);
+    s
+}
+
+#[tokio::test]
+async fn local_failure_of_a_series_grab_is_re_searched() {
+    let s = series_services(&[(S1, "s1")]).await;
+    let app = app(Library::Series, &live(&s, SERIES_ON)).await;
+    app.rss_sync().await.expect("rss");
+    s.finish(77, S1, "FAILURE/MOVE", "/remote/a");
+    app.check_downloads().await.expect("check");
+    assert_eq!(s.requests_with("Kleine+Insel+S01E02").len(), 1);
+    assert_eq!(appended(&s), [format!("{S1}.nzb"), format!("{S1}.nzb")]);
+}
+
+#[tokio::test]
+async fn broken_season_pack_in_the_rss_sync_searches_the_season() {
+    let s = Services::start().await;
+    s.feed(
+        "idx",
+        &[
+            s.item(PACK, "p1", 9_000_000_000),
+            s.item(S1, "s1", 2_000_000_000),
+        ],
+    );
+    s.lock().nzb_status.insert("p1".to_owned(), 404);
+    let app = app(Library::Series, &live(&s, SERIES_ON)).await;
+    app.rss_sync().await.expect("rss");
+    assert_eq!(s.requests_with("Kleine+Insel+S01&").len(), 1);
+    assert_eq!(appended(&s), [format!("{S1}.nzb")]);
+}
+
+#[tokio::test]
+async fn vanished_series_download_is_re_searched() {
+    let s = series_services(&[(S1, "s1")]).await;
+    let app = app(Library::Series, &live(&s, SERIES_ON)).await;
+    app.rss_sync().await.expect("rss");
+    let t0: Timestamp = "2026-11-12T08:00:00Z".parse().expect("ts");
+    app.check_downloads_at(t0).await.expect("absent");
+    app.check_downloads_at(t0 + jiff::SignedDuration::from_hours(24))
+        .await
+        .expect("vanished");
+    assert_eq!(s.requests_with("Kleine+Insel+S01E02").len(), 1);
+    assert_eq!(appended(&s), [format!("{S1}.nzb"), format!("{S1}.nzb")]);
+}
+
 // --- manual search (AC-12, AC-13, AC-14, AC-21, AC-23, AC-24) -----------------------
 
 #[tokio::test]

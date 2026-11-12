@@ -48,12 +48,24 @@ fn search_rejects_unknown_and_malformed_targets() {
     let stderr = String::from_utf8_lossy(&missing.stderr);
     assert!(stderr.contains("Suchziel fehlt"), "{stderr}");
 
-    for args in [
-        &["search", "--season", "1"][..],
-        &["search", "--series", "5", "--episode", "2"],
-        &["search", "7", "--series", "5"],
+    for (args, message) in [
+        (
+            &["search", "--season", "1"][..],
+            "--season braucht --series",
+        ),
+        (
+            &["search", "--series", "5", "--episode", "2"],
+            "--episode braucht --season",
+        ),
+        (
+            &["search", "7", "--series", "5"],
+            "entweder eine Film-ID oder --series",
+        ),
     ] {
-        assert!(!run(&config, args).status.success(), "{args:?}");
+        let output = run(&config, args);
+        assert!(!output.status.success(), "{args:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(message), "{args:?}: {stderr}");
     }
     let _ = std::fs::remove_dir_all(&dir);
 }

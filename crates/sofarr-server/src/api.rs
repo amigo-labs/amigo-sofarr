@@ -59,9 +59,14 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Internal errors are logged; the answer names no internals.
 impl<E: Into<anyhow::Error>> From<E> for ApiError {
     fn from(e: E) -> Self {
-        Self::new(StatusCode::INTERNAL_SERVER_ERROR, format!("{:#}", e.into()))
+        tracing::error!(error = format!("{:#}", e.into()), "api request failed");
+        Self::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Interner Fehler – Details stehen im Log",
+        )
     }
 }
 

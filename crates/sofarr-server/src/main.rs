@@ -101,16 +101,15 @@ enum Command {
     /// und nimmt die besten
     Search {
         /// sofarr-ID des Films
-        #[arg(conflicts_with = "series")]
         movie_id: Option<i64>,
         /// sofarr-ID der Serie
         #[arg(long)]
         series: Option<i64>,
-        /// Staffel der Serie
-        #[arg(long, requires = "series")]
+        /// Staffel der Serie (nur mit --series)
+        #[arg(long)]
         season: Option<u16>,
-        /// Episode der Staffel
-        #[arg(long, requires = "season")]
+        /// Episode der Staffel (nur mit --season)
+        #[arg(long)]
         episode: Option<u16>,
     },
     /// Prüft den Download-Client und importiert fertige Downloads
@@ -423,7 +422,8 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The target of `amigo-sofarr search` (clap already rejects conflicting flags).
+/// The target of `amigo-sofarr search`; checked here rather than by clap so that every
+/// malformed call gets a German message.
 fn search_target(
     movie_id: Option<i64>,
     series: Option<i64>,
@@ -431,6 +431,18 @@ fn search_target(
     episode: Option<u16>,
 ) -> anyhow::Result<search::SearchTarget> {
     use search::SearchTarget;
+    anyhow::ensure!(
+        movie_id.is_none() || (series.is_none() && season.is_none() && episode.is_none()),
+        "Ungültiges Suchziel: entweder eine Film-ID oder --series angeben, nicht beides"
+    );
+    anyhow::ensure!(
+        season.is_none() || series.is_some(),
+        "Ungültiges Suchziel: --season braucht --series"
+    );
+    anyhow::ensure!(
+        episode.is_none() || season.is_some(),
+        "Ungültiges Suchziel: --episode braucht --season"
+    );
     Ok(match (movie_id, series, season, episode) {
         (Some(id), None, None, None) => SearchTarget::Movie(id),
         (None, Some(id), None, None) => SearchTarget::Series(id),
