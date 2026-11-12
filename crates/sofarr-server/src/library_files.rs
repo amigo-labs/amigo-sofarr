@@ -307,6 +307,13 @@ pub async fn rename_movie(
     for r in &moved {
         app.db.set_movie_file_path(id, &r.new_path).await?;
         tracing::info!(movie = %movie.title, from = %r.old_path, to = %r.new_path, "renamed");
+        crate::subtitles::follow_rename(
+            &app,
+            FileRef::Movie(id),
+            PathBuf::from(folders::join(&movie.path, &r.old_path)),
+            PathBuf::from(folders::join(&movie.path, &r.new_path)),
+        )
+        .await?;
     }
     result.as_ref().map_err(move_error)?;
     Ok(Json(RenameAnswer {
@@ -328,6 +335,13 @@ pub async fn rename_series(
     for r in &moved {
         if let Some(file_id) = r.file_id {
             app.db.set_episode_file_path(file_id, &r.new_path).await?;
+            crate::subtitles::follow_rename(
+                &app,
+                FileRef::Episode(file_id),
+                PathBuf::from(folders::join(&show.data.path, &r.old_path)),
+                PathBuf::from(folders::join(&show.data.path, &r.new_path)),
+            )
+            .await?;
         }
         tracing::info!(series = %show.data.title, from = %r.old_path, to = %r.new_path, "renamed");
     }

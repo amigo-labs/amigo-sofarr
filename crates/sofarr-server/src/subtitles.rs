@@ -414,6 +414,31 @@ async fn fetch(
 
 /// Own subtitles of a video that is replaced or removed go with it (AC-10): into the
 /// recycle bin or deleted, and their records go too.
+/// After a video was renamed or moved: its own subtitles get the matching names in the
+/// new place, and the library records the new names (spec subtitles AC-09).
+pub async fn follow_rename(
+    app: &App,
+    file: FileRef,
+    old_video: PathBuf,
+    new_video: PathBuf,
+) -> anyhow::Result<()> {
+    let own = app.db.own_subtitles(Some(file)).await?;
+    if own.is_empty() {
+        return Ok(());
+    }
+    let names: Vec<String> = own.iter().map(|s| s.file_name.clone()).collect();
+    let moved = tokio::task::spawn_blocking(move || {
+        sofarr_subtitles::follow_video(&old_video, &new_video, &names)
+    })
+    .await?;
+    for (old, new) in moved {
+        if let Some(sub) = own.iter().find(|s| s.file_name == old) {
+            app.db.rename_own_subtitle(sub.id, &new).await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn remove_with_video(
     app: &App,
     file: FileRef,

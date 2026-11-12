@@ -544,3 +544,108 @@ async fn removing_a_movie_without_recycle_bin_deletes_its_files() {
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     let _ = fs::remove_dir_all(&root);
 }
+
+/// Records an own subtitle of the movie's file and writes it next to the video.
+async fn own_subtitle(app: &App, id: i64, folder: &Path, name: &str) {
+    fs::write(
+        folder.join(name),
+        b"1\n00:00:01,000 --> 00:00:02,000\nHallo\n",
+    )
+    .expect("sub");
+    app.db
+        .add_own_subtitle(
+            &sofarr_db::NewOwnSubtitle {
+                file: sofarr_db::FileRef::Movie(id),
+                language: "de".to_owned(),
+                kind: sofarr_db::SubtitleKind::Normal,
+                hearing_impaired: false,
+                file_name: name.to_owned(),
+                provider_id: "1".to_owned(),
+                release: RELEASE.to_owned(),
+                match_quality: "hash".to_owned(),
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("own subtitle");
+}
+
+#[tokio::test]
+async fn own_subtitles_follow_a_rename_and_a_folder_move() {
+    // spec subtitles AC-09
+    let root = temp("subs-follow");
+    let app = app(Library::Movies, LIVE).await;
+    let (id, folder) = movie_on_disk(&app, &root).await;
+    own_subtitle(&app, id, &folder, "zweiter.de.srt").await;
+    // Someone else's subtitle stays as it is.
+    fs::write(folder.join("zweiter.en.srt"), b"x").expect("foreign");
+    let http = Http::start(app).await;
+    let (status, done) = http
+        .post(&format!("/api/library/movies/{id}/rename"), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{done}");
+    let video = "Zweiter Film (2002) WEBDL-1080p-GRP";
+    assert!(folder.join(format!("{video}.de.srt")).exists());
+    assert!(!folder.join("zweiter.de.srt").exists());
+    assert!(
+        folder.join("zweiter.en.srt").exists(),
+        "foreign subtitles stay"
+    );
+    let own = http
+        .app
+        .db
+        .own_subtitles(Some(sofarr_db::FileRef::Movie(id)))
+        .await
+        .expect("own");
+    assert_eq!(own[0].file_name, format!("{video}.de.srt"));
+
+    // The folder moves with everything in it; the subtitle keeps its name.
+    sqlx::query("UPDATE movies SET title = 'Zweiter Teil' WHERE id = ?")
+        .bind(id)
+        .execute(http.app.db.pool())
+        .await
+        .expect("title");
+    let (status, moved) = http
+        .post(&format!("/api/library/movies/{id}/folder"), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{moved}");
+    let new_folder = PathBuf::from(moved["path"].as_str().expect("path"));
+    assert!(new_folder.join(&own[0].file_name).exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn own_subtitles_leave_with_a_removed_movie() {
+    // spec subtitles AC-10: removed with files, the own subtitle goes to the recycle bin.
+    let root = temp("subs-remove");
+    let app = app(Library::Movies, LIVE).await;
+    let (id, folder) = movie_on_disk(&app, &root).await;
+    own_subtitle(&app, id, &folder, "zweiter.de.srt").await;
+    let bin = root.join("recycle");
+    fs::create_dir_all(&bin).expect("bin");
+    app.db
+        .put_setting(
+            "config_mediamanagement",
+            &json!({"recycleBin": bin.to_string_lossy()}),
+        )
+        .await
+        .expect("bin setting");
+    let http = Http::start(app).await;
+    let (status, removed) = http
+        .post(
+            &format!("/api/library/movies/{id}/remove"),
+            json!({"delete_files": true, "add_exclusion": false}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{removed}");
+    assert!(!folder.join("zweiter.de.srt").exists());
+    assert!(
+        bin.join("Zweiter Film (2002)")
+            .join("zweiter.de.srt")
+            .exists(),
+        "into the recycle bin"
+    );
+    let own = http.app.db.own_subtitles(None).await.expect("own");
+    assert!(own.is_empty(), "{own:?}");
+    let _ = fs::remove_dir_all(&root);
+}
