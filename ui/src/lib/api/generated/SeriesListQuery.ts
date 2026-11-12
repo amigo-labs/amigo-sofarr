@@ -6,4 +6,4 @@ import type { Tri } from "./Tri";
 /**
  * Query of `GET /api/library/series`.
  */
-export type SeriesListQuery = { monitored: Tri, missing: Tri, cutoff_unmet: Tri, complete: Tri, profile: number | null, tag: number | null, q: string | null, sort: Sort, order: Order, page: number | null, page_size: number | null, };
+export type SeriesListQuery = { monitored: Tri, missing: Tri, cutoff_unmet: Tri, complete: Tri, profile: number | null, tag: number | null, q: string | null, min_rating: number | null, min_votes: number | null, sort: Sort, order: Order, page: number | null, page_size: number | null, };

@@ -18,7 +18,15 @@ tag: number | null,
 /**
  * Part of the title, original, German or an alternative title.
  */
-q: string | null, sort: Sort, order: Order, 
+q: string | null, 
+/**
+ * Lowest IMDb rating (0 to 10); hides titles without a rating.
+ */
+min_rating: number | null, 
+/**
+ * Lowest number of IMDb votes; hides titles without a rating.
+ */
+min_votes: number | null, sort: Sort, order: Order, 
 /**
  * From 1.
  */

@@ -15,7 +15,7 @@ use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sofarr_core::normalize_title;
-use sofarr_db::{Episode, Movie, Presentation, Series};
+use sofarr_db::{Episode, ImdbRating, Movie, Presentation, Series};
 
 use crate::{
     api::ApiError,
@@ -55,6 +55,8 @@ pub enum Sort {
     Year,
     Added,
     Size,
+    /// IMDb rating, higher first (votes break ties); titles without one last.
+    Rating,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
@@ -81,6 +83,10 @@ pub struct MovieListQuery {
     pub tag: Option<i64>,
     /// Part of the title, original, German or an alternative title.
     pub q: Option<String>,
+    /// Lowest IMDb rating (0 to 10); hides titles without a rating.
+    pub min_rating: Option<f32>,
+    /// Lowest number of IMDb votes; hides titles without a rating.
+    pub min_votes: Option<u32>,
     pub sort: Sort,
     pub order: Order,
     /// From 1.
@@ -101,6 +107,8 @@ pub struct SeriesListQuery {
     pub profile: Option<i64>,
     pub tag: Option<i64>,
     pub q: Option<String>,
+    pub min_rating: Option<f32>,
+    pub min_votes: Option<u32>,
     pub sort: Sort,
     pub order: Order,
     pub page: Option<u32>,
@@ -128,6 +136,9 @@ pub struct MovieListItem {
     pub quality_profile_id: i64,
     pub tags: Vec<i64>,
     pub added_at: String,
+    /// IMDb rating; `null`: no IMDb id, no rating in the data, or ratings switched off.
+    pub imdb_rating: Option<f32>,
+    pub imdb_votes: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -152,6 +163,8 @@ pub struct SeriesListItem {
     pub quality_profile_id: i64,
     pub tags: Vec<i64>,
     pub added_at: String,
+    pub imdb_rating: Option<f32>,
+    pub imdb_votes: Option<u32>,
 }
 
 /// One page of a list.
@@ -168,8 +181,26 @@ pub struct Page<T> {
 pub type MoviePage = Page<MovieListItem>;
 pub type SeriesPage = Page<SeriesListItem>;
 
-const BAD_LIST: &str = "Ungültige Listenanfrage: Filter yes/no/any, sort title/year/added/size, \
-     order asc/desc, page ab 1, page_size von 1 bis 500";
+const BAD_LIST: &str = "Ungültige Listenanfrage: Filter yes/no/any, sort title/year/added/size/rating, \
+     order asc/desc, min_rating 0 bis 10, min_votes ab 0, page ab 1, page_size von 1 bis 500";
+
+/// Sorting or filtering by rating while `[imdb] enabled = false` (spec imdb-ratings AC-09).
+const RATINGS_OFF: &str = "IMDb-Bewertungen sind ausgeschaltet ([imdb] enabled = false)";
+
+/// The IMDb rating of a list item: rating and votes.
+fn rated(rating: Option<f32>, votes: Option<u32>) -> Option<(f32, u32)> {
+    rating.zip(votes)
+}
+
+/// Whether a rated item reaches the minimum rating and votes; an unrated one never
+/// does while either is set (spec imdb-ratings AC-07).
+fn reaches(rating: Option<(f32, u32)>, min_rating: Option<f32>, min_votes: Option<u32>) -> bool {
+    if min_rating.is_none() && min_votes.is_none() {
+        return true;
+    }
+    rating
+        .is_some_and(|(r, v)| min_rating.is_none_or(|m| r >= m) && min_votes.is_none_or(|m| v >= m))
+}
 
 /// Page number and size of a request (checked, German message).
 pub fn paging(page: Option<u32>, size: Option<u32>) -> Result<(u32, u32), ApiError> {
@@ -234,6 +265,8 @@ pub struct Row<T> {
 pub struct Snapshot<T> {
     version: i64,
     today: Date,
+    /// When the ratings data in the rows was loaded.
+    ratings: Option<jiff::Timestamp>,
     rows: Vec<Row<T>>,
 }
 
@@ -249,11 +282,12 @@ fn cached<T>(
     slot: &Mutex<Option<Arc<Snapshot<T>>>>,
     version: i64,
     today: Date,
+    ratings: Option<jiff::Timestamp>,
 ) -> Option<Arc<Snapshot<T>>> {
     slot.lock()
         .ok()?
         .as_ref()
-        .filter(|s| s.version == version && s.today == today)
+        .filter(|s| s.version == version && s.today == today && s.ratings == ratings)
         .cloned()
 }
 
@@ -270,6 +304,7 @@ struct Ordering<T> {
     id: fn(&T) -> i64,
     year: fn(&T) -> Option<u16>,
     bytes: fn(&T) -> u64,
+    rating: fn(&T) -> Option<(f32, u32)>,
 }
 
 impl<T: Clone> Ordering<T> {
@@ -281,12 +316,24 @@ impl<T: Clone> Ordering<T> {
                 .cmp(&(self.year)(&b.item).unwrap_or(0)),
             Sort::Added => a.added.cmp(&b.added),
             Sort::Size => (self.bytes)(&a.item).cmp(&(self.bytes)(&b.item)),
+            // Higher first in the default order (spec imdb-ratings AC-06).
+            Sort::Rating => {
+                let key = |i: &T| (self.rating)(i).unwrap_or((0.0, 0));
+                let (ra, va) = key(&b.item);
+                let (rb, vb) = key(&a.item);
+                ra.total_cmp(&rb).then(va.cmp(&vb))
+            }
         }
     }
 
     /// One page of the filtered rows.
     fn page(&self, mut rows: Vec<&Row<T>>, page: u32, size: u32) -> Page<T> {
         rows.sort_by(|a, b| {
+            // Titles without a rating come last in either order.
+            let unrated = |r: &Row<T>| (self.rating)(&r.item).is_none();
+            if self.sort == Sort::Rating && unrated(a) != unrated(b) {
+                return unrated(a).cmp(&unrated(b));
+            }
             let primary = match self.order {
                 Order::Asc => self.primary(a, b),
                 Order::Desc => self.primary(b, a),
@@ -325,7 +372,12 @@ fn list_query<T>(query: Result<Query<T>, QueryRejection>) -> Result<T, ApiError>
         .map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, BAD_LIST))
 }
 
-pub fn movie_item(movie: &Movie, judge: &Judge, p: Option<&Presentation>) -> MovieListItem {
+pub fn movie_item(
+    movie: &Movie,
+    judge: &Judge,
+    p: Option<&Presentation>,
+    rating: Option<&ImdbRating>,
+) -> MovieListItem {
     let state = judge.movie(movie);
     MovieListItem {
         id: movie.id,
@@ -344,6 +396,8 @@ pub fn movie_item(movie: &Movie, judge: &Judge, p: Option<&Presentation>) -> Mov
         quality_profile_id: movie.quality_profile_id,
         tags: movie.tags.clone(),
         added_at: p.map(|p| p.added_at.to_string()).unwrap_or_default(),
+        imdb_rating: rating.map(|r| r.rating),
+        imdb_votes: rating.map(|r| r.votes),
     }
 }
 
@@ -352,13 +406,19 @@ pub fn movie_rows(
     movies: &[Movie],
     presentation: &HashMap<i64, Presentation>,
     judge: &Judge,
+    ratings: &HashMap<String, ImdbRating>,
 ) -> Vec<Row<MovieListItem>> {
     movies
         .iter()
         .map(|m| {
             let p = presentation.get(&m.id);
             Row {
-                item: movie_item(m, judge, p),
+                item: movie_item(
+                    m,
+                    judge,
+                    p,
+                    m.imdb_id.as_ref().and_then(|id| ratings.get(id)),
+                ),
                 keys: keys(
                     std::iter::once(&m.title)
                         .chain(&m.original_title)
@@ -390,6 +450,11 @@ pub fn movie_page(
                 && q.cutoff_unmet.admits(i.cutoff_unmet)
                 && q.profile.is_none_or(|p| i.quality_profile_id == p)
                 && q.tag.is_none_or(|t| i.tags.contains(&t))
+                && reaches(
+                    rated(i.imdb_rating, i.imdb_votes),
+                    q.min_rating,
+                    q.min_votes,
+                )
                 && needle.matches(&r.keys)
         })
         .collect();
@@ -399,6 +464,7 @@ pub fn movie_page(
         id: |i: &MovieListItem| i.id,
         year: |i: &MovieListItem| i.year,
         bytes: |i: &MovieListItem| i.size.unwrap_or(0),
+        rating: |i: &MovieListItem| rated(i.imdb_rating, i.imdb_votes),
     }
     .page(matching, page, size)
 }
@@ -408,6 +474,7 @@ pub fn series_item(
     episodes: &[&Episode],
     judge: &Judge,
     p: Option<&Presentation>,
+    rating: Option<&ImdbRating>,
 ) -> SeriesListItem {
     let counts = judge.series(show, episodes);
     SeriesListItem {
@@ -429,6 +496,8 @@ pub fn series_item(
         quality_profile_id: show.data.quality_profile_id,
         tags: show.tags.clone(),
         added_at: p.map(|p| p.added_at.to_string()).unwrap_or_default(),
+        imdb_rating: rating.map(|r| r.rating),
+        imdb_votes: rating.map(|r| r.votes),
     }
 }
 
@@ -438,6 +507,7 @@ pub fn series_rows(
     episodes: &[Episode],
     presentation: &HashMap<i64, Presentation>,
     judge: &Judge,
+    ratings: &HashMap<String, ImdbRating>,
 ) -> Vec<Row<SeriesListItem>> {
     let mut by_series: HashMap<i64, Vec<&Episode>> = HashMap::new();
     for e in episodes {
@@ -449,7 +519,13 @@ pub fn series_rows(
             let p = presentation.get(&s.id);
             let eps = by_series.get(&s.id).map_or(&[][..], Vec::as_slice);
             Row {
-                item: series_item(s, eps, judge, p),
+                item: series_item(
+                    s,
+                    eps,
+                    judge,
+                    p,
+                    s.data.imdb_id.as_ref().and_then(|id| ratings.get(id)),
+                ),
                 keys: keys(
                     std::iter::once(&s.data.title)
                         .chain(&s.data.title_de)
@@ -479,6 +555,11 @@ pub fn series_page(
                 && q.complete.admits(i.complete)
                 && q.profile.is_none_or(|p| i.quality_profile_id == p)
                 && q.tag.is_none_or(|t| i.tags.contains(&t))
+                && reaches(
+                    rated(i.imdb_rating, i.imdb_votes),
+                    q.min_rating,
+                    q.min_votes,
+                )
                 && needle.matches(&r.keys)
         })
         .collect();
@@ -488,16 +569,34 @@ pub fn series_page(
         id: |i: &SeriesListItem| i.id,
         year: |i: &SeriesListItem| i.year,
         bytes: |i: &SeriesListItem| i.size,
+        rating: |i: &SeriesListItem| rated(i.imdb_rating, i.imdb_votes),
     }
     .page(matching, page, size)
 }
 
 impl App {
+    /// When the ratings data was loaded and the ratings of the library; nothing while
+    /// `[imdb] enabled = false`. The ratings are only read when the lists are computed.
+    async fn library_ratings(
+        &self,
+    ) -> anyhow::Result<(Option<jiff::Timestamp>, HashMap<String, ImdbRating>)> {
+        if !self.config.imdb.enabled {
+            return Ok((None, HashMap::new()));
+        }
+        let at = self.db.imdb_loaded_at().await?;
+        let ratings = match at {
+            Some(_) => self.db.library_imdb_ratings().await?,
+            None => HashMap::new(),
+        };
+        Ok((at, ratings))
+    }
+
     /// The movie rows of the current library version (computed again when it changed).
     pub async fn movie_snapshot(&self) -> anyhow::Result<Arc<Snapshot<MovieListItem>>> {
         let version = self.db.library_version().await?;
         let today = today(jiff::Timestamp::now());
-        if let Some(snapshot) = cached(&self.lists.movies, version, today) {
+        let (ratings_at, ratings) = self.library_ratings().await?;
+        if let Some(snapshot) = cached(&self.lists.movies, version, today, ratings_at) {
             return Ok(snapshot);
         }
         let movies = self.db.movies().await?;
@@ -506,7 +605,8 @@ impl App {
         let snapshot = Arc::new(Snapshot {
             version,
             today,
-            rows: movie_rows(&movies, &presentation, &judge),
+            ratings: ratings_at,
+            rows: movie_rows(&movies, &presentation, &judge, &ratings),
         });
         keep(&self.lists.movies, &snapshot);
         Ok(snapshot)
@@ -516,7 +616,8 @@ impl App {
     pub async fn series_snapshot(&self) -> anyhow::Result<Arc<Snapshot<SeriesListItem>>> {
         let version = self.db.library_version().await?;
         let today = today(jiff::Timestamp::now());
-        if let Some(snapshot) = cached(&self.lists.series, version, today) {
+        let (ratings_at, ratings) = self.library_ratings().await?;
+        if let Some(snapshot) = cached(&self.lists.series, version, today, ratings_at) {
             return Ok(snapshot);
         }
         let shows = self.db.all_series().await?;
@@ -526,11 +627,29 @@ impl App {
         let snapshot = Arc::new(Snapshot {
             version,
             today,
-            rows: series_rows(&shows, &episodes, &presentation, &judge),
+            ratings: ratings_at,
+            rows: series_rows(&shows, &episodes, &presentation, &judge, &ratings),
         });
         keep(&self.lists.series, &snapshot);
         Ok(snapshot)
     }
+}
+
+/// Rating sort and filters need ratings switched on and a minimum within range.
+fn check_ratings(
+    app: &App,
+    sort: Sort,
+    min_rating: Option<f32>,
+    min_votes: Option<u32>,
+) -> Result<(), ApiError> {
+    let by_rating = sort == Sort::Rating || min_rating.is_some() || min_votes.is_some();
+    if by_rating && !app.config.imdb.enabled {
+        return Err(ApiError::new(StatusCode::BAD_REQUEST, RATINGS_OFF));
+    }
+    if min_rating.is_some_and(|r| !(0.0..=10.0).contains(&r)) {
+        return Err(ApiError::new(StatusCode::BAD_REQUEST, BAD_LIST));
+    }
+    Ok(())
 }
 
 pub async fn movies(
@@ -539,6 +658,7 @@ pub async fn movies(
 ) -> Result<Json<MoviePage>, ApiError> {
     let q = list_query(query)?;
     let (page, size) = paging(q.page, q.page_size)?;
+    check_ratings(&app, q.sort, q.min_rating, q.min_votes)?;
     let snapshot = app.movie_snapshot().await?;
     Ok(Json(movie_page(&snapshot.rows, &q, page, size)))
 }
@@ -549,6 +669,7 @@ pub async fn shows(
 ) -> Result<Json<SeriesPage>, ApiError> {
     let q = list_query(query)?;
     let (page, size) = paging(q.page, q.page_size)?;
+    check_ratings(&app, q.sort, q.min_rating, q.min_votes)?;
     let snapshot = app.series_snapshot().await?;
     Ok(Json(series_page(&snapshot.rows, &q, page, size)))
 }

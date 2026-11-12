@@ -4,4 +4,4 @@ export type SeriesListItem = { id: number, tvdb_id: number, title: string, title
 /**
  * Episodes with a file.
  */
-files: number, missing: number, cutoff_unmet: number, complete: boolean, size: number, has_poster: boolean, quality_profile_id: number, tags: Array<number>, added_at: string, };
+files: number, missing: number, cutoff_unmet: number, complete: boolean, size: number, has_poster: boolean, quality_profile_id: number, tags: Array<number>, added_at: string, imdb_rating: number | null, imdb_votes: number | null, };

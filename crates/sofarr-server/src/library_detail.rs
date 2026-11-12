@@ -138,6 +138,9 @@ pub struct MovieDetail {
     pub id: i64,
     pub tmdb_id: i64,
     pub imdb_id: Option<String>,
+    /// IMDb rating and votes; `null` without one (spec imdb-ratings AC-04).
+    pub imdb_rating: Option<f32>,
+    pub imdb_votes: Option<u32>,
     pub title: String,
     pub original_title: Option<String>,
     pub title_de: Option<String>,
@@ -206,6 +209,8 @@ pub struct SeriesDetail {
     pub id: i64,
     pub tvdb_id: i64,
     pub imdb_id: Option<String>,
+    pub imdb_rating: Option<f32>,
+    pub imdb_votes: Option<u32>,
     pub title: String,
     pub title_de: Option<String>,
     pub alternative_titles: Vec<String>,
@@ -348,6 +353,17 @@ pub async fn find_series(app: &App, id: i64) -> Result<Series, ApiError> {
         .ok_or_else(|| not_found(&format!("Serie {id} ist nicht in der Bibliothek")))
 }
 
+/// The IMDb rating of a title, none while ratings are switched off.
+async fn imdb_rating(
+    app: &App,
+    imdb_id: Option<&str>,
+) -> anyhow::Result<Option<sofarr_db::ImdbRating>> {
+    match imdb_id {
+        Some(id) if app.config.imdb.enabled => Ok(app.db.imdb_rating(id).await?),
+        _ => Ok(None),
+    }
+}
+
 pub async fn movie_detail(app: &App, movie: Movie) -> Result<MovieDetail, ApiError> {
     let judge = movie_judge(app).await;
     let state = judge.movie(&movie);
@@ -360,10 +376,13 @@ pub async fn movie_detail(app: &App, movie: Movie) -> Result<MovieDetail, ApiErr
     let busy = movie_busy(app, movie.id).await?;
     let expected = folders::movie_folder(app, &movie).await?;
     let a = &movie.availability;
+    let rating = imdb_rating(app, movie.imdb_id.as_deref()).await?;
     Ok(MovieDetail {
         id: movie.id,
         tmdb_id: movie.tmdb_id,
         imdb_id: movie.imdb_id.clone(),
+        imdb_rating: rating.map(|r| r.rating),
+        imdb_votes: rating.map(|r| r.votes),
         title: movie.title.clone(),
         original_title: movie.original_title.clone(),
         title_de: movie.title_de.clone(),
@@ -484,10 +503,13 @@ pub async fn series_detail(app: &App, show: Series) -> Result<SeriesDetail, ApiE
     let tags = app.db.setting(&format!("{}tag", series::PREFIX)).await?;
     let busy = series_busy(app, show.id).await?;
     let expected = folders::series_folder(app, &show).await?;
+    let rating = imdb_rating(app, show.data.imdb_id.as_deref()).await?;
     Ok(SeriesDetail {
         id: show.id,
         tvdb_id: show.data.tvdb_id,
         imdb_id: show.data.imdb_id.clone(),
+        imdb_rating: rating.map(|r| r.rating),
+        imdb_votes: rating.map(|r| r.votes),
         title: show.data.title.clone(),
         title_de: show.data.title_de.clone(),
         alternative_titles: show.data.alternative_titles.clone(),

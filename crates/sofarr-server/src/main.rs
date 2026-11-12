@@ -60,6 +60,8 @@ mod image_tests;
 #[cfg(test)]
 mod imdb_ids_tests;
 #[cfg(test)]
+mod imdb_list_tests;
+#[cfg(test)]
 mod imdb_tests;
 #[cfg(test)]
 mod library_api_tests;

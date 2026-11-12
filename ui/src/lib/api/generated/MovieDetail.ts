@@ -8,7 +8,11 @@ import type { GrabEntry } from "./GrabEntry";
 import type { ReleaseDates } from "./ReleaseDates";
 import type { ReleaseStage } from "./ReleaseStage";
 
-export type MovieDetail = { id: number, tmdb_id: number, imdb_id: string | null, title: string, original_title: string | null, title_de: string | null, alternative_titles: Array<string>, year: number | null, runtime_minutes: number, overview: string | null, has_poster: boolean, monitored: boolean, release_dates: ReleaseDates, stage: ReleaseStage, 
+export type MovieDetail = { id: number, tmdb_id: number, imdb_id: string | null, 
+/**
+ * IMDb rating and votes; `null` without one (spec imdb-ratings AC-04).
+ */
+imdb_rating: number | null, imdb_votes: number | null, title: string, original_title: string | null, title_de: string | null, alternative_titles: Array<string>, year: number | null, runtime_minutes: number, overview: string | null, has_poster: boolean, monitored: boolean, release_dates: ReleaseDates, stage: ReleaseStage, 
 /**
  * Counts as available by its minimum availability today.
  */

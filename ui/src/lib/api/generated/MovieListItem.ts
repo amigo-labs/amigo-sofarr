@@ -8,4 +8,8 @@ quality: string | null, size: number | null, missing: boolean, cutoff_unmet: boo
 /**
  * Whether the provider offers a poster (`/api/images/movie/{id}/list`).
  */
-has_poster: boolean, quality_profile_id: number, tags: Array<number>, added_at: string, };
+has_poster: boolean, quality_profile_id: number, tags: Array<number>, added_at: string, 
+/**
+ * IMDb rating; `null`: no IMDb id, no rating in the data, or ratings switched off.
+ */
+imdb_rating: number | null, imdb_votes: number | null, };
