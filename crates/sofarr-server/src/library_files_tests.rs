@@ -34,7 +34,7 @@ fn error(body: &Value) -> String {
 }
 
 /// Zweiter Film in `<root>/movies/Zweiter Film (2002)/zweiter.mkv`.
-async fn movie_on_disk(app: &App, root: &Path) -> (i64, PathBuf) {
+pub(crate) async fn movie_on_disk(app: &App, root: &Path) -> (i64, PathBuf) {
     let id = app
         .db
         .movie_by_tmdb(102)
@@ -314,7 +314,7 @@ async fn a_changed_title_moves_the_folder_also_in_letter_case() {
 }
 
 /// Kleine Insel in `<root>/tv/Kleine Insel` with S01E01 and S02E01 on disk.
-async fn series_on_disk(app: &App, root: &Path) -> (i64, PathBuf) {
+pub(crate) async fn series_on_disk(app: &App, root: &Path) -> (i64, PathBuf) {
     let show = app.db.all_series().await.expect("db")[0].id;
     let folder = root.join("tv").join("Kleine Insel");
     fs::create_dir_all(folder.join("Staffel 01")).expect("s1");

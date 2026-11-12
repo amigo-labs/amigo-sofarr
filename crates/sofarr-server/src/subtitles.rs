@@ -12,6 +12,8 @@ mod api_tests;
 #[cfg(test)]
 mod fake;
 #[cfg(test)]
+mod rename_tests;
+#[cfg(test)]
 mod tests;
 
 use std::{path::PathBuf, sync::Arc};
@@ -412,11 +414,19 @@ async fn fetch(
     Ok(Fetched::Stored(name))
 }
 
-/// Own subtitles of a video that is replaced or removed go with it (AC-10): into the
-/// recycle bin or deleted, and their records go too.
 /// After a video was renamed or moved: its own subtitles get the matching names in the
-/// new place, and the library records the new names (spec subtitles AC-09).
-pub async fn follow_rename(
+/// new place, and the library records the new names (spec subtitles AC-09). A failure is
+/// only logged: the rename of the videos goes on.
+pub async fn follow_rename(app: &App, file: FileRef, old_video: PathBuf, new_video: PathBuf) {
+    if let Err(e) = move_own(app, file, old_video, new_video).await {
+        tracing::warn!(
+            error = format!("{e:#}"),
+            "own subtitles did not follow the video"
+        );
+    }
+}
+
+async fn move_own(
     app: &App,
     file: FileRef,
     old_video: PathBuf,
@@ -439,6 +449,8 @@ pub async fn follow_rename(
     Ok(())
 }
 
+/// Own subtitles of a video that is replaced or removed go with it (AC-10): into the
+/// recycle bin or deleted, and their records go too.
 pub async fn remove_with_video(
     app: &App,
     file: FileRef,

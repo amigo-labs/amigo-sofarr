@@ -313,7 +313,7 @@ pub async fn rename_movie(
             PathBuf::from(folders::join(&movie.path, &r.old_path)),
             PathBuf::from(folders::join(&movie.path, &r.new_path)),
         )
-        .await?;
+        .await;
     }
     result.as_ref().map_err(move_error)?;
     Ok(Json(RenameAnswer {
@@ -341,7 +341,7 @@ pub async fn rename_series(
                 PathBuf::from(folders::join(&show.data.path, &r.old_path)),
                 PathBuf::from(folders::join(&show.data.path, &r.new_path)),
             )
-            .await?;
+            .await;
         }
         tracing::info!(series = %show.data.title, from = %r.old_path, to = %r.new_path, "renamed");
     }
