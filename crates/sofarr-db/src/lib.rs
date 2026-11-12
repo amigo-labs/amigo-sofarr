@@ -8,6 +8,7 @@ mod media;
 mod series;
 mod sessions;
 mod subtitles;
+mod trailers;
 
 use std::{path::Path, str::FromStr};
 
@@ -21,6 +22,7 @@ pub use media::{FileRef, StoredMediaInfo};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 pub use sessions::Session;
 pub use subtitles::{NewOwnSubtitle, OwnSubtitle, SearchOutcome, SubtitleKind, SubtitleNeed};
+pub use trailers::{TrailerItem, TrailerRecord, TrailerState};
 
 use jiff::Timestamp;
 use serde_json::Value;
