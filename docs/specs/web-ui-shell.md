@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-12
 size: L
 design: [sofarr.md §3, sofarr.md §7, sofarr.md §9 D15, sofarr.md §9 D16, sofarr.md §9 D23]
