@@ -6,6 +6,7 @@ mod auth;
 mod auth_net;
 mod backup_files;
 mod backups;
+mod calendar;
 mod compare;
 mod compare_media;
 mod config;
@@ -22,6 +23,7 @@ mod library_routes;
 mod library_view;
 mod media;
 mod metadata;
+mod overview;
 mod password_input;
 mod radarr;
 mod rescan;
@@ -58,6 +60,8 @@ mod library_api_tests;
 mod library_edit_tests;
 #[cfg(test)]
 mod media_tests;
+#[cfg(test)]
+mod overview_tests;
 #[cfg(test)]
 mod search_tests;
 #[cfg(test)]

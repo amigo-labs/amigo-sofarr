@@ -5,7 +5,9 @@ use axum::{
     routing::{get, post},
 };
 
-use crate::{app::SharedApp, library_detail, library_edit, library_list, wanted};
+use crate::{
+    app::SharedApp, calendar, library_detail, library_edit, library_list, overview, wanted,
+};
 
 pub fn routes(app: SharedApp) -> Router {
     Router::new()
@@ -31,6 +33,10 @@ pub fn routes(app: SharedApp) -> Router {
         .route("/api/library/monitor", post(library_edit::monitor))
         .route("/api/library/wanted", get(wanted::wanted))
         .route("/api/command/search-bulk", post(wanted::search_bulk))
+        .route("/api/overview", get(overview::overview))
+        .route("/api/queue", get(overview::queue))
+        .route("/api/activity", get(overview::activity))
+        .route("/api/calendar", get(calendar::calendar))
         .route(
             "/api/library/series/{id}/seasons/{season}",
             get(library_detail::season),

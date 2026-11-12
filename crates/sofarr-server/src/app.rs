@@ -43,6 +43,8 @@ pub struct App {
     pub status: crate::status::Status,
     /// The computed movie and series lists (spec web-ui-library).
     pub lists: crate::library_list::ListCache,
+    /// The download client's last answer, shown while it cannot be reached.
+    pub queue_cache: crate::overview::QueueCache,
 }
 
 pub type SharedApp = Arc<App>;
@@ -98,6 +100,7 @@ impl App {
             auth,
             status: crate::status::Status::default(),
             lists: crate::library_list::ListCache::default(),
+            queue_cache: crate::overview::QueueCache::default(),
         })
     }
 

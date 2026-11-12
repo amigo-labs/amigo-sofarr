@@ -47,6 +47,8 @@ pub struct Fake {
     pub nzbget_down: bool,
     /// Result of the next `append` calls (default: ids from 77 upwards).
     pub append_result: Option<i64>,
+    /// `DownloadRate` of `status` (bytes per second).
+    pub rate: u64,
     next_id: i64,
 }
 
@@ -66,6 +68,7 @@ impl Default for Fake {
             rpc: Vec::new(),
             nzbget_down: false,
             append_result: None,
+            rate: 0,
             next_id: 77,
         }
     }
@@ -205,6 +208,7 @@ async fn rpc(State(fake): State<Shared>, Json(body): Json<Value>) -> Response {
         }
         "listgroups" => json!(fake.queue),
         "history" => json!(fake.history),
+        "status" => json!({"DownloadRate": fake.rate}),
         _ => json!(true),
     };
     Json(json!({ "result": result })).into_response()
