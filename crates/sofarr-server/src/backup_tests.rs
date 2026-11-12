@@ -490,16 +490,28 @@ async fn the_scheduler_writes_a_backup_soon_after_start() {
     let env = Env::new("spawn");
     let app = Arc::new(env.app("").await);
     let job = backups::spawn_schedule(&app).expect("scheduled backups are on");
-    let mut found = Vec::new();
-    for _ in 0..100 {
-        found = env.of_kind("sofarr-20");
-        if !found.is_empty() {
+    // Finished means: no `.tmp` left and the reserved name filled (while a backup is
+    // written, the empty placeholder and `<name>.tmp` exist side by side).
+    let finished = |env: &Env| {
+        let files = env.files();
+        let backups: Vec<&String> = files
+            .iter()
+            .filter(|n| n.starts_with("sofarr-20") && !n.ends_with(".tmp"))
+            .collect();
+        !files.iter().any(|n| n.ends_with(".tmp"))
+            && backups.len() == 1
+            && std::fs::metadata(env.backups.join(backups[0])).is_ok_and(|m| m.len() > 0)
+    };
+    let mut done = false;
+    for _ in 0..200 {
+        done = finished(&env);
+        if done {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     job.abort();
-    assert_eq!(found.len(), 1, "{:?}", env.files());
+    assert!(done, "{:?}", env.files());
 
     let off = Env::new("spawn-off");
     let app = Arc::new(off.app("[backup]\ninterval_hours = 0\n").await);
