@@ -1,10 +1,19 @@
 # syntax=docker/dockerfile:1
 
+# --- UI: statische SvelteKit-Seite (wird ins Binary eingebettet) ---
+FROM oven/bun:1.4.3-alpine AS ui
+WORKDIR /ui
+COPY ui/package.json ui/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY ui/ ./
+RUN bun run build
+
 # --- Build: statisches musl-Binary ---
 FROM rust:1-alpine AS builder
 RUN apk add --no-cache musl-dev
 WORKDIR /src
 COPY . .
+COPY --from=ui /ui/build ui/build
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release --locked -p sofarr-server \
