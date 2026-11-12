@@ -649,3 +649,74 @@ async fn own_subtitles_leave_with_a_removed_movie() {
     assert!(own.is_empty(), "{own:?}");
     let _ = fs::remove_dir_all(&root);
 }
+
+#[tokio::test]
+async fn trailers_go_with_a_moved_folder_and_a_removed_movie() {
+    // spec trailers AC-08: the trailer lives in the item's `trailers` folder.
+    let root = temp("trailer-follow");
+    let app = app(Library::Movies, LIVE).await;
+    let (id, folder) = movie_on_disk(&app, &root).await;
+    let trailer = "trailers/Zweiter Film (2002) [de].mkv";
+    fs::create_dir_all(folder.join("trailers")).expect("trailers");
+    fs::write(folder.join(trailer), b"trailer").expect("trailer");
+    app.db
+        .put_trailer(
+            sofarr_db::MediaRef::Movie(id),
+            &sofarr_db::TrailerRecord {
+                state: sofarr_db::TrailerState::Downloaded,
+                file: Some(trailer.to_owned()),
+                ..sofarr_db::TrailerRecord::default()
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("trailer state");
+    let bin = root.join("recycle");
+    fs::create_dir_all(&bin).expect("bin");
+    app.db
+        .put_setting(
+            "config_mediamanagement",
+            &json!({"recycleBin": bin.to_string_lossy()}),
+        )
+        .await
+        .expect("bin setting");
+    let http = Http::start(app).await;
+
+    sqlx::query("UPDATE movies SET title = 'Zweiter Teil' WHERE id = ?")
+        .bind(id)
+        .execute(http.app.db.pool())
+        .await
+        .expect("title");
+    let (status, moved) = http
+        .post(&format!("/api/library/movies/{id}/folder"), json!({}))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{moved}");
+    let new_folder = PathBuf::from(moved["path"].as_str().expect("path"));
+    assert!(new_folder.join(trailer).exists(), "moved with the folder");
+    assert!(!folder.join(trailer).exists());
+
+    let (status, removed) = http
+        .post(
+            &format!("/api/library/movies/{id}/remove"),
+            json!({"delete_files": true, "add_exclusion": false}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{removed}");
+    assert!(!new_folder.join(trailer).exists());
+    let binned = bin
+        .join(new_folder.file_name().expect("name"))
+        .join(trailer);
+    assert!(
+        binned.exists(),
+        "into the recycle bin: {}",
+        binned.display()
+    );
+    let state = http
+        .app
+        .db
+        .trailer_item(sofarr_db::MediaRef::Movie(id))
+        .await
+        .expect("db");
+    assert!(state.is_none(), "the trailer state goes with the movie");
+    let _ = fs::remove_dir_all(&root);
+}
