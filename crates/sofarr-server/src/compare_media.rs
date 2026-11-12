@@ -1,7 +1,11 @@
 //! `compare-mediainfo` (spec mediainfo AC-08, AC-09): sofarr's labels from the library
 //! files against Radarr's or Sonarr's `mediaInfo`.
 
-use std::{collections::BTreeMap, fmt::Write as _, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fmt::Write as _,
+    path::{Path, PathBuf},
+};
 
 use serde_json::Value;
 use sofarr_mediainfo::{MediaInfo, ReadStatus};
@@ -94,7 +98,23 @@ fn values(info: &MediaInfo, oracle: &Value) -> [(String, String); 6] {
     ]
 }
 
-async fn radarr_files(app: &App, radarr: &Radarr) -> anyhow::Result<Vec<OracleFile>> {
+/// Where an item folder lies on this machine: as the library knows it, or, with `root`
+/// (the root folder as this machine sees it), the item's folder name below `root`. Radarr
+/// and Sonarr keep every item folder directly in a root folder.
+fn item_folder(path: &str, root: Option<&Path>) -> PathBuf {
+    let Some(root) = root else {
+        return PathBuf::from(path);
+    };
+    path.rsplit(['/', '\\'])
+        .find(|part| !part.is_empty())
+        .map_or_else(|| root.to_path_buf(), |name| root.join(name))
+}
+
+async fn radarr_files(
+    app: &App,
+    radarr: &Radarr,
+    root: Option<&Path>,
+) -> anyhow::Result<Vec<OracleFile>> {
     let movies = app.db.movies().await?;
     let theirs = radarr.get("movie", &[]).await?;
     Ok(theirs
@@ -109,14 +129,18 @@ async fn radarr_files(app: &App, radarr: &Radarr) -> anyhow::Result<Vec<OracleFi
                 .find(|x| x.radarr_id.is_some() && x.radarr_id == m["id"].as_i64());
             Some(OracleFile {
                 name: relative.to_owned(),
-                path: ours.map(|x| PathBuf::from(&x.path).join(relative)),
+                path: ours.map(|x| item_folder(&x.path, root).join(relative)),
                 media: file["mediaInfo"].clone(),
             })
         })
         .collect())
 }
 
-async fn sonarr_files(app: &App, sonarr: &Radarr) -> anyhow::Result<Vec<OracleFile>> {
+async fn sonarr_files(
+    app: &App,
+    sonarr: &Radarr,
+    root: Option<&Path>,
+) -> anyhow::Result<Vec<OracleFile>> {
     let shows = app.db.all_series().await?;
     let theirs = sonarr.get("series", &[]).await?;
     let mut out = Vec::new();
@@ -135,7 +159,7 @@ async fn sonarr_files(app: &App, sonarr: &Radarr) -> anyhow::Result<Vec<OracleFi
             };
             out.push(OracleFile {
                 name: relative.to_owned(),
-                path: ours.map(|x| PathBuf::from(&x.data.path).join(relative)),
+                path: ours.map(|x| item_folder(&x.data.path, root).join(relative)),
                 media: file["mediaInfo"].clone(),
             });
         }
@@ -144,11 +168,17 @@ async fn sonarr_files(app: &App, sonarr: &Radarr) -> anyhow::Result<Vec<OracleFi
 }
 
 /// Compares sofarr's media info labels with the oracle's; returns the report and
-/// whether every compared value matched.
-pub async fn run(app: &App, oracle: &Radarr, which: OracleApp) -> anyhow::Result<(String, bool)> {
+/// whether every compared value matched. `root` is the root folder as this machine sees
+/// it, when the library lies elsewhere (see [`item_folder`]).
+pub async fn run(
+    app: &App,
+    oracle: &Radarr,
+    which: OracleApp,
+    root: Option<&Path>,
+) -> anyhow::Result<(String, bool)> {
     let files = match which {
-        OracleApp::Radarr => radarr_files(app, oracle).await?,
-        OracleApp::Sonarr => sonarr_files(app, oracle).await?,
+        OracleApp::Radarr => radarr_files(app, oracle, root).await?,
+        OracleApp::Sonarr => sonarr_files(app, oracle, root).await?,
     };
     let mut fields: Vec<Field> = FIELDS.iter().map(|_| Field::default()).collect();
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();

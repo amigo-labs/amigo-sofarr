@@ -108,9 +108,14 @@ async fn the_comparison_reports_per_field_and_skips_with_reasons() {
         {"id": 99, "movieFile": {"relativePath": "fremd.mkv", "mediaInfo": media("h265", "")}}
     ]))
     .await;
-    let (report, clean) = run(&app, &client(&url, OracleApp::Radarr), OracleApp::Radarr)
-        .await
-        .expect("compare");
+    let (report, clean) = run(
+        &app,
+        &client(&url, OracleApp::Radarr),
+        OracleApp::Radarr,
+        None,
+    )
+    .await
+    .expect("compare");
     assert!(!clean);
     assert_lines(
         &report,
@@ -163,9 +168,14 @@ async fn sonarr_episode_files_are_compared() {
         ]),
     )
     .await;
-    let (report, clean) = run(&app, &client(&url, OracleApp::Sonarr), OracleApp::Sonarr)
-        .await
-        .expect("compare");
+    let (report, clean) = run(
+        &app,
+        &client(&url, OracleApp::Sonarr),
+        OracleApp::Sonarr,
+        None,
+    )
+    .await
+    .expect("compare");
     assert_lines(
         &report,
         &[
@@ -200,9 +210,14 @@ async fn an_unknown_language_name_is_a_mismatch_with_its_raw_name() {
                                 "mediaInfo": media("h265", "Klingonisch")}}
     ]))
     .await;
-    let (report, clean) = run(&app, &client(&url, OracleApp::Radarr), OracleApp::Radarr)
-        .await
-        .expect("compare");
+    let (report, clean) = run(
+        &app,
+        &client(&url, OracleApp::Radarr),
+        OracleApp::Radarr,
+        None,
+    )
+    .await
+    .expect("compare");
     assert!(!clean);
     assert_lines(
         &report,
@@ -231,9 +246,14 @@ async fn at_most_twenty_mismatches_are_listed_per_field() {
     }
     place(&app, 101, &folder, "film01.mkv").await;
     let url = radarr_oracle(Value::Array(movies)).await;
-    let (report, _) = run(&app, &client(&url, OracleApp::Radarr), OracleApp::Radarr)
-        .await
-        .expect("compare");
+    let (report, _) = run(
+        &app,
+        &client(&url, OracleApp::Radarr),
+        OracleApp::Radarr,
+        None,
+    )
+    .await
+    .expect("compare");
     assert_lines(&report, &["Video: 0/25 gleich", "Audio: 25/25 gleich"]);
     let listed = report
         .lines()
@@ -258,9 +278,14 @@ async fn unreadable_and_unsupported_files_are_skipped_with_their_reason() {
         {"id": 1, "movieFile": {"relativePath": "notiz.mkv", "mediaInfo": media("h265", "")}}
     ]))
     .await;
-    let (report, clean) = run(&app, &client(&url, OracleApp::Radarr), OracleApp::Radarr)
-        .await
-        .expect("compare");
+    let (report, clean) = run(
+        &app,
+        &client(&url, OracleApp::Radarr),
+        OracleApp::Radarr,
+        None,
+    )
+    .await
+    .expect("compare");
     assert!(clean, "skipped files are no mismatches: {report}");
     assert_lines(
         &report,
@@ -282,7 +307,7 @@ async fn an_unreachable_oracle_stops_with_a_german_message() {
     let url = format!("http://{}", closed.local_addr().expect("addr"));
     drop(closed);
     for which in [OracleApp::Radarr, OracleApp::Sonarr] {
-        let error = run(&app, &client(&url, which), which)
+        let error = run(&app, &client(&url, which), which, None)
             .await
             .expect_err("must fail");
         let message = format!("{error:#}");
@@ -304,10 +329,49 @@ async fn a_refused_api_key_stops_with_a_german_message() {
     let app = app(Library::Movies, "").await;
     for status in [StatusCode::UNAUTHORIZED, StatusCode::FORBIDDEN] {
         let url = refusing_oracle(status).await;
-        let error = run(&app, &client(&url, OracleApp::Radarr), OracleApp::Radarr)
-            .await
-            .expect_err("must fail");
+        let error = run(
+            &app,
+            &client(&url, OracleApp::Radarr),
+            OracleApp::Radarr,
+            None,
+        )
+        .await
+        .expect_err("must fail");
         let message = format!("{error:#}");
         assert!(message.contains("API-Key abgelehnt"), "{message}");
     }
+}
+
+/// The owner compares from another machine than the library's: `--root` names the root
+/// folder as seen from there, the item folders and file paths below it stay (AC-07 run).
+#[tokio::test]
+async fn a_local_root_folder_finds_the_files_of_a_library_on_another_machine() {
+    let root = dir("compare-root");
+    let app = app(Library::Movies, "").await;
+    let folder = root.join("Erster Film (2001)");
+    std::fs::create_dir_all(&folder).expect("folder");
+    std::fs::write(folder.join("film.mkv"), mkv(Some(("A_EAC3", 6, "ger")))).expect("file");
+    // The library knows the folder by the path the server sees.
+    place(
+        &app,
+        101,
+        std::path::Path::new("/data/media/movies/Erster Film (2001)"),
+        "film.mkv",
+    )
+    .await;
+    let url = radarr_oracle(json!([
+        {"id": 1, "movieFile": {"relativePath": "film.mkv", "mediaInfo": media("h265", "")}}
+    ]))
+    .await;
+    let oracle = client(&url, OracleApp::Radarr);
+    let (elsewhere, _) = run(&app, &oracle, OracleApp::Radarr, None)
+        .await
+        .expect("compare");
+    assert_lines(&elsewhere, &["Übersprungen (Datei fehlt): 1"]);
+    let (here, clean) = run(&app, &oracle, OracleApp::Radarr, Some(&root))
+        .await
+        .expect("compare");
+    assert!(clean, "{here}");
+    assert_lines(&here, &["Video: 1/1 gleich"]);
+    let _ = std::fs::remove_dir_all(&root);
 }

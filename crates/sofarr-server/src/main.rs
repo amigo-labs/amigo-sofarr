@@ -228,6 +228,10 @@ enum Command {
         /// Orakel: radarr (Filme) oder sonarr (Serien)
         #[arg(long, value_enum, default_value = "radarr")]
         app: compare_media::OracleApp,
+        /// Wurzelordner der Bibliothek, wie dieser Rechner ihn sieht (z. B. ein Netzlaufwerk),
+        /// wenn die Dateien hier unter einem anderen Pfad liegen als in der Bibliothek
+        #[arg(long)]
+        root: Option<PathBuf>,
     },
     /// Vergleicht sofarrs Grabs mit Radarrs History (Gate Phase 3)
     CompareHistory {
@@ -553,12 +557,12 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             print!("{report}");
             anyhow::ensure!(clean, "Bibliothek weicht von Radarr ab");
         }
-        Command::CompareMediainfo { app: which } => {
+        Command::CompareMediainfo { app: which, root } => {
             let oracle = match which {
                 compare_media::OracleApp::Radarr => radarr()?,
                 compare_media::OracleApp::Sonarr => sonarr()?,
             };
-            let (report, clean) = compare_media::run(&app, &oracle, which).await?;
+            let (report, clean) = compare_media::run(&app, &oracle, which, root.as_deref()).await?;
             print!("{report}");
             anyhow::ensure!(clean, "Media-Infos weichen vom Orakel ab");
         }
