@@ -24,6 +24,7 @@ describe('navigation', () => {
       'Serien',
       'Kalender',
       'Fehlend',
+      'Entdecken',
       'Blocklist',
       'Untertitel',
       'Backups',

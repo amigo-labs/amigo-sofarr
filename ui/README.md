@@ -32,30 +32,35 @@ bunx playwright install chromium # once per machine
 bun run e2e
 ```
 
-Playwright starts nine instances through `e2e/serve.mjs` (fresh configuration and database
+Playwright starts eleven instances through `e2e/serve.mjs` (fresh configuration and database
 in the temp folder; the login password is generated per run in `e2e/env.mjs` and hashed with
 `amigo-sofarr hash-password`) on fixed ports:
 
-| Port  | Instance                                                            |
-| ----- | ------------------------------------------------------------------- |
-| 47811 | auth off, with a download client and an indexer (no answers)        |
-| 47812 | auth on                                                             |
-| 47813 | auth on, `127.0.0.1/32` a trusted network                           |
-| 47814 | auth on, only for the failed-login and throttling test              |
-| 47815 | auth off, shadow mode, 2,501 movies and 23 series (`e2e/seed.mjs`)  |
-| 47816 | auth off, live mode, movies with real files for the file actions    |
-| 47817 | the library of 47815 again, only read by the AC-04 time measurement |
-| 47822 | auth off, shadow mode, a small library with IMDb ratings            |
-| 47823 | auth off, live mode, ratings off, subtitles and trailers            |
+| Port  | Instance                                                                 |
+| ----- | ------------------------------------------------------------------------ |
+| 47811 | auth off, with a download client and an indexer (no answers)             |
+| 47812 | auth on                                                                  |
+| 47813 | auth on, `127.0.0.1/32` a trusted network                                |
+| 47814 | auth on, only for the failed-login and throttling test                   |
+| 47815 | auth off, shadow mode, 2,501 movies and 23 series (`e2e/seed.mjs`)       |
+| 47816 | auth off, live mode, movies with real files for the file actions         |
+| 47817 | the library of 47815 again, only read by the AC-04 time measurement      |
+| 47818 | auth off, a fake TMDB, TVDB and IMDb dataset, a small library (discover) |
+| 47819 | auth off, the fake TMDB with IMDb ratings off (discover)                 |
+| 47822 | auth off, shadow mode, a small library with IMDb ratings                 |
+| 47823 | auth off, live mode, ratings off, subtitles and trailers                 |
 
 sofarr has no seed command, so `e2e/seed.mjs` imports the test libraries the way a real one
 comes in: `import-radarr --exports` reads a Radarr export it writes (quality profiles from
 `fixtures/public/config/radarr`), and `import-sonarr` reads a fake Sonarr API it serves on
 port 47830/47831 for the duration of the import. `e2e/seed-extras.mjs` seeds 47822 and 47823:
 47822 loads a generated IMDb dataset from a fake on port 47850, 47823 searches a fake
-OpenSubtitles.com on port 47851; their Sonarr imports use ports 47852/47853. No instance fetches
-IMDb's real dataset. The time measurement of AC-04
-(`e2e/library-perf.spec.ts`) runs in the Playwright project `perf` after all other tests.
+OpenSubtitles.com on port 47851; their Sonarr imports use ports 47852/47853. The discover servers
+47818 and 47819 get TMDB, TVDB and IMDb answers from `e2e/fake-tmdb.mjs` (catalog in
+`e2e/discover-data.mjs`) on ports 47840/47841 (Sonarr import: 47842), and TMDB images from
+their image cache (`e2e/discover-seed.mjs`). No instance fetches IMDb's real dataset.
+The time measurement of AC-04 (`e2e/library-perf.spec.ts`) runs in the Playwright project
+`perf` after all other tests.
 
 A debug binary reads `ui/build` at runtime, so after a UI change `bun run build` is enough; a
 release binary embeds the build at compile time.
@@ -63,13 +68,15 @@ release binary embeds the build at compile time.
 ## Layout
 
 - `src/routes/` – the pages: `/` (Übersicht), `/filme`, `/filme/{id}`, `/serien`,
-  `/serien/{id}`, `/kalender`, `/fehlend`, `/blocklist`, `/backups`, `/system`, `/anmelden`;
+  `/serien/{id}`, `/kalender`, `/fehlend`, `/entdecken` (with `/entdecken/suche`,
+  `/entdecken/regal/{name}`, `/entdecken/{filme|serien}/{tmdb id}`, `/entdecken/personen/{id}`),
+  `/blocklist`, `/backups`, `/system`, `/anmelden`;
   `+error.svelte` for unknown addresses and failed assets.
 - `src/lib/api/generated/` – API types generated from the Rust types (`ts-rs`); never edit them,
   a server test fails when they drift (`SOFARR_UPDATE_TYPES=1` rewrites them).
 - `src/lib/` – API client, login state, theme, the system page's parts, shared components;
   `src/lib/library/` the library pages' logic (filters in the page address, calendar ranges,
-  German texts) and components.
+  German texts) and components; `src/lib/discover/` the discover pages.
 - `e2e/` – Playwright tests and the server start script.
 
 Every user-visible text is German.

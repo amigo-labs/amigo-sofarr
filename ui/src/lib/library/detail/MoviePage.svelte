@@ -6,6 +6,7 @@
   import { ensureOptions, options } from '../options.svelte';
   import { searchBody } from '../actions';
   import Label from '../components/Label.svelte';
+  import CastBox from '../../discover/CastBox.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
   import SubtitlesBox from '../../subtitles/SubtitlesBox.svelte';
   import TrailerBox from '../../trailers/TrailerBox.svelte';
@@ -101,6 +102,8 @@
       </dl>
     {/snippet}
   </DetailHead>
+
+  <CastBox kind="movie" id={m.id} />
 
   <div class="grid">
     <FileBox file={m.file} cutoffReason={m.cutoff_reason} />

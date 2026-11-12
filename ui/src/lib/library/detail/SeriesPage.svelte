@@ -9,6 +9,7 @@
   import { bytesText } from '../format';
   import { notify } from '../notices.svelte';
   import Label from '../components/Label.svelte';
+  import CastBox from '../../discover/CastBox.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
   import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
@@ -88,6 +89,8 @@
       </dl>
     {/snippet}
   </DetailHead>
+
+  <CastBox kind="series" id={s.id} />
 
   <section class="seasons" aria-labelledby="seasons-title">
     <h2 id="seasons-title">Staffeln</h2>

@@ -9,7 +9,7 @@ export const PAGES: readonly NavPage[] = [
   { label: 'Serien', href: '/serien', built: true },
   { label: 'Kalender', href: '/kalender', built: true },
   { label: 'Fehlend', href: '/fehlend', built: true },
-  { label: 'Entdecken', href: '/entdecken', built: false },
+  { label: 'Entdecken', href: '/entdecken', built: true },
   { label: 'Blocklist', href: '/blocklist', built: true },
   { label: 'Untertitel', href: '/untertitel', built: true },
   { label: 'Backups', href: '/backups', built: true },
