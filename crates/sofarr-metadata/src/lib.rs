@@ -136,6 +136,23 @@ impl Tmdb {
             .and_then(|m| m["id"].as_i64()))
     }
 
+    /// Looks a series up by its TVDB id; returns its TMDB id (spec imdb-ratings AC-12).
+    pub async fn find_series_by_tvdb(&self, tvdb_id: i64) -> Result<Option<i64>, MetadataError> {
+        let value = self
+            .get(
+                &format!("find/{tvdb_id}"),
+                &[("external_source", "tvdb_id")],
+            )
+            .await?;
+        Ok(series_id_from_find(&value))
+    }
+
+    /// The IMDb id TMDB knows for a series (spec imdb-ratings AC-05).
+    pub async fn series_imdb_id(&self, tmdb_id: i64) -> Result<Option<String>, MetadataError> {
+        let value = self.get(&format!("tv/{tmdb_id}/external_ids"), &[]).await?;
+        Ok(imdb_id_from_external_ids(&value))
+    }
+
     /// All movies a person appeared in or worked on.
     pub async fn person_movies(&self, person_id: i64) -> Result<Vec<CreditedMovie>, MetadataError> {
         let value = self
@@ -204,6 +221,23 @@ pub fn language_from_iso(code: &str) -> Option<Language> {
 }
 
 /// Reads a `movie/{id}` answer (with appended alternative titles and translations).
+/// The TMDB id of the first series in a `find` answer.
+pub fn series_id_from_find(value: &Value) -> Option<i64> {
+    value["tv_results"]
+        .as_array()
+        .and_then(|r| r.first())
+        .and_then(|s| s["id"].as_i64())
+}
+
+/// The IMDb id of an `external_ids` answer; empty counts as none.
+pub fn imdb_id_from_external_ids(value: &Value) -> Option<String> {
+    value["imdb_id"]
+        .as_str()
+        .map(str::trim)
+        .filter(|id| id.starts_with("tt"))
+        .map(str::to_owned)
+}
+
 pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
     let tmdb_id = value["id"]
         .as_i64()
@@ -344,6 +378,30 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn series_ids_from_find_and_external_ids() {
+        let find =
+            serde_json::json!({"movie_results": [], "tv_results": [{"id": 1399}, {"id": 7}]});
+        assert_eq!(series_id_from_find(&find), Some(1399));
+        assert_eq!(
+            series_id_from_find(&serde_json::json!({"tv_results": []})),
+            None
+        );
+        let ids = serde_json::json!({"imdb_id": "tt0944947", "tvdb_id": 121361});
+        assert_eq!(
+            imdb_id_from_external_ids(&ids).as_deref(),
+            Some("tt0944947")
+        );
+        assert_eq!(
+            imdb_id_from_external_ids(&serde_json::json!({"imdb_id": ""})),
+            None
+        );
+        assert_eq!(
+            imdb_id_from_external_ids(&serde_json::json!({"imdb_id": null})),
+            None
+        );
+    }
 
     fn sample_movie() -> Value {
         json!({
