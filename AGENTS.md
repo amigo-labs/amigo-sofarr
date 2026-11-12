@@ -132,8 +132,8 @@ Die Projektfakten, die die gemeinsamen Spec-Skills (`spec`, `spec-build`, `spec-
   mehrere Crates berührt, ist eine Commit-Serie, eine pro Scope. Fixtures und Baselines in
   eigenen `test(...)`-Commits; private Fixtures nie. Beispiel:
   `feat(db): blocklist for failed releases (AC-01, AC-02)`.
-- **Language** — Specs, Doku und nutzersichtbare Texte auf Deutsch (wie `sofarr.md`); Code,
-  Kommentare, Log-Messages und Commit-Messages auf Englisch.
+- **Language** — Specs und Commit-Messages auf Englisch (Default der Skills), ebenso Code,
+  Kommentare und Log-Messages; nutzersichtbare Texte (CLI, Fehlermeldungen, Web-UI) auf Deutsch.
 - **Branches** — `main` ist geschützt (CI auf Pull Requests); Feature-Branch `feat/<spec-name>`.
 
 <!-- amigo-skills:begin spec-workflow -->
