@@ -154,6 +154,22 @@ test.describe('filters (AC-02)', () => {
     await expect(page.getByTestId('shelf')).toHaveCount(7);
   });
 
+  test('the result list loads more while scrolling until every match is shown', async ({
+    page,
+  }) => {
+    // 39 dramas at 20 per TMDB page: the list fills up to 20 by itself, the rest come
+    // only by scrolling.
+    await page.goto(`${DISCOVER}/entdecken?art=filme&genre=18`);
+    const tiles = page.getByRole('list', { name: 'Ergebnisse' }).getByTestId('title-card');
+    await expect(tiles.first()).toBeVisible();
+    await expect
+      .poll(async () => {
+        await tiles.last().scrollIntoViewIfNeeded();
+        return tiles.count();
+      })
+      .toBe(39);
+  });
+
   test('the page address holds the filters: "Serien" shows only series', async ({ page }) => {
     await page.goto(`${DISCOVER}/entdecken?art=serien`);
     await expect(page.getByLabel('Art')).toHaveValue('series');
