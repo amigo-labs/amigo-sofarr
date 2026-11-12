@@ -118,13 +118,17 @@ async fn prune(
 
 /// Before migrations run on an existing database: a pre-migration backup, then the
 /// three newest of them are kept. Without pending migrations or a database: nothing.
-pub async fn before_migrations(config: &Config, now: Timestamp) -> anyhow::Result<()> {
+/// A failed pruning does not stop the start; it is returned to be shown in the list.
+pub async fn before_migrations(
+    config: &Config,
+    now: Timestamp,
+) -> anyhow::Result<Option<BackupError>> {
     let db = &config.database.path;
     let pending = sofarr_db::pending_migrations(db)
         .await
         .with_context(|| format!("Datenbank {} nicht lesbar", db.display()))?;
     let Some(first) = pending.as_ref().and_then(|p| p.first()) else {
-        return Ok(());
+        return Ok(None);
     };
     let dir = &config.backup.dir;
     let file = write_with(
@@ -139,13 +143,14 @@ pub async fn before_migrations(config: &Config, now: Timestamp) -> anyhow::Resul
         "Sicherung vor der Datenbank-Migration fehlgeschlagen; Migrationen nicht ausgeführt",
     )?;
     tracing::info!(backup = %file.name, "pre-migration backup written");
-    if let Err(e) = prune(dir, db, Kind::PreMigration, PRE_MIGRATION_KEEP, now).await {
-        tracing::warn!(
-            error = format!("{e:#}"),
-            "pruning pre-migration backups failed"
-        );
+    match prune(dir, db, Kind::PreMigration, PRE_MIGRATION_KEEP, now).await {
+        Ok(()) => Ok(None),
+        Err(e) => {
+            let message = format!("{e:#}");
+            tracing::warn!(error = %message, "pruning pre-migration backups failed");
+            Ok(Some(BackupError { time: now, message }))
+        }
     }
-    Ok(())
 }
 
 /// Puts a pending restore in place before the database is opened; `None` if there is
@@ -220,7 +225,31 @@ pub async fn open_for_serve(config: Config, now: Timestamp) -> anyhow::Result<Ap
     }
 }
 
+/// Starts the scheduled backups (the first look right away); `None` while
+/// `interval_hours = 0`.
+pub fn spawn_schedule(app: &std::sync::Arc<App>) -> Option<tokio::task::JoinHandle<()>> {
+    if app.config.backup.interval_hours == 0 {
+        return None;
+    }
+    let job = std::sync::Arc::clone(app);
+    Some(tokio::spawn(crate::app::every(
+        "backup",
+        CHECK_INTERVAL,
+        move || {
+            let job = std::sync::Arc::clone(&job);
+            async move { job.backup_tick(Timestamp::now()).await.map(|_| ()) }
+        },
+    )))
+}
+
 impl App {
+    /// Shows an error that happened before the app existed (pre-migration pruning).
+    pub fn show_backup_error(&self, error: BackupError) {
+        if let Ok(mut last) = self.backup_error.lock() {
+            *last = Some(error);
+        }
+    }
+
     fn record_backup_error(&self, now: Timestamp, error: &anyhow::Error) {
         let message = format!("{error:#}");
         tracing::warn!(error = %message, "backup failed");
@@ -271,11 +300,10 @@ impl App {
         if hours == 0 {
             return Ok(false);
         }
-        let files = backup_files::list(&self.config.backup.dir).await?;
-        let newest = files
-            .iter()
-            .filter(|f| f.kind == Kind::Scheduled && f.time <= now)
-            .map(|f| f.time)
+        // Names are enough here: no file is opened for the look every minute.
+        let newest = backup_files::scheduled_times(&self.config.backup.dir)?
+            .into_iter()
+            .filter(|t| *t <= now)
             .max();
         let interval = SignedDuration::from_hours(i64::try_from(hours).unwrap_or(i64::MAX));
         Ok(newest.is_none_or(|t| now.checked_sub(interval).is_ok_and(|due| due >= t)))
@@ -333,9 +361,9 @@ impl App {
         }
         if backup_files::read_marker(db).ok().flatten().as_deref() == Some(name) {
             backup_files::clear_marker(db).map_err(|e| {
-                BackupRequestError::Failed(format!(
-                    "Vorgemerkte Wiederherstellung nicht aufgehoben: {e}"
-                ))
+                let error = anyhow::anyhow!("Vorgemerkte Wiederherstellung nicht aufgehoben: {e}");
+                self.record_backup_error(Timestamp::now(), &error);
+                BackupRequestError::Failed(error.to_string())
             })?;
         }
         Ok(())

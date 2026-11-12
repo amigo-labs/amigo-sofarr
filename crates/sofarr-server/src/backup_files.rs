@@ -146,7 +146,8 @@ pub fn tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(name)
 }
 
-/// Removes `.tmp` files older than a day (a younger one may belong to a running backup).
+/// Removes sofarr's own `.tmp` files older than a day (a younger one may belong to a
+/// running backup); a file that cannot be removed is skipped.
 pub fn remove_stale_tmp(dir: &Path, now: Timestamp) -> io::Result<usize> {
     let mut removed = 0;
     let entries = match fs::read_dir(dir) {
@@ -154,21 +155,37 @@ pub fn remove_stale_tmp(dir: &Path, now: Timestamp) -> io::Result<usize> {
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(0),
         Err(e) => return Err(e),
     };
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("tmp") {
-            continue;
-        }
-        let modified = entry.metadata()?.modified()?;
-        let old = Timestamp::try_from(modified)
-            .is_ok_and(|t| now - jiff::SignedDuration::from_hours(STALE_TMP_HOURS) > t);
-        if old {
-            fs::remove_file(&path)?;
+    for entry in entries.filter_map(Result::ok) {
+        let name = entry.file_name();
+        let ours = name
+            .to_str()
+            .is_some_and(|n| n.starts_with("sofarr-") && n.ends_with(".db.tmp"));
+        let old = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|m| Timestamp::try_from(m).ok())
+            .is_some_and(|t| now - jiff::SignedDuration::from_hours(STALE_TMP_HOURS) > t);
+        if ours && old && fs::remove_file(entry.path()).is_ok() {
             removed += 1;
         }
     }
     Ok(removed)
+}
+
+/// The backup times of the scheduled backups, by their names alone.
+pub fn scheduled_times(dir: &Path) -> io::Result<Vec<Timestamp>> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e),
+    };
+    Ok(entries
+        .filter_map(Result::ok)
+        .filter_map(|e| e.file_name().to_str().and_then(parse_name))
+        .filter(|(kind, _)| *kind == Kind::Scheduled)
+        .map(|(_, time)| time)
+        .collect())
 }
 
 /// Every sofarr database in the folder, newest first; a missing folder has none.
@@ -179,9 +196,11 @@ pub async fn list(dir: &Path) -> io::Result<Vec<BackupFile>> {
         Err(e) => return Err(e),
     };
     let mut candidates = Vec::new();
-    for entry in entries {
-        let entry = entry?;
-        let meta = entry.metadata()?;
+    // A file that vanishes while the folder is read (pruned elsewhere) is skipped.
+    for entry in entries.filter_map(Result::ok) {
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
         let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
             continue;
         };

@@ -184,3 +184,67 @@ fn a_failing_cli_backup_exits_with_a_german_message() {
     assert!(!output.status.success());
     assert!(stderr(&output).contains("Sicherung"), "{}", stderr(&output));
 }
+
+#[test]
+fn cli_backups_next_to_a_running_server() {
+    let env = Env::new("concurrent", None);
+    assert!(env.run(&["backup"]).status.success());
+    // A running server: its lock and an open database that keeps working.
+    let lock = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(env.root.join("sofarr.db.lock"))
+        .expect("lock file");
+    lock.try_lock().expect("lock");
+    let runtime = tokio::runtime::Runtime::new().expect("runtime");
+    let db = runtime
+        .block_on(sofarr_db::Db::open(&env.db))
+        .expect("server database");
+    let spawn = || {
+        Command::new(env!("CARGO_BIN_EXE_amigo-sofarr"))
+            .arg("--config")
+            .arg(&env.config)
+            .arg("backup")
+            .output()
+    };
+    let (a, b) = std::thread::scope(|s| {
+        let a = s.spawn(spawn);
+        let b = s.spawn(spawn);
+        (
+            a.join().expect("thread").expect("run"),
+            b.join().expect("thread").expect("run"),
+        )
+    });
+    assert!(a.status.success(), "{}", stderr(&a));
+    assert!(b.status.success(), "{}", stderr(&b));
+    let names = env.backups();
+    assert_eq!(names.len(), 3, "{names:?}");
+    runtime
+        .block_on(db.put_setting("still", &serde_json::json!(true)))
+        .expect("server writes on");
+    drop(lock);
+}
+
+#[test]
+fn a_cli_restore_moves_the_journal_files_aside() {
+    let env = Env::new("cli-journals", None);
+    assert!(env.run(&["backup"]).status.success());
+    let name = env.backups()[0].clone();
+    let wal = env.root.join("sofarr.db-wal");
+    let shm = env.root.join("sofarr.db-shm");
+    std::fs::write(&wal, b"old wal").expect("wal");
+    std::fs::write(&shm, b"old shm").expect("shm");
+    let restored = env.run(&["restore", &name]);
+    assert!(restored.status.success(), "{}", stderr(&restored));
+    assert!(!wal.exists() && !shm.exists());
+    let aside: Vec<String> = std::fs::read_dir(&env.root)
+        .expect("root")
+        .filter_map(Result::ok)
+        .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+        .filter(|n| {
+            n.starts_with("sofarr.db.replaced-") && (n.ends_with("-wal") || n.ends_with("-shm"))
+        })
+        .collect();
+    assert_eq!(aside.len(), 2, "{aside:?}");
+}

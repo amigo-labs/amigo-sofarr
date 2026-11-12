@@ -482,3 +482,203 @@ async fn a_failed_pruning_keeps_the_backup_and_is_shown() {
         error.message
     );
 }
+
+// --- after the first verification (AC-01, AC-13, AC-20, AC-22) ------------------------
+
+#[tokio::test]
+async fn the_scheduler_writes_a_backup_soon_after_start() {
+    let env = Env::new("spawn");
+    let app = Arc::new(env.app("").await);
+    let job = backups::spawn_schedule(&app).expect("scheduled backups are on");
+    let mut found = Vec::new();
+    for _ in 0..100 {
+        found = env.of_kind("sofarr-20");
+        if !found.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    job.abort();
+    assert_eq!(found.len(), 1, "{:?}", env.files());
+
+    let off = Env::new("spawn-off");
+    let app = Arc::new(off.app("[backup]\ninterval_hours = 0\n").await);
+    assert!(backups::spawn_schedule(&app).is_none());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn api_requests_are_answered_while_a_backup_runs() {
+    let env = Env::new("busy");
+    let app = Arc::new(env.app("").await);
+    // A database large enough that copying it takes a while.
+    let chunk = serde_json::Value::String("x".repeat(1 << 20));
+    for i in 0..64 {
+        app.db
+            .put_setting(&format!("filler{i}"), &chunk)
+            .await
+            .expect("filler");
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let routes = crate::api::routes(Arc::clone(&app));
+    tokio::spawn(async move { axum::serve(listener, routes).await });
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .expect("client");
+    let backup = {
+        let app = Arc::clone(&app);
+        tokio::spawn(async move {
+            let result = app.write_backup(Kind::Manual, Timestamp::now()).await;
+            (result, std::time::Instant::now())
+        })
+    };
+    let mut answered = Vec::new();
+    while !backup.is_finished() {
+        let response = client
+            .get(format!("http://{addr}/api/movies"))
+            .send()
+            .await
+            .expect("request");
+        assert!(response.status().is_success());
+        answered.push(std::time::Instant::now());
+    }
+    let (result, done) = backup.await.expect("join");
+    result.expect("backup");
+    assert!(
+        answered.iter().any(|t| *t < done),
+        "no request answered while the backup ran"
+    );
+}
+
+#[tokio::test]
+async fn journal_files_go_aside_with_the_replaced_database() {
+    let env = Env::new("journals");
+    let app = env.app("").await;
+    add_movie(&app, 1).await;
+    let file = app
+        .write_backup(Kind::Manual, Timestamp::now())
+        .await
+        .expect("backup");
+    app.choose_restore(&file.name).await.expect("choose");
+    close(app).await;
+    let wal = backup_files::with_suffix(&env.db, "-wal");
+    let shm = backup_files::with_suffix(&env.db, "-shm");
+    std::fs::write(&wal, b"old wal").expect("wal");
+    std::fs::write(&shm, b"old shm").expect("shm");
+
+    let restored = backups::open_for_serve(env.config(""), Timestamp::now())
+        .await
+        .expect("start");
+    assert_eq!(movie_count(&restored).await, 1);
+    close(restored).await;
+    let replaced: Vec<String> = std::fs::read_dir(&env.root)
+        .expect("root")
+        .filter_map(Result::ok)
+        .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+        .filter(|n| n.starts_with("sofarr.db.replaced-") && n.ends_with('Z'))
+        .collect();
+    assert_eq!(replaced.len(), 1, "{replaced:?}");
+    let aside = env.root.join(&replaced[0]);
+    assert_eq!(
+        std::fs::read(backup_files::with_suffix(&aside, "-wal")).expect("wal aside"),
+        b"old wal"
+    );
+    assert_eq!(
+        std::fs::read(backup_files::with_suffix(&aside, "-shm")).expect("shm aside"),
+        b"old shm"
+    );
+    // The restored database never got the old journal files.
+    for journal in [&wal, &shm] {
+        let content = std::fs::read(journal).unwrap_or_default();
+        assert!(!content.starts_with(b"old"), "{}", journal.display());
+    }
+}
+
+#[tokio::test]
+async fn backup_operations_wait_for_each_other() {
+    let env = Env::new("serial");
+    let app = Arc::new(env.app("").await);
+    let a = app
+        .write_backup(Kind::Manual, t("2026-11-12T08:00:00Z"))
+        .await
+        .expect("a");
+    let b = app
+        .write_backup(Kind::Manual, t("2026-11-12T09:00:00Z"))
+        .await
+        .expect("b");
+    let before = env.files();
+    // An operation in progress holds the lock: every other one waits for it.
+    let guard = app.backup_lock.lock().await;
+    let write = tokio::spawn({
+        let app = Arc::clone(&app);
+        async move {
+            app.write_backup(Kind::Manual, Timestamp::now())
+                .await
+                .map(|_| ())
+        }
+    });
+    let delete = tokio::spawn({
+        let app = Arc::clone(&app);
+        let name = a.name.clone();
+        async move { app.delete_backup(&name).await }
+    });
+    let choose = tokio::spawn({
+        let app = Arc::clone(&app);
+        let name = b.name.clone();
+        async move { app.choose_restore(&name).await }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(!write.is_finished() && !delete.is_finished() && !choose.is_finished());
+    assert_eq!(env.files(), before, "nothing done while the lock is held");
+    assert_eq!(backup_files::read_marker(&env.db).expect("marker"), None);
+    drop(guard);
+    write.await.expect("join").expect("write");
+    assert!(delete.await.expect("join").is_ok());
+    assert!(choose.await.expect("join").is_ok());
+    assert!(!env.backups.join(&a.name).exists());
+    assert_eq!(
+        backup_files::read_marker(&env.db).expect("marker"),
+        Some(b.name)
+    );
+}
+
+/// Pruning pre-migration backups at start fails: the start goes on, the list shows the
+/// error. Windows only, like `a_failed_pruning_keeps_the_backup_and_is_shown`.
+#[cfg(windows)]
+#[tokio::test]
+async fn a_failed_pre_migration_pruning_is_shown() {
+    let env = Env::new("prepruning");
+    sofarr_db::create_at_version(&env.db, 3)
+        .await
+        .expect("old db");
+    std::fs::create_dir_all(&env.backups).expect("dir");
+    for day in 1..=3 {
+        std::fs::copy(
+            &env.db,
+            env.backups
+                .join(format!("sofarr-pre-migrate-0003-2026-10-0{day}T000000Z.db")),
+        )
+        .expect("older");
+    }
+    let oldest = env
+        .backups
+        .join("sofarr-pre-migrate-0003-2026-10-01T000000Z.db");
+    let guard = Undeletable::new(&oldest);
+    let app = env.app("").await;
+    drop(guard);
+    assert!(oldest.exists());
+    let error = app
+        .backup_list()
+        .await
+        .expect("list")
+        .last_error
+        .expect("shown");
+    assert!(
+        error.message.contains("nicht gelöscht"),
+        "{}",
+        error.message
+    );
+}

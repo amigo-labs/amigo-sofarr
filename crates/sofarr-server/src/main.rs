@@ -220,13 +220,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         Err(e) => tracing::warn!(error = %e, "backup folder not cleaned"),
     }
     let state = Arc::new(backups::open_for_serve(config, jiff::Timestamp::now()).await?);
-    if state.config.backup.interval_hours > 0 {
-        let job = Arc::clone(&state);
-        tokio::spawn(app::every("backup", backups::CHECK_INTERVAL, move || {
-            let job = Arc::clone(&job);
-            async move { job.backup_tick(jiff::Timestamp::now()).await.map(|_| ()) }
-        }));
-    }
+    backups::spawn_schedule(&state);
     if interval > 0 && !state.indexers.is_empty() {
         let job = Arc::clone(&state);
         tokio::spawn(app::every(

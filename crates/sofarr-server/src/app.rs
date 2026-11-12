@@ -55,13 +55,19 @@ impl App {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Verzeichnis {} nicht anlegbar", parent.display()))?;
         }
-        if pre_migration_backup {
-            crate::backups::before_migrations(&config, Timestamp::now()).await?;
-        }
+        let pruning = if pre_migration_backup {
+            crate::backups::before_migrations(&config, Timestamp::now()).await?
+        } else {
+            None
+        };
         let db = Db::open(&config.database.path).await.with_context(|| {
             format!("Datenbank {} nicht nutzbar", config.database.path.display())
         })?;
-        Self::with_db(config, db)
+        let app = Self::with_db(config, db)?;
+        if let Some(error) = pruning {
+            app.show_backup_error(error);
+        }
+        Ok(app)
     }
 
     pub fn with_db(config: Config, db: Db) -> anyhow::Result<Self> {
