@@ -59,6 +59,22 @@ impl Db {
         Ok(())
     }
 
+    /// Removes the sessions last used before `cutoff`; returns how many.
+    pub async fn remove_sessions_unused_since(&self, cutoff: Timestamp) -> Result<u64> {
+        let sessions: Vec<(String, String)> =
+            sqlx::query_as("SELECT token_hash, last_used_at FROM sessions")
+                .fetch_all(self.pool())
+                .await?;
+        let mut removed = 0;
+        for (hash, used) in sessions {
+            if ts(&used) < cutoff {
+                self.remove_session(&hash).await?;
+                removed += 1;
+            }
+        }
+        Ok(removed)
+    }
+
     pub async fn remove_session(&self, token_hash: &str) -> Result<()> {
         sqlx::query("DELETE FROM sessions WHERE token_hash = ?")
             .bind(token_hash)
@@ -89,6 +105,16 @@ mod tests {
             ),
             ("fp", t0, t1)
         );
+        assert_eq!(
+            db.remove_sessions_unused_since(t1).await.expect("cleanup"),
+            0
+        );
+        db.add_session("old", "fp", t0).await.expect("old");
+        assert_eq!(
+            db.remove_sessions_unused_since(t1).await.expect("cleanup"),
+            1
+        );
+        assert_eq!(db.session("old").await.expect("read"), None);
         db.remove_session("h1").await.expect("remove");
         assert_eq!(db.session("h1").await.expect("read"), None);
     }
