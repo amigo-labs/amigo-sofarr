@@ -334,7 +334,7 @@ impl App {
                             .await?;
                     }
                 }
-                DownloadState::Failed => {
+                DownloadState::Failed(_) => {
                     self.db
                         .update_series_grab(
                             grab.id,
@@ -641,7 +641,7 @@ impl App {
                                 .await?;
                         }
                     }
-                    DownloadState::Failed => {
+                    DownloadState::Failed(_) => {
                         tracing::warn!(release = %grab.title, status = ?item.message, "download failed");
                         self.db
                             .update_grab(
