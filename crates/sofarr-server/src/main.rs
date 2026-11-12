@@ -23,6 +23,8 @@ mod failure_tests;
 #[cfg(test)]
 mod search_tests;
 #[cfg(test)]
+mod series_search_tests;
+#[cfg(test)]
 mod testkit;
 
 use std::{
