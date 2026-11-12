@@ -93,6 +93,16 @@ fn backup_and_restore_through_the_cli() {
     assert!(names[0].starts_with("sofarr-manual-"));
     let stdout = String::from_utf8_lossy(&backup.stdout);
     assert!(stdout.contains(&names[0]), "{stdout}");
+    let size = std::fs::metadata(env.backups.join(&names[0]))
+        .expect("backup")
+        .len();
+    assert!(stdout.contains(&format!("{size} Bytes")), "{stdout}");
+    // The backup time as in the name: 2026-11-12T081500Z -> 2026-11-12T08:15:00Z.
+    let stamp = names[0]
+        .trim_start_matches("sofarr-manual-")
+        .trim_end_matches(".db");
+    let time = format!("{}:{}:{}Z", &stamp[..13], &stamp[13..15], &stamp[15..17]);
+    assert!(stdout.contains(&time), "{stdout} / {time}");
 
     // A running server holds the lock: nothing changes.
     let lock = std::fs::OpenOptions::new()
@@ -144,9 +154,15 @@ fn backup_and_restore_through_the_cli() {
     assert_eq!(std::fs::read(&env.db).expect("db"), before);
     std::fs::remove_dir_all(&blocker).expect("unblock");
 
+    // A restore chosen through the API before is superseded by the CLI restore.
+    std::fs::write(env.root.join("sofarr.db.restore"), &names[0]).expect("marker");
     let restored = env.run(&["restore", &names[0]]);
     assert!(restored.status.success(), "{}", stderr(&restored));
     assert_eq!(env.replaced(), 1);
+    assert!(
+        !env.root.join("sofarr.db.restore").exists(),
+        "pending restore cleared"
+    );
     assert_eq!(
         std::fs::read(&env.db).expect("db"),
         std::fs::read(env.backups.join(&names[0])).expect("backup")

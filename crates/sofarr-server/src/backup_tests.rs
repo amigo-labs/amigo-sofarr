@@ -715,3 +715,35 @@ fn pre_migration_backups_keep_the_three_newest_by_time() {
         ["future"]
     );
 }
+
+#[tokio::test]
+async fn an_empty_placeholder_is_no_scheduled_backup() {
+    let env = Env::new("placeholder");
+    let app = env.app("").await;
+    let t0 = t("2026-11-12T03:00:00Z");
+    // A crash left the reserved name of a scheduled backup behind, empty.
+    std::fs::create_dir_all(&env.backups).expect("dir");
+    let placeholder = env.backups.join("sofarr-2026-11-12T020000Z.db");
+    std::fs::write(&placeholder, b"").expect("placeholder");
+    assert!(
+        app.backup_tick(t0).await.expect("tick").is_some(),
+        "an empty placeholder does not count"
+    );
+    // At a start, placeholders older than a day go like the `.tmp` files.
+    let old = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 24 * 3600);
+    std::fs::File::options()
+        .write(true)
+        .open(&placeholder)
+        .expect("open")
+        .set_modified(old)
+        .expect("mtime");
+    let fresh = env.backups.join("sofarr-2026-11-12T040000Z.db");
+    std::fs::write(&fresh, b"").expect("fresh placeholder");
+    let removed = backup_files::remove_stale_tmp(&env.backups, Timestamp::now()).expect("clean");
+    assert_eq!(removed, 1);
+    assert!(!placeholder.exists());
+    assert!(
+        fresh.exists(),
+        "a younger one may belong to a running backup"
+    );
+}

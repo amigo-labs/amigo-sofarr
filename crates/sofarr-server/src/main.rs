@@ -497,6 +497,10 @@ async fn restore(config: &Config, backup: &str) -> anyhow::Result<()> {
     let swap = backup_files::put_in_place(&path, db, jiff::Timestamp::now())
         .await
         .context("Wiederherstellung fehlgeschlagen; die bisherige Datenbank ist unverändert")?;
+    // A restore chosen through the API before would undo this one at the next start.
+    if let Err(e) = backup_files::clear_marker(db) {
+        eprintln!("Hinweis: vorgemerkte Wiederherstellung nicht aufgehoben ({e})");
+    }
     match &swap.replaced {
         Some(previous) => println!(
             "Sicherung {backup} eingespielt; die bisherige Datenbank liegt unter {}",

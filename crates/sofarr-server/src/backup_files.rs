@@ -146,8 +146,9 @@ pub fn tmp_path(path: &Path) -> PathBuf {
     PathBuf::from(name)
 }
 
-/// Removes sofarr's own `.tmp` files older than a day (a younger one may belong to a
-/// running backup); a file that cannot be removed is skipped.
+/// Removes sofarr's own leftovers older than a day: `.tmp` files and the empty
+/// placeholders of names reserved by a backup that crashed (a younger one may belong to
+/// a running backup); a file that cannot be removed is skipped.
 pub fn remove_stale_tmp(dir: &Path, now: Timestamp) -> io::Result<usize> {
     let mut removed = 0;
     let entries = match fs::read_dir(dir) {
@@ -157,12 +158,16 @@ pub fn remove_stale_tmp(dir: &Path, now: Timestamp) -> io::Result<usize> {
     };
     for entry in entries.filter_map(Result::ok) {
         let name = entry.file_name();
-        let ours = name
-            .to_str()
-            .is_some_and(|n| n.starts_with("sofarr-") && n.ends_with(".db.tmp"));
-        let old = entry
-            .metadata()
-            .and_then(|m| m.modified())
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        let ours = name.to_str().is_some_and(|n| {
+            n.starts_with("sofarr-")
+                && (n.ends_with(".db.tmp")
+                    || (n.ends_with(".db") && meta.is_file() && meta.len() == 0))
+        });
+        let old = meta
+            .modified()
             .ok()
             .and_then(|m| Timestamp::try_from(m).ok())
             .is_some_and(|t| now - jiff::SignedDuration::from_hours(STALE_TMP_HOURS) > t);
@@ -173,7 +178,8 @@ pub fn remove_stale_tmp(dir: &Path, now: Timestamp) -> io::Result<usize> {
     Ok(removed)
 }
 
-/// The backup times of the scheduled backups, by their names alone.
+/// The backup times of the scheduled backups, by their names and sizes: an empty file
+/// (the placeholder of a backup being written or one that crashed) is none.
 pub fn scheduled_times(dir: &Path) -> io::Result<Vec<Timestamp>> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
@@ -182,6 +188,7 @@ pub fn scheduled_times(dir: &Path) -> io::Result<Vec<Timestamp>> {
     };
     Ok(entries
         .filter_map(Result::ok)
+        .filter(|e| e.metadata().is_ok_and(|m| m.is_file() && m.len() > 0))
         .filter_map(|e| e.file_name().to_str().and_then(parse_name))
         .filter(|(kind, _)| *kind == Kind::Scheduled)
         .map(|(_, time)| time)

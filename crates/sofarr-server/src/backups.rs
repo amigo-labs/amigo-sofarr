@@ -86,7 +86,8 @@ where
             .to_owned(),
         kind,
         size,
-        time: now,
+        // The backup time is the one in the name: whole seconds.
+        time: Timestamp::from_second(now.as_second()).unwrap_or(now),
         valid: true,
     })
 }
