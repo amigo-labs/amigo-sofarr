@@ -226,3 +226,32 @@ fn waits_for_episode_titles() {
     undated.data.air_date = None;
     assert!(!always(pattern, &undated));
 }
+
+/// Spec discover AC-08: new episodes follow their season; a new season follows the
+/// series' switch; specials and unmonitored series stay off.
+#[test]
+fn new_episodes_follow_their_season_and_new_seasons_the_switch() {
+    let episode = |season: u16, monitored: bool| Episode {
+        id: 1,
+        series_id: 1,
+        data: NewEpisode {
+            tvdb_id: None,
+            season,
+            number: 1,
+            absolute: None,
+            title: None,
+            title_de: None,
+            air_date: None,
+            monitored,
+        },
+        file_id: None,
+        file: None,
+    };
+    let existing = [episode(1, true), episode(2, false)];
+    assert!(monitors_new_episode(true, false, &existing, 1));
+    assert!(!monitors_new_episode(true, true, &existing, 2));
+    assert!(monitors_new_episode(true, true, &existing, 3));
+    assert!(!monitors_new_episode(true, false, &existing, 3));
+    assert!(!monitors_new_episode(true, true, &existing, 0));
+    assert!(!monitors_new_episode(false, true, &existing, 1));
+}

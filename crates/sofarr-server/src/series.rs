@@ -253,7 +253,7 @@ async fn tmdb_id(
 }
 
 /// Refreshes one series from TVDB: German title, aliases, episodes (new ones are
-/// monitored like the series).
+/// monitored by [`monitors_new_episode`]).
 pub async fn refresh(
     db: &Db,
     tvdb: &sofarr_metadata::tvdb::Tvdb,
@@ -299,6 +299,7 @@ pub async fn refresh(
     )
     .await?;
     let existing = db.episodes(Some(series.id)).await?;
+    let monitor_new_seasons = db.monitors_new_seasons(series.id).await?;
     let mut n = 0;
     for e in fetched {
         let known = existing
@@ -314,14 +315,46 @@ pub async fn refresh(
                 title: Some(e.title).filter(|t| !t.is_empty()),
                 title_de: e.title_de,
                 air_date: e.air_date,
-                monitored: known
-                    .map_or(series.data.monitored && e.season > 0, |k| k.data.monitored),
+                monitored: known.map_or_else(
+                    || {
+                        monitors_new_episode(
+                            series.data.monitored,
+                            monitor_new_seasons,
+                            &existing,
+                            e.season,
+                        )
+                    },
+                    |k| k.data.monitored,
+                ),
             },
         )
         .await?;
         n += 1;
     }
     Ok(n)
+}
+
+/// Whether a new episode is monitored: never for specials or an unmonitored series; in
+/// a known season when an episode of it is, in a new season by the series' switch
+/// „neue Staffeln überwachen“ (spec discover AC-08).
+pub fn monitors_new_episode(
+    series_monitored: bool,
+    monitor_new_seasons: bool,
+    existing: &[Episode],
+    season: u16,
+) -> bool {
+    if !series_monitored || season == 0 {
+        return false;
+    }
+    let mut known = existing
+        .iter()
+        .filter(|x| x.data.season == season)
+        .peekable();
+    if known.peek().is_none() {
+        monitor_new_seasons
+    } else {
+        known.any(|x| x.data.monitored)
+    }
 }
 
 // --- decisions ----------------------------------------------------------------

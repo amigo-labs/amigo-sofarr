@@ -219,6 +219,41 @@ pub async fn poster(
     Ok(not_found())
 }
 
+/// The TMDB image sizes sofarr serves (posters, profile photos, backdrops).
+const TMDB_SIZES: &[&str] = &["w185", "w342", "w500", "w780", "h632", "w1280"];
+
+/// sofarr's URL of a TMDB image (spec discover AC-17, D24): `/api/images/tmdb/{size}/{file}`.
+pub fn tmdb_image_url(size: &str, path: &str) -> Option<String> {
+    let path = tmdb_path(path)?;
+    let file = path.strip_prefix('/')?;
+    (TMDB_SIZES.contains(&size) && !file.is_empty() && !file.contains('/'))
+        .then(|| format!("/api/images/tmdb/{size}/{file}"))
+}
+
+/// `GET /api/images/tmdb/{size}/{file}`: any TMDB image by its file name, loaded once
+/// and served from the cache (spec discover AC-17). 404 for unknown sizes or names.
+pub async fn tmdb_image(
+    State(app): State<SharedApp>,
+    Path((size, file)): Path<(String, String)>,
+) -> Result<Response, ApiError> {
+    let path = format!("/{file}");
+    if !TMDB_SIZES.contains(&size.as_str()) || file.contains('/') || clean(&path).is_none() {
+        return Ok(not_found());
+    }
+    let images = &app.images;
+    let cached = cache_file(images, "tmdb", &size, &path);
+    if let Ok(bytes) = tokio::fs::read(&cached).await {
+        return Ok(image(bytes, &path));
+    }
+    match fetch(&app.http, &format!("{}/{size}{path}", images.tmdb)).await {
+        Some(bytes) => {
+            store(&cached, &bytes).await;
+            Ok(image(bytes, &path))
+        }
+        None => Ok(not_found()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -249,5 +284,11 @@ mod tests {
             {"coverType": "poster", "remoteUrl": "https://image.tmdb.org/t/p/original/p.jpg"}]});
         assert_eq!(poster_of(&radarr, tmdb_path).as_deref(), Some("/p.jpg"));
         assert_eq!(poster_of(&json!({}), tmdb_path), None);
+        assert_eq!(
+            tmdb_image_url("w342", "/abc.jpg").as_deref(),
+            Some("/api/images/tmdb/w342/abc.jpg")
+        );
+        assert_eq!(tmdb_image_url("w9999", "/abc.jpg"), None);
+        assert_eq!(tmdb_image_url("w342", "/a/b.jpg"), None);
     }
 }

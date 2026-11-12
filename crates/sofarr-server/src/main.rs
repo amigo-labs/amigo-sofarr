@@ -1,5 +1,7 @@
 //! amigo-sofarr server binary.
 
+mod add;
+mod add_api;
 mod api;
 mod app;
 mod auth;
@@ -11,6 +13,7 @@ mod compare;
 mod compare_media;
 mod compare_rename;
 mod config;
+mod discover;
 mod downloads;
 mod failures;
 mod file_ops;
@@ -44,6 +47,8 @@ mod ui;
 mod wanted;
 
 #[cfg(test)]
+mod add_tests;
+#[cfg(test)]
 mod api_tests;
 #[cfg(test)]
 mod auth_log_tests;
@@ -66,6 +71,8 @@ mod imdb_list_tests;
 #[cfg(test)]
 mod imdb_tests;
 #[cfg(test)]
+mod import_list_tests;
+#[cfg(test)]
 mod library_api_tests;
 #[cfg(test)]
 mod library_edit_tests;
@@ -87,6 +94,8 @@ mod series_search_tests;
 mod test_secret;
 #[cfg(test)]
 mod testkit;
+#[cfg(test)]
+mod tmdb_fake;
 #[cfg(test)]
 mod ui_tests;
 #[cfg(test)]

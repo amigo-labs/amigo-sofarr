@@ -130,7 +130,8 @@ pub fn routes(app: SharedApp) -> Router {
         )
         .route("/api/backups/{name}/restore", post(choose_restore))
         .with_state(std::sync::Arc::clone(&app))
-        .merge(crate::library_routes::routes(app))
+        .merge(crate::library_routes::routes(std::sync::Arc::clone(&app)))
+        .merge(crate::discover::routes(app))
 }
 
 /// An error answer: status and a German message.
@@ -145,6 +146,11 @@ impl ApiError {
             status,
             message: message.into(),
         }
+    }
+
+    /// The German message.
+    pub(crate) fn message(&self) -> &str {
+        &self.message
     }
 }
 

@@ -20,6 +20,18 @@ pub fn tmdb(app: &App) -> anyhow::Result<Tmdb> {
     ))
 }
 
+/// The TVDB client; `None` without `[tvdb]`.
+pub fn tvdb(app: &App) -> Option<sofarr_metadata::tvdb::Tvdb> {
+    app.config.tvdb.as_ref().map(|config| {
+        sofarr_metadata::tvdb::Tvdb::with_base(
+            app.http.clone(),
+            &config.api_key,
+            config.pin.clone(),
+            &app.tvdb_api,
+        )
+    })
+}
+
 /// Merges TMDB data into a library movie; library state (monitoring, profile, path) stays.
 pub fn merge(movie: &Movie, meta: &MovieMetadata) -> NewMovie {
     let mut titles = movie.alternative_titles.clone();

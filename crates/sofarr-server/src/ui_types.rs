@@ -14,6 +14,7 @@ use crate::{
     backups::{BackupError, BackupList},
     calendar::{CalendarAnswer, CalendarEntry, CalendarQuery, EntryKind, EntryState, Release},
     config::Mode,
+    discover,
     library_detail::{
         BlockedRelease, EpisodeAnswer, EpisodeDetail, FileActions, FileDetail, FolderState,
         GrabEntry, MovieDetail, ReleaseDates, SeasonAnswer, SeriesDetail,
@@ -149,6 +150,44 @@ fn generated() -> BTreeMap<String, String> {
     one::<crate::trailers::api::TrailerInfo>(&cfg, &mut out);
     one::<crate::trailers::api::TrailerStatus>(&cfg, &mut out);
     one::<crate::trailers::api::TrailerSupport>(&cfg, &mut out);
+    one::<crate::discover::cache::Freshness>(&cfg, &mut out);
+    one::<discover::cards::TitleKind>(&cfg, &mut out);
+    one::<discover::cards::LibraryStatus>(&cfg, &mut out);
+    one::<discover::cards::LibraryState>(&cfg, &mut out);
+    one::<discover::cards::RatingState>(&cfg, &mut out);
+    one::<discover::cards::Rating>(&cfg, &mut out);
+    one::<discover::cards::TitleCard>(&cfg, &mut out);
+    one::<discover::shelves::ShelfId>(&cfg, &mut out);
+    one::<discover::shelves::Shelf>(&cfg, &mut out);
+    one::<discover::shelves::ShelvesAnswer>(&cfg, &mut out);
+    one::<discover::shelves::ShelfQuery>(&cfg, &mut out);
+    one::<discover::shelves::ListAnswer>(&cfg, &mut out);
+    one::<discover::shelves::ListQuery>(&cfg, &mut out);
+    one::<discover::shelves::GenreChoice>(&cfg, &mut out);
+    one::<discover::shelves::GenresAnswer>(&cfg, &mut out);
+    one::<discover::api::DiscoverStatus>(&cfg, &mut out);
+    one::<discover::api::SearchQuery>(&cfg, &mut out);
+    one::<discover::api::PersonCard>(&cfg, &mut out);
+    one::<discover::api::SearchAnswer>(&cfg, &mut out);
+    one::<discover::api::TitleRef>(&cfg, &mut out);
+    one::<discover::api::StatesBody>(&cfg, &mut out);
+    one::<discover::api::TitleState>(&cfg, &mut out);
+    one::<discover::api::StatesAnswer>(&cfg, &mut out);
+    one::<discover::titles::CastCard>(&cfg, &mut out);
+    one::<discover::titles::CrewCard>(&cfg, &mut out);
+    one::<discover::titles::SeasonInfo>(&cfg, &mut out);
+    one::<discover::titles::TitlePreview>(&cfg, &mut out);
+    one::<discover::titles::CastAnswer>(&cfg, &mut out);
+    one::<discover::people::CreditCard>(&cfg, &mut out);
+    one::<discover::people::DepartmentCredits>(&cfg, &mut out);
+    one::<discover::people::PersonPage>(&cfg, &mut out);
+    one::<crate::add_api::AddDefaults>(&cfg, &mut out);
+    one::<crate::add_api::AddOptions>(&cfg, &mut out);
+    one::<crate::add_api::MovieAddBody>(&cfg, &mut out);
+    one::<crate::add_api::SeriesAddBody>(&cfg, &mut out);
+    one::<crate::add_api::AddAnswer>(&cfg, &mut out);
+    one::<crate::add_api::ImportListBody>(&cfg, &mut out);
+    one::<crate::add_api::ImportListAnswer>(&cfg, &mut out);
     out
 }
 

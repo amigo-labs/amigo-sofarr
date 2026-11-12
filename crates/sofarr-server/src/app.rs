@@ -14,9 +14,10 @@ use sofarr_indexer::{Newznab, NewznabConfig, NzbError, TvCaps};
 use tokio::sync::Mutex;
 
 use crate::{
+    add,
     config::{Config, Mode},
     failures::{Exclusions, FailedGrab, GrabOutcome, Research, SendError},
-    import_lists, importer, library, metadata,
+    import_lists, library, metadata,
     rescan::{self, RescanAfterRefresh, ScanReport, ScanSettings},
     rss::{self, Selected, SyncReport},
     series,
@@ -53,6 +54,10 @@ pub struct App {
     pub subtitles: crate::subtitles::SubtitleState,
     /// TMDB's API root (tests use a fake).
     pub tmdb_api: String,
+    /// TVDB's API root (tests use a fake).
+    pub tvdb_api: String,
+    /// TMDB answers of the discover and people pages (spec discover).
+    pub discover: crate::discover::Discover,
     /// Trailer downloads (spec trailers).
     pub trailers: crate::trailers::Runtime,
 }
@@ -123,6 +128,8 @@ impl App {
             opensubtitles,
             subtitles: crate::subtitles::SubtitleState::default(),
             tmdb_api: sofarr_metadata::TMDB_API.to_owned(),
+            tvdb_api: sofarr_metadata::tvdb::TVDB_API.to_owned(),
+            discover: crate::discover::Discover::default(),
             trailers,
         })
     }
@@ -520,42 +527,19 @@ impl App {
                         continue;
                     }
                 };
-                let mut movie = metadata::new_movie(
-                    &meta,
-                    list.monitored,
-                    list.quality_profile_id,
-                    &list.minimum_availability,
-                    list.tags.clone(),
-                );
-                let input = importer::naming_input(
-                    &metadata::as_library_movie(&movie),
-                    "",
-                    "Unknown",
-                    None,
-                );
-                movie.path = importer::movie_folder(
-                    std::path::Path::new(&list.root_folder),
-                    &input,
-                    &naming,
-                )
-                .to_string_lossy()
-                .into_owned();
-                let id = self.db.upsert_movie(&movie, Timestamp::now()).await?;
-                metadata::store_presentation(self, id, &meta).await?;
+                let choice = add::MovieChoice {
+                    monitored: list.monitored,
+                    quality_profile_id: list.quality_profile_id,
+                    root_folder: list.root_folder.clone(),
+                    minimum_availability: list.minimum_availability.clone(),
+                    tags: list.tags.clone(),
+                };
+                let movie = add::put_movie(self, &meta, &choice, &naming).await?;
                 tracing::info!(list = %list.name, movie = %movie.title, "added from import list");
                 added.push(movie.title.clone());
-                // Like an RSS grab, the search on add waits until the movie is available.
-                let today = Timestamp::now().to_zoned(jiff::tz::TimeZone::UTC).date();
-                let stored = self.db.movie(id).await?;
-                let available = match (&rules, &stored) {
-                    (Ok(rules), Some(stored)) => library::is_available(stored, rules, today),
-                    _ => true,
-                };
                 if list.search_on_add
-                    && list.monitored
-                    && available
-                    && let Some(stored) = stored
-                    && let Err(e) = self.search_movie(&stored, false).await
+                    && add::search_due(&movie, rules.as_ref().ok(), Timestamp::now())
+                    && let Err(e) = self.search_movie(&movie, false).await
                 {
                     tracing::warn!(movie = %movie.title, error = format!("{e:#}"), "search failed");
                 }
@@ -582,7 +566,7 @@ impl App {
     }
 
     /// Shadow mode leaves `/data` alone: no folder is deleted.
-    fn scan_settings(&self, mut settings: ScanSettings) -> ScanSettings {
+    pub fn scan_settings(&self, mut settings: ScanSettings) -> ScanSettings {
         if self.config.automation.mode == Mode::Shadow {
             settings.delete_empty_folders = false;
         }
@@ -638,17 +622,8 @@ impl App {
             }
         }
         if shows {
-            if let Some(config) = &self.config.tvdb {
-                let tvdb = sofarr_metadata::tvdb::Tvdb::new(
-                    self.http.clone(),
-                    &config.api_key,
-                    config.pin.clone(),
-                );
-                let tmdb = self
-                    .config
-                    .tmdb
-                    .as_ref()
-                    .map(|c| sofarr_metadata::Tmdb::new(self.http.clone(), &c.api_key));
+            if let Some(tvdb) = metadata::tvdb(self) {
+                let tmdb = metadata::tmdb(self).ok();
                 for show in self.db.all_series().await? {
                     match series::refresh(&self.db, &tvdb, tmdb.as_ref(), &show, Timestamp::now())
                         .await
