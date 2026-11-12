@@ -55,10 +55,6 @@ mod compare_media_tests;
 #[cfg(test)]
 mod failure_tests;
 #[cfg(test)]
-mod media_import_tests;
-#[cfg(test)]
-mod media_refresh_tests;
-#[cfg(test)]
 mod image_tests;
 #[cfg(test)]
 mod library_api_tests;
@@ -66,6 +62,10 @@ mod library_api_tests;
 mod library_edit_tests;
 #[cfg(test)]
 mod library_files_tests;
+#[cfg(test)]
+mod media_import_tests;
+#[cfg(test)]
+mod media_refresh_tests;
 #[cfg(test)]
 mod media_tests;
 #[cfg(test)]
