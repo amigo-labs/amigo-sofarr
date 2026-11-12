@@ -1,11 +1,15 @@
 //! Persistence: SQLite via sqlx, migrations, repositories.
 
 mod blocklist;
+mod files;
 mod series;
 
 use std::{path::Path, str::FromStr};
 
 pub use blocklist::{BlockEntry, MediaRef, NewBlock};
+pub use files::{
+    Inspection, MIGRATOR, Pending, create_at_version, inspect, pending_migrations, snapshot_file,
+};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 
 use jiff::Timestamp;
@@ -233,7 +237,11 @@ impl Db {
             .max_connections(max)
             .connect_with(options)
             .await?;
-        sqlx::migrate!("./migrations").run(&pool).await?;
+        // Closed on failure: the files must be free again (a failed restore is undone).
+        if let Err(e) = MIGRATOR.run(&pool).await {
+            pool.close().await;
+            return Err(e.into());
+        }
         Ok(Self { pool })
     }
 
