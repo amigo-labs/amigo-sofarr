@@ -45,7 +45,7 @@ fn list_entries_of_movies_series_and_people() {
 }
 
 #[test]
-fn details_fall_back_to_english_texts_and_find_ids_and_the_trailer() {
+fn details_fall_back_to_original_texts_and_find_ids_and_the_trailer() {
     let detail = detail_from_json(
         &json!({
             "id": 1399, "name": "Kleine Insel", "original_name": "Small Island",
@@ -81,6 +81,25 @@ fn details_fall_back_to_english_texts_and_find_ids_and_the_trailer() {
     );
     assert_eq!(detail.cast[0].character.as_deref(), Some("Ada"));
     assert_eq!(detail.crew[0].department, "Directing");
+}
+
+/// AC-16: without a German text a title shows its original one, not the English one.
+#[test]
+fn a_title_without_german_texts_falls_back_to_its_original_language() {
+    let detail = detail_from_json(
+        &json!({
+            "id": 496243, "title": "", "original_title": "기생충",
+            "release_date": "2019-05-30", "overview": "", "original_language": "ko",
+            "translations": {"translations": [
+                {"iso_639_1": "en", "data": {"title": "Parasite", "overview": "A poor family."}},
+                {"iso_639_1": "ko", "data": {"overview": "가난한 가족."}}
+            ]}
+        }),
+        Kind::Movie,
+    )
+    .expect("detail");
+    assert_eq!(detail.summary.title, "기생충");
+    assert_eq!(detail.overview.as_deref(), Some("가난한 가족."));
 }
 
 #[test]

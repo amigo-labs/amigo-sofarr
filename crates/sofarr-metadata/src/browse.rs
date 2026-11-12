@@ -1,7 +1,8 @@
 //! TMDB browsing for the discover and people pages (spec discover): lists, filtered
 //! lists, search, title and person details. Every request asks for German texts
 //! (`language=de-DE`) and German release dates (`region=DE`) where TMDB takes a region;
-//! a missing German text falls back to the English one, then to the original one.
+//! a missing German text of a title falls back to its original language (AC-16), a
+//! person's missing German biography to TMDB's English base text.
 
 use serde_json::Value;
 
@@ -285,8 +286,8 @@ pub fn genres_from_json(v: &Value) -> Vec<Genre> {
         .collect()
 }
 
-/// A text of the `translations` answer: English first, then the original language.
-fn translated(v: &Value, field: &str, original_language: Option<&str>) -> Option<String> {
+/// A text of the `translations` answer in one language.
+fn translated(v: &Value, field: &str, language: Option<&str>) -> Option<String> {
     let translations = array(&v["translations"]["translations"]);
     let of = |language: &str| {
         translations
@@ -294,7 +295,7 @@ fn translated(v: &Value, field: &str, original_language: Option<&str>) -> Option
             .filter(|t| t["iso_639_1"].as_str() == Some(language))
             .find_map(|t| text(&t["data"][field]))
     };
-    of("en").or_else(|| original_language.and_then(of))
+    language.and_then(of)
 }
 
 fn trailer(v: &Value) -> Option<String> {
@@ -449,7 +450,8 @@ pub fn person_detail_from_json(v: &Value) -> Result<PersonDetail, MetadataError>
     Ok(PersonDetail {
         tmdb_id,
         name: text(&v["name"]).unwrap_or_default(),
-        biography: text(&v["biography"]).or_else(|| translated(v, "biography", None)),
+        // A person has no original language; TMDB's base text of a person is English.
+        biography: text(&v["biography"]).or_else(|| translated(v, "biography", Some("en"))),
         birthday: text(&v["birthday"]),
         deathday: text(&v["deathday"]),
         place_of_birth: text(&v["place_of_birth"]),
