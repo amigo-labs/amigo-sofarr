@@ -21,10 +21,10 @@ test.describe('serving the UI (AC-01, AC-02)', () => {
     expect(new URL(page.url()).pathname).toBe('/system');
   });
 
-  test('an address of a page not built yet shows "Seite nicht gefunden" with a link to the start', async ({
+  test('an unknown address shows "Seite nicht gefunden" with a link to the start', async ({
     page,
   }) => {
-    await page.goto(`${SERVERS.open}/entdecken`);
+    await page.goto(`${SERVERS.open}/gibt-es-nicht`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     await page.getByRole('link', { name: 'Zur Startseite' }).click();
     await expectOverview(page);

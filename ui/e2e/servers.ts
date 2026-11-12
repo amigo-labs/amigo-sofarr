@@ -23,6 +23,10 @@ export const SERVERS = {
   bench: at(7),
   /** Auth off, live mode, movies with real files for the file actions. */
   live: at(6),
+  /** Auth off, a fake TMDB, TVDB and IMDb dataset and a small library (spec discover). */
+  discover: at(8),
+  /** Auth off, the fake TMDB with IMDb ratings switched off (spec discover). */
+  discoverPlain: at(9),
   /** Auth off, shadow mode, a small library with IMDb ratings from a local dataset. */
   ratings: at(12),
   /** Auth off, live mode, IMDb ratings off, a fake OpenSubtitles, trailers without TMDB. */

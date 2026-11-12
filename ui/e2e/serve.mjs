@@ -8,7 +8,8 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { e2ePassword } from './env.mjs';
+import { e2ePassword, portBase } from './env.mjs';
+import { discoverConfig, seedDiscover } from './discover-seed.mjs';
 import { seed, seedConfig } from './seed.mjs';
 import { EXTRA_VARIANTS, extrasConfig, seedExtras } from './seed-extras.mjs';
 import { SERVERS, USERNAME } from './servers.ts';
@@ -32,7 +33,8 @@ if (!existsSync(join(ui, 'build', 'index.html'))) {
   process.exit(1);
 }
 
-const dir = join(tmpdir(), 'sofarr-e2e', variant);
+// Per port base, so two checkouts running their tests at once keep apart.
+const dir = join(tmpdir(), 'sofarr-e2e', String(portBase()), variant);
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 
@@ -80,6 +82,8 @@ if (variant === 'open') {
   lines.push(...seedConfig(variant));
 } else if (EXTRA_VARIANTS.includes(variant)) {
   lines.push(...extrasConfig(variant));
+} else if (['discover', 'discoverPlain'].includes(variant)) {
+  lines.push(...discoverConfig(variant));
 } else {
   lines.push(
     '[auth]',
@@ -90,9 +94,9 @@ if (variant === 'open') {
   if (variant === 'trusted') lines.push('trusted_networks = ["127.0.0.1/32"]');
 }
 
-// The e2e servers never fetch IMDb's real dataset: `ratings` loads a local one, `extras`
-// has ratings off, and the others try a closed port.
-if (!EXTRA_VARIANTS.includes(variant)) {
+// The e2e servers never fetch IMDb's real dataset: `ratings` and `discover` load a local
+// one, `extras` and `discoverPlain` have ratings off, and the others try a closed port.
+if (![...EXTRA_VARIANTS, 'discover', 'discoverPlain'].includes(variant)) {
   lines.push('[imdb]', 'url = "http://127.0.0.1:9/title.ratings.tsv.gz"');
 }
 
@@ -106,6 +110,10 @@ if (['library', 'bench', 'live'].includes(variant)) {
 if (EXTRA_VARIANTS.includes(variant)) {
   const fixtures = join(root, 'fixtures', 'public', 'config', 'radarr');
   await seedExtras(variant, { binary, config, dir, fixtures });
+}
+if (['discover', 'discoverPlain'].includes(variant)) {
+  const fixtures = join(root, 'fixtures', 'public', 'config', 'radarr');
+  await seedDiscover(variant, { binary, config, dir, fixtures });
 }
 
 const child = spawn(binary, ['--config', config, 'serve'], { stdio: 'inherit' });

@@ -103,7 +103,7 @@ test.describe('assets of an old build (AC-19)', () => {
   test('a page changed by a newer build loads after one reload during navigation', async ({
     page,
   }) => {
-    await page.goto(`${SERVERS.open}/entdecken`);
+    await page.goto(`${SERVERS.open}/gibt-es-nicht`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     const documents = countDocuments(page);
     let failed = 0;

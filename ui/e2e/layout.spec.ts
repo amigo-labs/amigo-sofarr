@@ -28,6 +28,7 @@ test.describe('navigation (AC-08)', () => {
       'Serien',
       'Kalender',
       'Fehlend',
+      'Entdecken',
       'Blocklist',
       'Untertitel',
       'Backups',
@@ -44,7 +45,7 @@ test.describe('navigation (AC-08)', () => {
   });
 
   test('every page reaches every other page through the navigation', async ({ page }) => {
-    await page.goto(`${SERVERS.open}/entdecken`);
+    await page.goto(`${SERVERS.open}/gibt-es-nicht`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })
@@ -79,7 +80,7 @@ test.describe('narrow screens (AC-09)', () => {
   for (const [name, url] of [
     ['system page', `${SERVERS.open}/system`],
     ['login page', `${SERVERS.auth}/anmelden`],
-    ['page not found', `${SERVERS.open}/entdecken`],
+    ['page not found', `${SERVERS.open}/gibt-es-nicht`],
   ] as const) {
     test(`the ${name} fits 360 px without horizontal scrolling`, async ({ page }) => {
       await page.goto(url);
@@ -240,7 +241,7 @@ test.describe('German texts (AC-14)', () => {
     await expect(page.getByText('Verbindung abgelehnt').first()).toBeVisible();
     expect(await visibleText(page)).not.toMatch(ENGLISH);
 
-    await page.goto(`${SERVERS.open}/entdecken`);
+    await page.goto(`${SERVERS.open}/gibt-es-nicht`);
     await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();
     expect(await visibleText(page)).not.toMatch(ENGLISH);
 
