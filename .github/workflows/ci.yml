@@ -24,6 +24,8 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      # spec imdb-ratings AC-10: 1.5 million titles within 60 s and 200 MB more peak memory
+      - run: cargo test -p sofarr-server --release --locked imdb_load_full -- --nocapture
 
   ui:
     runs-on: ubuntu-latest
