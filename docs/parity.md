@@ -46,7 +46,7 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Import List: TMDbPersonImport | radarr: 5 (5 aktiv) | 4 | umgesetzt – Orakel-Abgleich offen |
 | Download Client: Nzbget | radarr: 1 (1 aktiv, usenet); sonarr: 1 (1 aktiv, usenet) | 4 | umgesetzt – Orakel-Abgleich offen |
 | Download-Client-Einstellung: enableCompletedDownloadHandling | radarr: = true; sonarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
-| Download-Client-Einstellung: autoRedownloadFailed | radarr: = false; sonarr: = true | 4 | umgesetzt (aus: fehlgeschlagene Downloads werden nur markiert) |
+| Download-Client-Einstellung: autoRedownloadFailed | radarr: = false; sonarr: = true | 4 | radarr umgesetzt (aus: fehlgeschlagene Downloads werden nur markiert); sonarr offen (an) – Phase 6.1 |
 | Download-Client-Einstellung: autoRedownloadFailedFromInteractiveSearch | radarr: = false; sonarr: = true | 4 | nicht nötig (keine interaktive Suche) |
 | Download-Client-Einstellung: checkForFinishedDownloadInterval | radarr: = 2 | 4 | umgesetzt – Orakel-Abgleich offen |
 | Media Management: downloadPropersAndRepacks | radarr: = preferAndUpgrade; sonarr: = preferAndUpgrade | 2 | umgesetzt, Release-Orakel ✓ (nur preferAndUpgrade belegt) |
@@ -61,7 +61,7 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Media Management: setPermissionsLinux | radarr: = false; sonarr: = false | 4 | umgesetzt (aus) |
 | Media Management: skipFreeSpaceCheckWhenImporting | radarr: = false; sonarr: = false | 4 | umgesetzt – Orakel-Abgleich offen |
 | Media Management: minimumFreeSpaceWhenImporting | radarr: = 50000; sonarr: = 10000 | 4 | umgesetzt – Orakel-Abgleich offen |
-| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | offen – sofarr liest keine Mediainfo aus Dateien; `{MediaInfo…}`-Tokens werden aus dem Release-Namen geschätzt |
+| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | offen – sofarr liest keine Mediainfo aus Dateien; `{MediaInfo…}`-Tokens werden aus dem Release-Namen geschätzt (Phase 6.4) |
 | Media Management: recycleBinCleanupDays | radarr: = 7; sonarr: = 7 | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: renameMovies | radarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: replaceIllegalCharacters | radarr: = true; sonarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |

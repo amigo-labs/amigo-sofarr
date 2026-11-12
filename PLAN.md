@@ -96,7 +96,7 @@ Vorschlag für Dependencies (nur `sofarr-parity`): `reqwest` (rustls), `roxmltre
 
 ---
 
-## Phase 2 – Decision Engine + Release-Orakel · **AKTIV**
+## Phase 2 – Decision Engine + Release-Orakel · 🤖 fertig, 👤-Gates offen
 
 Ziel: `sofarr-core` trifft für einen Release dieselbe Grab-Entscheidung wie Radarr –
 gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
@@ -231,9 +231,85 @@ gemessen gegen das Release-Orakel. Umfang laut `docs/parity.md` (nur Filme).
 - [x] 🤖 Gate-Werkzeug `compare-series-library` (Serien, fehlende Episoden, Cutoff gegen Sonarr)
 - [x] 🤖 `episodeTitleRequired` (Import wartet bis 48 h auf Episodentitel), alle
       `multiEpisodeStyle`-Varianten, Festplatten-Scan und Tags auch für Serien
-- [ ] 👤 `collect --app sonarr` laufen lassen (≥ 1.000 Fixtures), Baseline schreiben,
-      Episoden-Felder ≥ 95 %
+- [x] 👤 `collect --app sonarr` laufen lassen (≥ 1.000 Fixtures), Baseline schreiben,
+      Episoden-Felder ≥ 95 % (6.775 Fixtures; Serientitel 98,8 %, Staffel 99,6 %,
+      Episoden 99,6 %, absolut 99,2 %, Datum 99,9 %, Staffelpaket 99,8 %)
 - [ ] 👤 `import-sonarr`, `refresh-series`, `compare-series-library` grün; Shadow-Betrieb für Serien
 - [ ] 👤 Nach stabiler Shadow-Phase: Sonarr pausieren, Serien im Live-Modus
 
 - **Gate:** wie bei Filmen – Fixtures → Ratchet → Decision-Orakel → Shadow → Ablösung
+
+## Phase 6 – Betrieb & Komfort · **AKTIV**
+
+Ziel: sofarr wird im Alltag ohne Radarr/Sonarr bedienbar und robust. Entscheidungen D13–D20
+in der Spec. Reihenfolge der Teilphasen verbindlich; jede Teilphase mit eigenen Commits und
+den Standard-Gates (ab 6.5 zusätzlich der UI-CI-Job).
+
+### 6.1 Fail-Handling (D13)
+
+- [ ] 🤖 Migration `blocklist` (Medientyp, Film/Serie, normalisierter Titel, GUID, Grund, Zeit)
+- [ ] 🤖 Fehlgeschlagener Download oder NZB-Abruf → Blocklist; mit `autoRedownloadFailed` der
+      jeweiligen App (Radarr aus, Sonarr an) Neusuche; Engine prüft die Blocklist
+- [ ] 🤖 `sofarr-indexer::search_tv` (Newznab `t=tvsearch`), Suche für Serie/Staffel/Episode
+- [ ] 🤖 API: `GET/DELETE /api/blocklist`, `POST /api/grabs/{id}/fail`, `POST /api/command/search`
+- [ ] 🤖 Tests: Engine lässt Geblocktes aus; E2E FAILURE → Blocklist → Neusuche → nächster Release
+- [ ] 👤 Sonarr-Fail-Fall im Shadow- oder Live-Betrieb beobachten
+
+### 6.2 Backups (D14)
+
+- [ ] 🤖 `[backup] interval_hours`, `keep`; Job `VACUUM INTO` nach `/config/backups`, Rotation
+- [ ] 🤖 Snapshot `pre-migrate-<version>` vor offenen Migrationen (behalte 3)
+- [ ] 🤖 CLI `backup`/`restore <datei>`; API `GET /api/backups`, `POST /api/command/backup`
+- [ ] 🤖 Tests: Backup öffnet und ist vollständig, Rotation, Restore, Snapshot nur bei offenen Migrationen
+
+### 6.3 Auth, aktivierbar (D15)
+
+- [ ] 🤖 `[auth] enabled, username, password_hash, api_key, session_days`; CLI `hash-password`
+- [ ] 🤖 Sessions (Migration), Login/Logout, Backoff bei Fehlversuchen, Middleware
+      (`/api/health` und Login offen), `X-Api-Key` in konstanter Zeit
+- [ ] 🤖 `ApiError` nach außen generisch, Details nur ins Log
+- [ ] 🤖 Tests: aus = offen; an = 401 ohne Credential, Key/Session ok, abgelaufen 401, Backoff
+
+### 6.4 Mediainfo
+
+- [ ] 🤖 Pure Crate `sofarr-mediainfo` (Matroska/RFC 9559, ISO-BMFF): Container, Codecs, HDR,
+      Audio- und Untertitelspuren mit Sprache/forced/default; kaputte Dateien → Unknown
+- [ ] 🤖 Beim Import und Festplatten-Scan lesen und speichern; `{MediaInfo…}`-Tokens aus echten
+      Werten (Fallback Release-Name); `parity.md` nachziehen
+
+### 6.5 Web-UI (D16)
+
+- [ ] 🤖 `ui/` mit SvelteKit (`adapter-static`, SPA), Bun, TS strict, Oxlint/Oxfmt/Vitest/svelte-check
+- [ ] 🤖 Einbettung per `rust-embed` (`allow_missing`), SPA-Fallback; `ts-rs`-Typen mit Drift-Test
+- [ ] 🤖 API: Film-/Serien-Detail, Queue, Blocklist, Backups, System
+- [ ] 🤖 Views: Login, Übersicht, Filme, Serien, Fehlend/Cutoff, Blocklist, Backups, System
+- [ ] 🤖 CI-Job `ui`, Docker-Stage `oven/bun`; Playwright-Screenshots als Nachweis
+- [ ] 👤 UI-Review
+
+### 6.6 Entdecken, Personen, IMDb-Rating (D19, D20)
+
+- [ ] 🤖 `App::add_movie` aus der Import-List-Synchronisation extrahieren; `App::add_series`
+      (TMDB `external_ids` → TVDB); `POST /api/movies`, `POST /api/series`
+- [ ] 🤖 TMDB: Trending, Popular, Upcoming, Now Playing, Discover, Suche, Person mit
+      `combined_credits`, Genres; Cache-Tabelle mit TTL
+- [ ] 🤖 IMDb-Datasets täglich laden (`imdb_ratings`), Rating überall anzeigen, sortier- und filterbar
+- [ ] 🤖 UI: Entdecken (Reihen, Filter, Hinzufügen), Personen-Seite (Cast/Crew, „nur fehlende“,
+      „Als Import List anlegen“), Cast auf Detailseiten
+- [ ] 👤 Entdecken und Personen-Seite mit echten TMDB-Daten prüfen
+
+### 6.7 Untertitel (D17)
+
+- [ ] 🤖 `[subtitles]` und `[opensubtitles]`; Crate `sofarr-subtitles` (REST-Client, Moviehash, Kontingent)
+- [ ] 🤖 Bewertung (Hash > Release-Felder > ID), vorhandene Sprachen (eingebettet/extern) überspringen
+- [ ] 🤖 Ablage `<Video>.<lang>[.forced|.sdh].srt`, fremde Untertitel nie überschreiben; Job, API, UI
+- [ ] 👤 Jellyfin zeigt die Untertitel an
+
+### 6.8 Trailer (D18)
+
+- [ ] 🤖 Runtime-Image Alpine mit `yt-dlp` und `ffmpeg`; Spec §7 und `compose.example.yml`
+- [ ] 🤖 TMDB-Videos (YouTube, Trailer, offiziell, Deutsch vor Englisch); yt-dlp als Subprozess
+      mit Timeout nach `trailers/`; ohne yt-dlp ist das Feature aus
+- [ ] 🤖 Scan und Import ignorieren `trailers/` (Regressionstest)
+- [ ] 👤 Jellyfin zeigt die Trailer an
+
+**Gate Phase 6:** Standard-Gates und UI-Job grün; alle 👤-Abnahmen erledigt.

@@ -21,10 +21,11 @@ ist bis auf Weiteres out of scope.
 |---|---|
 | v1 | Filme: Parser, Decision Engine, Newznab-RSS, TMDB, nzbget, Import/Rename, Import Lists (TMDb-Personen) |
 | v2 | Serien: Episoden-Parsing, Staffeln, Specials, Serien-Metadaten |
-| später | Web-UI, amigo-downloader als Download-Client, Integrationen mit v3-API-Kompatibilität |
+| v3 (Phase 6) | Betrieb und Komfort: Fail-Handling, Backups, optionale Auth, Mediainfo, Web-UI, Entdecken/Personen/IMDb-Rating, Untertitel, lokale Trailer |
+| später | amigo-downloader als Download-Client, Integrationen mit v3-API-Kompatibilität |
 
 **Nicht-Ziele:** Musik, Bücher, Torrent (Usenet only, bis ein echter Bedarf entsteht),
-Multi-User, vollständige Sonarr/Radarr-API-Kompatibilität.
+Multi-User und Requests mit Freigabe, vollständige Sonarr/Radarr-API-Kompatibilität.
 
 ## 3. Architektur
 
@@ -93,7 +94,10 @@ Regexes. Erlaubt: API-Beobachtung, Nutzer-Doku, allgemeines Wissen über Release
 
 ## 7. Betrieb
 
-- Container: statisches musl-Binary in `scratch`, Port **7676**, UID/GID 1000.
+- Container: statisches musl-Binary, Port **7676**, UID/GID 1000. Basis `scratch`, ab
+  Phase 6.8 Alpine mit `yt-dlp` und `ffmpeg` für Trailer (D18).
+- Backups: SQLite per `VACUUM INTO` nach `/config/backups`, Snapshot vor Migrationen (D14).
+- Auth: abschaltbar (`[auth] enabled`), Login für die UI und API-Key für Skripte (D15).
 - Volumes: `/config` (Config, SQLite), `/data` (Downloads + Bibliothek unter **einem** Mount
   für Hardlinks und atomare Moves – gleiches Layout wie Radarr).
 - Config: TOML unter `/config/sofarr.toml` (`SOFARR_CONFIG`), unbekannte Keys sind ein Fehler.
@@ -105,7 +109,9 @@ Regexes. Erlaubt: API-Beobachtung, Nutzer-Doku, allgemeines Wissen über Release
 | Integration | Wann | Wie |
 |---|---|---|
 | nzbget | Phase 4 | JSON-RPC, hinter `DownloadClient`-Trait |
-| Jellyfin | – | nicht nötig: Jellyfin überwacht die Bibliothek selbst (D12) |
+| Jellyfin | – | nicht nötig: Jellyfin überwacht die Bibliothek selbst (D12); Untertitel und Trailer werden nach Jellyfins Benennungsregeln abgelegt (D17, D18) |
+| OpenSubtitles.com | Phase 6.7 | offizielle REST-API (Moviehash, IMDb/TMDb-ID) |
+| IMDb-Datasets | Phase 6.6 | `title.ratings.tsv.gz`, täglich, persönliche nicht-kommerzielle Nutzung |
 | amigo-downloader | nach Radarr-Ablösung | zweite `DownloadClient`-Implementierung (braucht Headless-Modus/Library-Crate) |
 | Prowlarr, Jellyseerr, Bazarr | nur bei Bedarf | genau die v3-Endpoints, die diese Tools aufrufen |
 
@@ -125,8 +131,15 @@ Regexes. Erlaubt: API-Beobachtung, Nutzer-Doku, allgemeines Wissen über Release
 | D10 | Serien-Metadaten über TVDB, Filme über TMDB | Gleiche Episoden-Reihenfolge wie Sonarr → Parity in Phase 5; ein zweiter Provider wird in Kauf genommen |
 | D11 | Import Lists (TMDb-Personen) vor der Radarr-Ablösung (Phase 4) | 5 aktive Listen im eigenen Setup; ohne sie kämen nach der Abschaltung keine neuen Filme mehr hinzu |
 | D12 | Kein Jellyfin-Refresh nach dem Import | Jellyfin überwacht die Bibliothek selbst; Radarr hat heute ebenfalls keine Notification konfiguriert |
+| D13 | Fail-Handling pro App nach `autoRedownloadFailed`; fehlgeschlagene Releases kommen auf eine Blocklist (GUID und Titel) | Sonarr hat es an, Radarr aus; ohne Blocklist käme derselbe Release über einen anderen Indexer zurück |
+| D14 | Backups per `VACUUM INTO`, Snapshot vor Migrationen; die Config (Secrets) gehört nicht ins Backup | Konsistente Kopie im laufenden Betrieb ohne Zusatzwerkzeuge |
+| D15 | Auth optional: ein Nutzer (argon2, Session-Cookie) plus API-Key | Im Heimnetz oft unnötig, vor einem Reverse-Proxy oder unterwegs nötig |
+| D16 | Web-UI: Svelte 5 + SvelteKit (`adapter-static`, SPA), Bun, TS strict, per `rust-embed` im Binary | Reiner Static-Build ohne SSR; kleinste Bundles, wenig Boilerplate; ein Binary bleibt ein Binary |
+| D17 | Untertitel lädt sofarr selbst über die REST-API von OpenSubtitles.com | Jellyfins Plugin ist unzuverlässig (Limits, keine Kontrolle); Bazarr ist GPL und ein weiterer Dienst |
+| D18 | Trailer lokal nach `trailers/` per yt-dlp; Runtime-Image wird Alpine | Jellyfin spielt lokale Trailer auf allen Clients, Remote-YouTube-Links oft nicht |
+| D19 | Entdecken und Personen-Seiten über TMDB, ohne Requests/Freigaben | Ein Nutzer; Hinzufügen direkt statt Anfrage |
+| D20 | IMDb-Rating aus den offiziellen IMDb-Datasets | Kein Key, kein Limit, alle Titel, lokal sortier- und filterbar |
 
 ## 10. Offene Fragen
 
-- Web-UI: Stack und Zeitpunkt (Bun + React + TS, eingebettet per `rust-embed`, ist der Favorit).
 - amigo-downloader: Library-Crate oder Daemon mit API?

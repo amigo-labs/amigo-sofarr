@@ -16,13 +16,18 @@ zu einem abgeleiteten Werk machen. Deshalb gilt ohne Ausnahme:
 - **Niemals** deren Regexes, Algorithmen oder Teststrings aus dem Gedächtnis rekonstruieren.
   Wenn dir „die Sonarr-Regex für X“ einfällt: nicht verwenden. Löse das Problem selbst.
 - **Niemals** `[TestCase(...)]`-Daten aus deren Testsuites übernehmen.
+- Dasselbe gilt für andere Copyleft-Projekte derselben Domäne, insbesondere **HolyArrs**
+  (AGPL-3.0) und **Bazarr** (GPL-3.0): kein Code, keine Tests, keine Regexes.
 
 **Erlaubt** sind:
 
 - Antworten der HTTP-APIs laufender Instanzen (Black-Box-Beobachtung), insbesondere die
   Fixtures unter `fixtures/` – sie sind das Orakel.
 - Die öffentliche Nutzer-Doku auf `wiki.servarr.com` (Konzepte, Begriffe, Verhalten) und die
-  API-Doku (Endpoints, Feldnamen).
+  API-Doku (Endpoints, Feldnamen). Ebenso die Nutzer-Doku von HolyArrs und Bazarr
+  (nur Konzepte, nie Code-Ausschnitte daraus).
+- Öffentliche Spezifikationen und Provider-Dokus (Matroska/RFC 9559, ISO-BMFF, Newznab,
+  TMDB, TVDB, OpenSubtitles.com, IMDb-Datasets, Jellyfin-Benennungsregeln).
 - Allgemeines Wissen über Release-Namenskonventionen (Scene-Regeln, Quellen, Codecs).
 
 Die Feldstruktur der Orakel-Antworten lernst du aus den Fixture-Dateien selbst, nicht aus
