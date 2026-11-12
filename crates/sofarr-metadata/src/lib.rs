@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use sofarr_parser::Language;
 
+pub mod browse;
 pub mod tvdb;
 pub mod videos;
 
@@ -154,6 +155,12 @@ impl Tmdb {
     pub async fn series_imdb_id(&self, tmdb_id: i64) -> Result<Option<String>, MetadataError> {
         let value = self.get(&format!("tv/{tmdb_id}/external_ids"), &[]).await?;
         Ok(imdb_id_from_external_ids(&value))
+    }
+
+    /// The TVDB id TMDB knows for a series (spec discover AC-08).
+    pub async fn series_tvdb_id(&self, tmdb_id: i64) -> Result<Option<i64>, MetadataError> {
+        let value = self.get(&format!("tv/{tmdb_id}/external_ids"), &[]).await?;
+        Ok(value["tvdb_id"].as_i64().filter(|id| *id > 0))
     }
 
     /// All movies a person appeared in or worked on.
