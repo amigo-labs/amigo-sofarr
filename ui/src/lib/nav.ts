@@ -11,6 +11,7 @@ export const PAGES: readonly NavPage[] = [
   { label: 'Fehlend', href: '/fehlend', built: true },
   { label: 'Entdecken', href: '/entdecken', built: false },
   { label: 'Blocklist', href: '/blocklist', built: true },
+  { label: 'Untertitel', href: '/untertitel', built: true },
   { label: 'Backups', href: '/backups', built: true },
   { label: 'System', href: '/system', built: true },
 ];

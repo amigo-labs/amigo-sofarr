@@ -29,6 +29,7 @@ test.describe('navigation (AC-08)', () => {
       'Kalender',
       'Fehlend',
       'Blocklist',
+      'Untertitel',
       'Backups',
       'System',
     ]);

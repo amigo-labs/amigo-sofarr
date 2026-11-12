@@ -7,6 +7,7 @@
   import { searchBody } from '../actions';
   import Label from '../components/Label.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
+  import SubtitlesBox from '../../subtitles/SubtitlesBox.svelte';
   import DetailHead from './DetailHead.svelte';
   import FileBox from './FileBox.svelte';
   import FilesBox from './FilesBox.svelte';
@@ -102,6 +103,7 @@
 
   <div class="grid">
     <FileBox file={m.file} cutoffReason={m.cutoff_reason} />
+    <SubtitlesBox movieId={m.id} title={m.title} hasFile={m.file !== null} />
     <SettingsBox
       profiles={options.value?.movie_profiles ?? []}
       profile={m.quality_profile}

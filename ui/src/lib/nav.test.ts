@@ -11,6 +11,7 @@ describe('navigation', () => {
       'Fehlend',
       'Entdecken',
       'Blocklist',
+      'Untertitel',
       'Backups',
       'System',
     ]);
@@ -24,6 +25,7 @@ describe('navigation', () => {
       'Kalender',
       'Fehlend',
       'Blocklist',
+      'Untertitel',
       'Backups',
       'System',
     ]);
@@ -35,6 +37,7 @@ describe('navigation', () => {
       'Fehlend',
       'Entdecken',
       'Blocklist',
+      'Untertitel',
       'Backups',
       'System',
     ]);
