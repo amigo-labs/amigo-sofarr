@@ -342,6 +342,11 @@ async fn answers_come_from_the_cache_for_six_and_twenty_four_hours() {
         901,
         movie_detail(901, "Bewertet", "2003-01-01", Some("tt0000901")),
     );
+    providers.lock().people.insert(
+        7,
+        json!({"id": 7, "name": "Erika Erst", "known_for_department": "Acting",
+               "combined_credits": {"cast": [], "crew": []}}),
+    );
     let http = discover_app(&providers, "").await;
     let count = |needle: &str| providers.requests_with(needle).len();
     let counts = || {
@@ -350,12 +355,15 @@ async fn answers_come_from_the_cache_for_six_and_twenty_four_hours() {
             count("search/multi"),
             count("with_genres"),
             count("movie/901"),
+            count("person/7"),
         )
     };
     let load_all = || async {
         http.get("/api/discover/shelves").await;
         http.get("/api/discover/search?q=garten").await;
         http.get("/api/discover/list?kind=movie&genre=18").await;
+        let (status, person) = http.get("/api/discover/people/7").await;
+        assert_eq!(status, StatusCode::OK, "{person}");
         http.get("/api/discover/titles/movie/901").await.1
     };
     let age = |minutes: i64| {
@@ -363,25 +371,26 @@ async fn answers_come_from_the_cache_for_six_and_twenty_four_hours() {
         http.app.discover.lists.age(by);
         http.app.discover.search.age(by);
         http.app.discover.titles.age(by);
+        http.app.discover.people.age(by);
     };
 
     let first = load_all().await;
     let fetched_at = first["freshness"]["fetched_at"].clone();
     assert!(fetched_at.is_string());
-    assert_eq!(counts(), (1, 1, 1, 1));
-    // Lists 5 h 59 min old, the title 5 h 59 min too: all from the cache.
+    assert_eq!(counts(), (1, 1, 1, 1, 1));
+    // Lists, title and person 5 h 59 min old: all from the cache.
     age(5 * 60 + 59);
     let again = load_all().await;
     assert!(again["freshness"]["fetched_at"].is_string());
-    assert_eq!(counts(), (1, 1, 1, 1));
-    // Six hours: the lists are fetched again, the title stays for 24 hours.
+    assert_eq!(counts(), (1, 1, 1, 1, 1));
+    // Six hours: the lists are fetched again, title and person stay for 24 hours.
     age(2);
     load_all().await;
-    assert_eq!(counts(), (2, 2, 2, 1));
+    assert_eq!(counts(), (2, 2, 2, 1, 1));
     age(18 * 60);
     let fresh = load_all().await;
     assert_ne!(fresh["freshness"]["fetched_at"], fetched_at);
-    assert_eq!(counts(), (3, 3, 3, 2));
+    assert_eq!(counts(), (3, 3, 3, 2, 2));
 }
 
 /// AC-14: while TMDB is down, cached answers come with a German notice and their age;
