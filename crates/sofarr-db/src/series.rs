@@ -103,7 +103,7 @@ fn series_from_row(row: &SqliteRow) -> Series {
     }
 }
 
-fn grab_from_row(row: &SqliteRow) -> SeriesGrab {
+pub(crate) fn grab_from_row(row: &SqliteRow) -> SeriesGrab {
     SeriesGrab {
         id: row.get("id"),
         series_id: row.get("series_id"),
@@ -189,9 +189,11 @@ impl Db {
             sqlx::query_as("SELECT series_id, title FROM series_titles ORDER BY series_id, rowid")
                 .fetch_all(self.pool())
                 .await?;
+        let index: std::collections::HashMap<i64, usize> =
+            out.iter().enumerate().map(|(i, s)| (s.id, i)).collect();
         for (series_id, title) in titles {
-            if let Some(s) = out.iter_mut().find(|s| s.id == series_id) {
-                s.data.alternative_titles.push(title);
+            if let Some(&i) = index.get(&series_id) {
+                out[i].data.alternative_titles.push(title);
             }
         }
         Ok(out)

@@ -2,6 +2,7 @@
 
 mod blocklist;
 mod files;
+mod library;
 mod media;
 mod series;
 mod sessions;
@@ -12,6 +13,7 @@ pub use blocklist::{BlockEntry, MediaRef, NewBlock};
 pub use files::{
     Inspection, MIGRATOR, Pending, create_at_version, inspect, pending_migrations, snapshot_file,
 };
+pub use library::{Activity, MonitorTarget, Presentation};
 pub use media::{FileRef, StoredMediaInfo};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 pub use sessions::Session;
@@ -388,9 +390,11 @@ impl Db {
             sqlx::query_as("SELECT movie_id, title FROM movie_titles ORDER BY movie_id, rowid")
                 .fetch_all(&self.pool)
                 .await?;
+        let index: std::collections::HashMap<i64, usize> =
+            movies.iter().enumerate().map(|(i, m)| (m.id, i)).collect();
         for (movie_id, title) in titles {
-            if let Some(m) = movies.iter_mut().find(|m| m.id == movie_id) {
-                m.alternative_titles.push(title);
+            if let Some(&i) = index.get(&movie_id) {
+                movies[i].alternative_titles.push(title);
             }
         }
         Ok(movies)
@@ -577,7 +581,7 @@ fn movie_from_row(row: &SqliteRow) -> Movie {
     }
 }
 
-fn grab_from_row(row: &SqliteRow) -> Grab {
+pub(crate) fn grab_from_row(row: &SqliteRow) -> Grab {
     Grab {
         id: row.get("id"),
         movie_id: row.get("movie_id"),
