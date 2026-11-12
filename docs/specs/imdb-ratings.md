@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-12
 size: M
 design: [sofarr.md §8, sofarr.md §9 D10, sofarr.md §9 D20, sofarr.md §9 D26]
@@ -45,18 +45,18 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When a day has passed since the ratings data was loaded (or none was loaded yet), then sofarr downloads the IMDb ratings dataset and replaces the ratings data with it as a whole, while API requests keep being answered.
-- [ ] AC-02 (error): If the download fails, the file is damaged or incomplete, a required column is missing, or it holds clearly too few titles (fewer than half of the previous load), then sofarr keeps the previous ratings data, logs the reason, and tries again every hour until a load succeeds; the daily schedule of AC-01 counts from that success. A first load (no previous data) needs at least 100,000 titles.
-- [ ] AC-03 (always): Loading the ratings data never leaves a mixture of old and new ratings visible; a crash during the load keeps the previous data.
-- [ ] AC-04 (always): Every title sofarr shows — in the library lists and pages, and in the discover, search and person pages of spec `discover` — that has an IMDb id shows its rating and votes; a title without an IMDb id or without a rating in the data shows "–".
-- [ ] AC-05 (event): When a movie or series has no IMDb id, or its IMDb id changed at TMDB/TVDB, then the next metadata refresh sets the current one — movies from TMDB, series from TVDB or, if TVDB has none, from TMDB's external ids; if no source reports an IMDb id any more, the previous one is kept.
-- [ ] AC-12 (event): When the metadata refresh meets a series without a TMDB id, then it looks the series up at TMDB by its TVDB id and stores the TMDB id; a series TMDB does not know keeps none and is looked up again at the next refresh.
-- [ ] AC-06 (event): When the user sorts a library list (movies, series) by rating, then titles are ordered by rating (higher first, votes as a tie-breaker), titles without a rating last.
-- [ ] AC-07 (event): When the user sets a minimum rating and a minimum number of votes in a library list, then it shows only titles that reach both; titles without a rating are hidden while either filter is set.
-- [ ] AC-08 (always): Every page that shows IMDb ratings shows IMDb's attribution (the source, linked to imdb.com) and the date of the ratings data.
-- [ ] AC-09 (option): Where `[imdb] enabled = false` is set, sofarr downloads nothing from IMDb and shows no ratings, sort or filter by rating.
-- [ ] AC-10 (always): Loading a full dataset of 1.5 million titles takes at most 60 seconds and at most 200 MB more peak resident memory of the test process than before the load, on the CI runner (GitHub `ubuntu-latest`, the stand-in for the owner's mini PC): `cargo test -p sofarr-server --release imdb_load_full` with a generated dataset fails above either limit.
-- [ ] AC-11 (always): Showing ratings sends no request to IMDb per title; the movie list of spec `web-ui-library` with 2,500 movies and their ratings stays within that spec's speed limit (its AC-04).
+- [x] AC-01 (event): When a day has passed since the ratings data was loaded (or none was loaded yet), then sofarr downloads the IMDb ratings dataset and replaces the ratings data with it as a whole, while API requests keep being answered.
+- [x] AC-02 (error): If the download fails, the file is damaged or incomplete, a required column is missing, or it holds clearly too few titles (fewer than half of the previous load), then sofarr keeps the previous ratings data, logs the reason, and tries again every hour until a load succeeds; the daily schedule of AC-01 counts from that success. A first load (no previous data) needs at least 100,000 titles.
+- [x] AC-03 (always): Loading the ratings data never leaves a mixture of old and new ratings visible; a crash during the load keeps the previous data.
+- [x] AC-04 (always): Every title sofarr shows — in the library lists and pages, and in the discover, search and person pages of spec `discover` — that has an IMDb id shows its rating and votes; a title without an IMDb id or without a rating in the data shows "–".
+- [x] AC-05 (event): When a movie or series has no IMDb id, or its IMDb id changed at TMDB/TVDB, then the next metadata refresh sets the current one — movies from TMDB, series from TVDB or, if TVDB has none, from TMDB's external ids; if no source reports an IMDb id any more, the previous one is kept.
+- [x] AC-12 (event): When the metadata refresh meets a series without a TMDB id, then it looks the series up at TMDB by its TVDB id and stores the TMDB id; a series TMDB does not know keeps none and is looked up again at the next refresh.
+- [x] AC-06 (event): When the user sorts a library list (movies, series) by rating, then titles are ordered by rating (higher first, votes as a tie-breaker), titles without a rating last.
+- [x] AC-07 (event): When the user sets a minimum rating and a minimum number of votes in a library list, then it shows only titles that reach both; titles without a rating are hidden while either filter is set.
+- [x] AC-08 (always): Every page that shows IMDb ratings shows IMDb's attribution (the source, linked to imdb.com) and the date of the ratings data.
+- [x] AC-09 (option): Where `[imdb] enabled = false` is set, sofarr downloads nothing from IMDb and shows no ratings, sort or filter by rating.
+- [x] AC-10 (always): Loading a full dataset of 1.5 million titles takes at most 60 seconds and at most 200 MB more peak resident memory of the test process than before the load, on the CI runner (GitHub `ubuntu-latest`, the stand-in for the owner's mini PC): `cargo test -p sofarr-server --release imdb_load_full` with a generated dataset fails above either limit.
+- [x] AC-11 (always): Showing ratings sends no request to IMDb per title; the movie list of spec `web-ui-library` with 2,500 movies and their ratings stays within that spec's speed limit (its AC-04).
 
 ## Technical notes
 
@@ -87,6 +87,15 @@ Terms used below:
 | The personal, non-commercial use terms of the IMDb datasets fit sofarr | Each owner's own instance downloads the data for themselves; sofarr does not redistribute it | A commercial use of sofarr would need its own license from IMDb |
 | A daily load is fresh enough | IMDb updates the dataset daily | Ratings lag up to one day |
 
+## Summary
+
+> Completed: 2026-11-12
+
+- sofarr loads IMDb's `title.ratings.tsv.gz` once a day, streamed through `flate2` into a new table that is swapped in as a whole; a failed, damaged, incomplete or too small dataset keeps the previous ratings and is retried every hour.
+- Movies and series carry their IMDb id (series from TVDB, else TMDB's external ids) and series their TMDB id, found by TVDB id at the metadata refresh.
+- Library lists and pages and the discover, search and person pages show rating and votes ("–" without), with IMDb's attribution and the date of the data; library lists sort by rating and filter by minimum rating and votes.
+- `[imdb] enabled = false` switches downloads, ratings, sorting and filters off; a full dataset of 1.5 million titles loads in about a second with 45 MiB more peak memory on the CI runner.
+
 ## Open questions
 
 <!-- One bullet per open question; empty means: everything settled, spec-build may start -->
@@ -95,18 +104,18 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`) | built |        |
-| AC-02 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::rows_are_checked` (`crates/sofarr-server/src/imdb.rs`) | built |        |
-| AC-03 | `imdb_tests::readers_see_the_old_ratings_until_the_swap` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::a_load_is_swapped_in_as_a_whole` (`crates/sofarr-db/src/imdb.rs`) | built |        |
-| AC-04 | `imdb_list_tests::lists_and_pages_show_rating_and_votes_or_nothing` (`crates/sofarr-server/src/imdb_list_tests.rs`); `every movie shows rating and votes, "–" without; attribution with the date`; `every series shows rating and votes, "–" without`; `cards on narrow screens show the rating`; `a movie and a series show rating and votes with the attribution`; `titles without an IMDb id or without a rating show "–"` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/rows.test.ts`, `src/lib/imdb/imdb.test.ts`; discover pages: `shows the shelves in order with up to 20 titles, ratings and library state` (`ui/e2e/discover-pages.spec.ts`), `sorts by IMDb rating once ratings are known, and filters` (`ui/e2e/discover-person.spec.ts`) | built |        |
-| AC-05 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`); `metadata::tests::the_refresh_takes_tmdbs_imdb_id_and_keeps_the_old_one_without` (`crates/sofarr-server/src/metadata.rs`); `tests::series_ids_from_find_and_external_ids` (`crates/sofarr-metadata/src/lib.rs`) | built |        |
-| AC-06 | `imdb_list_tests::sorting_by_rating_puts_unrated_titles_last` (`crates/sofarr-server/src/imdb_list_tests.rs`); `sorting by rating puts the best first and titles without a rating last` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/list-query.test.ts` | built |        |
-| AC-07 | `imdb_list_tests::minimum_rating_and_votes_hide_unrated_titles` (`crates/sofarr-server/src/imdb_list_tests.rs`); `minimum rating and votes combine, are part of the address and survive a reload`; `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/list-query.test.ts` | built |        |
-| AC-08 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them` (`GET /api/imdb`, `crates/sofarr-server/src/imdb_tests.rs`); `expectAttribution` (`ui/e2e/helpers.ts`: link to imdb.com and "Stand der Bewertungen") in the library list and page tests of `ui/e2e/imdb-ratings.spec.ts`, on the discover start, shelf, search and preview pages (`ui/e2e/discover-pages.spec.ts`) and the person page (`ui/e2e/discover-person.spec.ts`); unit `ui/src/lib/imdb/imdb.test.ts` | built |        |
-| AC-09 | `imdb_tests::switched_off_nothing_is_loaded` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb_list_tests::switched_off_there_are_no_ratings_to_show_sort_or_filter` (`crates/sofarr-server/src/imdb_list_tests.rs`); `lists offer no rating, sort or minimum, and old addresses still work`; `pages show no rating` (`ui/e2e/imdb-ratings.spec.ts`) | built |        |
-| AC-10 | `imdb_tests::imdb_load_full` (`crates/sofarr-server/src/imdb_tests.rs`; release run in CI job `check`) | built |        |
-| AC-11 | `imdb_list_tests::rated_lists_of_2500_movies_stay_fast` (`crates/sofarr-server/src/imdb_list_tests.rs`) | built |        |
-| AC-12 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`) | built |        |
+| AC-01 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`) | verified | 2d6bc23 |
+| AC-02 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::rows_are_checked` (`crates/sofarr-server/src/imdb.rs`) | verified | 7f334d1 |
+| AC-03 | `imdb_tests::readers_see_the_old_ratings_until_the_swap` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::a_load_is_swapped_in_as_a_whole` (`crates/sofarr-db/src/imdb.rs`) | verified | 2d6bc23 |
+| AC-04 | `imdb_list_tests::lists_and_pages_show_rating_and_votes_or_nothing` (`crates/sofarr-server/src/imdb_list_tests.rs`); `every movie shows rating and votes, "–" without; attribution with the date`; `every series shows rating and votes, "–" without`; `cards on narrow screens show the rating`; `a movie and a series show rating and votes with the attribution`; `titles without an IMDb id or without a rating show "–"` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/rows.test.ts`, `src/lib/imdb/imdb.test.ts`; discover pages: `shows the shelves in order with up to 20 titles, ratings and library state` (`ui/e2e/discover-pages.spec.ts`), `sorts by IMDb rating once ratings are known, and filters` (`ui/e2e/discover-person.spec.ts`) | verified | cfd1a23 |
+| AC-05 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`); `metadata::tests::the_refresh_takes_tmdbs_imdb_id_and_keeps_the_old_one_without` (`crates/sofarr-server/src/metadata.rs`); `tests::series_ids_from_find_and_external_ids` (`crates/sofarr-metadata/src/lib.rs`) | verified | 317bbba |
+| AC-06 | `imdb_list_tests::sorting_by_rating_puts_unrated_titles_last` (`crates/sofarr-server/src/imdb_list_tests.rs`); `sorting by rating puts the best first and titles without a rating last` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/list-query.test.ts` | verified | 761d397 |
+| AC-07 | `imdb_list_tests::minimum_rating_and_votes_hide_unrated_titles` (`crates/sofarr-server/src/imdb_list_tests.rs`); `minimum rating and votes combine, are part of the address and survive a reload`; `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/list-query.test.ts` | verified | 761d397 |
+| AC-08 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them` (`GET /api/imdb`, `crates/sofarr-server/src/imdb_tests.rs`); `expectAttribution` (`ui/e2e/helpers.ts`: link to imdb.com and "Stand der Bewertungen") in the library list and page tests of `ui/e2e/imdb-ratings.spec.ts`, on the discover start, shelf, search and preview pages (`ui/e2e/discover-pages.spec.ts`) and the person page (`ui/e2e/discover-person.spec.ts`); unit `ui/src/lib/imdb/imdb.test.ts` | verified | f272a77 |
+| AC-09 | `imdb_tests::switched_off_nothing_is_loaded` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb_list_tests::switched_off_there_are_no_ratings_to_show_sort_or_filter` (`crates/sofarr-server/src/imdb_list_tests.rs`); `lists offer no rating, sort or minimum, and old addresses still work`; `pages show no rating` (`ui/e2e/imdb-ratings.spec.ts`) | verified | 7f334d1 |
+| AC-10 | `imdb_tests::imdb_load_full` (`crates/sofarr-server/src/imdb_tests.rs`; release run in CI job `check`, green on bf2b333 (run 43281594146): 1,500,000 titles in 1.06 s, peak memory +45 MiB) | verified | 7f334d1 |
+| AC-11 | `imdb_list_tests::rated_lists_of_2500_movies_stay_fast` (`crates/sofarr-server/src/imdb_list_tests.rs`) | verified | cfd1a23 |
+| AC-12 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`) | verified | 317bbba |
 
 ## Decisions
 
