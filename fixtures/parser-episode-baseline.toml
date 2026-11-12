@@ -1,0 +1,13 @@
+# Episoden-Parser-Ratchet: Pass-Rate pro Feld in Promille über fixtures/public/sonarr-parse.jsonl.
+# Neu schreiben: SOFARR_UPDATE_BASELINE=1 cargo test -p sofarr-parser --test episode_oracle
+
+[fixtures]
+count = 6754
+
+[permille]
+absolute = 992
+air_date = 999
+episodes = 996
+full_season = 998
+season = 996
+series_title = 988
