@@ -95,19 +95,26 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-01 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`) | built |        |
+| AC-02 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::rows_are_checked` (`crates/sofarr-server/src/imdb.rs`) | built |        |
+| AC-03 | `imdb_tests::readers_see_the_old_ratings_until_the_swap` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::a_load_is_swapped_in_as_a_whole` (`crates/sofarr-db/src/imdb.rs`) | built |        |
+| AC-04 | server: `imdb_list_tests::lists_and_pages_show_rating_and_votes_or_nothing` (`crates/sofarr-server/src/imdb_list_tests.rs`); UI and discover pages pending | open |        |
+| AC-05 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`); `metadata::tests::the_refresh_takes_tmdbs_imdb_id_and_keeps_the_old_one_without` (`crates/sofarr-server/src/metadata.rs`); `tests::series_ids_from_find_and_external_ids` (`crates/sofarr-metadata/src/lib.rs`) | built |        |
+| AC-06 | `imdb_list_tests::sorting_by_rating_puts_unrated_titles_last` (`crates/sofarr-server/src/imdb_list_tests.rs`); UI control pending | open |        |
+| AC-07 | `imdb_list_tests::minimum_rating_and_votes_hide_unrated_titles` (`crates/sofarr-server/src/imdb_list_tests.rs`); UI control pending | open |        |
+| AC-08 | server: `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them` (`GET /api/imdb` date and attribution, `crates/sofarr-server/src/imdb_tests.rs`); UI pending | open |        |
+| AC-09 | `imdb_tests::switched_off_nothing_is_loaded` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb_list_tests::switched_off_there_are_no_ratings_to_show_sort_or_filter` (`crates/sofarr-server/src/imdb_list_tests.rs`) | built |        |
+| AC-10 | `imdb_tests::imdb_load_full` (`crates/sofarr-server/src/imdb_tests.rs`; release run in CI job `check`) | built |        |
+| AC-11 | `imdb_list_tests::rated_lists_of_2500_movies_stay_fast` (`crates/sofarr-server/src/imdb_list_tests.rs`) | built |        |
+| AC-12 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`) | built |        |
 
 ## Decisions
 
 - 2026-11-12: IMDb ratings are their own spec before `discover`, because they also change the library lists (owner).
+- 2026-11-12: Ratings are loaded into `imdb_ratings_next` and swapped in by renaming in one transaction; readers keep the previous table until the commit (AC-03).
+- 2026-11-12: The dataset is streamed: a blocking task decompresses and parses it and hands batches of rows over a bounded channel to the database, so the whole file never sits in memory (AC-10).
+- 2026-11-12: The next attempt is computed from the date of the last success and the time of the last failure (`imdb::next_attempt`), so a restart neither skips nor repeats a load (AC-01, AC-02).
+- 2026-11-12: Movies already took TMDB's IMDb id at the refresh and kept the old one when TMDB has none; the test for it was green at once (AC-05).
+- 2026-11-12: The library list snapshot is keyed by the date of the ratings data too; this is belt and braces, because a finished load also changes `library_version`.
+- 2026-11-12: Sorting or filtering by rating while `[imdb] enabled = false` answers 400 with a German message instead of ignoring the parameter, so a stale UI state is visible (AC-09).
+- 2026-11-12: `GET /api/imdb` gives the UI whether ratings are on, the date of the data and the attribution text (AC-08).
