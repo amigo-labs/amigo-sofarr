@@ -2,32 +2,58 @@
 
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{
+        Path, Query, State,
+        rejection::{JsonRejection, PathRejection, QueryRejection},
+    },
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use serde::{Deserialize, Serialize};
-use sofarr_db::GrabStatus;
+use sofarr_db::{GrabStatus, MediaRef};
 
-use crate::{app::SharedApp, library};
+use crate::{
+    app::SharedApp,
+    downloads::{GrabRef, MarkError},
+    library,
+    search::{SearchError, SearchReport, SearchTarget},
+};
 
 pub fn routes(app: SharedApp) -> Router {
     Router::new()
         .route("/api/movies", get(movies))
         .route("/api/wanted", get(wanted))
         .route("/api/grabs", get(grabs))
+        .route("/api/grabs/movie/{id}/fail", post(fail_movie_grab))
+        .route("/api/grabs/series/{id}/fail", post(fail_series_grab))
+        .route("/api/blocklist", get(blocklist))
+        .route("/api/blocklist/{id}", delete(unblock))
         .route("/api/command/rss-sync", post(rss_sync))
+        .route("/api/command/search", post(search))
         .with_state(app)
 }
 
-struct ApiError(anyhow::Error);
+/// An error answer: status and a German message.
+struct ApiError {
+    status: StatusCode,
+    message: String,
+}
+
+impl ApiError {
+    fn new(status: StatusCode, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
+        }
+    }
+}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("{:#}", self.0) })),
+            self.status,
+            Json(serde_json::json!({ "error": self.message })),
         )
             .into_response()
     }
@@ -35,7 +61,7 @@ impl IntoResponse for ApiError {
 
 impl<E: Into<anyhow::Error>> From<E> for ApiError {
     fn from(e: E) -> Self {
-        Self(e.into())
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, format!("{:#}", e.into()))
     }
 }
 
@@ -124,6 +150,169 @@ async fn grabs(
 
 async fn rss_sync(State(app): State<SharedApp>) -> Result<Json<crate::rss::SyncReport>, ApiError> {
     Ok(Json(app.rss_sync().await?))
+}
+
+/// Body of `POST /api/command/search`: exactly one of `movie_id`; `series_id`;
+/// `series_id` + `season`; `series_id` + `season` + `episode`.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SearchBody {
+    movie_id: Option<i64>,
+    series_id: Option<i64>,
+    season: Option<u16>,
+    episode: Option<u16>,
+}
+
+impl SearchBody {
+    fn target(&self) -> Option<SearchTarget> {
+        Some(
+            match (self.movie_id, self.series_id, self.season, self.episode) {
+                (Some(id), None, None, None) => SearchTarget::Movie(id),
+                (None, Some(id), None, None) => SearchTarget::Series(id),
+                (None, Some(series_id), Some(season), None) => {
+                    SearchTarget::Season { series_id, season }
+                }
+                (None, Some(series_id), Some(season), Some(episode)) => SearchTarget::Episode {
+                    series_id,
+                    season,
+                    episode,
+                },
+                _ => return None,
+            },
+        )
+    }
+}
+
+const BAD_SEARCH: &str = "Ungültige Suchanfrage: genau ein Ziel angeben (movie_id, series_id, series_id + season oder series_id + season + episode)";
+
+async fn search(
+    State(app): State<SharedApp>,
+    body: Result<Json<SearchBody>, JsonRejection>,
+) -> Result<Json<SearchReport>, ApiError> {
+    let target = body
+        .ok()
+        .and_then(|Json(b)| b.target())
+        .ok_or_else(|| ApiError::new(StatusCode::BAD_REQUEST, BAD_SEARCH))?;
+    match app.search(target).await {
+        Ok(report) => Ok(Json(report)),
+        Err(SearchError::NotFound(message)) => Err(ApiError::new(StatusCode::NOT_FOUND, message)),
+        Err(SearchError::Failed(e)) => Err(e.into()),
+    }
+}
+
+#[derive(Deserialize)]
+struct PageQuery {
+    page: Option<i64>,
+    page_size: Option<i64>,
+}
+
+#[derive(Serialize)]
+struct BlocklistPage {
+    page: u32,
+    page_size: u32,
+    total: u64,
+    entries: Vec<BlocklistEntry>,
+}
+
+#[derive(Serialize)]
+struct BlocklistEntry {
+    id: i64,
+    movie_id: Option<i64>,
+    series_id: Option<i64>,
+    /// Title of the movie or series.
+    media_title: String,
+    title: String,
+    indexer: String,
+    reason: String,
+    blocklisted_at: String,
+}
+
+const BAD_PAGE: &str = "Ungültige Seite: page ab 1, page_size von 1 bis 500";
+
+async fn blocklist(
+    State(app): State<SharedApp>,
+    query: Result<Query<PageQuery>, QueryRejection>,
+) -> Result<Json<BlocklistPage>, ApiError> {
+    let bad = || ApiError::new(StatusCode::BAD_REQUEST, BAD_PAGE);
+    let Query(q) = query.map_err(|_| bad())?;
+    let page = u32::try_from(q.page.unwrap_or(1))
+        .ok()
+        .filter(|p| *p >= 1)
+        .ok_or_else(bad)?;
+    let page_size = u32::try_from(q.page_size.unwrap_or(50))
+        .ok()
+        .filter(|s| (1..=500).contains(s))
+        .ok_or_else(bad)?;
+    let (entries, total) = app.db.block_page(page, page_size).await?;
+    Ok(Json(BlocklistPage {
+        page,
+        page_size,
+        total,
+        entries: entries
+            .into_iter()
+            .map(|e| {
+                let (movie_id, series_id) = match e.media {
+                    MediaRef::Movie(id) => (Some(id), None),
+                    MediaRef::Series(id) => (None, Some(id)),
+                };
+                BlocklistEntry {
+                    id: e.id,
+                    movie_id,
+                    series_id,
+                    media_title: e.media_title,
+                    title: e.title,
+                    indexer: e.indexer,
+                    reason: e.reason,
+                    blocklisted_at: e.blocklisted_at.to_string(),
+                }
+            })
+            .collect(),
+    }))
+}
+
+fn bad_id() -> ApiError {
+    ApiError::new(StatusCode::BAD_REQUEST, "Ungültige ID")
+}
+
+async fn unblock(
+    State(app): State<SharedApp>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<StatusCode, ApiError> {
+    let Path(id) = id.map_err(|_| bad_id())?;
+    if app.db.remove_block(id).await? {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            format!("Blocklist-Eintrag {id} nicht gefunden"),
+        ))
+    }
+}
+
+async fn fail_movie_grab(
+    State(app): State<SharedApp>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<StatusCode, ApiError> {
+    let Path(id) = id.map_err(|_| bad_id())?;
+    mark(&app, GrabRef::Movie(id)).await
+}
+
+async fn fail_series_grab(
+    State(app): State<SharedApp>,
+    id: Result<Path<i64>, PathRejection>,
+) -> Result<StatusCode, ApiError> {
+    let Path(id) = id.map_err(|_| bad_id())?;
+    mark(&app, GrabRef::Series(id)).await
+}
+
+async fn mark(app: &SharedApp, grab: GrabRef) -> Result<StatusCode, ApiError> {
+    match app.mark_failed(grab).await {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(MarkError::NotFound(m)) => Err(ApiError::new(StatusCode::NOT_FOUND, m)),
+        Err(MarkError::NotActive(m)) => Err(ApiError::new(StatusCode::CONFLICT, m)),
+        Err(MarkError::Unavailable(m)) => Err(ApiError::new(StatusCode::SERVICE_UNAVAILABLE, m)),
+        Err(MarkError::Failed(e)) => Err(e.into()),
+    }
 }
 
 #[cfg(test)]

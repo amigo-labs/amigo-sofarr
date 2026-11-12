@@ -61,6 +61,10 @@ check_interval_minutes = 2
 # Nach dem Import: Download aus der nzbget-History entfernen und den Ordner löschen,
 # wenn kein Video mehr darin liegt.
 remove_completed = true
+# Nach einem fehlgeschlagenen Download erneut suchen (Filme, Serien). Ohne Angabe gilt
+# `autoRedownloadFailed` aus dem Radarr- bzw. Sonarr-Import, ohne Import: aus.
+# redownload_failed_movies = false
+# redownload_failed_series = true
 # Falls nzbget Pfade anders sieht als sofarr (andere Container-Mounts):
 # [[download.path_map]]
 # remote = "/downloads"

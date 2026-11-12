@@ -162,30 +162,30 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
-| AC-16 |      | open   |        |
-| AC-17 |      | open   |        |
-| AC-18 |      | open   |        |
-| AC-19 |      | open   |        |
+| AC-01 | `failure_tests::release_failure_fails_the_grab_and_blocklists_the_release`, `failure_tests::release_failure_of_a_series_grab_blocklists_for_the_series` (`crates/sofarr-server/src/failure_tests.rs`); `tests::classifies_failed_downloads` (`crates/sofarr-download/src/lib.rs`) | built |        |
+| AC-02 | `failure_tests::local_failure_fails_without_blocklist_and_frees_the_release` (`crates/sofarr-server/src/failure_tests.rs`); `tests::classifies_failed_downloads` (`crates/sofarr-download/src/lib.rs`) | built |        |
+| AC-03 | `failure_tests::broken_nzb_at_grab_time_blocklists`, `failure_tests::nzb_rejected_by_the_download_client_blocklists` (`crates/sofarr-server/src/failure_tests.rs`); `tests::classifies_nzb_downloads` (`crates/sofarr-indexer/src/lib.rs`) | built |        |
+| AC-04 | `failure_tests::outage_at_grab_time_fails_without_blocklist_or_search` (`crates/sofarr-server/src/failure_tests.rs`); `tests::classifies_nzb_downloads` (`crates/sofarr-indexer/src/lib.rs`) | built |        |
+| AC-05 | `failure_tests::blocklisted_releases_are_skipped_by_guid_or_title_per_movie`, `failure_tests::blocklisted_series_releases_are_skipped` (`crates/sofarr-server/src/failure_tests.rs`); `search_tests::manual_search_skips_blocklisted_releases`, `search_tests::failed_movie_grab_is_re_searched_once` (`crates/sofarr-server/src/search_tests.rs`); `tests::release_titles_differing_in_case_and_separators_are_equal` (`crates/sofarr-core/src/lib.rs`) | built |        |
+| AC-06 | `search_tests::failed_movie_grab_is_re_searched_once`, `search_tests::unmonitored_movie_is_not_re_searched` (`crates/sofarr-server/src/search_tests.rs`); `api_tests::marking_an_active_grab_failed` (`crates/sofarr-server/src/api_tests.rs`) | built |        |
+| AC-07 | `search_tests::failed_season_pack_and_episode_search_the_season_once`, `search_tests::failed_episode_grab_searches_its_episodes`, `search_tests::series_research_scope` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-08 | `search_tests::re_search_off_leaves_the_item_to_the_rss_sync` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-09 | `search_tests::re_search_setting_comes_from_config_or_import` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-10 | `failure_tests::a_download_absent_for_24_hours_has_vanished`, `failure_tests::a_download_seen_again_restarts_the_24_hours` (`crates/sofarr-server/src/failure_tests.rs`); `search_tests::vanished_download_is_re_searched` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-11 | `failure_tests::an_unreachable_client_changes_nothing` (`crates/sofarr-server/src/failure_tests.rs`) | built |        |
+| AC-12 | `search_tests::manual_movie_search_reports_releases_grabs_and_errors`, `search_tests::manual_search_replaces_an_active_grab_only_with_a_better_release`, `search_tests::a_search_for_one_movie_covers_it_when_unmonitored`, `search_tests::manual_series_season_and_episode_searches` (`crates/sofarr-server/src/search_tests.rs`); `api_tests::search_command_takes_exactly_one_target`, `api_tests::search_command_for_series_season_and_episode` (`crates/sofarr-server/src/api_tests.rs`) | built |        |
+| AC-13 | `search_tests::unknown_targets_are_not_found` (`crates/sofarr-server/src/search_tests.rs`); `api_tests::search_command_takes_exactly_one_target`, `api_tests::search_command_for_series_season_and_episode` (`crates/sofarr-server/src/api_tests.rs`); `search_rejects_unknown_and_malformed_targets` (`crates/sofarr-server/tests/cli_search.rs`) | built |        |
+| AC-14 | `search_tests::series_search_asks_each_indexer_in_its_own_form`, `search_tests::title_search_results_must_match_the_series`, `search_tests::daily_and_anime_series_are_asked_in_their_numbering` (`crates/sofarr-server/src/search_tests.rs`); `tests::builds_tv_queries_from_caps`, `tests::reads_tv_search_caps` (`crates/sofarr-indexer/src/lib.rs`) | built |        |
+| AC-15 | `api_tests::marking_an_active_grab_failed`, `api_tests::marking_a_series_grab_failed` (`crates/sofarr-server/src/api_tests.rs`); `downloads::tests::only_folders_named_after_the_download_are_deleted` (`crates/sofarr-server/src/downloads.rs`) | built |        |
+| AC-16 | `api_tests::only_active_grabs_can_be_marked` (`crates/sofarr-server/src/api_tests.rs`) | built |        |
+| AC-17 | `api_tests::marking_needs_the_download_client` (`crates/sofarr-server/src/api_tests.rs`) | built |        |
+| AC-18 | `api_tests::blocklist_is_listed_page_by_page` (`crates/sofarr-server/src/api_tests.rs`); `blocklist::tests::blocklist_pages_newest_first` (`crates/sofarr-db/src/blocklist.rs`) | built |        |
+| AC-19 | `api_tests::removing_a_blocklist_entry_frees_the_release` (`crates/sofarr-server/src/api_tests.rs`); `blocklist::tests::removing_entries_and_items` (`crates/sofarr-db/src/blocklist.rs`) | built |        |
 | AC-20 | `blocklist::tests::blocklist_holds_a_release_once_per_item`, `blocklist::tests::removing_entries_and_items` (`crates/sofarr-db/src/blocklist.rs`) | built |        |
-| AC-21 |      | open   |        |
-| AC-22 |      | open   |        |
-| AC-23 |      | open   |        |
-| AC-24 |      | open   |        |
+| AC-21 | `search_tests::shadow_mode_searches_only_record` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-22 | `failure_tests::earlier_grabs_hold_their_guid_unless_failed_without_entry`, `failure_tests::local_failure_fails_without_blocklist_and_frees_the_release`, `failure_tests::outage_at_grab_time_fails_without_blocklist_or_search` (`crates/sofarr-server/src/failure_tests.rs`); `search_tests::vanished_download_is_re_searched` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-23 | `search_tests::no_allowed_indexer_searches_nothing` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
+| AC-24 | `search_tests::a_broken_nzb_falls_back_to_the_next_candidate`, `search_tests::an_outage_ends_the_search_for_the_item` (`crates/sofarr-server/src/search_tests.rs`) | built |        |
 
 ## Decisions
 
@@ -196,3 +196,13 @@ Terms used below:
 - 2026-11-12: `DELETED/DUPE` is a local failure, not a release failure (corrects the list put to the owner): nzbget rejects by name against its own history, which says nothing about the release and would otherwise blocklist a good release that sofarr re-sends after an outage.
 - 2026-11-12: Marking a grab as failed removes its download and files from the client — the owner chose "remove from nzbget" for manual marking, and the files of a failed release are of no use.
 - 2026-11-12: Manual search (API + CLI) belongs to this spec because the series search it needs is built here anyway (owner).
+- 2026-11-12: Tests and code of the server blocks were written together because the tests need the new APIs (`check_downloads_at`, `search`, `mark_failed`); the red run was the failing build. As a counter-check the core behavior was switched off one piece at a time (no blocklisting on failure, no re-search, never vanished, failed grabs holding their GUID, no fallback after a broken NZB, unreachable client read as empty): 16 of the new tests went red.
+- 2026-11-12: AC-22 for shadow grabs held before this spec (every earlier grab blocked its GUID); the test for that part was green at once. New is that failed grabs no longer hold their GUID — the blocklist alone keeps a broken release out, so removing an entry (AC-19) frees it.
+- 2026-11-12: A release found through a search by TVDB id belongs to the series whatever its title says; a release from a title search must match a title of the series (title, German title, alias, title with year), as in the RSS sync.
+- 2026-11-12: An indexer's TV caps (`t=caps`) are asked once per process; an indexer whose caps cannot be read counts as an indexer error of that search and is skipped. An indexer without TV search gets `t=search` with the title query.
+- 2026-11-12: Query forms: by id `tvdbid` with `season`/`ep` where the caps announce them, a daily episode as `season=YYYY&ep=MM/DD` (Newznab convention); by title `Title S01E02`, `Title S01`, `Title YYYY.MM.DD` (daily) and `Title 06` (anime, absolute number with two digits at least).
+- 2026-11-12: A series search searches each season that has a wanted episode (monitored, aired, without file or below the cutoff); a season with nothing wanted is not asked.
+- 2026-11-12: A release without a download link counts as a broken NZB, a missing `[nzbget]` section as an outage.
+- 2026-11-12: Marking a grab as failed removes the download from nzbget and deletes its folder (mapped by `path_map`) only if the folder is named after the download — a client reporting a category or root folder never deletes more. Success answers `204 No Content`.
+- 2026-11-12: The search body rejects unknown fields (`400`), so a misspelled key never turns into a different search.
+- 2026-11-12: The download check and the import moved from `app.rs` into `downloads.rs`, and the test modules of `app.rs` and `series.rs` into `app/tests.rs` and `series/tests.rs`, to keep the files below 800 lines.

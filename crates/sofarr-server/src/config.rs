@@ -78,6 +78,11 @@ pub struct DownloadConfig {
     /// After an import, remove the download from the client's history and delete what
     /// is left of its folder (only if no video remains), like "Remove Completed".
     pub remove_completed: bool,
+    /// Search a movie again after its grab failed; unset: Radarr's imported
+    /// `autoRedownloadFailed`, without one off.
+    pub redownload_failed_movies: Option<bool>,
+    /// The same for series (Sonarr's imported setting).
+    pub redownload_failed_series: Option<bool>,
 }
 
 impl Default for DownloadConfig {
@@ -86,6 +91,8 @@ impl Default for DownloadConfig {
             check_interval_minutes: 2,
             path_map: Vec::new(),
             remove_completed: true,
+            redownload_failed_movies: None,
+            redownload_failed_series: None,
         }
     }
 }

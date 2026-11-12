@@ -4,6 +4,8 @@ mod api;
 mod app;
 mod compare;
 mod config;
+mod downloads;
+mod failures;
 mod import_lists;
 mod importer;
 mod library;
@@ -11,7 +13,17 @@ mod metadata;
 mod radarr;
 mod rescan;
 mod rss;
+mod search;
 mod series;
+
+#[cfg(test)]
+mod api_tests;
+#[cfg(test)]
+mod failure_tests;
+#[cfg(test)]
+mod search_tests;
+#[cfg(test)]
+mod testkit;
 
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -85,8 +97,22 @@ enum Command {
     RssSync,
     /// Zeigt fehlende Filme und Filme unter dem Cutoff
     Wanted,
-    /// Sucht Releases für einen Film (sofarr-ID) und nimmt das beste
-    Search { movie_id: i64 },
+    /// Sucht Releases für einen Film, eine Serie, eine Staffel oder eine Episode (sofarr-IDs)
+    /// und nimmt die besten
+    Search {
+        /// sofarr-ID des Films
+        #[arg(conflicts_with = "series")]
+        movie_id: Option<i64>,
+        /// sofarr-ID der Serie
+        #[arg(long)]
+        series: Option<i64>,
+        /// Staffel der Serie
+        #[arg(long, requires = "series")]
+        season: Option<u16>,
+        /// Episode der Staffel
+        #[arg(long, requires = "season")]
+        episode: Option<u16>,
+    },
     /// Prüft den Download-Client und importiert fertige Downloads
     CheckDownloads,
     /// Synchronisiert die Import Lists (TMDb-Personen)
@@ -335,12 +361,24 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
                 println!("  {}", name(id));
             }
         }
-        Command::Search { movie_id } => {
-            let report = app.search_movie(movie_id).await?;
+        Command::Search {
+            movie_id,
+            series,
+            season,
+            episode,
+        } => {
+            let target = search_target(movie_id, series, season, episode)?;
+            let report = app.search(target).await?;
             println!(
-                "Suche: {} Releases, {} angenommen",
-                report.releases, report.approved
+                "Suche: {} Releases, {} genommen",
+                report.releases, report.grabs
             );
+            for e in &report.errors {
+                println!("Fehler: {e}");
+            }
+            if let Some(note) = &report.note {
+                println!("Hinweis: {note}");
+            }
         }
         Command::CheckDownloads => {
             let n = app.check_downloads().await?;
@@ -383,6 +421,27 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+/// The target of `amigo-sofarr search` (clap already rejects conflicting flags).
+fn search_target(
+    movie_id: Option<i64>,
+    series: Option<i64>,
+    season: Option<u16>,
+    episode: Option<u16>,
+) -> anyhow::Result<search::SearchTarget> {
+    use search::SearchTarget;
+    Ok(match (movie_id, series, season, episode) {
+        (Some(id), None, None, None) => SearchTarget::Movie(id),
+        (None, Some(id), None, None) => SearchTarget::Series(id),
+        (None, Some(series_id), Some(season), None) => SearchTarget::Season { series_id, season },
+        (None, Some(series_id), Some(season), Some(episode)) => SearchTarget::Episode {
+            series_id,
+            season,
+            episode,
+        },
+        _ => anyhow::bail!("Suchziel fehlt: Film-ID oder --series [--season [--episode]] angeben"),
+    })
 }
 
 fn print_scan(label: &str, report: Option<&rescan::ScanReport>) {
