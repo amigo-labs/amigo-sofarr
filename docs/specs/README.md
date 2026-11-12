@@ -17,8 +17,8 @@ The order is binding because later specs build on earlier ones.
 | # | Spec | Size | Depends on | Content | Next |
 | - | ---- | ---- | ---------- | ------- | ---- |
 | 1 | [fail-handling](fail-handling.md) | M | – | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) | `/spec-build fail-handling` |
-| 2 | backups | S | – | `VACUUM INTO` on a schedule, snapshot before migrations, `backup`/`restore` (D14) | `/spec backups` |
-| 3 | auth | M | – | Switchable login (argon2, session) and API key, generic error messages (D15) | `/spec auth` |
+| 2 | [backups](backups.md) | M | – | Scheduled, manual and pre-migration backups, restore at the next start or by CLI (D14) | `/spec-build backups` |
+| 3 | [auth](auth.md) | M | – | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) | `/spec-build auth` |
 | 4 | mediainfo | L | – | Own MKV/MP4 reader: codecs, HDR, audio and subtitle tracks; real `{MediaInfo…}` tokens | `/spec mediainfo` |
 | 5 | web-ui | L | auth | Svelte 5 + SvelteKit static, embedded; overview, movies, series, missing, blocklist, backups (D16) | `/spec web-ui` |
 | 6 | discover | L | web-ui | Discover/trending, people pages with filmography, adding titles, IMDb rating from the IMDb datasets (D19, D20) | `/spec discover` |
