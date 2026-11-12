@@ -225,3 +225,8 @@ Project knowledge belongs in the repository, not on one machine:
   Ebenso gilt eine Konstante, die in einen Hash eingeht (`RandomState::new().hash_one(1)`),
   als hart kodiertes Salt, und eine Assertion-Meldung, die ein Geheimnis oder eine Ausgabe
   mit Geheimnis ausgibt, als Klartext-Logging: Meldungen nennen nur, *dass* etwas durchsickert.
+- Zwei volle Gate-Läufe im selben Checkout stören sich, auch mit verschiedenen
+  `SOFARR_E2E_PORT_BASE`: Sie teilen `CARGO_TARGET_TMPDIR` (Parity-Tests mit festem Pfad),
+  `ui/test-results`, `ui/.svelte-kit`, das laufende `target/debug/amigo-sofarr` und den
+  Log-Ordner der Gates. Parallel nur in getrennten Worktrees; die Port-Basis trennt nur die
+  e2e-Server.
