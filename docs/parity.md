@@ -213,8 +213,8 @@ Abweichungen nach Ursache:
 
 | Abweichung | Ursache | Stand |
 |---|---|---|
-| Umlaute: Radarr `Fack ju Gohte`, `Der grosse Gatsby`; sofarr `Göhte`, `große` | Radarrs `{Movie CleanTitle}` transliteriert Umlaute und `ß` | offen, Entscheidung des Owners |
-| Satzzeichen: Radarr behält `-` (`Super-Pets`), `.` (`Bros.`, `vs.`) und `–`; sofarr entfernt sie | die Annahme zu `{Movie CleanTitle}` (unten) ist zu streng | offen |
+| Umlaute: Radarr `Fack ju Gohte`, `Der grosse Gatsby`; sofarr `Göhte`, `große` | Radarrs `{Movie CleanTitle}` transliteriert Umlaute und `ß` | behoben (Owner: wie Radarr, Windows-pfadtauglich); Abgleich über alle Filme steht aus |
+| Satzzeichen: Radarr behält `-` (`Super-Pets`), `.` (`Bros.`, `vs.`) und `–`; sofarr entfernt sie | die Annahme zu `{Movie CleanTitle}` (unten) war zu streng | behoben; Abgleich über alle Filme steht aus |
 | Sonarr: `h265` → `x265`, fehlendes `Atmos` | die Abgleich-Datenbank kennt die Dateien nicht (die Pfade des Servers sind auf dem vergleichenden Rechner nicht erreichbar), sofarr nimmt Codec und Atmos deshalb aus dem Release-Namen; im Betrieb liest sofarr die Dateien | Artefakt des Abgleichs, Rest wie bei den Media-Infos |
 | Sonarr: `Trompe L'Oeil` → `Trompe LOeil` | Sonarr behält den Apostroph im Episodentitel | offen |
 
@@ -243,9 +243,9 @@ Radarrs manuellen Import (Spec §5).
 | CF-Score vorhandener Dateien | aus `customFormatScore` der Radarr-Antwort, sonst aus Szene- bzw. Dateiname berechnet. |
 | Import | Die größte Videodatei ohne `sample` im Namen wird verschoben (gleiches Dateisystem: `rename`, sonst kopieren und löschen); Extras bleiben liegen. |
 | Alte Datei bei Upgrade | in den Papierkorb (`recycleBin`), falls gesetzt, sonst gelöscht. |
-| `{Movie CleanTitle}` | Buchstaben, Ziffern und Leerzeichen bleiben; `&` wird `and`, übrige Satzzeichen entfallen. Abgleich vom 12.11.2026: Radarr transliteriert Umlaute und behält `-`, `.` und `–` (siehe „Stand Dateinamen“). |
+| `{Movie CleanTitle}` (auch Serie und Episode) | Buchstaben ohne Diakritika (`ö` → `o`, `ß` → `ss`, `æ` → `ae`), Ziffern, Leerzeichen, `-`, `.` und `–` bleiben; `&` wird `and`, übrige Satzzeichen entfallen. Abgeleitet aus dem Abgleich vom 12.11.2026 (siehe „Stand Dateinamen“); Ligaturen und andere Diakritika ohne Beleg. |
 | `{Movie TitleFirstCharacter}` | erster Buchstabe/Ziffer des Titels ohne führenden Artikel (The/A/An/Der/Die/Das), groß. |
-| Unerlaubte Zeichen | `/` und `\\` werden `+`, `? * " < > \|` entfallen. |
+| Unerlaubte Zeichen | `/` und `\\` werden `+`, `? * " < > \|` entfallen; keine Ordnerebene endet auf Punkt, Leerzeichen, `-` oder `_` (Windows lehnt Punkt und Leerzeichen am Ende ab). |
 | `{Quality Full}` | Quality-Name, dann `Proper`/`Repack` (ab Version 2, ab 3 mit Zahl) und `REAL`. |
 | Import Lists (TMDb-Person) | Cast und die gewählten Crew-Abteilungen (Directing, Production, Sound, Writing); Ausschlüsse aus `exclusions`. |
 | Serien: Staffelpakete | decken alle Episoden der Staffel(n) ab; maßgeblich ist die schwächste vorhandene Datei der überwachten, ausgestrahlten Episoden; ein Paket schlägt einzelne Episoden, die es enthält. |
