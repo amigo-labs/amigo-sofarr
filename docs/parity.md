@@ -208,13 +208,19 @@ Abweichungen nach Ursache:
 
 ## Stand Dateinamen
 
-`amigo-sofarr compare-rename --app radarr|sonarr` (Spec `web-ui-library` AC-23), Lauf vom
+`amigo-sofarr compare-rename --app radarr|sonarr` (Spec `web-ui-library` AC-23). Lauf vom
 12.11.2026: Radarr 200 Filme, 43 abweichend; Sonarr 3.625 Episodendateien, 1.684 abweichend.
+Nach den Korrekturen am 13.11.2026 über alle Filme (`--limit 5000`): Radarr 2.349 Filme,
+rund 32 abweichend (1,4 %); davon betrifft nur ein Drittel den Titel, der Rest Codec-Token
+und Revision.
 
 | Abweichung | Ursache | Stand |
 |---|---|---|
-| Umlaute: Radarr `Fack ju Gohte`, `Der grosse Gatsby`; sofarr `Göhte`, `große` | Radarrs `{Movie CleanTitle}` transliteriert Umlaute und `ß` | behoben (Owner: wie Radarr, Windows-pfadtauglich); Abgleich über alle Filme steht aus |
-| Satzzeichen: Radarr behält `-` (`Super-Pets`), `.` (`Bros.`, `vs.`) und `–`; sofarr entfernt sie | die Annahme zu `{Movie CleanTitle}` (unten) war zu streng | behoben; Abgleich über alle Filme steht aus |
+| Umlaute: Radarr `Fack ju Gohte`, `Der grosse Gatsby`; sofarr `Göhte`, `große` | Radarrs `{Movie CleanTitle}` transliteriert Umlaute und `ß` | behoben (Owner: wie Radarr, Windows-pfadtauglich) |
+| Satzzeichen: Radarr behält `-` im Wort (`Super-Pets`), `.` (`Bros.`, Punktfolgen als ein Punkt), `!`, `–`, `…`, `#`, `·`, `‘` und entfernt einen freistehenden `-` sowie Apostrophe | die Annahme zu `{Movie CleanTitle}` (unten) war zu streng | behoben |
+| Titel, Rest (9 Filme): Radarr behält in 4 Titeln den Apostroph (`Jetzt taut's`, `Shoot 'Em Up`, `Freddy's`, `'ne`), in über 20 anderen nicht; `11 - 14` und `2 - 22` aus `11:14`/`2:22`; `Thunderbolts-` aus `Thunderbolts*`; `Vorbilder!!`; ein doppeltes Leerzeichen | von außen kein Muster zu erkennen, je 1–4 Filme | offen |
+| Codec-Token `x265`/`h265`, `x264`/`h264`, `AVC`/`HEVC` | Radarrs Name nennt hier ein anderes Wort als sein eigenes `mediaInfo`, aus dem sofarr den Namen im Abgleich bildet; nicht untersucht | offen |
+| `Proper` → `Repack` (7 Filme) | Radarr schreibt `Proper`, wo sofarr aus der Revision `Repack` ableitet; nicht untersucht | offen |
 | Sonarr: `h265` → `x265`, fehlendes `Atmos` | die Abgleich-Datenbank kennt die Dateien nicht (die Pfade des Servers sind auf dem vergleichenden Rechner nicht erreichbar), sofarr nimmt Codec und Atmos deshalb aus dem Release-Namen; im Betrieb liest sofarr die Dateien | Artefakt des Abgleichs, Rest wie bei den Media-Infos |
 | Sonarr: `Trompe L'Oeil` → `Trompe LOeil` | Sonarr behält den Apostroph im Episodentitel | offen |
 
@@ -243,7 +249,7 @@ Radarrs manuellen Import (Spec §5).
 | CF-Score vorhandener Dateien | aus `customFormatScore` der Radarr-Antwort, sonst aus Szene- bzw. Dateiname berechnet. |
 | Import | Die größte Videodatei ohne `sample` im Namen wird verschoben (gleiches Dateisystem: `rename`, sonst kopieren und löschen); Extras bleiben liegen. |
 | Alte Datei bei Upgrade | in den Papierkorb (`recycleBin`), falls gesetzt, sonst gelöscht. |
-| `{Movie CleanTitle}` (auch Serie und Episode) | Buchstaben ohne Diakritika (`ö` → `o`, `ß` → `ss`, `æ` → `ae`), Ziffern, Leerzeichen, `-`, `.` und `–` bleiben; `&` wird `and`, übrige Satzzeichen entfallen. Abgeleitet aus dem Abgleich vom 12.11.2026 (siehe „Stand Dateinamen“); Ligaturen und andere Diakritika ohne Beleg. |
+| `{Movie CleanTitle}` (auch Serie und Episode) | Buchstaben ohne Diakritika (`ö` → `o`, `ß` → `ss`, `æ` → `ae`), Ziffern, Leerzeichen, `-` im Wort, `.` (Punktfolgen als ein Punkt), `!`, `–`, `…`, `#`, `·` und `‘` bleiben; ein freistehender `-` und Apostrophe entfallen; `&` wird `and`, übrige Satzzeichen entfallen. Abgeleitet aus dem Abgleich vom 12.11.2026 (siehe „Stand Dateinamen“); Ligaturen und andere Diakritika ohne Beleg. |
 | `{Movie TitleFirstCharacter}` | erster Buchstabe/Ziffer des Titels ohne führenden Artikel (The/A/An/Der/Die/Das), groß. |
 | Unerlaubte Zeichen | `/` und `\\` werden `+`, `? * " < > \|` entfallen; keine Ordnerebene endet auf Punkt, Leerzeichen, `-` oder `_` (Windows lehnt Punkt und Leerzeichen am Ende ab). |
 | `{Quality Full}` | Quality-Name, dann `Proper`/`Repack` (ab Version 2, ab 3 mit Zahl) und `REAL`. |
