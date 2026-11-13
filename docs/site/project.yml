@@ -2,7 +2,7 @@
 schema: 1
 slug: sofarr
 name: Sofarr
-status: in-development
+status: beta
 accent: "#2bd67b"
 tagline:
   en: Movies and TV shows, managed from the sofa
@@ -18,15 +18,19 @@ summary:
     Rust: ein statisches Binary, ein Container, SQLite.
 about:
   en: |
-    amigo-sofarr is in early development and not usable yet. Movies come first, TV shows build on
-    the finished core.
+    amigo-sofarr is in beta: movies, TV shows and the web interface are in place, and sofarr is now
+    being tried out in shadow mode next to a running Radarr and Sonarr before it takes over for good.
+
+    The screenshots show a made-up demo library; its titles, people and posters do not exist.
 
     It is an independent, clean-room project: not part of, endorsed by or derived from Sonarr, Radarr
     or any other Servarr project. No Servarr source code or test data is used; existing instances are
     only observed through their public HTTP API to check that sofarr behaves the same.
   de: |
-    amigo-sofarr ist in einer frühen Entwicklungsphase und noch nicht nutzbar. Zuerst kommen Filme,
-    Serien bauen auf dem fertigen Kern auf.
+    amigo-sofarr ist in der Beta: Filme, Serien und die Web-Oberfläche stehen, und sofarr wird jetzt im
+    Shadow-Modus neben einem laufenden Radarr und Sonarr erprobt, bevor es ganz übernimmt.
+
+    Die Bilder zeigen eine erfundene Demo-Bibliothek; Titel, Personen und Poster gibt es nicht.
 
     Es ist ein unabhängiges Clean-Room-Projekt: weder Teil von Sonarr, Radarr oder einem anderen
     Servarr-Projekt noch von ihnen unterstützt oder abgeleitet. Es wird kein Servarr-Quellcode und
@@ -35,34 +39,78 @@ about:
 platforms: [docker]
 license: MIT
 
+screenshots:
+  - src: screenshots/discover.png
+    alt:
+      en: Discover with today's trending movies and series, their IMDb ratings and whether each one is already in the library
+      de: Entdecken mit den heutigen Trends aus Filmen und Serien, ihren IMDb-Bewertungen und ob sie schon in der Bibliothek sind
+  - src: screenshots/movies.png
+    alt:
+      en: The movie library as a poster grid with filters for monitoring, missing files, cutoff, quality profile and rating
+      de: Die Filmbibliothek als Poster-Raster mit Filtern für Überwachung, fehlende Dateien, Cutoff, Qualitätsprofil und Bewertung
+  - src: screenshots/movie.png
+    alt:
+      en: A movie's page with poster, IMDb rating, release dates, quality profile and cast
+      de: Die Seite eines Films mit Poster, IMDb-Bewertung, Erscheinungsterminen, Qualitätsprofil und Besetzung
+  - src: screenshots/series.png
+    alt:
+      en: A series' page with episode counts, size and its seasons, each episode with air date and quality
+      de: Die Seite einer Serie mit Episodenzahlen, Größe und ihren Staffeln, jede Episode mit Ausstrahlung und Qualität
+  - src: screenshots/calendar.png
+    alt:
+      en: The calendar for the month with episodes and movie releases, marked as available, missing or not out yet
+      de: Der Kalender für den Monat mit Episoden und Filmstarts, markiert als vorhanden, fehlend oder noch nicht erschienen
+  - src: screenshots/person.png
+    alt:
+      en: A person's page with biography and filmography, from which an import list can be created
+      de: Die Seite einer Person mit Biografie und Filmografie, aus der sich eine Import-Liste anlegen lässt
+
 features:
   - title: { en: Own release-name parser, de: Eigener Release-Parser }
     text:
       en: A tokenizer-based parser reads title, year, source, resolution, edition, release group and languages from a release name, measured field by field against thousands of real release names.
       de: Ein Tokenizer-basierter Parser liest Titel, Jahr, Quelle, Auflösung, Edition, Release-Gruppe und Sprachen aus einem Release-Namen – Feld für Feld gemessen an Tausenden echten Release-Namen.
-    status: in-progress
   - title: { en: Decisions by your quality rules, de: Entscheidungen nach eigenen Qualitätsregeln }
     text:
       en: Quality profiles with cutoff and upgrades, size limits, custom formats with scores, propers and repacks, language and indexer settings decide which release to grab.
       de: Qualitätsprofile mit Cutoff und Upgrades, Größengrenzen, Custom Formats mit Punktwerten, Propers und Repacks sowie Sprach- und Indexer-Einstellungen entscheiden, welches Release geholt wird.
-    status: in-progress
   - title: { en: Usenet from search to library, de: Usenet von der Suche bis zur Bibliothek }
     text:
       en: New releases via Newznab RSS and search, downloads through nzbget, then import with renaming into the library — hardlink-friendly with downloads and library under one mount.
       de: Neue Releases über Newznab-RSS und -Suche, Downloads über nzbget, danach Import mit Umbenennung in die Bibliothek – Hardlink-freundlich, mit Downloads und Bibliothek unter einem Mount.
-    status: in-progress
   - title: { en: Move over from Radarr and Sonarr, de: Umzug von Radarr und Sonarr }
     text:
       en: Imports profiles, custom formats, quality definitions, settings and the library from a running instance, and a shadow mode runs alongside it and logs what sofarr would grab before it takes over.
       de: Übernimmt Profile, Custom Formats, Qualitätsdefinitionen, Einstellungen und die Bibliothek aus einer laufenden Instanz; ein Shadow-Modus läuft daneben und protokolliert, was sofarr holen würde, bevor es übernimmt.
-    status: in-progress
   - title: { en: TV shows, de: Serien }
     text:
       en: Episodes, multi-episode files, season packs, daily and anime numbering, specials and series metadata from TVDB.
       de: Episoden, Mehrfach-Episoden, Staffelpakete, tägliche und Anime-Nummerierung, Specials und Serien-Metadaten von TVDB.
-    status: in-progress
   - title: { en: Web UI, de: Web-Oberfläche }
     text:
-      en: A web interface for the service; stack and timing are still open.
-      de: Eine Web-Oberfläche für den Dienst; Technik und Zeitpunkt sind noch offen.
-    status: planned
+      en: Built into the binary, with an overview, movies, series, calendar, missing, blocklist and backups; monitor, search, change profiles, rename and move from the browser, with a light and a dark theme.
+      de: Im Binary eingebaut, mit Übersicht, Filmen, Serien, Kalender, Fehlendem, Blocklist und Backups; überwachen, suchen, Profile ändern, umbenennen und verschieben im Browser, mit hellem und dunklem Design.
+  - title: { en: Discover, de: Entdecken }
+    text:
+      en: Trending and popular titles from TMDB, search, previews, people with their filmography and adding movies and series in one click; a person can become an import list.
+      de: Trends und beliebte Titel von TMDB, Suche, Vorschauen, Personen mit Filmografie und Filme und Serien mit einem Klick hinzufügen; aus einer Person wird auf Wunsch eine Import-Liste.
+  - title: { en: IMDb ratings, de: IMDb-Bewertungen }
+    text:
+      en: Ratings and votes from IMDb's public datasets in every list, sortable and filterable, refreshed daily.
+      de: Bewertungen und Stimmen aus den öffentlichen IMDb-Datensätzen in jeder Liste, sortier- und filterbar, täglich aktualisiert.
+  - title: { en: Subtitles, de: Untertitel }
+    text:
+      en: Fetches missing German, English and forced subtitles from OpenSubtitles.com and stores them by Jellyfin's naming rules.
+      de: Holt fehlende deutsche, englische und erzwungene Untertitel von OpenSubtitles.com und legt sie nach Jellyfins Benennungsregeln ab.
+  - title: { en: Trailers, de: Trailer }
+    text:
+      en: Downloads TMDB trailers with yt-dlp into each movie's trailers folder, within a daily budget.
+      de: Lädt Trailer von TMDB mit yt-dlp in den Trailer-Ordner jedes Films, innerhalb eines täglichen Budgets.
+  - title: { en: Media info, de: Media-Infos }
+    text:
+      en: An own reader for MKV and MP4 headers finds codecs, resolution, HDR, audio and subtitle tracks of every file and fills the naming tokens.
+      de: Ein eigener Leser für MKV- und MP4-Header ermittelt Codecs, Auflösung, HDR, Ton- und Untertitelspuren jeder Datei und füllt die Benennungs-Tokens.
+  - title: { en: Backups and login, de: Backups und Anmeldung }
+    text:
+      en: Scheduled and manual backups with restore; an optional login with sessions, API key and trusted networks.
+      de: Geplante und manuelle Backups mit Wiederherstellung; eine abschaltbare Anmeldung mit Sitzungen, API-Schlüssel und vertrauenswürdigen Netzen.
