@@ -7,7 +7,11 @@ use serde::Deserialize;
 use serde_json::Value;
 use sofarr_parser::Language;
 
+pub mod browse;
 pub mod tvdb;
+pub mod videos;
+
+pub use videos::{Video, VideoOwner, trailer_candidates};
 
 pub const TMDB_API: &str = "https://api.themoviedb.org/3";
 
@@ -43,6 +47,10 @@ pub struct MovieMetadata {
     pub in_cinemas: Option<String>,
     pub digital_release: Option<String>,
     pub physical_release: Option<String>,
+    /// TMDB file path of the poster, e.g. `/abc.jpg`.
+    pub poster_path: Option<String>,
+    /// German overview text, else the default one.
+    pub overview: Option<String>,
 }
 
 /// A movie in a person's filmography.
@@ -132,6 +140,29 @@ impl Tmdb {
             .and_then(|m| m["id"].as_i64()))
     }
 
+    /// Looks a series up by its TVDB id; returns its TMDB id (spec imdb-ratings AC-12).
+    pub async fn find_series_by_tvdb(&self, tvdb_id: i64) -> Result<Option<i64>, MetadataError> {
+        let value = self
+            .get(
+                &format!("find/{tvdb_id}"),
+                &[("external_source", "tvdb_id")],
+            )
+            .await?;
+        Ok(series_id_from_find(&value))
+    }
+
+    /// The IMDb id TMDB knows for a series (spec imdb-ratings AC-05).
+    pub async fn series_imdb_id(&self, tmdb_id: i64) -> Result<Option<String>, MetadataError> {
+        let value = self.get(&format!("tv/{tmdb_id}/external_ids"), &[]).await?;
+        Ok(imdb_id_from_external_ids(&value))
+    }
+
+    /// The TVDB id TMDB knows for a series (spec discover AC-08).
+    pub async fn series_tvdb_id(&self, tmdb_id: i64) -> Result<Option<i64>, MetadataError> {
+        let value = self.get(&format!("tv/{tmdb_id}/external_ids"), &[]).await?;
+        Ok(value["tvdb_id"].as_i64().filter(|id| *id > 0))
+    }
+
     /// All movies a person appeared in or worked on.
     pub async fn person_movies(&self, person_id: i64) -> Result<Vec<CreditedMovie>, MetadataError> {
         let value = self
@@ -154,6 +185,8 @@ struct Translation {
 struct TranslationData {
     #[serde(default)]
     title: String,
+    #[serde(default)]
+    overview: String,
 }
 
 fn year_of(date: &Value) -> Option<u16> {
@@ -198,6 +231,23 @@ pub fn language_from_iso(code: &str) -> Option<Language> {
 }
 
 /// Reads a `movie/{id}` answer (with appended alternative titles and translations).
+/// The TMDB id of the first series in a `find` answer.
+pub fn series_id_from_find(value: &Value) -> Option<i64> {
+    value["tv_results"]
+        .as_array()
+        .and_then(|r| r.first())
+        .and_then(|s| s["id"].as_i64())
+}
+
+/// The IMDb id of an `external_ids` answer; empty counts as none.
+pub fn imdb_id_from_external_ids(value: &Value) -> Option<String> {
+    value["imdb_id"]
+        .as_str()
+        .map(str::trim)
+        .filter(|id| id.starts_with("tt"))
+        .map(str::to_owned)
+}
+
 pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
     let tmdb_id = value["id"]
         .as_i64()
@@ -226,8 +276,22 @@ pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
     if title_de != title && !alternative_titles.contains(&title_de) {
         alternative_titles.push(title_de.clone());
     }
+    let german_overview = translations
+        .iter()
+        .filter(|t| t.iso_639_1 == "de")
+        .map(|t| t.data.overview.trim())
+        .find(|o| !o.is_empty())
+        .map(str::to_owned);
+    let text = |v: &Value| {
+        v.as_str()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    };
     let release = |types: &[u64]| release_date(value, types);
     Ok(MovieMetadata {
+        poster_path: text(&value["poster_path"]),
+        overview: german_overview.or_else(|| text(&value["overview"])),
         status: value["status"]
             .as_str()
             .filter(|s| !s.is_empty())
@@ -325,6 +389,30 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn series_ids_from_find_and_external_ids() {
+        let find =
+            serde_json::json!({"movie_results": [], "tv_results": [{"id": 1399}, {"id": 7}]});
+        assert_eq!(series_id_from_find(&find), Some(1399));
+        assert_eq!(
+            series_id_from_find(&serde_json::json!({"tv_results": []})),
+            None
+        );
+        let ids = serde_json::json!({"imdb_id": "tt0944947", "tvdb_id": 121361});
+        assert_eq!(
+            imdb_id_from_external_ids(&ids).as_deref(),
+            Some("tt0944947")
+        );
+        assert_eq!(
+            imdb_id_from_external_ids(&serde_json::json!({"imdb_id": ""})),
+            None
+        );
+        assert_eq!(
+            imdb_id_from_external_ids(&serde_json::json!({"imdb_id": null})),
+            None
+        );
+    }
+
     fn sample_movie() -> Value {
         json!({
             "id": 42, "imdb_id": "tt0000042", "title": "The Small Garden",
@@ -333,10 +421,10 @@ mod tests {
             "alternative_titles": {"titles": [{"iso_3166_1": "US", "title": "Small Garden"}]},
             "translations": {"translations": [
                 {"iso_639_1": "de", "iso_3166_1": "AT", "data": {"title": "Der kleine Garten (AT)"}},
-                {"iso_639_1": "de", "iso_3166_1": "DE", "data": {"title": "Der kleine Garten"}},
+                {"iso_639_1": "de", "iso_3166_1": "DE", "data": {"title": "Der kleine Garten", "overview": "Ein Garten in Paris."}},
                 {"iso_639_1": "es", "iso_3166_1": "ES", "data": {"title": "El pequeño jardín"}}
             ]},
-            "status": "Released",
+            "status": "Released", "poster_path": "/garten.jpg", "overview": "A garden in Paris.",
             "release_dates": {"results": [
                 {"iso_3166_1": "FR", "release_dates": [
                     {"type": 3, "release_date": "2019-05-01T00:00:00.000Z"},
@@ -359,6 +447,8 @@ mod tests {
         assert_eq!(movie.digital_release.as_deref(), Some("2019-09-20"));
         assert_eq!(movie.physical_release.as_deref(), Some("2019-09-27"));
         assert_eq!(movie.title_de, "Der kleine Garten");
+        assert_eq!(movie.poster_path.as_deref(), Some("/garten.jpg"));
+        assert_eq!(movie.overview.as_deref(), Some("Ein Garten in Paris."));
         assert_eq!(movie.year, Some(2019));
         assert_eq!(movie.runtime_minutes, 104);
         assert_eq!(movie.original_language, Some(Language::French));
@@ -370,8 +460,13 @@ mod tests {
 
     #[test]
     fn german_title_falls_back() {
-        let movie = movie_from_json(&json!({"id": 1, "title": "Only English"})).expect("valid");
+        let movie = movie_from_json(
+            &json!({"id": 1, "title": "Only English", "overview": "Text", "poster_path": null}),
+        )
+        .expect("valid");
         assert_eq!(movie.title_de, "Only English");
+        assert_eq!(movie.overview.as_deref(), Some("Text"));
+        assert_eq!(movie.poster_path, None);
         assert_eq!(movie.original_title, "Only English");
         assert_eq!(movie.year, None);
     }

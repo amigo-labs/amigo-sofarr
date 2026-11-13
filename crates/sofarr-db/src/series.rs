@@ -70,6 +70,8 @@ pub struct SeriesGrab {
     pub download_id: Option<String>,
     pub message: Option<String>,
     pub grabbed_at: Timestamp,
+    /// First successful download check that did not find the download.
+    pub absent_since: Option<Timestamp>,
 }
 
 fn to_i64(n: u64) -> i64 {
@@ -101,7 +103,7 @@ fn series_from_row(row: &SqliteRow) -> Series {
     }
 }
 
-fn grab_from_row(row: &SqliteRow) -> SeriesGrab {
+pub(crate) fn grab_from_row(row: &SqliteRow) -> SeriesGrab {
     SeriesGrab {
         id: row.get("id"),
         series_id: row.get("series_id"),
@@ -124,10 +126,31 @@ fn grab_from_row(row: &SqliteRow) -> SeriesGrab {
             .get::<String, _>("grabbed_at")
             .parse()
             .unwrap_or(Timestamp::UNIX_EPOCH),
+        absent_since: row
+            .get::<Option<String>, _>("absent_since")
+            .and_then(|raw| raw.parse().ok()),
     }
 }
 
 impl Db {
+    /// The TMDB id of a series (D26), if one was found.
+    pub async fn series_tmdb_id(&self, series_id: i64) -> Result<Option<i64>> {
+        let id: Option<Option<i64>> = sqlx::query_scalar("SELECT tmdb_id FROM series WHERE id = ?")
+            .bind(series_id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(id.flatten())
+    }
+
+    pub async fn set_series_tmdb_id(&self, series_id: i64, tmdb_id: i64) -> Result<()> {
+        sqlx::query("UPDATE series SET tmdb_id = ? WHERE id = ?")
+            .bind(tmdb_id)
+            .bind(series_id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
     pub async fn upsert_series(&self, series: &NewSeries, now: Timestamp) -> Result<i64> {
         let mut tx = self.pool().begin().await?;
         let (id,): (i64,) = sqlx::query_as(
@@ -184,9 +207,11 @@ impl Db {
             sqlx::query_as("SELECT series_id, title FROM series_titles ORDER BY series_id, rowid")
                 .fetch_all(self.pool())
                 .await?;
+        let index: std::collections::HashMap<i64, usize> =
+            out.iter().enumerate().map(|(i, s)| (s.id, i)).collect();
         for (series_id, title) in titles {
-            if let Some(s) = out.iter_mut().find(|s| s.id == series_id) {
-                s.data.alternative_titles.push(title);
+            if let Some(&i) = index.get(&series_id) {
+                out[i].data.alternative_titles.push(title);
             }
         }
         Ok(out)
@@ -373,6 +398,24 @@ impl Db {
         Ok(())
     }
 
+    pub async fn series_grab(&self, id: i64) -> Result<Option<SeriesGrab>> {
+        let row = sqlx::query("SELECT * FROM series_grabs WHERE id = ?")
+            .bind(id)
+            .fetch_optional(self.pool())
+            .await?;
+        Ok(row.as_ref().map(grab_from_row))
+    }
+
+    /// Records when the download of a series grab was first missing (`None`: seen again).
+    pub async fn set_series_grab_absent(&self, id: i64, since: Option<Timestamp>) -> Result<()> {
+        sqlx::query("UPDATE series_grabs SET absent_since = ? WHERE id = ?")
+            .bind(since.map(|t| t.to_string()))
+            .bind(id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
     pub async fn set_series_tags(&self, series_id: i64, tags: &[i64]) -> Result<()> {
         sqlx::query("UPDATE series SET tags = ? WHERE id = ?")
             .bind(ids_text(tags))
@@ -533,6 +576,12 @@ mod tests {
             .await
             .expect("grabs");
         assert_eq!(grabs[0].episode_ids, [e1, e2]);
+        db.set_series_grab_absent(gid, Some(now()))
+            .await
+            .expect("absent");
+        let read = db.series_grab(gid).await.expect("read").expect("grab");
+        assert_eq!(read.absent_since, Some(now()));
+        assert_eq!(db.series_grab(gid + 1).await.expect("unknown"), None);
         assert_eq!(grabs[0].download_id.as_deref(), Some("9"));
 
         db.set_series_tags(id, &[2]).await.expect("tags");

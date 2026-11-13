@@ -14,6 +14,13 @@ const VIDEO_EXTENSIONS: &[&str] = &[
     "mkv", "mp4", "m4v", "avi", "m2ts", "ts", "wmv", "mov", "mpg", "mpeg", "webm",
 ];
 
+/// Whether a file has a video extension.
+pub fn is_video(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+}
+
 /// Media-management settings that matter for importing.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ImportSettings {
@@ -51,7 +58,7 @@ pub fn find_video(dir: &Path) -> anyhow::Result<PathBuf> {
         .with_context(|| format!("keine Videodatei in {}", dir.display()))
 }
 
-/// All video files of a download that are not samples, largest first.
+/// All video files of a download that are neither samples nor trailers, largest first.
 pub fn find_videos(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     if dir.is_file() {
         return Ok(vec![dir.to_path_buf()]);
@@ -65,13 +72,12 @@ pub fn find_videos(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
             let entry = entry?;
             let path = entry.path();
             let meta = entry.metadata()?;
+            // Trailers are never the video (spec trailers AC-07).
             if meta.is_dir() {
-                stack.push(path);
-            } else if path
-                .extension()
-                .and_then(|e| e.to_str())
-                .is_some_and(|e| VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
-            {
+                if !crate::trailers::is_trailer_folder(&entry.file_name().to_string_lossy()) {
+                    stack.push(path);
+                }
+            } else if is_video(&path) && !crate::trailers::has_trailer_suffix(&path) {
                 videos.push((meta.len(), path));
             }
         }
@@ -119,9 +125,16 @@ pub fn relative_path(base: &Path, path: &Path) -> String {
     }
 }
 
-/// Naming input for a release of a movie.
-pub fn naming_input(movie: &Movie, release_title: &str, quality: &str) -> NamingInput {
+/// Naming input for a release of a movie; the `{MediaInfo…}` parts come from the file's
+/// media info where it knows them, otherwise from the release name.
+pub fn naming_input(
+    movie: &Movie,
+    release_title: &str,
+    quality: &str,
+    media: Option<&sofarr_mediainfo::MediaInfo>,
+) -> NamingInput {
     let parsed = sofarr_parser::parse(release_title);
+    let parts = crate::media::NamingParts::of(media);
     NamingInput {
         title: movie.title.clone(),
         title_de: movie.title_de.clone(),
@@ -131,7 +144,8 @@ pub fn naming_input(movie: &Movie, release_title: &str, quality: &str) -> Naming
         revision: parsed.revision,
         release_group: parsed.release_group,
         edition: parsed.edition,
-        media_info_simple: naming::media_info_from_name(release_title),
+        media_info_simple: parts.simple(release_title),
+        dynamic_range: parts.dynamic_range(release_title),
         imdb_id: movie.imdb_id.clone(),
         tmdb_id: Some(movie.tmdb_id),
         ..NamingInput::default()
@@ -158,6 +172,7 @@ pub fn plan(
     quality: &str,
     download: &Path,
     naming: &NamingConfig,
+    media: Option<&sofarr_mediainfo::MediaInfo>,
 ) -> anyhow::Result<ImportPlan> {
     let source = find_video(download)?;
     let extension = source
@@ -168,7 +183,7 @@ pub fn plan(
     let stem = if naming.rename_movies {
         naming::format(
             &naming.standard_movie_format,
-            &naming_input(movie, release_title, quality),
+            &naming_input(movie, release_title, quality, media),
             naming,
         )
     } else {
@@ -191,7 +206,8 @@ pub fn plan(
     })
 }
 
-fn free_space_mb(path: &Path) -> Option<u64> {
+/// Free space (MB) on the file system of `path` or its nearest existing ancestor.
+pub fn free_space_mb(path: &Path) -> Option<u64> {
     let existing = path.ancestors().find(|p| p.exists())?;
     // Space available to the (unprivileged) process, like `f_bavail` on Unix.
     fs4::available_space(existing)
@@ -360,6 +376,7 @@ mod tests {
             "Bluray-1080p",
             &download,
             &naming,
+            None,
         )
         .expect("plan");
         assert_eq!(plan.source, download.join("grp-garten.mkv"));
@@ -401,6 +418,44 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
+    /// Spec trailers AC-07: a trailer is never the video of a download or a folder.
+    #[test]
+    fn trailers_are_never_the_video() {
+        let root = temp_dir("trailers");
+        let movie = root.join("Heat (1995)");
+        fs::create_dir_all(movie.join("trailers")).expect("dir");
+        fs::create_dir_all(movie.join("Season 01/Trailers")).expect("dir");
+        fs::write(movie.join("Heat (1995).mkv"), vec![0u8; 100]).expect("video");
+        for name in [
+            "trailers/Heat (1995) - Trailer (Deutsch).mkv",
+            "Season 01/Trailers/big.mkv",
+            "Heat (1995)-trailer.mkv",
+            "Heat (1995).Trailer.mp4",
+            "Heat (1995)_trailer.webm",
+        ] {
+            fs::write(movie.join(name), vec![0u8; 5000]).expect("trailer");
+        }
+        assert_eq!(
+            find_videos(&movie).expect("videos"),
+            [movie.join("Heat (1995).mkv")]
+        );
+        assert_eq!(
+            find_video(&movie).expect("video"),
+            movie.join("Heat (1995).mkv")
+        );
+        // A name that only contains "trailer" is a video.
+        fs::write(movie.join("Trailer Park Boys.mkv"), vec![0u8; 50]).expect("video");
+        assert_eq!(find_videos(&movie).expect("videos").len(), 2);
+        // Only trailers left: no video, the leftovers go.
+        let download = root.join("download");
+        fs::create_dir_all(download.join("trailers")).expect("dir");
+        fs::write(download.join("trailers/t.mkv"), b"t").expect("trailer");
+        fs::write(download.join("x-trailer.mkv"), b"t").expect("trailer");
+        assert!(find_video(&download).is_err());
+        assert!(remove_leftovers(&download).expect("remove"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn free_space_check_refuses() {
         let root = temp_dir("space");
@@ -427,7 +482,7 @@ mod tests {
             ..NamingConfig::default()
         };
         let m = movie(Path::new(""), None);
-        let input = naming_input(&m, "x", "Unknown");
+        let input = naming_input(&m, "x", "Unknown", None);
         assert_eq!(
             movie_folder(Path::new("/data/media/movies"), &input, &naming),
             PathBuf::from("/data/media/movies/K/Der kleine Garten (2019)")

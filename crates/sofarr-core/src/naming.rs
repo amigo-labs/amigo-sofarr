@@ -7,6 +7,10 @@
 //! the token name (space, `.`, `_`, `-`) is used between the words of the value;
 //! a `:XX` suffix selects a translation.
 
+mod clean;
+
+use clean::clean_title;
+
 use sofarr_parser::Revision;
 
 /// How `:` in titles is replaced.
@@ -198,8 +202,13 @@ pub fn format(pattern: &str, input: &NamingInput, config: &NamingConfig) -> Stri
     tidy(&out)
 }
 
-/// Collapses doubled separators left behind by empty tokens and trims the ends.
+/// Collapses doubled separators left behind by empty tokens and trims the ends of every
+/// folder level, so no path component ends with a dot or a space (invalid on Windows).
 fn tidy(s: &str) -> String {
+    s.split('/').map(tidy_level).collect::<Vec<_>>().join("/")
+}
+
+fn tidy_level(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         let last = out.chars().last();
@@ -457,21 +466,6 @@ fn title_text(title: &str, config: &NamingConfig) -> String {
     out
 }
 
-/// Title without punctuation: letters, digits and spaces remain; `&` becomes `and`.
-fn clean_title(title: &str) -> String {
-    let mut out = String::new();
-    for c in title.chars() {
-        if c.is_alphanumeric() {
-            out.push(c);
-        } else if c == '&' {
-            out.push_str(" and ");
-        } else if c.is_whitespace() || matches!(c, '-' | ':' | '/' | '\\' | '.') {
-            out.push(' ');
-        }
-    }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 /// `The Matrix` → `Matrix, The`.
 fn move_article(title: &str) -> String {
     for article in ["The ", "A ", "An ", "Der ", "Die ", "Das "] {
@@ -571,34 +565,36 @@ fn quality_full(input: &NamingInput) -> String {
     out
 }
 
-/// Video and audio codec guessed from a release name, e.g. `x265 DTS-HD MA`.
-///
-/// sofarr reads no media info from files yet; the release name is the best source.
-pub fn media_info_from_name(name: &str) -> Option<String> {
-    let tokens: Vec<String> = name
-        .split(['.', ' ', '_', '-', '[', ']', '(', ')'])
+fn name_tokens(name: &str) -> Vec<String> {
+    name.split(['.', ' ', '_', '-', '[', ']', '(', ')'])
         .map(str::to_ascii_lowercase)
-        .collect();
+        .collect()
+}
+
+/// The video part of `{MediaInfo Simple}` guessed from a release name, e.g. `x265`.
+pub fn video_from_name(name: &str) -> Option<&'static str> {
+    let tokens = name_tokens(name);
     let has = |t: &str| tokens.iter().any(|x| x == t);
-    let video =
-        if has("x265") || has("hevc") || has("h265") || name.to_ascii_lowercase().contains("h.265")
-        {
-            Some("x265")
-        } else if has("x264")
-            || has("avc")
-            || has("h264")
-            || name.to_ascii_lowercase().contains("h.264")
-        {
-            Some("x264")
-        } else if has("av1") {
-            Some("AV1")
-        } else if has("xvid") {
-            Some("XviD")
-        } else {
-            None
-        };
     let lower = name.to_ascii_lowercase();
-    let audio = if lower.contains("truehd") {
+    if has("x265") || has("hevc") || has("h265") || lower.contains("h.265") {
+        Some("x265")
+    } else if has("x264") || has("avc") || has("h264") || lower.contains("h.264") {
+        Some("x264")
+    } else if has("av1") {
+        Some("AV1")
+    } else if has("xvid") {
+        Some("XviD")
+    } else {
+        None
+    }
+}
+
+/// The audio part of `{MediaInfo Simple}` guessed from a release name, e.g. `DTS-HD MA`.
+pub fn audio_from_name(name: &str) -> Option<&'static str> {
+    let tokens = name_tokens(name);
+    let has = |t: &str| tokens.iter().any(|x| x == t);
+    let lower = name.to_ascii_lowercase();
+    if lower.contains("truehd") {
         Some("TrueHD")
     } else if lower.contains("dts-hd") || lower.contains("dtshd") {
         Some("DTS-HD MA")
@@ -618,16 +614,77 @@ pub fn media_info_from_name(name: &str) -> Option<String> {
         Some("AAC")
     } else {
         None
-    };
+    }
+}
+
+/// Video and audio codec guessed from a release name, e.g. `x265 DTS-HD MA`.
+pub fn media_info_from_name(name: &str) -> Option<String> {
+    media_info_simple(None, None, name)
+}
+
+/// `{MediaInfo Simple}`: each part (video, audio) from the file's media info where it
+/// is known, otherwise guessed from the release name.
+pub fn media_info_simple(
+    file_video: Option<&str>,
+    file_audio: Option<&str>,
+    name: &str,
+) -> Option<String> {
+    let video = file_video.or_else(|| video_from_name(name));
+    let audio = file_audio.or_else(|| audio_from_name(name));
     match (video, audio) {
         (None, None) => None,
         (v, a) => Some([v, a].into_iter().flatten().collect::<Vec<_>>().join(" ")),
     }
 }
 
+/// `{MediaInfo VideoDynamicRange}`: from the file where its video is known (`None` for
+/// SDR), otherwise guessed from the release name.
+pub fn video_dynamic_range(file: Option<Option<&str>>, name: &str) -> Option<String> {
+    match file {
+        Some(label) => label.filter(|l| !l.is_empty()).map(str::to_owned),
+        None => dynamic_range_from_name(name),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn media_info_parts_come_from_the_file_where_known() {
+        let name = "Film.2020.1080p.BluRay.DTS-HD.MA.x264-GRP";
+        assert_eq!(
+            media_info_from_name(name).as_deref(),
+            Some("x264 DTS-HD MA")
+        );
+        // The file knows both parts.
+        assert_eq!(
+            media_info_simple(Some("x265"), Some("TrueHD Atmos"), name).as_deref(),
+            Some("x265 TrueHD Atmos")
+        );
+        // Only the audio is unknown in the file: that part comes from the name.
+        assert_eq!(
+            media_info_simple(Some("x265"), None, name).as_deref(),
+            Some("x265 DTS-HD MA")
+        );
+        assert_eq!(
+            media_info_simple(None, Some("EAC3"), name).as_deref(),
+            Some("x264 EAC3")
+        );
+        assert_eq!(media_info_simple(None, None, "Film.2020"), None);
+        // Dynamic range: the file decides, also when it says SDR.
+        let hdr_name = "Film.2020.2160p.DV.HDR10.WEB";
+        assert_eq!(
+            video_dynamic_range(Some(Some("HDR10+")), hdr_name).as_deref(),
+            Some("HDR10+")
+        );
+        assert_eq!(video_dynamic_range(Some(None), hdr_name), None);
+        assert_eq!(video_dynamic_range(Some(Some("")), hdr_name), None);
+        assert_eq!(
+            video_dynamic_range(None, hdr_name).as_deref(),
+            Some("DV HDR10")
+        );
+    }
 
     fn input() -> NamingInput {
         NamingInput {
@@ -662,7 +719,7 @@ mod tests {
         );
         assert_eq!(
             name,
-            "Mission Impossible Fallout (2018) Bluray-1080p.x264.DTS-GRP"
+            "Mission Impossible – Fallout (2018) Bluray-1080p.x264.DTS-GRP"
         );
     }
 
@@ -677,6 +734,22 @@ mod tests {
             &config(),
         );
         assert_eq!(name, "Mission - Impossible - Fallout Bluray-1080p");
+    }
+
+    #[test]
+    fn every_folder_level_is_a_valid_windows_name() {
+        let mut i = input();
+        i.title = "Mr. Smith Jr.".to_owned();
+        i.title_de = None;
+        // Windows refuses a path component that ends with a dot or a space.
+        assert_eq!(
+            format(
+                "{Movie CleanTitle}/{Movie CleanTitle} ({Release Year})",
+                &i,
+                &config()
+            ),
+            "Mr. Smith Jr/Mr. Smith Jr. (2018)"
+        );
     }
 
     #[test]

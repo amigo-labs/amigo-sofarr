@@ -4,3 +4,10 @@
 /config/sofarr.toml
 *.env
 .env*
+
+# Web UI (ui/): dependencies, build output, test results
+/ui/node_modules/
+/ui/build/
+/ui/.svelte-kit/
+/ui/test-results/
+/ui/playwright-report/

@@ -20,6 +20,12 @@ pub enum DownloadError {
         client: &'static str,
         message: String,
     },
+    /// The client refused the NZB itself (invalid file), not a connection problem.
+    #[error("{client}: NZB abgelehnt: {message}")]
+    Rejected {
+        client: &'static str,
+        message: String,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, DownloadError>;
@@ -31,8 +37,26 @@ pub enum DownloadState {
     Paused,
     /// Download, repair and unpack finished.
     Completed,
-    Failed,
+    Failed(Failure),
 }
+
+/// Why a download ended without success.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Failure {
+    /// Caused by the release itself: health or par check, unpacking, deleted by hand.
+    Release,
+    /// Anything else: moving, disk space, scripts, rejected as a duplicate, …
+    Local,
+}
+
+/// nzbget history states that prove the release itself unusable.
+const RELEASE_FAILURES: &[&str] = &[
+    "FAILURE/HEALTH",
+    "FAILURE/PAR",
+    "FAILURE/UNPACK",
+    "DELETED/HEALTH",
+    "DELETED/MANUAL",
+];
 
 /// One download as the client reports it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,6 +140,14 @@ impl Nzbget {
     }
 }
 
+impl Nzbget {
+    /// The current download speed in bytes per second (0 while paused or idle).
+    pub async fn download_rate(&self) -> Result<u64> {
+        let status = self.call("status", json!([])).await?;
+        Ok(status["DownloadRate"].as_u64().unwrap_or(0))
+    }
+}
+
 fn mib(value: &Value) -> u64 {
     value.as_u64().unwrap_or(0) * MIB
 }
@@ -149,8 +181,10 @@ pub fn history_item(entry: &Value) -> DownloadItem {
     let status = text(&entry["Status"]);
     let state = if status.starts_with("SUCCESS") {
         DownloadState::Completed
+    } else if RELEASE_FAILURES.iter().any(|f| status.starts_with(f)) {
+        DownloadState::Failed(Failure::Release)
     } else {
-        DownloadState::Failed
+        DownloadState::Failed(Failure::Local)
     };
     let final_dir = text(&entry["FinalDir"]);
     let dest_dir = text(&entry["DestDir"]);
@@ -198,9 +232,9 @@ impl DownloadClient for Nzbget {
             .await?;
         match result.as_i64() {
             Some(id) if id > 0 => Ok(id.to_string()),
-            _ => Err(DownloadError::Rpc {
+            _ => Err(DownloadError::Rejected {
                 client: NZBGET,
-                message: format!("append abgelehnt: {result}"),
+                message: format!("append lieferte {result}"),
             }),
         }
     }
@@ -264,8 +298,66 @@ mod tests {
             Some("/downloads/completed/movies/Film")
         );
         let f = history_item(&json!({"NZBID": 9, "Status": "FAILURE/PAR"}));
-        assert_eq!(f.state, DownloadState::Failed);
+        assert_eq!(f.state, DownloadState::Failed(Failure::Release));
         assert_eq!(f.message.as_deref(), Some("FAILURE/PAR"));
+    }
+
+    #[test]
+    fn classifies_failed_downloads() {
+        let state = |status: &str| history_item(&json!({"NZBID": 1, "Status": status})).state;
+        for status in [
+            "FAILURE/HEALTH",
+            "FAILURE/PAR",
+            "FAILURE/UNPACK",
+            "DELETED/HEALTH",
+            "DELETED/MANUAL",
+        ] {
+            assert_eq!(
+                state(status),
+                DownloadState::Failed(Failure::Release),
+                "{status}"
+            );
+        }
+        for status in [
+            "DELETED/DUPE",
+            "FAILURE/MOVE",
+            "WARNING/SPACE",
+            "WARNING/SCRIPT",
+            "DELETED/COPY",
+        ] {
+            assert_eq!(
+                state(status),
+                DownloadState::Failed(Failure::Local),
+                "{status}"
+            );
+        }
+        assert_eq!(state("SUCCESS/UNPACK"), DownloadState::Completed);
+    }
+
+    #[tokio::test]
+    async fn a_rejected_nzb_is_its_own_error() {
+        let app = Router::new().route("/jsonrpc", post(|| async { Json(json!({"result": 0})) }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        let nzbget = Nzbget::new(
+            reqwest::Client::builder()
+                .no_proxy()
+                .build()
+                .expect("client"),
+            NzbgetConfig {
+                url: format!("http://{addr}"),
+                username: "u".to_owned(),
+                password: "p".to_owned(),
+            },
+        );
+        let err = nzbget
+            .add_nzb("Film", b"kaputt", "movies")
+            .await
+            .expect_err("rejected");
+        assert!(matches!(err, DownloadError::Rejected { .. }), "{err:?}");
     }
 
     #[tokio::test]
@@ -290,6 +382,7 @@ mod tests {
                 "history" => {
                     json!({"result": [{"NZBID": 41, "Name": "b", "Status": "SUCCESS/ALL", "DestDir": "/d/b"}]})
                 }
+                "status" => json!({"result": {"DownloadRate": 2_097_152, "DownloadPaused": false}}),
                 _ => json!({"result": true}),
             })
         }
@@ -324,6 +417,7 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(items[1].state, DownloadState::Completed);
         nzbget.remove("41").await.expect("remove");
+        assert_eq!(nzbget.download_rate().await.expect("rate"), 2_097_152);
         let calls = calls.lock().expect("lock");
         let (_, append) = &calls[0];
         assert_eq!(append[0], "Film.2020.nzb");

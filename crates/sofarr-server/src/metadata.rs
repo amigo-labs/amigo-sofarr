@@ -13,7 +13,23 @@ pub fn tmdb(app: &App) -> anyhow::Result<Tmdb> {
         .tmdb
         .as_ref()
         .context("[tmdb] fehlt in der Konfiguration")?;
-    Ok(Tmdb::new(app.http.clone(), &config.api_key))
+    Ok(Tmdb::with_base(
+        app.http.clone(),
+        &config.api_key,
+        &app.tmdb_api,
+    ))
+}
+
+/// The TVDB client; `None` without `[tvdb]`.
+pub fn tvdb(app: &App) -> Option<sofarr_metadata::tvdb::Tvdb> {
+    app.config.tvdb.as_ref().map(|config| {
+        sofarr_metadata::tvdb::Tvdb::with_base(
+            app.http.clone(),
+            &config.api_key,
+            config.pin.clone(),
+            &app.tvdb_api,
+        )
+    })
 }
 
 /// Merges TMDB data into a library movie; library state (monitoring, profile, path) stays.
@@ -85,12 +101,28 @@ pub async fn refresh_all(app: &App) -> anyhow::Result<usize> {
                 app.db
                     .upsert_movie(&merge(&current, &meta), Timestamp::now())
                     .await?;
+                store_presentation(app, current.id, &meta).await?;
                 done += 1;
             }
             Err(e) => tracing::warn!(movie = %movie.title, error = %e, "metadata refresh failed"),
         }
     }
     Ok(done)
+}
+
+/// Poster path and overview TMDB offers for a movie (a new path loads the new poster).
+pub async fn store_presentation(app: &App, id: i64, meta: &MovieMetadata) -> anyhow::Result<()> {
+    app.db
+        .set_movie_presentation(
+            id,
+            meta.poster_path
+                .as_deref()
+                .and_then(crate::images::tmdb_path)
+                .as_deref(),
+            meta.overview.as_deref(),
+        )
+        .await?;
+    Ok(())
 }
 
 /// A new library movie from TMDB data (import lists).
@@ -146,5 +178,112 @@ pub fn as_library_movie(movie: &NewMovie) -> Movie {
         availability: movie.availability.clone(),
         tags: movie.tags.clone(),
         file: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use axum::{Json, Router, extract::State, routing::get};
+    use jiff::Timestamp;
+    use serde_json::{Value, json};
+    use sofarr_db::Db;
+    use sofarr_metadata::MovieMetadata;
+
+    use super::{as_library_movie, merge, new_movie, refresh_all};
+    use crate::{app::App, config::Config};
+
+    fn meta(imdb: Option<&str>) -> MovieMetadata {
+        MovieMetadata {
+            tmdb_id: 603,
+            imdb_id: imdb.map(str::to_owned),
+            title: "Matrix".to_owned(),
+            original_title: "The Matrix".to_owned(),
+            title_de: "Matrix".to_owned(),
+            year: Some(1999),
+            runtime_minutes: 136,
+            original_language: None,
+            alternative_titles: Vec::new(),
+            status: None,
+            in_cinemas: None,
+            digital_release: None,
+            physical_release: None,
+            poster_path: None,
+            overview: None,
+        }
+    }
+
+    /// Spec imdb-ratings AC-05 for movies: the refresh sets a missing or changed IMDb id
+    /// from TMDB and keeps the previous one when TMDB reports none.
+    #[test]
+    fn the_refresh_takes_tmdbs_imdb_id_and_keeps_the_old_one_without() {
+        let without = as_library_movie(&new_movie(&meta(None), true, 1, "released", Vec::new()));
+        let set = merge(&without, &meta(Some("tt0133093")));
+        assert_eq!(set.imdb_id.as_deref(), Some("tt0133093"));
+        let known = as_library_movie(&set);
+        let changed = merge(&known, &meta(Some("tt9999999")));
+        assert_eq!(changed.imdb_id.as_deref(), Some("tt9999999"));
+        let kept = merge(&known, &meta(None));
+        assert_eq!(kept.imdb_id.as_deref(), Some("tt0133093"));
+    }
+
+    /// Spec web-ui-library AC-20: the TMDB refresh stores the poster path and the German
+    /// overview; a later answer without them keeps the stored ones.
+    #[tokio::test]
+    async fn the_refresh_stores_poster_and_overview_and_keeps_them() {
+        let answer = Arc::new(Mutex::new(json!({
+            "id": 603, "title": "Matrix", "original_title": "The Matrix",
+            "poster_path": "/matrix.jpg", "overview": "Ein Hacker erfährt die Wahrheit."
+        })));
+        let router = Router::new()
+            .route(
+                "/3/movie/603",
+                get(|State(a): State<Arc<Mutex<Value>>>| async move {
+                    Json(a.lock().map(|v| v.clone()).unwrap_or_default())
+                }),
+            )
+            .with_state(Arc::clone(&answer));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        tokio::spawn(async move { axum::serve(listener, router).await });
+        let config = Config::parse(&format!(
+            "[tmdb]
+api_key = \"{}\"
+",
+            crate::test_secret::secret()
+        ))
+        .expect("config");
+        let mut app = App::with_db(config, Db::in_memory().await.expect("db")).expect("app");
+        app.http = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("client");
+        app.tmdb_api = format!("http://{addr}/3");
+        let id = app
+            .db
+            .upsert_movie(
+                &new_movie(&meta(None), true, 1, "released", Vec::new()),
+                Timestamp::now(),
+            )
+            .await
+            .expect("movie");
+        assert_eq!(refresh_all(&app).await.expect("refresh"), 1);
+        let shown = app.db.movie_presentation().await.expect("db");
+        assert_eq!(shown[&id].poster_path.as_deref(), Some("/matrix.jpg"));
+        assert_eq!(
+            shown[&id].overview.as_deref(),
+            Some("Ein Hacker erfährt die Wahrheit.")
+        );
+        if let Ok(mut a) = answer.lock() {
+            a["poster_path"] = Value::Null;
+            a["overview"] = Value::Null;
+        }
+        assert_eq!(refresh_all(&app).await.expect("refresh"), 1);
+        let kept = app.db.movie_presentation().await.expect("db");
+        assert_eq!(kept[&id].poster_path.as_deref(), Some("/matrix.jpg"));
+        assert!(kept[&id].overview.is_some());
     }
 }

@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "singleQuote": true,
+  "svelte": true,
+  "ignorePatterns": [
+    "build/**",
+    ".svelte-kit/**",
+    "node_modules/**",
+    "test-results/**",
+    "playwright-report/**",
+    "src/lib/api/generated/**",
+    "bun.lock"
+  ]
+}

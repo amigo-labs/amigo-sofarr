@@ -24,6 +24,7 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # TMDB-Zugang (v3-API-Key oder v4-Read-Token) – für Metadaten und Import Lists.
 # [tmdb]
 # api_key = "dein-tmdb-key"
+# url = "https://api.themoviedb.org/3"   # API-Adresse; nur für Testaufbauten ändern
 
 # Radarr-Instanz für den einmaligen Import und die Abgleiche.
 # [radarr]
@@ -47,12 +48,14 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # [tvdb]
 # api_key = "dein-tvdb-key"
 # pin = "optional"
+# url = "https://api4.thetvdb.com/v4"   # API-Adresse; nur für Testaufbauten ändern
 
 # Download-Client (nur im Modus "live" genutzt).
 # [nzbget]
 # url = "http://nzbget:6789"
 # username = "nzbget"
 # password = "dein-passwort"
+
 # category = "movies"
 # tv_category = "tv"
 
@@ -61,10 +64,37 @@ check_interval_minutes = 2
 # Nach dem Import: Download aus der nzbget-History entfernen und den Ordner löschen,
 # wenn kein Video mehr darin liegt.
 remove_completed = true
+# Nach einem fehlgeschlagenen Download erneut suchen (Filme, Serien). Ohne Angabe gilt
+# `autoRedownloadFailed` aus dem Radarr- bzw. Sonarr-Import, ohne Import: aus.
+# redownload_failed_movies = false
+# redownload_failed_series = true
 # Falls nzbget Pfade anders sieht als sofarr (andere Container-Mounts):
 # [[download.path_map]]
 # remote = "/downloads"
 # local = "/data/usenet"
+
+[backup]
+# Sicherungen der Datenbank (ohne diese Datei: sie enthält Zugangsdaten).
+dir = "/config/backups"
+# Stunden zwischen geplanten Sicherungen; 0 schaltet sie ab.
+interval_hours = 24
+# So viele geplante Sicherungen bleiben (mindestens 1); manuelle bleiben immer.
+keep = 7
+
+[auth]
+# Anmeldung für API und Oberfläche; aus: jeder im Netz erreicht die API.
+enabled = false
+# username = "daniel"
+# Hash erzeugen mit `amigo-sofarr hash-password` (Argon2id).
+# password_hash = "$argon2id$v=19$…"
+# Für Skripte: Header `X-Api-Key`.
+# api_key = "…"
+# Sitzungen enden nach so vielen Tagen ohne Nutzung.
+session_days = 30
+# Adressbereiche ohne Anmeldung, z. B. das Heimnetz.
+trusted_networks = []
+# Reverse Proxys, deren X-Forwarded-For zählt.
+trusted_proxies = []
 
 [import_lists]
 interval_hours = 24   # 0 schaltet die Import Lists ab
@@ -73,3 +103,31 @@ interval_hours = 24   # 0 schaltet die Import Lists ab
 # Metadaten-Refresh (TMDB/TVDB, falls eingetragen) mit anschließendem Festplatten-Scan
 # laut rescanAfterRefresh; 0 schaltet ihn ab. Der erste Lauf folgt ein Intervall nach dem Start.
 refresh_interval_hours = 24
+
+[subtitles]
+# Untertitel von OpenSubtitles.com (nur mit [opensubtitles]); false schaltet sie ab.
+# enabled = true
+# Gewünschte Sprachen (ISO 639-1); geladen wird nur, was weder Tonspur noch Untertitel abdeckt.
+languages = ["de", "en"]
+# Stunden zwischen geplanten Suchen; 0: nur die Suche nach einem Import.
+interval_hours = 12
+
+# OpenSubtitles.com-Zugang (API-Key unter opensubtitles.com/consumers).
+# [opensubtitles]
+# api_key = "dein-api-key"
+# username = "dein-benutzername"
+# password = "dein-passwort"
+
+[imdb]
+# IMDb-Bewertungen aus dem offiziellen IMDb-Datensatz, täglich geladen (nur für die eigene,
+# nicht kommerzielle Nutzung); false lädt nichts und zeigt keine Bewertungen.
+enabled = true
+
+[trailers]
+# Trailer von TMDB (YouTube) per yt-dlp in den Ordner "trailers" jedes Films und jeder Serie,
+# für Jellyfin. Im Container sind yt-dlp und ffmpeg dabei.
+enabled = true
+languages = ["de", "en"]   # bevorzugte Sprachen in dieser Reihenfolge, danach ohne Sprache
+max_height = 1080          # höchste Auflösung (Zeilen)
+per_day = 20               # Trailer pro Tag im täglichen Lauf; 0 schaltet ihn ab
+# yt_dlp = "yt-dlp"        # Programm (ohne Ordner: über PATH)

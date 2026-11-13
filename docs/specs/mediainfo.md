@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-12
 size: L
 design: [sofarr.md §3, sofarr.md §5, sofarr.md §6, sofarr.md §9 D22]
@@ -79,18 +79,18 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When sofarr imports a file or the disk scan finds a new or changed file (size or modification time differs from when it was last read), then sofarr reads and stores its media info; an unchanged file is not read again, whatever its read status — except `unreadable`, which is retried at every scan.
-- [ ] AC-02 (event): When the disk scan meets a library file in a supported container that has no media info yet, then sofarr reads and stores it, so existing libraries get media info without re-importing.
-- [ ] AC-03 (always): For a supported container sofarr records, as far as the header data shows them, the video codec and encoder, resolution, dynamic range, every audio track with codec, channel layout and language, and every subtitle track with language, format and the forced, default and hearing-impaired flags; a file without a video track has the video fields unknown.
-- [ ] AC-04 (error): If a file is cut short, damaged, not a supported container, or cannot be opened (permission, IO error), then sofarr never panics and never blocks the import or the scan: it records what it could read with the status `partial`, `damaged`, `unsupported` or `unreadable`, and the rest as unknown.
-- [ ] AC-05 (always): Reading media info of a file of any size reads at most 16 MiB of its bytes in total; bytes skipped by seeking do not count.
-- [ ] AC-06 (event): When a naming format uses `{MediaInfo Simple}` or `{MediaInfo VideoDynamicRange}` (in any of their separator forms), then sofarr fills each part of the label (video codec, audio, dynamic range) from the file's media info where that field is known, and only the parts with an unknown field from the guess from the release name.
-- [ ] AC-07 (always, manual: needs the owner's library and running Radarr/Sonarr): In the owner's oracle comparison, the video, audio and dynamic range labels equal the oracle field for at least 95 % of the compared files per field; the remaining mismatches are listed by cause in `docs/parity.md`. Where the oracle consistently uses another word than the starting vocabulary, the vocabulary takes the oracle's word.
-- [ ] AC-08 (event): When the user runs the oracle comparison against Radarr or Sonarr, then sofarr reads every library file the oracle reports and compares each label with its oracle field (languages mapped from the oracle's language names to ISO 639-2/B; a name that cannot be mapped counts as a mismatch showing the raw name), and prints pass/total per field plus the first 20 mismatches per field with file name, expected and found value.
-- [ ] AC-09 (error): If a file of the oracle cannot be read by sofarr (missing, no permission, unsupported container) or the oracle has no `mediaInfo` for it, then the comparison counts it as skipped with the reason, not as a mismatch, and continues; if the oracle itself cannot be reached or refuses the API key, the command stops with a German message (exit code ≠ 0).
-- [ ] AC-10 (event): When the user requests the file of a movie or of an episode through the API, then the answer contains its media info and read status (fields in Technical notes); an item without a file answers status 404.
-- [ ] AC-11 (always): Reading media info never writes to the file and never changes its modification time.
-- [ ] AC-12 (state): While sofarr runs in shadow mode, the disk scan still reads and stores media info, because it only reads files.
+- [x] AC-01 (event): When sofarr imports a file or the disk scan finds a new or changed file (size or modification time differs from when it was last read), then sofarr reads and stores its media info; an unchanged file is not read again, whatever its read status — except `unreadable`, which is retried at every scan.
+- [x] AC-02 (event): When the disk scan meets a library file in a supported container that has no media info yet, then sofarr reads and stores it, so existing libraries get media info without re-importing.
+- [x] AC-03 (always): For a supported container sofarr records, as far as the header data shows them, the video codec and encoder, resolution, dynamic range, every audio track with codec, channel layout and language, and every subtitle track with language, format and the forced, default and hearing-impaired flags; a file without a video track has the video fields unknown.
+- [x] AC-04 (error): If a file is cut short, damaged, not a supported container, or cannot be opened (permission, IO error), then sofarr never panics and never blocks the import or the scan: it records what it could read with the status `partial`, `damaged`, `unsupported` or `unreadable`, and the rest as unknown.
+- [x] AC-05 (always): Reading media info of a file of any size reads at most 16 MiB of its bytes in total; bytes skipped by seeking do not count.
+- [x] AC-06 (event): When a naming format uses `{MediaInfo Simple}` or `{MediaInfo VideoDynamicRange}` (in any of their separator forms), then sofarr fills each part of the label (video codec, audio, dynamic range) from the file's media info where that field is known, and only the parts with an unknown field from the guess from the release name.
+- [x] AC-07 (always, manual: needs the owner's library and running Radarr/Sonarr): In the owner's oracle comparison, the video, audio and dynamic range labels equal the oracle field for at least 95 % of the compared files per field; the remaining mismatches are listed by cause in `docs/parity.md`. Where the oracle consistently uses another word than the starting vocabulary, the vocabulary takes the oracle's word.
+- [x] AC-08 (event): When the user runs the oracle comparison against Radarr or Sonarr, then sofarr reads every library file the oracle reports and compares each label with its oracle field (languages mapped from the oracle's language names to ISO 639-2/B; a name that cannot be mapped counts as a mismatch showing the raw name), and prints pass/total per field plus the first 20 mismatches per field with file name, expected and found value.
+- [x] AC-09 (error): If a file of the oracle cannot be read by sofarr (missing, no permission, unsupported container) or the oracle has no `mediaInfo` for it, then the comparison counts it as skipped with the reason, not as a mismatch, and continues; if the oracle itself cannot be reached or refuses the API key, the command stops with a German message (exit code ≠ 0).
+- [x] AC-10 (event): When the user requests the file of a movie or of an episode through the API, then the answer contains its media info and read status (fields in Technical notes); an item without a file answers status 404.
+- [x] AC-11 (always): Reading media info never writes to the file and never changes its modification time.
+- [x] AC-12 (state): While sofarr runs in shadow mode, the disk scan still reads and stores media info, because it only reads files.
 
 ## Technical notes
 
@@ -129,7 +129,8 @@ Terms used below:
 | -------- | ----------------- |
 | MP4 with `moov` at the end (not "fast start") | Read via seeking; still within the read limit (AC-05) |
 | MKV whose `Tracks` element is not at the start | Found through `SeekHead` |
-| An audio track without language, or with `und` | Recorded as unknown language |
+| A Matroska track without a `Language` element | Recorded as English (`eng`), the element's default in RFC 9559 |
+| A track with language `und` | Recorded as unknown language |
 | A subtitle track with a three-letter (`ger`) or BCP 47 (`de-DE`) language | Recorded as the same language (German) |
 | Dolby Vision with an HDR10 fallback layer | Dynamic range Dolby Vision plus HDR10; label as the oracle shows it (AC-07) |
 | A file with two audio tracks (German first, English second) | `{MediaInfo Simple}` uses the German one (first in file order); all tracks are stored |
@@ -156,20 +157,51 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-01 | `media_tests::the_disk_scan_reads_new_and_changed_files_only`, `media_tests::an_import_names_and_records_from_the_file`, `media_tests::broken_files_get_a_status_and_unreadable_ones_are_retried` (`crates/sofarr-server/src/media_tests.rs`); `media_import_tests::an_episode_import_names_and_records_from_the_file` (`crates/sofarr-server/src/media_import_tests.rs`); `media_refresh_tests::an_unchanged_file_is_not_read_again_whatever_its_status`, `media_refresh_tests::a_change_of_only_size_or_only_time_reads_again`, `media_refresh_tests::a_file_written_during_the_read_is_read_again_at_the_next_scan` (`crates/sofarr-server/src/media_refresh_tests.rs`); `media::tests::media_info_follows_its_file` (`crates/sofarr-db/src/media.rs`) | verified | f223376 |
+| AC-02 | `media_tests::the_disk_scan_reads_new_and_changed_files_only` (`crates/sofarr-server/src/media_tests.rs`) | verified | f223376 |
+| AC-03 | `matroska::tests::tracks_languages_and_flags`, `matroska::tests::colour_marks_hdr10_and_hlg`, `matroska::tests::dolby_vision_from_block_addition_mapping`, `matroska::tests::x265_encoder_from_sei_in_first_simple_block`, `matroska::tests::encoder_from_hvcc_sei_and_from_tags`, `matroska::tests::hdr10_plus_from_t35_sei`, `matroska::tests::eac3_atmos_from_joc`, `matroska::tests::dts_profiles_and_truehd_atmos_from_first_frames`, `matroska::tests::legacy_codec_ids`, `matroska::tests::tracks_reachable_only_through_seek_head`, `matroska::tests::a_file_without_video_track_has_the_video_fields_unknown` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `mp4::tests::aac_channels_language_and_x264_sample`, `mp4::tests::quicktime_brand_and_chapter_text_tracks`, `mp4::tests::content_decides_not_the_extension` (`crates/sofarr-mediainfo/src/mp4/tests.rs`); `robustness_tests::complete_fixtures_read_completely` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `matroska::tests::webm_is_its_own_container`, `matroska::tests::header_stripping_is_undone_before_frame_analysis`, `matroska::tests::tracks_after_sized_clusters_are_found_without_seek_head`, `matroska::tests::ac3_channels_from_the_first_frame_override_the_header` (`crates/sofarr-mediainfo/src/matroska/tests.rs`) | verified | 9f8cddf |
+| AC-04 | `robustness_tests::truncated_files_are_partial_or_damaged_at_every_cut`, `robustness_tests::corrupted_and_random_bytes_never_panic`, `robustness_tests::reader_errors_are_unreadable`, `robustness_tests::empty_and_foreign_inputs_are_unsupported` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `mp4::tests::invalid_box_sizes_are_damage_and_missing_moov_is_partial` (`crates/sofarr-mediainfo/src/mp4/tests.rs`); `matroska::tests::other_doc_types_and_invalid_structures` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `media_tests::broken_files_get_a_status_and_unreadable_ones_are_retried` (`crates/sofarr-server/src/media_tests.rs`); `app::tests::live_pipeline_grabs_and_imports` (`crates/sofarr-server/src/app/tests.rs`, an unsupported `.mkv` is imported) | verified | 9f8cddf |
+| AC-05 | `robustness_tests::huge_input_reads_at_most_the_limit` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `mp4::tests::moov_after_a_huge_mdat_is_reached_by_seeking`, `mp4::tests::moov_beyond_the_limit_is_partial_without_reading_it` (`crates/sofarr-mediainfo/src/mp4/tests.rs`); `media_refresh_tests::reading_a_file_reads_at_most_the_limit_from_the_underlying_reader` (`crates/sofarr-server/src/media_refresh_tests.rs`) | verified | 9f8cddf |
+| AC-06 | `media_tests::naming_takes_each_part_from_the_file_where_known`, `media_tests::an_import_names_and_records_from_the_file` (`crates/sofarr-server/src/media_tests.rs`); `media_import_tests::an_episode_import_names_and_records_from_the_file` (`crates/sofarr-server/src/media_import_tests.rs`); `naming::tests::media_info_parts_come_from_the_file_where_known` (`crates/sofarr-core/src/naming.rs`) | verified | f223376 |
+| AC-07 | manual: Daniel Rück checked `compare-mediainfo` against Radarr (2,341 files) and Sonarr (3,533 files) with `scripts/compare-acceptance.ps1`: video, audio and dynamic range at 96.2 % or more per field, the remaining mismatches by cause in `docs/parity.md` ("Stand Media-Infos"), 2026-11-12 | verified | 3dcf0d8 |
+| AC-08 | `compare_media_tests::the_comparison_reports_per_field_and_skips_with_reasons`, `compare_media_tests::sonarr_episode_files_are_compared`, `compare_media_tests::an_unknown_language_name_is_a_mismatch_with_its_raw_name`, `compare_media_tests::at_most_twenty_mismatches_are_listed_per_field`, `compare_media_tests::oracle_codes_map_like_names_and_unknown_languages_are_left_out_like_the_oracle` (`crates/sofarr-server/src/compare_media_tests.rs`); `language::tests::names_map_to_codes` (`crates/sofarr-mediainfo/src/language.rs`) | verified | f223376 |
+| AC-09 | `compare_media_tests::the_comparison_reports_per_field_and_skips_with_reasons`, `compare_media_tests::unreadable_and_unsupported_files_are_skipped_with_their_reason`, `compare_media_tests::an_unreachable_oracle_stops_with_a_german_message`, `compare_media_tests::a_refused_api_key_stops_with_a_german_message` (`crates/sofarr-server/src/compare_media_tests.rs`); `an_unreachable_or_refusing_oracle_ends_with_a_german_error` (`crates/sofarr-server/tests/cli_compare_mediainfo.rs`) | verified | f223376 |
+| AC-10 | `media_tests::the_file_endpoints_answer_with_media_info`, `media_tests::the_episode_file_endpoint` (`crates/sofarr-server/src/media_tests.rs`) | verified | f223376 |
+| AC-11 | `robustness_tests::reading_leaves_the_bytes_unchanged` (`crates/sofarr-mediainfo/src/robustness_tests.rs`); `media_tests::the_disk_scan_reads_new_and_changed_files_only` (`crates/sofarr-server/src/media_tests.rs`) | verified | 9f8cddf |
+| AC-12 | `media_tests::the_disk_scan_reads_new_and_changed_files_only` (`crates/sofarr-server/src/media_tests.rs`) | verified | f223376 |
+
+## Summary
+
+> Completed: 2026-11-13
+
+- New pure crate `sofarr-mediainfo` reads media info from Matroska/WebM and MP4/M4V/MOV headers and the first frames on `Read + Seek` (codec, encoder, resolution, HDR10/HDR10+/HLG/Dolby Vision, audio and subtitle tracks with languages and flags), within 16 MiB per file and with a read status for cut, damaged, foreign and unreadable files.
+- `sofarr-server` stores it in the new `media_info` table at import and at the disk scan (also in shadow mode) and reads a file again only when it changed or was unreadable.
+- `{MediaInfo Simple}` and `{MediaInfo VideoDynamicRange}` take each part from the file where known and the rest from the release name; the labels use the oracle's words.
+- `GET /api/movies/{id}/file` and `GET /api/series/{id}/episodes/{episode-id}/file` answer with media info, read status and labels.
+- `amigo-sofarr compare-mediainfo [--app radarr|sonarr] [--root <folder>]` compares with Radarr's/Sonarr's `mediaInfo`; the owner's run reached at least 96.2 % per field.
 
 ## Decisions
 
 - 2026-11-12: Matroska/WebM and MP4/M4V/MOV only; other containers keep the release-name guess (owner).
 - 2026-11-12: An oracle comparison against Radarr's/Sonarr's `mediaInfo` belongs to this spec; running it against the live instances is a manual step of the owner (owner).
+- 2026-11-12: Media info lives in its own table `media_info` (one row per movie file or episode file, JSON of `sofarr-mediainfo` plus size, modification time and read time); it is deleted by foreign key when its file row is deleted. A file replaced under the same row (`set_file` is an upsert on the movie) keeps the old row until it is read again: an import stores the new file's media info right away, the disk scan reads it because size or modification time differ. A JSON column keeps the reader's model free to grow without migrations.
+- 2026-11-12: A file is read again when its size or modification time (RFC 3339, UTC) differs from the stored ones or its stored status is `unreadable`; a file that cannot even be looked at (metadata error other than "not found") is stored as `unreadable` with size 0.
+- 2026-11-12: At import the videos are read in the download folder before they are moved, so the name of the target file already uses the file's media info; the stored row is keyed to the recorded library file.
+- 2026-11-12: The API answer's `labels` also carries `channels` (e.g. `5.1`), because the comparison and the web UI show it and it costs nothing; the fields of the Technical notes are all present.
+- 2026-11-12: `compare-mediainfo` reuses the Radarr/Sonarr client of the other `compare-*` commands and maps library paths through sofarr's own movie and series folders (matched by `radarr_id` / `sonarr_id`); an oracle file sofarr does not know is skipped with the reason "nicht in sofarrs Bibliothek".
+- 2026-11-12: A file without a video track keeps the release-name guess for `{MediaInfo VideoDynamicRange}`, because SDR cannot be told from a missing track.
+- 2026-11-12: `a_file_without_video_track_has_the_video_fields_unknown` was green at once: the reader already left the video fields empty; the test pins the behavior.
+- 2026-11-12: A file cut inside Matroska `Tracks` or inside a trailing MP4 `moov` keeps the complete `TrackEntry`/`trak` children before the cut, with status `partial`; a damaged complete child is still `damaged`. A `Tracks`/`moov` larger than the remaining read budget is still not read (`partial` without tracks), as `moov_beyond_the_limit_is_partial_without_reading_it` pins.
+- 2026-11-12: The server reads files unbuffered (`media::read_file`): a `BufReader` refilled 8 KiB after every seek and read about 200 MB from disk for a 24 MiB file of small skipped elements; the reader already asks for whole elements.
+- 2026-11-12: The disk scan stores the size and modification time taken before the read, so a file that changes while it is read is read again at the next scan; only an import takes them from the library file after the move or copy (`media::store_moved`).
+- 2026-11-12: The Radarr/Sonarr API client names the app it talks to (`Radarr::sonarr`), so a failing Sonarr says "Sonarr: …"; HTTP 401/403 stop with "API-Key abgelehnt".
+- 2026-11-12: The comparison tests moved to `compare_media_tests.rs` and the refresh tests live in `media_refresh_tests.rs`, to keep the test files below 800 lines.
+- 2026-11-12: Green at once, pinning existing behavior (each checked by a mutation that turns it red): `an_episode_import_names_and_records_from_the_file`, `an_unchanged_file_is_not_read_again_whatever_its_status`, `a_change_of_only_size_or_only_time_reads_again`, `sonarr_episode_files_are_compared`, `an_unknown_language_name_is_a_mismatch_with_its_raw_name`, `at_most_twenty_mismatches_are_listed_per_field`, `unreadable_and_unsupported_files_are_skipped_with_their_reason`, and the extended field checks of `the_file_endpoints_answer_with_media_info` and `the_episode_file_endpoint`.
+- 2026-11-12: The encoder is recorded only where the file names it as x264 or x265 (the H.264/HEVC user-data SEI or the Matroska `ENCODER` tag); the writing application (`WritingApp`) is a muxer, not the encoder, so it is not read.
+- 2026-11-12: A library file whose media info was not read yet answers `media_info: null` in the file endpoints; the read status exists only once the file was read.
+- 2026-11-12: `cli_compare_mediainfo::an_unreachable_or_refusing_oracle_ends_with_a_german_error` was green at once: it pins the exit code and messages the command already had.
+- 2026-11-12: `compare-mediainfo --root <folder>` reads the files below the root folder as the comparing machine sees it (e.g. a network share), because the owner compares from another machine than the library's; sofarr replaces the item's root folder (the imported `rootfolder` / `sonarr_rootfolder`) by it and keeps the path below, so letter folders like `/movies/A/…` work too. `scripts/compare-acceptance.ps1` runs the comparisons of AC-07 and of web-ui-library AC-23 in one go and keeps their logs under `target/acceptance/`.
+- 2026-11-12: The owner's comparison against Sonarr (3,533 files) showed the oracle's dynamic range words consistently: `HDR10` for `HDR`, `HDR10Plus` for `HDR10+`, `DV HDR10Plus` for `DV HDR10+`; the vocabulary takes them (AC-07), also for the `{MediaInfo VideoDynamicRangeType}` naming token. The release-name fallback without media info keeps `HDR` and `DV HDR10`.
+- 2026-11-12: A Matroska track without a `Language` element is English: RFC 9559 gives the element the default `eng`, and muxers omit it for English tracks. The owner's comparison against Radarr (2,341 files) showed it: sofarr reported `und` where Radarr said `eng` for 59 % of the audio and 32 % of the subtitle language lists. The edge case "an audio track without language" is revised accordingly; an explicit `und` and MP4's `mdhd` language stay as they are.
+- 2026-11-12: The channel count also comes from the first frame where the header can be wrong (Radarr comparison: 22 of 2,341 mismatches). A DTS core frame gives AMODE plus LFE (ETSI TS 102 114); some muxers write the core's channels without the LFE into the Matroska header (`5` for 5.1), and because extensions (ES, HD) only add channels, the larger of header and core count wins. An AC-3 syncframe gives `acmod` plus `lfeon` (ETSI TS 102 366) and replaces the header's count, because AC-3 has no extensions; a broadcast recording's header claimed 5.1 for a stereo stream. Three channels stay `2.1`: the stored count does not say whether one of them is the LFE.
+- 2026-11-12: The comparison maps the oracle's language codes like its names (some files show `deu`, which is `ger`), and leaves undetermined languages out on both sides, because the oracle lists only tracks of known language (Radarr comparison: `ger` against `ger/und`).

@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/ban-ts-comment": "error",
+    "no-console": "error",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
+  },
+  "overrides": [
+    {
+      // Browser steps in end-to-end tests run one after another on purpose.
+      "files": ["e2e/**"],
+      "rules": { "no-await-in-loop": "off" }
+    }
+  ],
+  "ignorePatterns": [
+    "build/**",
+    ".svelte-kit/**",
+    "node_modules/**",
+    "test-results/**",
+    "playwright-report/**",
+    "src/lib/api/generated/**"
+  ]
+}

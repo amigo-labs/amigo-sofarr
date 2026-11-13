@@ -19,12 +19,12 @@ use std::{
 use jiff::Timestamp;
 use serde::Serialize;
 use serde_json::Value;
-use sofarr_db::{Db, Episode, Movie, MovieFile, Series};
+use sofarr_db::{Db, Episode, FileRef, Movie, MovieFile, Series};
 
 use crate::{
     importer,
     library::{self, Rules},
-    series,
+    media, series,
 };
 
 /// The media-management switches of the disk scan.
@@ -99,6 +99,8 @@ pub struct ScanReport {
     /// Files found on disk and recorded.
     pub found: usize,
     pub removed_folders: usize,
+    /// Files whose media info was read (new, changed or never read).
+    pub media_read: usize,
 }
 
 /// The root folder (parent of the movie or series folder) is usable: it exists and is
@@ -150,7 +152,7 @@ fn holds_no_files(dir: &Path) -> bool {
 /// Removes empty folders below `dir` (deepest first); `dir` itself only if `with_root`.
 /// `remove_dir` only removes empty folders, so a file that arrives meanwhile stays;
 /// symbolic links are never followed.
-fn remove_empty(dir: &Path, with_root: bool) -> usize {
+pub(crate) fn remove_empty(dir: &Path, with_root: bool) -> usize {
     let mut removed = 0;
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -242,52 +244,70 @@ pub async fn movies(
 ) -> anyhow::Result<ScanReport> {
     let mut report = ScanReport::default();
     for movie in db.movies().await? {
-        if movie.path.is_empty() {
-            continue;
-        }
-        let folder = PathBuf::from(&movie.path);
-        if !root_usable(&folder) {
-            report.skipped += 1;
-            continue;
-        }
-        report.checked += 1;
-        let actions = inspect_movie(&movie, settings);
-        // A renamed or replaced file is no reason to stop monitoring.
-        let replaced = actions.iter().any(|a| matches!(a, MovieAction::Found(_)));
-        for action in actions {
-            match action {
-                MovieAction::Missing => {
-                    tracing::info!(movie = %movie.title, "file missing on disk");
-                    db.remove_file(movie.id).await?;
-                    report.missing += 1;
-                    if settings.auto_unmonitor && movie.monitored && !replaced {
-                        db.set_monitored(movie.id, false).await?;
-                        report.unmonitored += 1;
-                    }
+        scan_movie(db, rules, settings, &movie, now, &mut report).await?;
+    }
+    Ok(report)
+}
+
+/// Disk scan of one movie (also right after adding it, spec discover AC-07).
+pub async fn scan_movie(
+    db: &Db,
+    rules: &Rules,
+    settings: ScanSettings,
+    movie: &Movie,
+    now: Timestamp,
+    report: &mut ScanReport,
+) -> anyhow::Result<()> {
+    if movie.path.is_empty() {
+        return Ok(());
+    }
+    let folder = PathBuf::from(&movie.path);
+    if !root_usable(&folder) {
+        report.skipped += 1;
+        return Ok(());
+    }
+    report.checked += 1;
+    let actions = inspect_movie(movie, settings);
+    // A renamed or replaced file is no reason to stop monitoring.
+    let replaced = actions.iter().any(|a| matches!(a, MovieAction::Found(_)));
+    for action in actions {
+        match action {
+            MovieAction::Missing => {
+                tracing::info!(movie = %movie.title, "file missing on disk");
+                db.remove_file(movie.id).await?;
+                report.missing += 1;
+                if settings.auto_unmonitor && movie.monitored && !replaced {
+                    db.set_monitored(movie.id, false).await?;
+                    report.unmonitored += 1;
                 }
-                MovieAction::Found(video) => {
-                    let relative = importer::relative_path(&folder, &video);
-                    let name = video
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or_default();
-                    let score = rules.score(
-                        movie.quality_profile_id,
-                        name,
-                        library::original_language(&movie),
-                    );
-                    let file = found_file(&video, relative, rules, score);
-                    tracing::info!(movie = %movie.title, file = %file.relative_path, quality = %file.quality, "file found on disk");
-                    db.set_file(movie.id, &file, now).await?;
-                    report.found += 1;
-                }
-                MovieAction::EmptyFolder => {
-                    report.removed_folders += remove_empty(&folder, true);
-                }
+            }
+            MovieAction::Found(video) => {
+                let relative = importer::relative_path(&folder, &video);
+                let name = video
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default();
+                let score = rules.score(
+                    movie.quality_profile_id,
+                    name,
+                    library::original_language(movie),
+                );
+                let file = found_file(&video, relative, rules, score);
+                tracing::info!(movie = %movie.title, file = %file.relative_path, quality = %file.quality, "file found on disk");
+                db.set_file(movie.id, &file, now).await?;
+                report.found += 1;
+            }
+            MovieAction::EmptyFolder => {
+                report.removed_folders += remove_empty(&folder, true);
             }
         }
     }
-    Ok(report)
+    if let Some(file) = db.movie(movie.id).await?.and_then(|m| m.file) {
+        let path = folder.join(&file.relative_path);
+        report.media_read +=
+            usize::from(media::refresh(db, FileRef::Movie(movie.id), &path).await?);
+    }
+    Ok(())
 }
 
 /// Disk scan of all series.
@@ -299,19 +319,31 @@ pub async fn all_series(
 ) -> anyhow::Result<ScanReport> {
     let mut report = ScanReport::default();
     for show in db.all_series().await? {
-        if show.data.path.is_empty() {
-            continue;
-        }
-        let folder = PathBuf::from(&show.data.path);
-        if !root_usable(&folder) {
-            report.skipped += 1;
-            continue;
-        }
-        report.checked += 1;
-        let episodes = db.episodes(Some(show.id)).await?;
-        scan_series(db, rules, settings, &show, &episodes, now, &mut report).await?;
+        scan_one_series(db, rules, settings, &show, now, &mut report).await?;
     }
     Ok(report)
+}
+
+/// Disk scan of one series (also right after adding it, spec discover AC-08).
+pub async fn scan_one_series(
+    db: &Db,
+    rules: &Rules,
+    settings: ScanSettings,
+    show: &Series,
+    now: Timestamp,
+    report: &mut ScanReport,
+) -> anyhow::Result<()> {
+    if show.data.path.is_empty() {
+        return Ok(());
+    }
+    let folder = PathBuf::from(&show.data.path);
+    if !root_usable(&folder) {
+        report.skipped += 1;
+        return Ok(());
+    }
+    report.checked += 1;
+    let episodes = db.episodes(Some(show.id)).await?;
+    scan_series(db, rules, settings, show, &episodes, now, report).await
 }
 
 async fn scan_series(
@@ -423,6 +455,18 @@ async fn scan_series(
     }
     if folder.is_dir() && settings.delete_empty_folders {
         report.removed_folders += remove_empty(&folder, !settings.keep_empty_root);
+    }
+    // Media info of every episode file (new, changed, or never read).
+    let mut seen = BTreeSet::new();
+    for e in db.episodes(Some(show.id)).await? {
+        let (Some(file_id), Some(file)) = (e.file_id, &e.file) else {
+            continue;
+        };
+        if seen.insert(file_id) {
+            let path = folder.join(&file.relative_path);
+            report.media_read +=
+                usize::from(media::refresh(db, FileRef::Episode(file_id), &path).await?);
+        }
     }
     Ok(())
 }

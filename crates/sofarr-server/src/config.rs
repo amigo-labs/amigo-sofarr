@@ -6,11 +6,11 @@ use std::{
 };
 
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_PORT: u16 = 7676;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub server: ServerConfig,
@@ -29,9 +29,318 @@ pub struct Config {
     pub download: DownloadConfig,
     pub import_lists: ImportListConfig,
     pub library: LibraryConfig,
+    pub backup: BackupConfig,
+    pub auth: AuthConfig,
+    pub imdb: ImdbConfig,
+    pub subtitles: SubtitlesConfig,
+    /// The OpenSubtitles.com account (spec subtitles); without it no subtitles are fetched.
+    pub opensubtitles: Option<OpenSubtitlesConfig>,
+    /// `[trailers]` (spec trailers).
+    pub trailers: TrailersConfig,
 }
 
-#[derive(Debug, Deserialize)]
+/// `[subtitles]`: which subtitles sofarr fetches and how often it searches (spec subtitles).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SubtitlesConfig {
+    /// Unset: on when `[opensubtitles]` is set; `false` switches subtitles off (AC-15).
+    pub enabled: Option<bool>,
+    /// Wanted languages, ISO 639-1.
+    pub languages: Vec<String>,
+    /// Hours between scheduled searches; 0 leaves only the search after imports.
+    pub interval_hours: u64,
+}
+
+impl Default for SubtitlesConfig {
+    fn default() -> Self {
+        Self {
+            enabled: None,
+            languages: vec!["de".to_owned(), "en".to_owned()],
+            interval_hours: 12,
+        }
+    }
+}
+
+/// `[trailers]`: trailers from TMDB via yt-dlp into the item's `trailers` folder (spec
+/// trailers).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TrailersConfig {
+    /// `false`: no trailer is downloaded (AC-12).
+    pub enabled: bool,
+    /// Wanted trailer languages (ISO 639-1), best first; videos without language come
+    /// after them.
+    pub languages: Vec<String>,
+    /// Highest video resolution (lines) downloaded.
+    pub max_height: u32,
+    /// Trailers the daily run downloads at most; 0 switches the daily run off.
+    pub per_day: u32,
+    /// The yt-dlp program (looked up on `PATH` without a folder).
+    pub yt_dlp: PathBuf,
+}
+
+impl Default for TrailersConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            languages: vec!["de".to_owned(), "en".to_owned()],
+            max_height: 1080,
+            per_day: 20,
+            yt_dlp: PathBuf::from("yt-dlp"),
+        }
+    }
+}
+
+impl SubtitlesConfig {
+    /// Every language is an ISO 639-1 code (German messages naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        for language in &self.languages {
+            anyhow::ensure!(
+                language.len() == 2
+                    && language.chars().all(|c| c.is_ascii_lowercase())
+                    && sofarr_mediainfo::language_code(language) != "und",
+                "[subtitles] languages: „{language}“ ist kein ISO-639-1-Code (z. B. \"de\")"
+            );
+        }
+        Ok(())
+    }
+}
+
+fn default_opensubtitles_url() -> String {
+    "https://api.opensubtitles.com/api/v1".to_owned()
+}
+
+fn default_pause_ms() -> u64 {
+    250
+}
+
+/// `[opensubtitles]`: the account for the OpenSubtitles.com REST API.
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpenSubtitlesConfig {
+    pub api_key: String,
+    pub username: String,
+    pub password: String,
+    /// The API base (tests use a local one).
+    #[serde(default = "default_opensubtitles_url")]
+    pub url: String,
+    /// Milliseconds between two requests (the API limits requests per second).
+    #[serde(default = "default_pause_ms")]
+    pub pause_ms: u64,
+}
+
+/// Secrets never go to the log, not even through a debug print of the config.
+impl std::fmt::Debug for OpenSubtitlesConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenSubtitlesConfig")
+            .field("url", &self.url)
+            .field("pause_ms", &self.pause_ms)
+            .finish_non_exhaustive()
+    }
+}
+
+impl TrailersConfig {
+    /// Languages are two lower-case letters, the height is above 0 (German messages
+    /// naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        for code in &self.languages {
+            anyhow::ensure!(
+                code.len() == 2 && code.bytes().all(|b| b.is_ascii_lowercase()),
+                "[trailers] languages: „{code}“ ist kein Sprachcode aus zwei Kleinbuchstaben (ISO 639-1)"
+            );
+        }
+        anyhow::ensure!(
+            self.max_height > 0,
+            "[trailers] max_height muss größer als 0 sein"
+        );
+        anyhow::ensure!(
+            !self.yt_dlp.as_os_str().is_empty(),
+            "[trailers] yt_dlp ist leer"
+        );
+        Ok(())
+    }
+}
+
+/// `[imdb]`: the daily IMDb ratings dataset (spec imdb-ratings).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ImdbConfig {
+    /// `false`: nothing is downloaded from IMDb and no ratings are shown (AC-09).
+    pub enabled: bool,
+    /// Where the dataset comes from (tests use a local one).
+    pub url: String,
+}
+
+impl Default for ImdbConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            url: "https://datasets.imdbws.com/title.ratings.tsv.gz".to_owned(),
+        }
+    }
+}
+
+/// The longest session lifetime: ten years, far below where timestamps overflow.
+const MAX_SESSION_DAYS: u32 = 3650;
+
+/// `[auth] session_days` as written: anything but an integer that fits becomes 0, which
+/// [`AuthConfig::check`] refuses with a German message naming the key.
+fn lenient_days<'de, D: serde::Deserializer<'de>>(d: D) -> Result<u32, D::Error> {
+    let value = toml::Value::deserialize(d)?;
+    Ok(value
+        .as_integer()
+        .and_then(|n| u32::try_from(n).ok())
+        .unwrap_or(0))
+}
+
+/// `[auth]`: optional login, API key, trusted networks and proxies (spec auth).
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AuthConfig {
+    pub enabled: bool,
+    pub username: Option<String>,
+    /// Argon2id PHC string (`amigo-sofarr hash-password`).
+    pub password_hash: Option<String>,
+    pub api_key: Option<String>,
+    #[serde(deserialize_with = "lenient_days")]
+    pub session_days: u32,
+    pub trusted_networks: Vec<String>,
+    pub trusted_proxies: Vec<String>,
+}
+
+/// Secrets never go to the log, not even through a debug print of the config.
+impl std::fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("enabled", &self.enabled)
+            .field("username", &self.username.as_ref().map(|_| "…"))
+            .field("password_hash", &self.password_hash.as_ref().map(|_| "…"))
+            .field("api_key", &self.api_key.as_ref().map(|_| "…"))
+            .field("session_days", &self.session_days)
+            .field("trusted_networks", &self.trusted_networks)
+            .field("trusted_proxies", &self.trusted_proxies)
+            .finish()
+    }
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            username: None,
+            password_hash: None,
+            api_key: None,
+            session_days: 30,
+            trusted_networks: Vec::new(),
+            trusted_proxies: Vec::new(),
+        }
+    }
+}
+
+impl AuthConfig {
+    /// While auth is on: everything needed is there and well-formed (German messages
+    /// naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        if !self.enabled {
+            return Ok(());
+        }
+        anyhow::ensure!(
+            self.username.as_deref().is_some_and(|u| !u.is_empty()),
+            "[auth] username fehlt"
+        );
+        let hash = self
+            .password_hash
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("[auth] password_hash fehlt"))?;
+        anyhow::ensure!(
+            crate::auth::is_argon2id(hash),
+            "[auth] password_hash ist kein gültiger Argon2id-Hash (amigo-sofarr hash-password)"
+        );
+        anyhow::ensure!(
+            self.api_key.as_deref().is_none_or(|k| !k.is_empty()),
+            "[auth] api_key ist leer"
+        );
+        anyhow::ensure!(
+            (1..=MAX_SESSION_DAYS).contains(&self.session_days),
+            "[auth] session_days muss eine ganze Zahl zwischen 1 und {MAX_SESSION_DAYS} sein"
+        );
+        for (key, list) in [
+            ("trusted_networks", &self.trusted_networks),
+            ("trusted_proxies", &self.trusted_proxies),
+        ] {
+            for entry in list {
+                anyhow::ensure!(
+                    entry.parse::<crate::auth_net::Cidr>().is_ok(),
+                    "[auth] {key}: „{entry}“ ist keine gültige Adresse oder Adressbereich"
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+/// `[backup]`: where backups go, how often and how many scheduled ones are kept.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(try_from = "RawBackupConfig")]
+pub struct BackupConfig {
+    pub dir: PathBuf,
+    /// Hours between scheduled backups; 0 disables them.
+    pub interval_hours: u64,
+    /// Scheduled backups kept (at least 1).
+    pub keep: u32,
+}
+
+impl Default for BackupConfig {
+    fn default() -> Self {
+        Self {
+            dir: PathBuf::from("/config/backups"),
+            interval_hours: 24,
+            keep: 7,
+        }
+    }
+}
+
+/// `[backup]` as written, checked with German messages that name the key.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawBackupConfig {
+    dir: Option<PathBuf>,
+    interval_hours: Option<toml::Value>,
+    keep: Option<toml::Value>,
+}
+
+impl TryFrom<RawBackupConfig> for BackupConfig {
+    type Error = String;
+
+    fn try_from(raw: RawBackupConfig) -> Result<Self, Self::Error> {
+        let defaults = Self::default();
+        let whole = |value: Option<toml::Value>, min: i64, key: &str, rule: &str| match value {
+            None => Ok(None),
+            Some(toml::Value::Integer(n)) if n >= min => Ok(Some(n)),
+            Some(_) => Err(format!("[backup] {key} muss {rule} sein")),
+        };
+        let interval_hours = whole(
+            raw.interval_hours,
+            0,
+            "interval_hours",
+            "eine ganze Zahl ab 0",
+        )?
+        .map_or(Ok(defaults.interval_hours), |n| {
+            u64::try_from(n).map_err(|_| "[backup] interval_hours ist zu groß".to_owned())
+        })?;
+        let keep = whole(raw.keep, 1, "keep", "eine ganze Zahl ab 1")?
+            .map_or(Ok(defaults.keep), |n| {
+                u32::try_from(n).map_err(|_| "[backup] keep ist zu groß".to_owned())
+            })?;
+        Ok(Self {
+            dir: raw.dir.unwrap_or(defaults.dir),
+            interval_hours,
+            keep,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LibraryConfig {
     /// Hours between metadata refreshes (TMDB/TVDB, if configured) with the disk scan
@@ -47,7 +356,7 @@ impl Default for LibraryConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NzbgetConfig {
     /// Base URL, e.g. `http://nzbget:6789`.
@@ -68,7 +377,7 @@ fn default_category() -> String {
     "movies".to_owned()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DownloadConfig {
     /// Minutes between checks of the download client.
@@ -78,6 +387,11 @@ pub struct DownloadConfig {
     /// After an import, remove the download from the client's history and delete what
     /// is left of its folder (only if no video remains), like "Remove Completed".
     pub remove_completed: bool,
+    /// Search a movie again after its grab failed; unset: Radarr's imported
+    /// `autoRedownloadFailed`, without one off.
+    pub redownload_failed_movies: Option<bool>,
+    /// The same for series (Sonarr's imported setting).
+    pub redownload_failed_series: Option<bool>,
 }
 
 impl Default for DownloadConfig {
@@ -86,11 +400,13 @@ impl Default for DownloadConfig {
             check_interval_minutes: 2,
             path_map: Vec::new(),
             remove_completed: true,
+            redownload_failed_movies: None,
+            redownload_failed_series: None,
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PathMap {
     /// Prefix as the download client reports it.
@@ -114,7 +430,7 @@ impl DownloadConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ImportListConfig {
     /// Hours between import list syncs; 0 disables them.
@@ -127,7 +443,7 @@ impl Default for ImportListConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DatabaseConfig {
     pub path: PathBuf,
@@ -142,7 +458,8 @@ impl Default for DatabaseConfig {
 }
 
 /// Whether sofarr acts or only logs what it would do.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     /// Read-only: decisions are logged and stored, nothing is sent or moved.
@@ -152,13 +469,13 @@ pub enum Mode {
     Live,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AutomationConfig {
     pub mode: Mode,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RssConfig {
     /// Minutes between RSS syncs; 0 disables the scheduler.
@@ -173,30 +490,44 @@ impl Default for RssConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+fn default_tmdb_url() -> String {
+    sofarr_metadata::TMDB_API.to_owned()
+}
+
+fn default_tvdb_url() -> String {
+    sofarr_metadata::tvdb::TVDB_API.to_owned()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TmdbConfig {
     /// TMDB v3 API key or v4 read access token.
     pub api_key: String,
+    /// The API root (test setups use a local one).
+    #[serde(default = "default_tmdb_url")]
+    pub url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TvdbConfig {
     pub api_key: String,
     /// Subscriber PIN, if the key needs one.
     pub pin: Option<String>,
+    /// The API root (test setups use a local one).
+    #[serde(default = "default_tvdb_url")]
+    pub url: String,
 }
 
 /// The Radarr instance sofarr imports from and compares against.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RadarrConfig {
     pub url: String,
     pub api_key: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IndexerConfig {
     pub name: String,
@@ -228,7 +559,7 @@ fn default_limit() -> u32 {
     100
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ServerConfig {
     pub bind: SocketAddr,
@@ -242,7 +573,7 @@ impl Default for ServerConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct LogConfig {
     /// Default filter if `RUST_LOG` is not set, e.g. `info` or `sofarr_server=debug`.
@@ -259,7 +590,7 @@ impl Default for LogConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
     #[default]
@@ -286,6 +617,9 @@ impl Config {
             names.len() == config.indexers.len(),
             "Indexer-Namen müssen eindeutig sein"
         );
+        config.auth.check()?;
+        config.subtitles.check()?;
+        config.trailers.check()?;
         Ok(config)
     }
 }
@@ -338,6 +672,156 @@ mod tests {
             PathBuf::from("/downloadsx/a")
         );
         assert_eq!(config.download.check_interval_minutes, 2);
+    }
+
+    #[test]
+    fn backup_settings_are_checked() {
+        let config = Config::parse("").expect("defaults");
+        assert_eq!(config.backup.interval_hours, 24);
+        assert_eq!(config.backup.keep, 7);
+        assert_eq!(config.backup.dir, PathBuf::from("/config/backups"));
+        let config =
+            Config::parse("[backup]\ninterval_hours = 0\nkeep = 1\ndir = \"/b\"\n").expect("valid");
+        assert_eq!((config.backup.interval_hours, config.backup.keep), (0, 1));
+        for (raw, key) in [
+            ("keep = 0", "keep"),
+            ("keep = -3", "keep"),
+            ("keep = 2.5", "keep"),
+            ("interval_hours = -1", "interval_hours"),
+            ("interval_hours = 1.5", "interval_hours"),
+            ("interval_hours = \"24\"", "interval_hours"),
+        ] {
+            let error = Config::parse(&format!("[backup]\n{raw}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{raw} must be rejected"));
+            let message = format!("{error:#}");
+            assert!(
+                message.contains(&format!("[backup] {key} muss")),
+                "{raw}: {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn subtitle_settings_have_defaults_and_are_checked() {
+        let config = Config::parse("").expect("defaults");
+        assert_eq!(config.subtitles.languages, ["de", "en"]);
+        assert_eq!(config.subtitles.interval_hours, 12);
+        assert_eq!(config.subtitles.enabled, None);
+        assert!(config.opensubtitles.is_none());
+        let config = Config::parse(
+            "[subtitles]
+languages = [\"de\"]
+interval_hours = 6
+enabled = false
+             [opensubtitles]
+api_key = \"k\"
+username = \"u\"
+password = \"p\"
+",
+        )
+        .expect("valid");
+        assert_eq!(config.subtitles.languages, ["de"]);
+        assert_eq!(config.subtitles.enabled, Some(false));
+        let account = config.opensubtitles.expect("account");
+        assert_eq!(account.url, "https://api.opensubtitles.com/api/v1");
+        assert_eq!(account.pause_ms, 250);
+        assert!(!format!("{account:?}").contains("\"p\""));
+        for bad in ["\"deu\"", "\"DE\"", "\"xx\""] {
+            let error = Config::parse(&format!(
+                "[subtitles]
+languages = [{bad}]
+"
+            ))
+            .err()
+            .unwrap_or_else(|| panic!("{bad} must be rejected"));
+            assert!(
+                format!("{error:#}").contains("[subtitles] languages"),
+                "{error:#}"
+            );
+        }
+        assert!(
+            Config::parse(
+                "[opensubtitles]
+api_key = \"k\"
+"
+            )
+            .is_err()
+        );
+        assert!(
+            Config::parse(
+                "[subtitles]
+sprachen = []
+"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn tmdb_and_tvdb_api_roots_default_to_the_real_ones() {
+        let config = Config::parse(
+            "[tmdb]
+api_key = \"k\"
+[tvdb]
+api_key = \"k\"
+",
+        )
+        .expect("valid");
+        assert_eq!(
+            config.tmdb.expect("tmdb").url,
+            "https://api.themoviedb.org/3"
+        );
+        assert_eq!(
+            config.tvdb.expect("tvdb").url,
+            "https://api4.thetvdb.com/v4"
+        );
+        let config = Config::parse(
+            "[tmdb]
+api_key = \"k\"
+url = \"http://127.0.0.1:9/3\"
+             [tvdb]
+api_key = \"k\"
+url = \"http://127.0.0.1:9/tvdb\"
+",
+        )
+        .expect("valid");
+        assert_eq!(config.tmdb.expect("tmdb").url, "http://127.0.0.1:9/3");
+        assert_eq!(config.tvdb.expect("tvdb").url, "http://127.0.0.1:9/tvdb");
+    }
+
+    #[test]
+    fn trailer_settings_have_defaults_and_are_checked() {
+        let config = Config::parse("").expect("defaults");
+        let t = &config.trailers;
+        assert!(t.enabled);
+        assert_eq!(t.languages, ["de", "en"]);
+        assert_eq!((t.max_height, t.per_day), (1080, 20));
+        assert_eq!(t.yt_dlp, PathBuf::from("yt-dlp"));
+        let config = Config::parse(
+            "[trailers]\nenabled = false\nlanguages = [\"en\"]\nmax_height = 720\n\
+             per_day = 0\nyt_dlp = \"/usr/bin/yt-dlp\"\n",
+        )
+        .expect("valid");
+        assert!(!config.trailers.enabled);
+        assert_eq!(config.trailers.per_day, 0);
+        for (raw, key) in [
+            ("languages = [\"DE\"]", "languages"),
+            ("languages = [\"de-DE\"]", "languages"),
+            ("languages = [\"de,null\"]", "languages"),
+            ("max_height = 0", "max_height"),
+            ("yt_dlp = \"\"", "yt_dlp"),
+        ] {
+            let error = Config::parse(&format!("[trailers]\n{raw}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{raw} must be rejected"));
+            let message = format!("{error:#}");
+            assert!(
+                message.contains(&format!("[trailers] {key}")),
+                "{raw}: {message}"
+            );
+        }
+        assert!(Config::parse("[trailers]\nper_dya = 3\n").is_err());
     }
 
     #[test]
