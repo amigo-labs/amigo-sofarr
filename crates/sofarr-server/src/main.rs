@@ -87,6 +87,8 @@ mod media_tests;
 #[cfg(test)]
 mod overview_tests;
 #[cfg(test)]
+mod rename_media_tests;
+#[cfg(test)]
 mod search_tests;
 #[cfg(test)]
 mod series_search_tests;

@@ -426,3 +426,145 @@ async fn series_page_shows_seasons_and_episodes() {
     );
     assert_eq!(episode["cutoff_reason"], "WEBDL-1080p statt Bluray-1080p");
 }
+
+/// Reads a small Matroska file (h265 by x265, German E-AC-3 5.1, German subtitles) and
+/// stores its media info for `file`, as the disk scan does.
+async fn store_read_media(app: &App, file: sofarr_db::FileRef, name: &str) {
+    let path = std::env::temp_dir().join(format!(
+        "sofarr-library-media-{name}-{}.mkv",
+        std::process::id()
+    ));
+    let bytes = crate::media_tests::mkv_full(
+        Some(("A_EAC3", 6, "ger")),
+        Some(("S_TEXT/UTF8", "ger")),
+        Some("x265 (build 199)"),
+    );
+    std::fs::write(&path, bytes).expect("file");
+    let media = crate::media::read_path(&path).expect("read");
+    crate::media::store(&app.db, file, &media)
+        .await
+        .expect("store");
+    let _ = std::fs::remove_file(&path);
+}
+
+fn assert_media_info(file: &Value) {
+    let media = &file["media_info"];
+    assert_eq!(media["status"], "complete", "{file}");
+    assert_eq!(media["video"]["codec"], "h265");
+    assert_eq!(media["video"]["encoder"], "x265");
+    assert_eq!(media["audio"][0]["codec"], "eac3");
+    assert_eq!(media["audio"][0]["channels"], 6);
+    assert_eq!(media["audio"][0]["language"], "ger");
+    assert_eq!(media["subtitles"][0]["language"], "ger");
+}
+
+#[tokio::test]
+async fn movie_page_shows_the_media_info_read_from_the_file() {
+    let app = app(Library::Movies, "").await;
+    let movie = app
+        .db
+        .movie_by_tmdb(102)
+        .await
+        .expect("db")
+        .expect("Zweiter Film");
+    let http = Http::start(app).await;
+    let path = format!("/api/library/movies/{}", movie.id);
+    let (_, unread) = http.get(&path).await;
+    assert_eq!(unread["file"]["media_info"], Value::Null, "not read yet");
+    store_read_media(&http.app, sofarr_db::FileRef::Movie(movie.id), "movie").await;
+    let (status, detail) = http.get(&path).await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_media_info(&detail["file"]);
+}
+
+#[tokio::test]
+async fn series_page_shows_what_the_movie_page_shows() {
+    let app = app(Library::Series, "").await;
+    let show = app.db.all_series().await.expect("db").remove(0);
+    app.db
+        .put_setting("sonarr_tag", &json!([{"id": 3, "label": "familie"}]))
+        .await
+        .expect("tags");
+    sqlx::query("UPDATE series SET tags = '3' WHERE id = ?")
+        .bind(show.id)
+        .execute(app.db.pool())
+        .await
+        .expect("series tags");
+    app.db
+        .set_series_presentation(show.id, Some("/insel.jpg"), Some("Eine kleine Insel."))
+        .await
+        .expect("presentation");
+    let episodes = app.db.episodes(Some(show.id)).await.expect("episodes");
+    let with_file = episodes
+        .iter()
+        .find(|e| e.file_id.is_some())
+        .expect("an episode with a file");
+    let grab = app
+        .db
+        .add_series_grab(
+            show.id,
+            &[with_file.id],
+            &sofarr_db::NewGrab {
+                movie_id: 0,
+                title: "Kleine.Insel.S01E01.German.1080p.WEB-DL.h264-GRP".to_owned(),
+                guid: "s1".to_owned(),
+                indexer: "idx".to_owned(),
+                download_url: None,
+                quality: "WEBDL-1080p".to_owned(),
+                custom_format_score: 0,
+                size: 2_000,
+                status: sofarr_db::GrabStatus::Queued,
+                download_id: Some("77".to_owned()),
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("grab");
+    app.db
+        .update_series_grab(
+            grab,
+            sofarr_db::GrabStatus::Failed,
+            None,
+            Some("Entpacken fehlgeschlagen"),
+            Timestamp::now(),
+        )
+        .await
+        .expect("failed");
+    app.db
+        .add_block(
+            &sofarr_db::NewBlock {
+                media: sofarr_db::MediaRef::Series(show.id),
+                title: "Kleine.Insel.S01E01.1080p.WEB-DL-BAD".to_owned(),
+                normalized_title: "kleine insel s01e01 1080p web dl bad".to_owned(),
+                guid: "bad".to_owned(),
+                indexer: "idx".to_owned(),
+                reason: "FAILURE/UNPACK".to_owned(),
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("block");
+    let file_id = with_file.file_id.expect("file id");
+    store_read_media(&app, sofarr_db::FileRef::Episode(file_id), "episode").await;
+    let episode_id = with_file.id;
+    let http = Http::start(app).await;
+    let (status, detail) = http.get(&format!("/api/library/series/{}", show.id)).await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["overview"], "Eine kleine Insel.");
+    assert_eq!(detail["has_poster"], true);
+    assert_eq!(detail["quality_profile"], json!({"id": 1, "name": "HD"}));
+    assert_eq!(detail["tags"], json!([{"id": 3, "name": "familie"}]));
+    assert_eq!(detail["grabs"][0]["id"], grab);
+    assert_eq!(detail["grabs"][0]["status"], "failed");
+    assert_eq!(detail["grabs"][0]["message"], "Entpacken fehlgeschlagen");
+    assert_eq!(detail["grabs"][0]["episode_ids"], json!([episode_id]));
+    assert_eq!(detail["blocklist"][0]["reason"], "FAILURE/UNPACK");
+    let (status, episode) = http
+        .get(&format!(
+            "/api/library/series/{}/episodes/{episode_id}",
+            show.id
+        ))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{episode}");
+    assert_media_info(&episode["file"]);
+}
