@@ -21,7 +21,7 @@ because later specs build on earlier ones.
 | 3 | [auth](auth.md) | M | – | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) | done |
 | 4 | [mediainfo](mediainfo.md) | L | – | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) | done |
 | 5 | [web-ui-shell](web-ui-shell.md) | L | auth | SvelteKit static UI in the binary, login, navigation, GitHub look, system page (D16, D23) | done |
-| 6 | [web-ui-library](web-ui-library.md) | L | web-ui-shell, fail-handling, backups | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) | `/spec-build web-ui-library` |
+| 6 | [web-ui-library](web-ui-library.md) | L | web-ui-shell, fail-handling, backups | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) | done |
 | 7 | [imdb-ratings](imdb-ratings.md) | M | web-ui-library | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) | done |
 | 8 | [discover](discover.md) | L | web-ui-library, imdb-ratings | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) | done |
 | 9 | [subtitles](subtitles.md) | L | mediainfo, web-ui-library | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) | done |
@@ -43,6 +43,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [subtitles](subtitles.md) | 2026-11-12 | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) |
 | [discover](discover.md) | 2026-11-12 | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) |
 | [mediainfo](mediainfo.md) | 2026-11-13 | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) |
+| [web-ui-library](web-ui-library.md) | 2026-11-13 | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) |
 
 ## Existing behavior without a feature spec
 
