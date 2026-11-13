@@ -41,7 +41,10 @@ test.describe('movie page (AC-05, AC-21)', () => {
         container: 'matroska',
         video: { codec: 'h265', encoder: 'x265', width: 1920, height: 1080 },
         audio: [{ codec: 'eac3', channels: 6, object_audio: false, language: 'ger' }],
-        subtitles: [],
+        subtitles: [
+          { language: 'eng', format: 'srt', forced: true, default: false, hearing_impaired: false },
+        ],
+        labels: { video: 'x265', audio: 'EAC3', channels: '5.1', dynamic_range: 'HDR10' },
       };
       await json(route, detail);
     });
@@ -52,9 +55,12 @@ test.describe('movie page (AC-05, AC-21)', () => {
         .filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
         .locator('dd');
     await expect(page.getByRole('heading', { name: 'Media-Infos' })).toBeVisible();
-    await expect(fact('container')).toHaveText('matroska');
-    await expect(fact('video')).toContainText('"encoder":"x265"');
-    await expect(fact('audio')).toContainText('"language":"ger"');
+    await expect(fact('Gelesen')).toHaveText('vollständig');
+    await expect(fact('Container')).toHaveText('Matroska');
+    await expect(fact('Video')).toHaveText('x265 · 1920 × 1080 · HDR10');
+    await expect(fact('Audio')).toHaveText('EAC3 5.1');
+    await expect(fact('Audiosprachen')).toHaveText('Deutsch');
+    await expect(fact('Untertitel')).toHaveText('Englisch (erzwungen)');
     await expect(page.getByText('Media-Infos wurden noch nicht gelesen.')).toHaveCount(0);
   });
 
@@ -288,6 +294,9 @@ test.describe('series page (AC-06, AC-10)', () => {
         status: 'complete',
         container: 'matroska',
         video: { codec: 'h265', encoder: 'x265', width: 1920, height: 1080 },
+        audio: [{ codec: 'aac', channels: 2, object_audio: false, language: 'ger' }],
+        subtitles: [],
+        labels: { video: 'x265', audio: 'AAC', channels: '2.0', dynamic_range: null },
       };
       await json(route, episode);
     });
@@ -314,8 +323,8 @@ test.describe('series page (AC-06, AC-10)', () => {
     await expect(e1.getByTestId('file-path')).toHaveText(/S01E01/);
     await expect(e1.getByText('Release-Gruppe')).toBeVisible();
     await expect(e1.getByRole('heading', { name: 'Media-Infos' })).toBeVisible();
-    await expect(fact('container')).toHaveText('matroska');
-    await expect(fact('video')).toContainText('"encoder":"x265"');
+    await expect(e1.getByText('x265 · 1920 × 1080 · SDR')).toBeVisible();
+    await expect(e1.getByText('AAC 2.0')).toBeVisible();
   });
 
   test('switching a season switches its episodes', async ({ page, request }) => {

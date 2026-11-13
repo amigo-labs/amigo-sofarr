@@ -128,7 +128,7 @@ test.describe('360 px', () => {
 
 /** Words an English UI would show (as in layout.spec.ts). */
 const ENGLISH =
-  /\b(Loading|Error|Retry|Search|Monitored|Missing|Remove|Delete|Cancel|Save|Rename|Settings|Not found|Menu|Theme|Subtitles?|Rating|Votes|Download now|Forced|Embedded|Needed)\b/;
+  /\b(Loading|Error|Retry|Search|Monitored|Missing|Remove|Delete|Cancel|Save|Rename|Settings|Not found|Menu|Theme|Subtitles?|Rating|Votes|Download now|Forced|Embedded|Needed|complete|partial|damaged|encoder|object_audio|hearing_impaired)\b/;
 
 test.describe('German texts', () => {
   for (const target of TARGETS) {
