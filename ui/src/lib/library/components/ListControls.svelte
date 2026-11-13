@@ -180,6 +180,7 @@
 
 <style>
   .controls {
+    container-type: inline-size;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
     gap: var(--base-size-8) var(--base-size-12);
@@ -216,6 +217,18 @@
   .view {
     display: flex;
     gap: var(--base-size-4);
+  }
+
+  /* Two buttons with icons need more than one column; with a single column (below 2 x
+     9.5rem plus the gap) the group keeps its one cell, which is then wide enough. */
+  @container (min-width: 20rem) {
+    .view {
+      grid-column: span 2;
+    }
+  }
+
+  .view button {
+    white-space: nowrap;
   }
 
   .view button[aria-pressed='true'] {

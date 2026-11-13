@@ -192,6 +192,30 @@ test.describe('monitoring from the list (AC-10)', () => {
   });
 });
 
+test.describe('view switch labels', () => {
+  for (const width of [360, 1280, 1440]) {
+    test(`"Liste" and "Poster" stay on one line at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${LIBRARY}/filme`);
+      for (const name of ['Liste', 'Poster']) {
+        const button = page.getByRole('button', { name });
+        await expect(button).toBeVisible();
+        // One client rect per line the label's text takes.
+        const lines = await button.evaluate((el) => {
+          const text = [...el.childNodes].find(
+            (n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim(),
+          );
+          if (!text) return 0;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+        });
+        expect(lines, `label "${name}" lines`).toBe(1);
+      }
+    });
+  }
+});
+
 test.describe('narrow screens (AC-22)', () => {
   test.use({ viewport: { width: 360, height: 740 } });
 
