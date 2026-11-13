@@ -1,18 +1,19 @@
-# Ausschnitt für deine bestehende docker-compose.yml.
-# Shadow-Mode: /data wird READ-ONLY gemountet, sofarr kann nichts kaputt machen.
-# Erst in Phase 4 (Grab + Import) wird ":ro" entfernt.
+# Snippet for your existing docker-compose.yml.
+# Shadow mode: /data is mounted read-only, sofarr cannot break anything.
+# For live mode (grab and import), remove ":ro".
 services:
   amigo-sofarr:
-    build: ./amigo-sofarr          # oder später: image: ghcr.io/amigo-labs/amigo-sofarr:latest
-    # Das Image basiert auf Alpine und bringt yt-dlp und ffmpeg für die Trailer mit.
+    image: ghcr.io/amigo-labs/amigo-sofarr:latest   # or pin a version, e.g. :0.1
+    # build: ./amigo-sofarr                         # or build it yourself from the repository
+    # The image is based on Alpine and ships yt-dlp and ffmpeg for the trailers.
     container_name: amigo-sofarr
-    user: "1000:1000"              # gleiche UID/GID wie Radarr/Sonarr
+    user: "1000:1000"              # same UID/GID as Radarr/Sonarr
     ports:
       - "7676:7676"
     volumes:
       - ./sofarr-config:/config
-      - /pfad/zu/data:/data:ro     # gleiches Layout wie bei Radarr (Hardlinks!)
-                                   # Live-Modus (Phase 4): ":ro" entfernen
+      - /path/to/data:/data:ro     # same layout as Radarr (hardlinks!)
+                                   # live mode: remove ":ro"
     environment:
       RUST_LOG: info
     restart: unless-stopped
