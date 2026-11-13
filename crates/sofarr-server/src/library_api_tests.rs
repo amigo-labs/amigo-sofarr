@@ -43,6 +43,13 @@ async fn movie_list_filters_searches_sorts_and_pages() {
         .execute(app.db.pool())
         .await
         .expect("German title");
+    // An original title that is neither title, German nor alternative title.
+    sqlx::query(
+        "UPDATE movies SET original_title = 'La terza pellicola' WHERE title = 'Dritter Film'",
+    )
+    .execute(app.db.pool())
+    .await
+    .expect("original title");
     let http = Http::start(app).await;
     let (status, all) = http.get("/api/library/movies").await;
     assert_eq!(status, StatusCode::OK, "{all}");
@@ -78,6 +85,8 @@ async fn movie_list_filters_searches_sorts_and_pages() {
     assert_eq!(titles(&found), ["Erster Film"]);
     let (_, german) = http.get("/api/library/movies?q=vierte%20streifen").await;
     assert_eq!(titles(&german), ["Vierter Film"]);
+    let (_, original) = http.get("/api/library/movies?q=terza%20pellicola").await;
+    assert_eq!(titles(&original), ["Dritter Film"]);
     let (_, profile) = http.get("/api/library/movies?profile=2").await;
     assert_eq!(profile["total"], 0);
     let (_, by_year) = http
