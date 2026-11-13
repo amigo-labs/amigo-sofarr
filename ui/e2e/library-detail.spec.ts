@@ -238,6 +238,86 @@ test.describe('series page (AC-06, AC-10)', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
+  test('shows what the movie page shows: overview, profile, tags, folder, grabs, blocklist and the file of an episode', async ({
+    page,
+    request,
+  }) => {
+    const id = await seriesId(request, LIBRARY, 'Kleine Insel');
+    const real = (await (await request.get(`${LIBRARY}/api/library/series/${id}`)).json()) as {
+      quality_profile: { name: string };
+      seasons: { episodes: { id: number; season: number; number: number }[] }[];
+    };
+    const first = real.seasons
+      .flatMap((s) => s.episodes)
+      .find((e) => e.season === 1 && e.number === 1);
+    expect(first).toBeDefined();
+    await page.route(`**/api/library/series/${id}`, (route) =>
+      json(route, {
+        ...real,
+        overview: 'Eine kleine Insel im Sturm.',
+        tags: [{ id: 3, name: 'familie' }],
+        grabs: [
+          {
+            id: 9,
+            title: 'Kleine.Insel.S01E02.1080p.WEB-DL-GRP',
+            indexer: 'Testindexer',
+            quality: 'WEBDL-1080p',
+            size: 2_000_000_000,
+            status: 'failed',
+            message: 'Entpacken fehlgeschlagen',
+            grabbed_at: '2026-11-12T10:00:00Z',
+            active: false,
+            episode_ids: [],
+          },
+        ],
+        blocklist: [
+          {
+            id: 4,
+            title: 'Kleine.Insel.S01E02.720p-ALT',
+            indexer: 'Testindexer',
+            reason: 'Download fehlgeschlagen',
+            blocklisted_at: '2026-11-10T08:00:00Z',
+          },
+        ],
+      }),
+    );
+    // The seeded files are no real videos: the episode answer gets the media info a read stores.
+    await page.route(`**/api/library/series/${id}/episodes/${first?.id}`, async (route) => {
+      const episode = await (await route.fetch()).json();
+      episode.file.media_info = {
+        status: 'complete',
+        container: 'matroska',
+        video: { codec: 'h265', encoder: 'x265', width: 1920, height: 1080 },
+      };
+      await json(route, episode);
+    });
+    await page.goto(`${LIBRARY}/serien/${id}`);
+    const fact = (name: string) =>
+      page
+        .locator('dl > div')
+        .filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
+        .locator('dd');
+    await expect(page.getByText('Eine kleine Insel im Sturm.')).toBeVisible();
+    await expect(fact('Qualitätsprofil')).toHaveText(real.quality_profile.name);
+    await expect(fact('Tags')).toHaveText('familie');
+    await expect(page.getByTestId('folder')).toContainText('Kleine Insel');
+    const grab = page.getByTestId('grab');
+    await expect(grab).toContainText('Kleine.Insel.S01E02.1080p.WEB-DL-GRP');
+    await expect(grab).toContainText('Entpacken fehlgeschlagen');
+    await expect(page.getByText('Kleine.Insel.S01E02.720p-ALT')).toBeVisible();
+    await expect(page.getByText('Download fehlgeschlagen')).toBeVisible();
+    const e1 = page.locator('[data-episode="S01E01"]');
+    await e1
+      .locator('summary')
+      .filter({ hasText: /^Datei/ })
+      .click();
+    await expect(e1.getByTestId('file-path')).toHaveText(/S01E01/);
+    await expect(e1.getByText('Release-Gruppe')).toBeVisible();
+    await expect(e1.getByRole('heading', { name: 'Media-Infos' })).toBeVisible();
+    await expect(fact('container')).toHaveText('matroska');
+    await expect(fact('video')).toContainText('"encoder":"x265"');
+  });
+
   test('switching a season switches its episodes', async ({ page, request }) => {
     const id = await seriesId(request, LIBRARY, 'Staffelschalter');
     await page.goto(`${LIBRARY}/serien/${id}`);

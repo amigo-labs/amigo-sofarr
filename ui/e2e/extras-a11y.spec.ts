@@ -58,8 +58,24 @@ const TARGETS: readonly Target[] = [
     open: async (page) => {
       const id = await seriesId(page.request, EXTRAS, 'Untertitelserie');
       await page.goto(`${EXTRAS}/serien/${id}`);
-      await page.locator('[data-episode="S01E01"] summary').click();
+      await page
+        .locator('[data-episode="S01E01"] summary')
+        .filter({ hasText: /^Untertitel/ })
+        .click();
       await expect(page.getByTestId('subtitles-needed')).toBeVisible();
+    },
+  },
+  {
+    name: 'Serie mit geöffneter Episodendatei',
+    open: async (page) => {
+      const id = await seriesId(page.request, EXTRAS, 'Untertitelserie');
+      await page.goto(`${EXTRAS}/serien/${id}`);
+      const episode = page.locator('[data-episode="S01E01"]');
+      await episode
+        .locator('summary')
+        .filter({ hasText: /^Datei/ })
+        .click();
+      await expect(episode.getByTestId('file-path')).toBeVisible();
     },
   },
   { name: 'System', open: at(`${EXTRAS}/system`) },
