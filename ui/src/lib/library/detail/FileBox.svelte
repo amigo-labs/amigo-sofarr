@@ -6,6 +6,9 @@
   // A library file with quality, size, release group and media info (AC-05).
   type Props = { file: FileDetail | null; cutoffReason: string | null; title?: string };
   let { file, cutoffReason, title = 'Datei' }: Props = $props();
+  // Several boxes can share a page (one per opened episode): each heading has its own id.
+  const uid = $props.id();
+  const titleId = `${uid}-title`;
 
   const mediaInfo = $derived(
     file?.media_info === null || file?.media_info === undefined
@@ -14,8 +17,8 @@
   );
 </script>
 
-<section class="box" aria-labelledby="file-title">
-  <h2 id="file-title" class="box-header">{title}</h2>
+<section class="box" aria-labelledby={titleId}>
+  <h2 id={titleId} class="box-header">{title}</h2>
   <div class="box-row body">
     {#if file === null}
       <p><strong>fehlt</strong> – es gibt noch keine Datei.</p>

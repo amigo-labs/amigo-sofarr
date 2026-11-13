@@ -7,10 +7,11 @@
   import Label from '../components/Label.svelte';
   import MonitorButton from '../components/MonitorButton.svelte';
   import EpisodeSubtitles from '../../subtitles/EpisodeSubtitles.svelte';
+  import EpisodeFile from './EpisodeFile.svelte';
   import type { ItemActions } from './detail.svelte';
 
-  // One season with its episode counts and episodes (spec web-ui-library AC-06, AC-10) and
-  // the subtitles of each episode file (spec subtitles AC-12).
+  // One season with its episode counts and episodes (spec web-ui-library AC-06, AC-10), the
+  // file of each episode (AC-06) and its subtitles (spec subtitles AC-12).
   type Props = {
     seriesId: number;
     seriesTitle: string;
@@ -105,6 +106,7 @@
           </button>
         </div>
         {#if episode.has_file}
+          <EpisodeFile {seriesId} episodeId={episode.id} title={`${seriesTitle} ${code}`} />
           <EpisodeSubtitles {seriesId} episodeId={episode.id} title={`${seriesTitle} ${code}`} />
         {/if}
       </li>
