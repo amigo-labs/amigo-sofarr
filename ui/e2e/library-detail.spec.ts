@@ -31,6 +31,33 @@ test.describe('movie page (AC-05, AC-21)', () => {
     await expect.poll(() => poster.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1);
   });
 
+  test('shows the media info read from the file', async ({ page, request }) => {
+    const id = await movieId(request, LIBRARY, 'Das Boot');
+    // The seeded files are no real videos: the answer gets the media info a read stores.
+    await page.route(`**/api/library/movies/${id}`, async (route) => {
+      const detail = await (await route.fetch()).json();
+      detail.file.media_info = {
+        status: 'complete',
+        container: 'matroska',
+        video: { codec: 'h265', encoder: 'x265', width: 1920, height: 1080 },
+        audio: [{ codec: 'eac3', channels: 6, object_audio: false, language: 'ger' }],
+        subtitles: [],
+      };
+      await json(route, detail);
+    });
+    await page.goto(`${LIBRARY}/filme/${id}`);
+    const fact = (name: string) =>
+      page
+        .locator('dl > div')
+        .filter({ has: page.locator('dt', { hasText: new RegExp(`^${name}$`) }) })
+        .locator('dd');
+    await expect(page.getByRole('heading', { name: 'Media-Infos' })).toBeVisible();
+    await expect(fact('container')).toHaveText('matroska');
+    await expect(fact('video')).toContainText('"encoder":"x265"');
+    await expect(fact('audio')).toContainText('"language":"ger"');
+    await expect(page.getByText('Media-Infos wurden noch nicht gelesen.')).toHaveCount(0);
+  });
+
   test('shows cinema, digital and disc dates and the tags', async ({ page, request }) => {
     const fact = (name: string) =>
       page
