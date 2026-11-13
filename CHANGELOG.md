@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/amigo-labs/amigo-sofarr/compare/v1.0.0...v1.0.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ui:** keep the view switch labels on one line ([a29ad55](https://github.com/amigo-labs/amigo-sofarr/commit/a29ad556aa2dc62c2d76e44f75bec22bcdb1b677))
+
 ## 1.0.0 (2026-11-13)
 
 
