@@ -1,10 +1,10 @@
 name: Release Please
 
-# As in amigo-blinzel and amigo-pincel: every push to main opens or
-# refreshes the release PR: version bump in Cargo.toml (plus Cargo.lock),
-# CHANGELOG.md from the Conventional Commits since the last release.
-# Merging it tags v<version>, creates the release as a draft and builds and
-# publishes it (release.yml). See docs/RELEASING.md.
+# Every push to main opens or refreshes the release PR: version bump in
+# Cargo.toml (plus Cargo.lock), CHANGELOG.md from the Conventional Commits
+# since the last release. Merging it tags v<version>, creates the release
+# as a draft and builds and publishes it (release.yml). See
+# docs/RELEASING.md.
 #
 # Token: RELEASE_PLEASE_TOKEN (an organization secret: a fine-grained PAT
 # with contents and pull-requests write), so CI also runs on the release

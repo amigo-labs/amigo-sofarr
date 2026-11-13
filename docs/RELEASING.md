@@ -1,9 +1,8 @@
 # Releasing amigo-sofarr
 
-Releases work as in amigo-blinzel and amigo-pincel: **release-please** keeps a release PR open
-on `main`; merging it tags the version, and `release.yml` builds the container image
-`ghcr.io/amigo-labs/amigo-sofarr` for `linux/amd64` and `linux/arm64`, pushes it and publishes
-the draft release.
+**release-please** keeps a release PR open on `main`; merging it tags the version, and
+`release.yml` builds the container image `ghcr.io/amigo-labs/amigo-sofarr` for `linux/amd64`
+and `linux/arm64`, pushes it and publishes the draft release.
 
 ## TL;DR
 
@@ -53,10 +52,9 @@ release.
 ## One-time setup
 
 - **Token for the release PR:** the organization secret `RELEASE_PLEASE_TOKEN` (a fine-grained
-  PAT with contents and pull-requests write), as for amigo-blinzel and amigo-pincel, so CI also
-  runs on the release PR. Without it the workflow's own token is used; that needs **Settings →
-  Actions → General → Allow GitHub Actions to create and approve pull requests** and starts no
-  CI on the release PR.
+  PAT with contents and pull-requests write), so CI also runs on the release PR. Without it
+  the workflow's own token is used; that needs **Settings → Actions → General → Allow GitHub
+  Actions to create and approve pull requests** and starts no CI on the release PR.
 - **Image visibility:** the first push creates the package `amigo-sofarr` in the organization's
   packages, private by default. Make it public once under **Package settings → Change
   visibility**, so `docker pull` works without a login. The image's
