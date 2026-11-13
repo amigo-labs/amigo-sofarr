@@ -36,14 +36,21 @@ cargo run -p sofarr-server -- --config config/sofarr.example.toml
 curl localhost:7676/api/health
 ```
 
-Docker:
+Docker, the released image (`linux/amd64`, `linux/arm64`):
+
+```sh
+docker run --rm -p 7676:7676 ghcr.io/amigo-labs/amigo-sofarr:latest
+```
+
+or built from the repository:
 
 ```sh
 docker build -t amigo-sofarr .
 docker run --rm -p 7676:7676 amigo-sofarr
 ```
 
-See [`compose.example.yml`](compose.example.yml) for running it next to an existing setup.
+See [`compose.example.yml`](compose.example.yml) for running it next to an existing setup, and
+[`docs/RELEASING.md`](docs/RELEASING.md) for how releases are made.
 
 ## Parity tooling
 

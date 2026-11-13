@@ -1,0 +1,75 @@
+name: Release Please
+
+# Every push to main opens or refreshes the release PR: version bump in
+# Cargo.toml (plus Cargo.lock), CHANGELOG.md from the Conventional Commits
+# since the last release. Merging it tags v<version>, creates the release
+# as a draft and builds and publishes it (release.yml). See
+# docs/RELEASING.md.
+#
+# Token: RELEASE_PLEASE_TOKEN (an organization secret: a fine-grained PAT
+# with contents and pull-requests write), so CI also runs on the release
+# PR, and "Allow GitHub Actions to create and approve pull requests" stays
+# off. Without it the workflow's own token is used, which needs that
+# setting on (Settings, Actions, General) and starts no CI on the PR.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # release-please bumps Cargo.toml only; `cargo build --locked` in the
+      # image needs the lock file to agree.
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.pr
+        with:
+          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+      - name: Cargo.lock on the release PR
+        if: steps.release.outputs.pr
+        # A step's env is evaluated before its `if`; without a release PR
+        # the output is empty, and fromJSON('') would fail the job.
+        env:
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr || '{}').headBranchName }}
+        run: |
+          cargo update --workspace
+          if ! git diff --quiet Cargo.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore: update Cargo.lock"
+            git push origin "HEAD:$BRANCH"
+          fi
+
+  release:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    # A called workflow's jobs cannot hold more than the call site grants:
+    # release.yml pushes the image to GHCR and publishes the release.
+    permissions:
+      contents: write
+      packages: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+    secrets: inherit
