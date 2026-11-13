@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { FileDetail } from '../../api/generated/FileDetail';
-  import { valueText } from '../../system/config-view';
   import { bytesText } from '../format';
+  import { mediaInfoRows } from '../media-info';
 
   // A library file with quality, size, release group and media info (AC-05).
   type Props = { file: FileDetail | null; cutoffReason: string | null; title?: string };
@@ -13,7 +13,7 @@
   const mediaInfo = $derived(
     file?.media_info === null || file?.media_info === undefined
       ? []
-      : Object.entries(file.media_info).map(([key, value]) => ({ key, value: valueText(value) })),
+      : mediaInfoRows(file.media_info),
   );
 </script>
 
@@ -51,9 +51,9 @@
       {#if mediaInfo.length > 0}
         <h3>Media-Infos</h3>
         <dl class="facts">
-          {#each mediaInfo as row (row.key)}
+          {#each mediaInfo as row (row.label)}
             <div>
-              <dt class="mono">{row.key}</dt>
+              <dt>{row.label}</dt>
               <dd>{row.value}</dd>
             </div>
           {/each}
