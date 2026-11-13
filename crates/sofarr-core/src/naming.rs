@@ -7,6 +7,10 @@
 //! the token name (space, `.`, `_`, `-`) is used between the words of the value;
 //! a `:XX` suffix selects a translation.
 
+mod clean;
+
+use clean::clean_title;
+
 use sofarr_parser::Revision;
 
 /// How `:` in titles is replaced.
@@ -198,8 +202,13 @@ pub fn format(pattern: &str, input: &NamingInput, config: &NamingConfig) -> Stri
     tidy(&out)
 }
 
-/// Collapses doubled separators left behind by empty tokens and trims the ends.
+/// Collapses doubled separators left behind by empty tokens and trims the ends of every
+/// folder level, so no path component ends with a dot or a space (invalid on Windows).
 fn tidy(s: &str) -> String {
+    s.split('/').map(tidy_level).collect::<Vec<_>>().join("/")
+}
+
+fn tidy_level(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         let last = out.chars().last();
@@ -457,21 +466,6 @@ fn title_text(title: &str, config: &NamingConfig) -> String {
     out
 }
 
-/// Title without punctuation: letters, digits and spaces remain; `&` becomes `and`.
-fn clean_title(title: &str) -> String {
-    let mut out = String::new();
-    for c in title.chars() {
-        if c.is_alphanumeric() {
-            out.push(c);
-        } else if c == '&' {
-            out.push_str(" and ");
-        } else if c.is_whitespace() || matches!(c, '-' | ':' | '/' | '\\' | '.') {
-            out.push(' ');
-        }
-    }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 /// `The Matrix` → `Matrix, The`.
 fn move_article(title: &str) -> String {
     for article in ["The ", "A ", "An ", "Der ", "Die ", "Das "] {
@@ -725,7 +719,7 @@ mod tests {
         );
         assert_eq!(
             name,
-            "Mission Impossible Fallout (2018) Bluray-1080p.x264.DTS-GRP"
+            "Mission Impossible – Fallout (2018) Bluray-1080p.x264.DTS-GRP"
         );
     }
 
@@ -740,6 +734,22 @@ mod tests {
             &config(),
         );
         assert_eq!(name, "Mission - Impossible - Fallout Bluray-1080p");
+    }
+
+    #[test]
+    fn every_folder_level_is_a_valid_windows_name() {
+        let mut i = input();
+        i.title = "Mr. Smith Jr.".to_owned();
+        i.title_de = None;
+        // Windows refuses a path component that ends with a dot or a space.
+        assert_eq!(
+            format(
+                "{Movie CleanTitle}/{Movie CleanTitle} ({Release Year})",
+                &i,
+                &config()
+            ),
+            "Mr. Smith Jr/Mr. Smith Jr. (2018)"
+        );
     }
 
     #[test]
