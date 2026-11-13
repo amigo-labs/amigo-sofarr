@@ -1,0 +1,156 @@
+name: Release
+
+# Builds the release for a tag v<version>: the container image
+# ghcr.io/amigo-labs/amigo-sofarr for linux/amd64 and linux/arm64, each
+# platform built natively on its own GitHub-hosted runner (no emulation),
+# joined into one multi-platform image tagged <version>, <major>.<minor>
+# and latest; then the tag's GitHub release, which release-please created
+# as a draft with the changelog, is published. release-please.yml calls
+# this after a release PR is merged; by hand, run it for an existing tag.
+# See docs/RELEASING.md.
+#
+# Needs no secret: the workflow's own token pushes to GHCR
+# (packages: write) and publishes the release (contents: write).
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build and publish (e.g. v0.1.0)
+        type: string
+        required: true
+
+# Least privilege: each job asks for what it needs.
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/amigo-labs/amigo-sofarr
+  # The same tags and labels in both jobs: the label version is the release's.
+  TAGS: |
+    type=semver,pattern={{version}},value=${{ inputs.tag }}
+    type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag }}
+    type=raw,value=latest
+
+jobs:
+  image:
+    name: Image ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Tag matches the crate version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/{s/^version = "\(.*\)"/\1/p}' Cargo.toml)
+          test "v$version" = "$TAG" || { echo "tag $TAG != v$version"; exit 1; }
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: ${{ env.TAGS }}
+      # Pushed by digest only; the manifest job puts the tags on both.
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      - name: Remember the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  manifest:
+    name: Multi-platform image
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: ${{ env.TAGS }}
+      - name: Tag both platforms as one image
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          args=()
+          while read -r tag; do args+=(-t "$tag"); done \
+            < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          for digest in *; do args+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${args[@]}"
+      - name: The image holds linux/amd64 and linux/arm64
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          platforms=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' \
+            | jq -r '.manifests[] | select(.platform.os == "linux") | .platform.architecture' \
+            | sort | tr '\n' ' ')
+          test "$platforms" = "amd64 arm64 " || { echo "platforms: $platforms"; exit 1; }
+
+  publish:
+    name: Publish the release
+    needs: manifest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # release-please created the tag's release as a draft (with the
+      # changelog as notes); it goes public only once the image is there.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft \
+              --title "amigo-sofarr ${TAG#v}" --generate-notes
+          fi
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest \
+            --title "amigo-sofarr ${TAG#v}"
