@@ -61,7 +61,7 @@ Orakel: radarr 6.4.4.10685, sonarr 4.0.20.3014
 | Media Management: setPermissionsLinux | radarr: = false; sonarr: = false | 4 | umgesetzt (aus) |
 | Media Management: skipFreeSpaceCheckWhenImporting | radarr: = false; sonarr: = false | 4 | umgesetzt – Orakel-Abgleich offen |
 | Media Management: minimumFreeSpaceWhenImporting | radarr: = 50000; sonarr: = 10000 | 4 | umgesetzt – Orakel-Abgleich offen |
-| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | umgesetzt – eigener Leser für MKV/MP4 (`sofarr-mediainfo`), andere Container per Release-Namen; Orakel-Abgleich (`compare-mediainfo`) offen |
+| Media Management: enableMediaInfo | radarr: = true; sonarr: = true | 4 | umgesetzt – eigener Leser für MKV/MP4 (`sofarr-mediainfo`), andere Container per Release-Namen; Orakel-Abgleich (`compare-mediainfo`) am 12.11.2026, siehe „Stand Media-Infos“ |
 | Media Management: recycleBinCleanupDays | radarr: = 7; sonarr: = 7 | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: renameMovies | radarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
 | Benennung: replaceIllegalCharacters | radarr: = true; sonarr: = true | 4 | umgesetzt – Orakel-Abgleich offen |
