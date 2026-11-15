@@ -169,8 +169,8 @@ numbers; AC-06 adds the season read without a season marker.
 | AC-03 | `anime_batch_in_parentheses` (`crates/sofarr-parser/src/episode.rs`) | built |        |
 | AC-04 | `bracket_number_after_title` (`crates/sofarr-parser/src/episode.rs`) | built |        |
 | AC-05 | `new_forms_reject_non_episodes` (`crates/sofarr-parser/src/episode.rs`) | built |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-06 | `movies_are_rarely_episodes`, `season_marker_detection` (`crates/sofarr-parser/tests/episode_oracle.rs`) | built |        |
+| AC-07 | `episode_gap_titles_match_oracle`, `sonarr_oracle_ratchet` (`crates/sofarr-parser/tests/episode_oracle.rs`); baseline `fixtures/parser-episode-baseline.toml` | built |        |
 
 ## Decisions
 
@@ -188,3 +188,12 @@ numbers; AC-06 adds the season read without a season marker.
   `[Onalrie].Shin.Tennis…U-17…-.E07…` now give season 1 with the `E` number, as AC-02 says.
   Sonarr reads an absolute number out of the title there (3199, 17), which sofarr does not
   copy. They are recorded in `docs/parity.md` as deliberate deviations.
+- 2026-11-15 (build): The AC-06 count was already 0 of 4,952 before the change and stays 0,
+  because the movie oracle contains none of the new forms. The test was therefore green from
+  the start; `season_marker_detection` shows that the new part of the count tells titles with
+  and without a season marker apart.
+- 2026-11-15 (build): `episode_gap_titles_match_oracle` (AC-07) was written after the parser
+  change. Its red run comes from the parser of the previous commit
+  (`git checkout HEAD~1 -- crates/sofarr-parser/src`), where 25 titles fail on series title,
+  season, episodes or absolute numbers. Rates after the change (‰): `series_title` 988 → 992,
+  `absolute` 992 → 996; the other fields are unchanged.
