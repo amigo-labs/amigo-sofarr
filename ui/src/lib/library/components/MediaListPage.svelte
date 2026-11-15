@@ -275,8 +275,8 @@
     gap: var(--base-size-8);
     padding: var(--base-size-8) var(--base-size-12);
     border: var(--borderWidth-thin) solid var(--borderColor-accent-emphasis);
-    border-radius: var(--borderRadius-medium);
-    background: var(--bgColor-default);
+    border-radius: var(--borderRadius-large);
+    background: var(--bgColor-surface);
   }
 
   .empty {

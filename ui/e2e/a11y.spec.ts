@@ -4,6 +4,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { SAMPLE_SYSTEM, expectSystemPage, json, logIn } from './helpers';
 import { SERVERS } from './servers';
+import { PALETTES, storeTheme } from './theme-helpers';
 
 async function expectNoViolations(page: Page): Promise<void> {
   const result = await new AxeBuilder({ page })
@@ -15,10 +16,10 @@ async function expectNoViolations(page: Page): Promise<void> {
   expect(summary).toEqual([]);
 }
 
-for (const scheme of ['light', 'dark'] as const) {
+for (const scheme of PALETTES) {
   test.describe(`${scheme} theme`, () => {
     test.beforeEach(async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
+      await storeTheme(page, scheme);
     });
 
     test('system page with every state', async ({ page }) => {

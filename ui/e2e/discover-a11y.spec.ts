@@ -7,6 +7,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import { DISCOVER, cards, settle } from './discover-helpers';
 import { expectNoHorizontalScroll } from './helpers';
 import { LIBRARY } from './library-helpers';
+import { PALETTES, storeTheme } from './theme-helpers';
 
 type Target = { readonly name: string; readonly url: string };
 
@@ -43,10 +44,10 @@ async function open(page: Page, url: string): Promise<void> {
   ).toBeVisible();
 }
 
-for (const scheme of ['light', 'dark'] as const) {
+for (const scheme of PALETTES) {
   test.describe(`axe, ${scheme} theme`, () => {
     test.beforeEach(async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
+      await storeTheme(page, scheme);
     });
 
     for (const target of TARGETS) {

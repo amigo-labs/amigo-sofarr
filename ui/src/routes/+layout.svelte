@@ -119,7 +119,7 @@
     z-index: 10;
     padding: var(--base-size-8) var(--base-size-12);
     border-radius: var(--borderRadius-medium);
-    background: var(--bgColor-default);
+    background: var(--bgColor-surface);
     color: var(--fgColor-accent);
   }
 

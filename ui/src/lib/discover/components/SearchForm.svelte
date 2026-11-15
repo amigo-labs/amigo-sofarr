@@ -45,7 +45,7 @@
     padding: 0 var(--base-size-8);
     border: var(--borderWidth-thin) solid var(--control-borderColor-emphasis);
     border-radius: var(--borderRadius-medium);
-    background: var(--bgColor-default);
+    background: var(--control-bgColor-rest);
     color: var(--fgColor-default);
     font: inherit;
   }

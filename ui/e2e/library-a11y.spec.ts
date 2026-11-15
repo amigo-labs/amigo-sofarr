@@ -6,6 +6,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { expectNoHorizontalScroll, json } from './helpers';
 import { LIBRARY, movieId, seriesId } from './library-helpers';
+import { PALETTES, storeTheme } from './theme-helpers';
 
 type Target = { readonly name: string; readonly path: (page: Page) => Promise<string> };
 
@@ -67,10 +68,10 @@ async function expectNoViolations(page: Page): Promise<void> {
   expect(summary).toEqual([]);
 }
 
-for (const scheme of ['light', 'dark'] as const) {
+for (const scheme of PALETTES) {
   test.describe(`axe, ${scheme} theme`, () => {
     test.beforeEach(async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
+      await storeTheme(page, scheme);
       await withBlocklist(page);
     });
 

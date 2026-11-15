@@ -35,13 +35,13 @@
     max-height: calc(100vh - 2rem);
     padding: var(--base-size-16);
     border: var(--borderWidth-thin) solid var(--borderColor-default);
-    border-radius: var(--borderRadius-large, 0.75rem);
-    background: var(--bgColor-default);
+    border-radius: var(--borderRadius-large);
+    background: var(--bgColor-surface);
     color: var(--fgColor-default);
   }
 
   dialog::backdrop {
-    background: rgb(0 0 0 / 0.5);
+    background: var(--bgColor-backdrop);
   }
 
   .body {

@@ -82,7 +82,8 @@
     padding: 0;
     list-style: none;
     border: var(--borderWidth-thin) solid var(--borderColor-default);
-    border-radius: var(--borderRadius-medium);
+    border-radius: var(--borderRadius-large);
+    background: var(--bgColor-surface);
   }
 
   .item {
@@ -142,6 +143,7 @@
     grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
     gap: var(--base-size-16);
     border: 0;
+    background: none;
   }
 
   .grid .item {
@@ -160,12 +162,14 @@
     .items:not(.grid) {
       gap: var(--base-size-8);
       border: 0;
+      background: none;
     }
 
     .items:not(.grid) .item {
       grid-template-columns: 3rem minmax(0, 1fr);
       border: var(--borderWidth-thin) solid var(--borderColor-default);
-      border-radius: var(--borderRadius-medium);
+      border-radius: var(--borderRadius-large);
+      background: var(--bgColor-surface);
     }
 
     .items:not(.grid) .actions {
