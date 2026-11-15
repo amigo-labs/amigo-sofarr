@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { expectNoHorizontalScroll } from './helpers';
 import { EXTRAS, RATINGS, waitForRatings, waitForSubtitleRun } from './extras-helpers';
 import { movieId, seriesId } from './library-helpers';
+import { PALETTES, storeTheme } from './theme-helpers';
 
 type Target = {
   readonly name: string;
@@ -101,11 +102,11 @@ test.beforeEach(async ({ request }) => {
   await waitForSubtitleRun(request);
 });
 
-for (const scheme of ['light', 'dark'] as const) {
+for (const scheme of PALETTES) {
   test.describe(`axe, ${scheme} theme`, () => {
     for (const target of TARGETS) {
       test(target.name, async ({ page }) => {
-        await page.emulateMedia({ colorScheme: scheme });
+        await storeTheme(page, scheme);
         await target.open(page);
         await settle(page);
         await expectNoViolations(page);

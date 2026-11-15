@@ -25,6 +25,7 @@
     "node_modules/**",
     "test-results/**",
     "playwright-report/**",
-    "src/lib/api/generated/**"
+    "src/lib/api/generated/**",
+    "src/theme/**"
   ]
 }

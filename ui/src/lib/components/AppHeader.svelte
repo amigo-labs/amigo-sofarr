@@ -92,6 +92,7 @@
 
 <style>
   .app-header {
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
     background: var(--header-bgColor);
     color: var(--header-fgColor-logo);
   }
@@ -129,16 +130,18 @@
     display: block;
     padding: var(--base-size-4) var(--base-size-8);
     border-radius: var(--borderRadius-medium);
-    color: var(--header-fgColor-logo);
+    color: var(--header-fgColor-default);
     font-weight: var(--base-text-weight-semibold);
     text-decoration: none;
   }
 
   .nav a:hover {
-    background: color-mix(in srgb, var(--header-fgColor-logo) 15%, transparent);
+    background: var(--button-default-bgColor-hover);
+    color: var(--header-fgColor-logo);
   }
 
   .nav a[aria-current='page'] {
+    color: var(--fgColor-accent);
     box-shadow: inset 0 -2px 0 var(--underlineNav-borderColor-active);
   }
 
@@ -156,7 +159,7 @@
     width: 2rem;
     height: 2rem;
     padding: 0;
-    border: var(--borderWidth-thin) solid var(--header-fgColor-default);
+    border: var(--borderWidth-thin) solid var(--control-borderColor-emphasis);
     border-radius: var(--borderRadius-medium);
     background: transparent;
     color: var(--header-fgColor-logo);
@@ -166,10 +169,6 @@
   .icon-button:disabled {
     cursor: progress;
     opacity: 0.7;
-  }
-
-  .app-header :global(:focus-visible) {
-    outline-color: var(--header-fgColor-logo);
   }
 
   .menu-button {

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import sunIcon from '@primer/octicons/build/svg/sun-16.svg?raw';
   import {
+    DEFAULT_CHOICE,
     THEME_CHOICES,
     applyChoice,
     parseChoice,
@@ -11,9 +12,9 @@
   } from '../theme/theme';
   import Icon from './Icon.svelte';
 
-  // The color scheme switch (spec web-ui-shell AC-10).
+  // The theme switch (specs web-ui-shell AC-10, amigo-theme AC-05).
   const storage = (): Storage => window.localStorage;
-  let choice: ThemeChoice = $state('system');
+  let choice: ThemeChoice = $state(DEFAULT_CHOICE);
 
   onMount(() => {
     choice = readChoice(storage);
@@ -21,7 +22,7 @@
   });
 
   function change(event: Event & { currentTarget: HTMLSelectElement }): void {
-    choice = parseChoice(event.currentTarget.value);
+    choice = parseChoice(event.currentTarget.value) ?? DEFAULT_CHOICE;
     applyChoice(document.documentElement, choice);
     storeChoice(storage, choice);
   }
@@ -42,16 +43,16 @@
     display: inline-flex;
     align-items: center;
     gap: var(--base-size-4);
-    color: var(--header-fgColor-logo);
+    color: var(--fgColor-muted);
   }
 
   select {
-    min-height: 2rem;
+    min-height: var(--control-medium-size);
     padding: 0 var(--base-size-4);
-    border: var(--borderWidth-thin) solid var(--header-fgColor-default);
+    border: var(--borderWidth-thin) solid var(--control-borderColor-emphasis);
     border-radius: var(--borderRadius-medium);
-    background: var(--header-bgColor);
-    color: var(--header-fgColor-logo);
+    background: var(--control-bgColor-rest);
+    color: var(--fgColor-default);
     font: inherit;
   }
 </style>

@@ -1,5 +1,5 @@
 ---
-status: implemented
+status: todo
 created: 2026-11-12
 size: L
 design: [sofarr.md §3, sofarr.md §7, sofarr.md §9 D15, sofarr.md §9 D16, sofarr.md §9 D23]
@@ -77,7 +77,7 @@ Terms used below:
 - [x] AC-07 (event): When the API answers status 401 while the user works in the UI (session expired or logged out elsewhere), then the UI shows the login page and returns to the same page after the login; a write action that got the 401 is not repeated, and the page says that it was not carried out.
 - [x] AC-08 (always): Every page that exists is reachable from every other page through the navigation, in the order Übersicht, Filme, Serien, Kalender, Fehlend, Entdecken, Blocklist, Backups, System; the navigation lists only pages that are built (after this spec: System), and the current page is marked. Until the overview exists (spec `web-ui-library`), `/` and the page after a login without a requested page is the system page.
 - [x] AC-09 (state): While the window is narrow, every page fits the width without horizontal scrolling and the navigation is reachable through a menu button.
-- [x] AC-10 (always): The UI follows the system's light or dark setting; a switch offers light, dark and system, and the choice is remembered in the browser.
+- [ ] AC-10 (always): The UI is dark until the user chooses otherwise; a switch offers dark, light and system (which follows the system's light or dark setting), and the choice is remembered in the browser.
 - [x] AC-11 (always): Text and controls meet WCAG 2.1 AA contrast in both themes, every action is reachable by keyboard with a visible focus, and every icon-only control has a German accessible name.
 - [x] AC-12 (event): When the user opens the system page, then it shows the sofarr version, the mode (shadow or live), each scheduled job with interval (or "aus" when switched off), last run (or "noch nicht gelaufen"), its result (ok, or error with the message) and next run, whether the download client and each indexer answered at the last contact (or "nicht konfiguriert" / "noch kein Kontakt"), and the configuration in effect with every secret masked; the page refreshes.
 - [x] AC-13 (error): If the API cannot be reached or answers a server error (5xx), then the UI shows a German notice with the API's message and a retry action, keeps the last shown data visible (or, on a first load without data, a full-page German error with a retry action), and retries a failed refresh by itself after at most 30 seconds.
@@ -150,7 +150,7 @@ Terms used below:
 | AC-07 | `a refresh that gets 401 shows the login page and returns to the same page`, `a write action that got 401 is not repeated and the page says so` (`ui/e2e/auth.spec.ts`); `sends a write action once and names it after a 401` (`ui/src/lib/api/client.test.ts`) | verified | 78db961 |
 | AC-08 | `lists the built pages in order and marks the current one`, `every page reaches every other page through the navigation` (`ui/e2e/layout.spec.ts`); `a login without a requested page shows the system page (AC-08)` (`ui/e2e/auth.spec.ts`); `nav` (`ui/src/lib/nav.test.ts`) | verified | 78db961 |
 | AC-09 | `narrow screens (AC-09)` › `the navigation sits behind a menu button`, `very long names and messages wrap instead of scrolling` (`ui/e2e/layout.spec.ts`) | verified | 78db961 |
-| AC-10 | `theme (AC-10)` › `follows the system setting, also when it changes`, `the switch offers Hell, Dunkel and System and is remembered`, `blocked storage: the theme follows the system and is not remembered` (`ui/e2e/layout.spec.ts`); `theme` (`ui/src/lib/theme/theme.test.ts`) | verified | 78db961 |
+| AC-10 | `theme (AC-10)` › `is dark while nothing is stored, whatever the system prefers (AC-04)`, `the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)`, `System follows the system setting, also when it changes (AC-06)`, `a stored "light" / "dark" / "system" / "auto" / "" is on the document before the app renders (AC-07)`, `blocked storage: dark at the start, a pick applies but is not remembered (AC-08)`, `storage that refuses writes: a pick applies until the reload (AC-08)`, `without JavaScript the notice shows in the dark palette` (`ui/e2e/layout.spec.ts`); `theme choice` (`ui/src/lib/theme/theme.test.ts`) | built |  |
 | AC-11 | `light theme` and `dark theme` › `system page with every state`, `system page with a failed refresh`, `full-page error`, `login page with an error and the open menu on a narrow screen`, `logged-in header and open menu`, `page not found` (axe, wcag2a/2aa/21a/21aa, `ui/e2e/a11y.spec.ts`); `every control is reachable by Tab with a visible focus`, `the login form works with the keyboard alone` (`ui/e2e/layout.spec.ts`) | verified | 78db961 |
 | AC-12 | `ui_tests::the_system_page_shows_jobs_connections_and_masked_settings`, `ui_tests::without_clients_the_system_page_says_not_configured` (`crates/sofarr-server/src/ui_tests.rs`); `system::tests::secrets_are_masked_at_any_depth`, `system::tests::urls_lose_user_info_and_query` (`crates/sofarr-server/src/system.rs`); `status::tests::jobs_and_contacts_keep_the_last_state` (`crates/sofarr-server/src/status.rs`); `shows version, mode, jobs, connections and the configuration of the server`, `shows every job result and connection state in German`, `refreshes every 15 seconds while open` (`ui/e2e/system.spec.ts`) | verified | efd4234 |
 | AC-13 | `failed requests (AC-13)` › `a first load with a server error shows a full-page error with a retry`, `an unreachable API on the first load says so in German`, `a failed refresh keeps the data, offers a retry and retries by itself`, `an unreachable API at the start shows a full-page error with a retry`, `a slow answer shows a loading indicator`; `without JavaScript` › `a German note says that the UI needs JavaScript` (`ui/e2e/system.spec.ts`); `resource` (`ui/src/lib/resource.test.ts`) | verified | 78db961 |
@@ -162,6 +162,8 @@ Terms used below:
 | AC-19 | `a missing asset reloads the app document once and the page appears`, `an asset that still fails after the reload shows an error instead of looping`, `a page changed by a newer build loads after one reload during navigation` (`ui/e2e/assets.spec.ts`); `stale-asset` (`ui/src/lib/stale-asset.test.ts`) | verified | 78db961 |
 
 ## Decisions
+
+- 2026-11-15: AC-10 revised: dark is the default palette instead of the system's, and the look is the shared amigo theme instead of GitHub's (D29, `amigo-theme`). AC-11 stays as worded; its scans now run on the new palettes.
 
 - 2026-11-12: Two UI specs: `web-ui-shell` (this) and `web-ui-library` (owner).
 - 2026-11-12: Responsive from 360 px; light and dark following the system (owner).

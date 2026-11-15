@@ -58,6 +58,6 @@
   .body {
     margin-top: var(--base-size-8);
     padding-left: var(--base-size-12);
-    border-left: var(--borderWidth-thick, 2px) solid var(--borderColor-muted);
+    border-left: var(--borderWidth-thick) solid var(--borderColor-muted);
   }
 </style>

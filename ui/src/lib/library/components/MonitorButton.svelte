@@ -33,7 +33,7 @@
     padding: 0 var(--base-size-8);
     border: var(--borderWidth-thin) solid var(--borderColor-default);
     border-radius: var(--borderRadius-medium);
-    background: var(--bgColor-default);
+    background: var(--button-default-bgColor-rest);
     color: var(--fgColor-muted);
     font: inherit;
     font-size: var(--text-body-size-small);

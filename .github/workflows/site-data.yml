@@ -1,8 +1,10 @@
 # Checks the project data for amigo-labs.dev: validates docs/site/ against the
 # site's schema and fails when assets/brand/ (the icons made from the pixel
-# monogram) no longer matches docs/site/project.yml. The check lives in
-# amigo-labs/website (docs/project-data.md); regenerate the icons there with
-# `node scripts/monogram.ts amigo-labs/amigo-sofarr --out ../amigo-sofarr/assets/brand`.
+# monogram) or ui/src/theme/ (the shared app theme, spec amigo-theme) no longer
+# matches docs/site/project.yml. The check lives in amigo-labs/website
+# (docs/project-data.md); regenerate there with
+# `node scripts/monogram.ts amigo-labs/amigo-sofarr --out ../amigo-sofarr/assets/brand` and
+# `pnpm theme amigo-labs/amigo-sofarr --out ../amigo-sofarr/ui/src/theme`.
 
 name: Site data
 
@@ -11,6 +13,7 @@ on:
     paths:
       - docs/site/**
       - assets/brand/**
+      - ui/src/theme/**
       - .github/workflows/site-data.yml
   workflow_dispatch:
 
@@ -20,3 +23,5 @@ permissions:
 jobs:
   site-data:
     uses: amigo-labs/website/.github/workflows/validate-project.yml@main
+    with:
+      theme-dir: ui/src/theme

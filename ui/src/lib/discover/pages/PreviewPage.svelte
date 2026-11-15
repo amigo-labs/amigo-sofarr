@@ -235,7 +235,7 @@
 
   .seasons {
     margin: 0;
-    padding-left: var(--base-size-20, 1.25rem);
+    padding-left: var(--base-size-20);
   }
 
   @media (max-width: 543.98px) {
