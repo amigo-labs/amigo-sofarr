@@ -98,7 +98,7 @@ Terms. **Theme files**: `tokens.css`, `components.css` and `theme.json`, written
 | AC-10 | `font (AC-10)` › `text is set in Inter from sofarr itself; nothing comes from another host` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `Inter ships with the UI (AC-10)` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
 | AC-11 | `dark palette` and `light palette` › `buttons and fields are 32 px high with a 6 px corner, cards have 8 px (AC-11)` (`ui/e2e/theme.spec.ts`) | built |  |
 | AC-12 | `Primer primitives are gone (AC-12)` › `the built UI ships none of their stylesheets` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `is no dependency of the UI`, `no source imports its stylesheets` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
-| AC-13 |      | open   |        |
+| AC-13 | manual: the owner checked both palettes on the login page, the overview, the movie and series lists and detail pages, the calendar, discover, the system page and the error page ("Krake und Sofarr sind ok"), 2026-11-15 | built |        |
 
 ## Decisions
 
