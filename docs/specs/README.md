@@ -26,6 +26,7 @@ because later specs build on earlier ones.
 | 8 | [discover](discover.md) | L | web-ui-library, imdb-ratings | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) | done |
 | 9 | [subtitles](subtitles.md) | L | mediainfo, web-ui-library | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) | done |
 | 10 | [trailers](trailers.md) | M | imdb-ratings | TMDB trailers via yt-dlp into `trailers/` within a daily budget, Alpine runtime image (D18) | done |
+| 11 | [parser-episode-gaps](parser-episode-gaps.md) | M | – | Episode parser: year before ` - 06`, `E06` without a season, batches `(23-26)`, `[03]` after a dotted anime title | `/spec-build` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -61,9 +62,8 @@ Gaps not yet written as specs. Not commitments.
 | Gap | Note |
 | --- | ---- |
 | Feature specs for the behavior of phases 1–5 | `/spec-extract` per area: parser, decision-engine, library-import, rss-sync, download-import, naming, import-lists, disk-scan, series |
-| Parser: anime titles with a year (`Title (2026) - 06`) | Episode oracle: 9 cases without a match (series title, absolute number) |
-| Parser: titles without a season (`Title.E06.…`) | Episode oracle: Sonarr assumes season 1 |
-| Parser: anime batches `(23-26)` | Episode oracle: only the last number is found |
+| Parser: `…2nd.Season.-.06` read as a season pack | Episode oracle: 4 cases; out of scope of [parser-episode-gaps](parser-episode-gaps.md) |
+| Parser: `[Grp][Title.S2][05]` | Episode oracle: Sonarr answers full season 2 together with an episode number |
 | Release oracle: "Raw Bluray/DVD release", "same release name as imported" | `parity.md`, "Noch nicht abgedeckt" |
 | amigo-downloader as a second download client | `sofarr.md` §8, open question §10 |
 | v3 API shim for Jellyseerr/Prowlarr/Bazarr | `sofarr.md` §8, only if needed (D8) |
