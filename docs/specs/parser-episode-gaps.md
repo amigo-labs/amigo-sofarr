@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-15
 size: M
 design: [sofarr.md §2 (v2 episode parsing), sofarr.md §5, sofarr.md §6]
@@ -83,13 +83,13 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When a title behind a leading group has a year in parentheses directly before ` - <number>`, then sofarr reads the series title including the year and the number as an absolute episode without a season, with the same number rules as the existing ` - 06` anime form (two to four digits, not a year, an optional version suffix `v2`) — `[SubsPlease].Magic.Knight.Rayearth.(2026).-.06.(1080p).[96B7C6E9]` gives the title "Magic Knight Rayearth (2026)", absolute episode 6, no season, no season pack.
-- [ ] AC-02 (event): When the first marker after the title is a season-less episode marker, then sofarr reads season 1 with its episodes (a dash between two markers is a range) and the title before the marker — `Jyuou.Mujin.Dandivine.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST` gives "Jyuou Mujin Dandivine", season 1, episode 6; `Magic.Knight.Rayearth.2026.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST` gives "Magic Knight Rayearth 2026", season 1, episode 6; `Show.E06-E08.1080p.WEB-G` gives season 1, episodes 6, 7, 8.
-- [ ] AC-03 (event): When a title behind a leading group is directly followed by a rising number range in parentheses whose ends are not years and whose end minus start is below 50, then sofarr reads every number of the range as an absolute episode without a season and keeps the range out of the title — `[SubsPlease].Yamato.yo.Towa.ni.-.Rebel.3199.(23-26).(1080p).[Batch]` gives "Yamato yo Towa ni - Rebel 3199" and absolute episodes 23, 24, 25, 26, not a season pack.
-- [ ] AC-04 (event): When a dotted or spaced title behind a leading group is directly followed by a number of two or three digits in square brackets other than 480, 576 and 720 (optionally with a version suffix `v2`), then sofarr reads that number as an absolute episode without a season — `[Studio.GreenTea].Kusuriya.no.Hitorigoto.[52][WebRip][HEVC-10bit.1080p.AAC.ASSx2]` gives "Kusuriya no Hitorigoto", absolute episode 52.
-- [ ] AC-05 (always): sofarr reads no absolute episode from `The Dam Busters (1955) - 1080p HDR - H265 BRRip - NLsub`, `[Grp].Some.Title.[1080p][WebRip]`, `[Grp].Some.Title.[2026][WebRip]`, `[Grp].Some.Title.[720][WebRip]`, `[Grp].Some.Title.[96B7C6E9]`, `[Grp].Some.Title.(26-23).[Batch]`, `[Grp].Some.Title.(01-120).[Batch]`, `The.Godfather.Trilogy.(1-3).1080p.BluRay.x264-G` and `Unforgettable (2011-2015) S 1-4`, and no episode at all from `Show.2026.-.06.1080p`, `E06.1080p.WEB-G` and `[Grp].[52][WebRip]` (no title before the marker).
-- [ ] AC-06 (always): Of the movie-oracle titles, fewer than 0.2 % are read as an episode with an air date, with an absolute number, or with a season although the title contains no season marker.
-- [ ] AC-07 (always): In the episode oracle, each of the 25 oracle titles listed under Technical notes matches Sonarr on all six compared fields, no field's pass rate falls below `fixtures/parser-episode-baseline.toml`, and the baseline file records the new rates.
+- [x] AC-01 (event): When a title behind a leading group has a year in parentheses directly before ` - <number>`, then sofarr reads the series title including the year and the number as an absolute episode without a season, with the same number rules as the existing ` - 06` anime form (two to four digits, not a year, an optional version suffix `v2`) — `[SubsPlease].Magic.Knight.Rayearth.(2026).-.06.(1080p).[96B7C6E9]` gives the title "Magic Knight Rayearth (2026)", absolute episode 6, no season, no season pack.
+- [x] AC-02 (event): When the first marker after the title is a season-less episode marker, then sofarr reads season 1 with its episodes (a dash between two markers is a range) and the title before the marker — `Jyuou.Mujin.Dandivine.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST` gives "Jyuou Mujin Dandivine", season 1, episode 6; `Magic.Knight.Rayearth.2026.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST` gives "Magic Knight Rayearth 2026", season 1, episode 6; `Show.E06-E08.1080p.WEB-G` gives season 1, episodes 6, 7, 8.
+- [x] AC-03 (event): When a title behind a leading group is directly followed by a rising number range in parentheses whose ends are not years and whose end minus start is below 50, then sofarr reads every number of the range as an absolute episode without a season and keeps the range out of the title — `[SubsPlease].Yamato.yo.Towa.ni.-.Rebel.3199.(23-26).(1080p).[Batch]` gives "Yamato yo Towa ni - Rebel 3199" and absolute episodes 23, 24, 25, 26, not a season pack.
+- [x] AC-04 (event): When a dotted or spaced title behind a leading group is directly followed by a number of two or three digits in square brackets other than 480, 576 and 720 (optionally with a version suffix `v2`), then sofarr reads that number as an absolute episode without a season — `[Studio.GreenTea].Kusuriya.no.Hitorigoto.[52][WebRip][HEVC-10bit.1080p.AAC.ASSx2]` gives "Kusuriya no Hitorigoto", absolute episode 52.
+- [x] AC-05 (always): sofarr reads no absolute episode from `The Dam Busters (1955) - 1080p HDR - H265 BRRip - NLsub`, `[Grp].Some.Title.[1080p][WebRip]`, `[Grp].Some.Title.[2026][WebRip]`, `[Grp].Some.Title.[720][WebRip]`, `[Grp].Some.Title.[96B7C6E9]`, `[Grp].Some.Title.(26-23).[Batch]`, `[Grp].Some.Title.(01-120).[Batch]`, `The.Godfather.Trilogy.(1-3).1080p.BluRay.x264-G` and `Unforgettable (2011-2015) S 1-4`, and no episode at all from `Show.2026.-.06.1080p`, `E06.1080p.WEB-G` and `[Grp].[52][WebRip]` (no title before the marker).
+- [x] AC-06 (always): Of the movie-oracle titles, fewer than 0.2 % are read as an episode with an air date, with an absolute number, or with a season although the title contains no season marker.
+- [x] AC-07 (always): In the episode oracle, each of the 25 oracle titles listed under Technical notes matches Sonarr on all six compared fields, no field's pass rate falls below `fixtures/parser-episode-baseline.toml`, and the baseline file records the new rates.
 
 ## Technical notes
 
@@ -160,17 +160,31 @@ numbers; AC-06 adds the season read without a season marker.
 
 <!-- One bullet per open question; empty means: everything settled, spec-build may start -->
 
+## Summary
+
+> Completed: 2026-11-15
+
+- The episode parser reads `[Grp] Title (2026) - 06` (series title with the year, absolute 6),
+  `Title.E06` without a season (season 1, also `E06E07` and ranges `E06-E08`), anime batches
+  `[Grp] Title (23-26)` and `[Grp].Title.[52]`, plus the bracketed form `[Grp][Title][06]`.
+- Tokens record whether a dash was among their separators and which bracket encloses them.
+- All 25 oracle titles of the four forms match Sonarr on every field; the episode-oracle
+  baseline rose (`series_title` 988 → 992 ‰, `absolute` 992 → 996 ‰).
+- The movie-oracle check also counts seasons read without a season marker (0 of 4,952 titles).
+- `E<n>` behind a group where Sonarr reads a number from the title is a deliberate deviation
+  in `docs/parity.md`.
+
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `year_in_parentheses_before_absolute_number` (`crates/sofarr-parser/src/episode.rs`) | built |        |
-| AC-02 | `season_less_episode_marker` (`crates/sofarr-parser/src/episode.rs`) | built |        |
-| AC-03 | `anime_batch_in_parentheses` (`crates/sofarr-parser/src/episode.rs`) | built |        |
-| AC-04 | `bracket_number_after_title` (`crates/sofarr-parser/src/episode.rs`) | built |        |
-| AC-05 | `new_forms_reject_non_episodes` (`crates/sofarr-parser/src/episode.rs`) | built |        |
-| AC-06 | `movies_are_rarely_episodes`, `season_marker_detection` (`crates/sofarr-parser/tests/episode_oracle.rs`) | built |        |
-| AC-07 | `episode_gap_titles_match_oracle`, `sonarr_oracle_ratchet` (`crates/sofarr-parser/tests/episode_oracle.rs`); baseline `fixtures/parser-episode-baseline.toml` | built |        |
+| AC-01 | `episode::tests::year_in_parentheses_before_absolute_number` (`crates/sofarr-parser/src/episode.rs`) | verified | 150b012 |
+| AC-02 | `episode::tests::season_less_episode_marker` (`crates/sofarr-parser/src/episode.rs`) | verified | 150b012 |
+| AC-03 | `episode::tests::anime_batch_in_parentheses` (`crates/sofarr-parser/src/episode.rs`) | verified | 150b012 |
+| AC-04 | `episode::tests::bracket_number_after_title` (`crates/sofarr-parser/src/episode.rs`) | verified | 150b012 |
+| AC-05 | `episode::tests::new_forms_reject_non_episodes` (`crates/sofarr-parser/src/episode.rs`) | verified | 150b012 |
+| AC-06 | `movies_are_rarely_episodes` (0/4952), `season_marker_detection` (`crates/sofarr-parser/tests/episode_oracle.rs`) | verified | 97a7e56 |
+| AC-07 | `episode_gap_titles_match_oracle`, `sonarr_oracle_ratchet` (`crates/sofarr-parser/tests/episode_oracle.rs`); baseline `fixtures/parser-episode-baseline.toml` | verified | 97a7e56 |
 
 ## Decisions
 
