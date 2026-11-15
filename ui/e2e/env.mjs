@@ -6,12 +6,14 @@ import { randomUUID } from 'node:crypto';
 const KEY = 'SOFARR_E2E_PASSWORD';
 
 /**
- * The first port of this run's servers: `SOFARR_E2E_PORT_BASE`, else 47810. Two checkouts
- * running their end-to-end tests at the same time need different bases.
+ * The first port of this run's servers: `SOFARR_E2E_PORT_BASE`, else 27810. Two checkouts
+ * running their end-to-end tests at the same time need different bases. The default stays
+ * below the ephemeral port ranges (Linux from 32768, Windows from 49152): an outgoing
+ * connection could otherwise take one of the ~50 ports before its server starts.
  */
 export function portBase() {
   const raw = process.env.SOFARR_E2E_PORT_BASE;
-  const base = raw === undefined || raw === '' ? 47810 : Number(raw);
+  const base = raw === undefined || raw === '' ? 27810 : Number(raw);
   if (!Number.isInteger(base) || base < 1024 || base > 65000) {
     throw new Error(`SOFARR_E2E_PORT_BASE must be a port between 1024 and 65000, not ${raw}`);
   }

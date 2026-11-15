@@ -301,9 +301,49 @@ pub fn write_marker(db: &Path, name: &str) -> io::Result<()> {
 }
 
 pub fn clear_marker(db: &Path) -> io::Result<()> {
-    match fs::remove_file(marker_path(db)) {
+    match remove_file(&marker_path(db)) {
         Err(e) if e.kind() != ErrorKind::NotFound => Err(e),
         _ => Ok(()),
+    }
+}
+
+/// Deletes a backup or the marker. Tests can make it fail for single paths
+/// (`backup_tests::Undeletable`), which file permissions cannot do for root.
+pub fn remove_file(path: &Path) -> io::Result<()> {
+    #[cfg(test)]
+    if undeletable::holds(path) {
+        return Err(io::Error::new(
+            ErrorKind::PermissionDenied,
+            "undeletable in this test",
+        ));
+    }
+    fs::remove_file(path)
+}
+
+/// Paths whose deletion fails in tests.
+#[cfg(test)]
+pub mod undeletable {
+    use std::{
+        path::{Path, PathBuf},
+        sync::{Mutex, MutexGuard, PoisonError},
+    };
+
+    static PATHS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
+    fn paths() -> MutexGuard<'static, Vec<PathBuf>> {
+        PATHS.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn add(path: &Path) {
+        paths().push(path.to_path_buf());
+    }
+
+    pub fn remove(path: &Path) {
+        paths().retain(|p| p != path);
+    }
+
+    pub fn holds(path: &Path) -> bool {
+        paths().iter().any(|p| p == path)
     }
 }
 

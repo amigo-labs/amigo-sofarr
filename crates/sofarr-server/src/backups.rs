@@ -107,7 +107,7 @@ async fn prune(
     let pending = backup_files::read_marker(db).ok().flatten();
     let mut failed = Vec::new();
     for name in backup_files::to_prune(&files, kind, keep, now, pending.as_deref()) {
-        match std::fs::remove_file(dir.join(&name)) {
+        match backup_files::remove_file(&dir.join(&name)) {
             Ok(()) => tracing::info!(backup = %name, "old backup deleted"),
             Err(e) => failed.push(format!("{name}: {e}")),
         }
@@ -384,7 +384,7 @@ impl App {
         let _guard = self.backup_lock.lock().await;
         let path = self.backup_path(name).await?;
         let db = &self.config.database.path;
-        if let Err(e) = std::fs::remove_file(&path) {
+        if let Err(e) = backup_files::remove_file(&path) {
             let error = anyhow::anyhow!("Sicherung {name} nicht gelöscht: {e}");
             self.record_backup_error(Timestamp::now(), &error);
             return Err(BackupRequestError::Failed(format!(
