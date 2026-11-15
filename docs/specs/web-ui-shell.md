@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-12
 size: L
 design: [sofarr.md §3, sofarr.md §7, sofarr.md §9 D15, sofarr.md §9 D16, sofarr.md §9 D23]
@@ -11,11 +11,11 @@ oracle: none
 
 ## Summary
 
-> Completed: 2026-11-12
+> Completed: 2026-11-12; revised AC-10 (dark default, shared theme) accepted 2026-11-15
 
 - SvelteKit static SPA (Svelte 5, strict TypeScript, Bun) in `ui/`, embedded into `amigo-sofarr` with `rust-embed` (`allow_missing`); every page address gets the app document, `_app/immutable/` assets are cached for a year and served precompressed, a German page explains a missing UI build.
 - Login and logout pages on top of spec `auth` with return to the requested page, throttling countdown, expired-session handling that never repeats a write action; no login where auth is off or the network is trusted.
-- GitHub look (Primer tokens, Octicons) with header navigation, a menu button below 768 px, light/dark/system theme remembered in the browser, axe-checked WCAG 2.1 AA in both themes, all texts German.
+- The shared amigo theme (`amigo-theme`, D29) with Octicons, header navigation, a menu button below 768 px, a dark/light/system theme choice (dark by default) remembered in the browser, axe-checked WCAG 2.1 AA in both themes, all texts German.
 - System page backed by `GET /api/system`: version, mode, in-memory job runs and last contacts per download client and indexer, the configuration with every secret masked; refresh every 15 s, shared loading/error/retry handling and a one-time reload on stale assets.
 - API types generated with `ts-rs` with a drift test; UI gates, CI job `ui`, and a Bun stage in the Dockerfile whose image the `docker` job checks for the UI.
 
@@ -23,8 +23,9 @@ oracle: none
 
 sofarr has no user interface; everything runs through the CLI and a small JSON API. D16 decides a
 web UI built with Svelte 5 and SvelteKit as a static single-page app, built with Bun and embedded
-into the `amigo-sofarr` binary, so the container stays one binary. D23 decides the look: GitHub's
-(Primer design tokens and Octicons, MIT), light and dark following the system.
+into the `amigo-sofarr` binary, so the container stays one binary. D23 decided the look as GitHub's
+(Primer design tokens and Octicons, MIT); D29 replaces it with the shared amigo theme (`amigo-theme`):
+dark by default, light and system selectable, Octicons kept.
 
 This spec builds the shell every later page lives in: build and embedding, login (spec `auth`),
 navigation, theme, the system page, error handling, and the checks in CI. The library pages are
@@ -51,7 +52,7 @@ Terms used below:
 - Building the UI with Bun and embedding it into the binary; serving it with client-side routing
 - Login and logout pages on top of spec `auth`
 - Layout with header and navigation to every page, responsive from 360 px
-- Light and dark theme following the system, switchable, GitHub look (Primer tokens, Octicons)
+- Dark and light theme, dark by default, switchable (Dunkel / Hell / System); the look is the shared amigo theme (`amigo-theme`, D29) with Octicons
 - System page: version, mode, jobs, connections, read-only configuration overview
 - Shared handling of loading, errors and an expired session
 - API types for the UI generated from the Rust types, with a drift check
@@ -77,7 +78,7 @@ Terms used below:
 - [x] AC-07 (event): When the API answers status 401 while the user works in the UI (session expired or logged out elsewhere), then the UI shows the login page and returns to the same page after the login; a write action that got the 401 is not repeated, and the page says that it was not carried out.
 - [x] AC-08 (always): Every page that exists is reachable from every other page through the navigation, in the order Übersicht, Filme, Serien, Kalender, Fehlend, Entdecken, Blocklist, Backups, System; the navigation lists only pages that are built (after this spec: System), and the current page is marked. Until the overview exists (spec `web-ui-library`), `/` and the page after a login without a requested page is the system page.
 - [x] AC-09 (state): While the window is narrow, every page fits the width without horizontal scrolling and the navigation is reachable through a menu button.
-- [ ] AC-10 (always): The UI is dark until the user chooses otherwise; a switch offers dark, light and system (which follows the system's light or dark setting), and the choice is remembered in the browser.
+- [x] AC-10 (always): The UI is dark until the user chooses otherwise; a switch offers dark, light and system (which follows the system's light or dark setting), and the choice is remembered in the browser.
 - [x] AC-11 (always): Text and controls meet WCAG 2.1 AA contrast in both themes, every action is reachable by keyboard with a visible focus, and every icon-only control has a German accessible name.
 - [x] AC-12 (event): When the user opens the system page, then it shows the sofarr version, the mode (shadow or live), each scheduled job with interval (or "aus" when switched off), last run (or "noch nicht gelaufen"), its result (ok, or error with the message) and next run, whether the download client and each indexer answered at the last contact (or "nicht konfiguriert" / "noch kein Kontakt"), and the configuration in effect with every secret masked; the page refreshes.
 - [x] AC-13 (error): If the API cannot be reached or answers a server error (5xx), then the UI shows a German notice with the API's message and a retry action, keeps the last shown data visible (or, on a first load without data, a full-page German error with a retry action), and retries a failed refresh by itself after at most 30 seconds.
@@ -93,9 +94,10 @@ Terms used below:
 - Stack (D16): SvelteKit with `adapter-static` and a fallback page (SPA), Svelte 5 runes, strict
   TypeScript, Bun as package manager and runner; Oxlint, Oxfmt, Vitest, `svelte-check`; Playwright
   for end-to-end tests against the built binary with the fake services of the server tests.
-- Look (D23): `@primer/primitives` CSS variables for colors, spacing and type (light and dark
-  sets), `@primer/octicons` for icons; components (header, boxes, labels, tables, buttons, flash
-  notices) are own Svelte components in Primer's visual language. System font stack.
+- Look (D29, replacing D23): the generated tokens of the shared amigo theme under
+  `ui/src/theme/` for colors, spacing, radii and type (dark and light sets), `@primer/octicons`
+  for icons; components (header, boxes, labels, tables, buttons, flash notices) are own Svelte
+  components. Inter, served by sofarr itself.
 - Embedding: `rust-embed` in `sofarr-server` with `allow_missing = true` (AC-03); the folder is
   `ui/build`.
 - Types: `ts-rs` derives on the API types; a test compares them with `ui/src/lib/api/generated/`
@@ -121,7 +123,7 @@ Terms used below:
 | sofarr is updated while the UI is open | The next page that needs an asset of the old build fails to load it and reloads the app document once (AC-19) |
 | The system color scheme changes while the UI is open | The theme follows at once when set to "system" |
 | A very long movie title in a narrow window | Wraps or truncates with the full title on hover/focus; no horizontal scrolling (AC-09) |
-| The browser blocks local storage | The theme follows the system; the choice is not remembered |
+| The browser blocks local storage | The UI starts dark; a picked theme applies until the reload and is not remembered |
 | The API answers slowly (several seconds) | A loading indicator appears after 300 ms; the page stays usable |
 | JavaScript is disabled | A German note that the UI needs JavaScript |
 
@@ -150,7 +152,7 @@ Terms used below:
 | AC-07 | `a refresh that gets 401 shows the login page and returns to the same page`, `a write action that got 401 is not repeated and the page says so` (`ui/e2e/auth.spec.ts`); `sends a write action once and names it after a 401` (`ui/src/lib/api/client.test.ts`) | verified | 78db961 |
 | AC-08 | `lists the built pages in order and marks the current one`, `every page reaches every other page through the navigation` (`ui/e2e/layout.spec.ts`); `a login without a requested page shows the system page (AC-08)` (`ui/e2e/auth.spec.ts`); `nav` (`ui/src/lib/nav.test.ts`) | verified | 78db961 |
 | AC-09 | `narrow screens (AC-09)` › `the navigation sits behind a menu button`, `very long names and messages wrap instead of scrolling` (`ui/e2e/layout.spec.ts`) | verified | 78db961 |
-| AC-10 | `theme (AC-10)` › `is dark while nothing is stored, whatever the system prefers (AC-04)`, `the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)`, `System follows the system setting, also when it changes (AC-06)`, `a stored "light" / "dark" / "system" / "auto" / "" is on the document before the app renders (AC-07)`, `blocked storage: dark at the start, a pick applies but is not remembered (AC-08)`, `storage that refuses writes: a pick applies until the reload (AC-08)`, `without JavaScript the notice shows in the dark palette` (`ui/e2e/layout.spec.ts`); `theme choice` (`ui/src/lib/theme/theme.test.ts`) | built |  |
+| AC-10 | `theme (AC-10)` › `is dark while nothing is stored, whatever the system prefers (AC-04)`, `the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)`, `System follows the system setting, also when it changes (AC-06)`, `a stored "light" / "dark" / "system" / "auto" / "" is on the document before the app renders (AC-07)`, `blocked storage: dark at the start, a pick applies but is not remembered (AC-08)`, `storage that refuses writes: a pick applies until the reload (AC-08)`, `without JavaScript the notice shows in the dark palette` (`ui/e2e/layout.spec.ts`); `theme choice` (`ui/src/lib/theme/theme.test.ts`) | verified | 54fef01 |
 | AC-11 | `light theme` and `dark theme` › `system page with every state`, `system page with a failed refresh`, `full-page error`, `login page with an error and the open menu on a narrow screen`, `logged-in header and open menu`, `page not found` (axe, wcag2a/2aa/21a/21aa, `ui/e2e/a11y.spec.ts`); `every control is reachable by Tab with a visible focus`, `the login form works with the keyboard alone` (`ui/e2e/layout.spec.ts`) | verified | 78db961 |
 | AC-12 | `ui_tests::the_system_page_shows_jobs_connections_and_masked_settings`, `ui_tests::without_clients_the_system_page_says_not_configured` (`crates/sofarr-server/src/ui_tests.rs`); `system::tests::secrets_are_masked_at_any_depth`, `system::tests::urls_lose_user_info_and_query` (`crates/sofarr-server/src/system.rs`); `status::tests::jobs_and_contacts_keep_the_last_state` (`crates/sofarr-server/src/status.rs`); `shows version, mode, jobs, connections and the configuration of the server`, `shows every job result and connection state in German`, `refreshes every 15 seconds while open` (`ui/e2e/system.spec.ts`) | verified | efd4234 |
 | AC-13 | `failed requests (AC-13)` › `a first load with a server error shows a full-page error with a retry`, `an unreachable API on the first load says so in German`, `a failed refresh keeps the data, offers a retry and retries by itself`, `an unreachable API at the start shows a full-page error with a retry`, `a slow answer shows a loading indicator`; `without JavaScript` › `a German note says that the UI needs JavaScript` (`ui/e2e/system.spec.ts`); `resource` (`ui/src/lib/resource.test.ts`) | verified | 78db961 |
@@ -163,7 +165,7 @@ Terms used below:
 
 ## Decisions
 
-- 2026-11-15: AC-10 revised: dark is the default palette instead of the system's, and the look is the shared amigo theme instead of GitHub's (D29, `amigo-theme`). AC-11 stays as worded; its scans now run on the new palettes.
+- 2026-11-15: AC-10 revised: dark is the default palette instead of the system's, and the look is the shared amigo theme instead of GitHub's (D29, `amigo-theme`). AC-11 stays as worded; its scans now run on the new palettes. Scope, technical notes and the blocked-storage edge case are reworded to match (found by `spec-check`).
 
 - 2026-11-12: Two UI specs: `web-ui-shell` (this) and `web-ui-library` (owner).
 - 2026-11-12: Responsive from 360 px; light and dark following the system (owner).

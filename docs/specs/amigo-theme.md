@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-15
 size: L
 design: [sofarr.md §3, sofarr.md §9 D23, sofarr.md §9 D29]
@@ -8,6 +8,16 @@ oracle: none
 ---
 
 # The shared amigo theme in the web UI
+
+## Summary
+
+> Completed: 2026-11-15
+
+- The web UI is drawn in the shared amigo theme: generated `ui/src/theme/` (tokens, components, manifest) for sofarr's accent `#2bd67b`, checked against the website's generator by the Site data workflow.
+- `ui/src/app.css` defines the Primer-style property names from the `--am-*` tokens, so components kept their markup; `@primer/primitives` left the dependencies, Octicons stay.
+- Dark is the default palette; the header's switch offers Dunkel, Hell and System, applies a pick at once, remembers it under `sofarr-theme`, and survives blocked storage.
+- Inter (latin subset) ships with sofarr; controls are 32 px with 6 px corners, cards and lists have 8 px corners.
+- The axe scans of all four accessibility specs run in both palettes without a violation.
 
 ## Context
 
@@ -37,19 +47,19 @@ Terms. **Theme files**: `tokens.css`, `components.css` and `theme.json`, written
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always, CI: site-data): The theme files in the repository are exactly what the website's theme command writes for sofarr's `docs/site/project.yml`; a pull request in which they differ fails the Site data check.
-- [ ] AC-02 (always): sofarr draws its UI in the tokens of the active palette: the page ground is `bg`, the header, cards, tables and menus are `surface`, fields are `surface-raised`, body text is `text`, supporting text `text-secondary`, captions and placeholders `text-muted`, and hairlines are `border`; every colour property the components use has the value of a token (or a mix of two tokens) in both palettes.
-- [ ] AC-03 (always): sofarr's accent is its brand green in the theme's roles: links and the active navigation entry are `accent-ink`; the primary button is filled with `accent-solid` and carries `on-accent`; the keyboard focus ring is `focus`. A success, warning or error message shows its words in the status' `-ink` colour, on the status' `-subtle` fill where it has one.
-- [ ] AC-04 (state): While no theme choice is stored, the active palette is dark, whatever the system prefers.
-- [ ] AC-05 (event): When the user picks Dunkel, Hell or System in the switch, then the whole UI has that choice's palette as soon as the pick is handled, without a reload, and the choice is remembered in the browser.
-- [ ] AC-06 (state): While the theme choice is System, the active palette is light where the system prefers light and dark otherwise, and it follows a change of the system preference while the UI is open.
-- [ ] AC-07 (event): When the UI loads with a stored theme choice, then the document carries that choice's palette before the app renders anything: at the moment the page's body first has content, the palette is the stored one.
-- [ ] AC-08 (error): If local storage throws on reading or on writing, then the UI starts dark, a pick still applies until the page is reloaded or closed, it is not remembered, and nothing else fails.
-- [ ] AC-09 (always): In both palettes text and controls meet WCAG 2.1 AA contrast on every page the accessibility scans cover (the axe scans of `ui/e2e/a11y.spec.ts`, `library-a11y.spec.ts`, `discover-a11y.spec.ts` and `extras-a11y.spec.ts` run in the dark and in the light palette and report no violation).
-- [ ] AC-10 (always): UI text is set in Inter, which ships with sofarr: it shows without a connection to another host, and the UI requests no font, stylesheet or script from another host.
-- [ ] AC-11 (always): A default button and a text field are 32 px high (`control-md`) with a 6 px corner (`radius-sm`); cards, tables and menus have an 8 px corner (`radius-md`).
-- [ ] AC-12 (always): The built UI ships no stylesheet of `@primer/primitives`, and the package is gone from the UI's dependencies.
-- [ ] AC-13 (state, manual: visual design): While either palette is active, the login page, the overview, the movie and series lists and detail pages, the calendar, discover, the system page and the error page look complete at 1280 px and 360 px width: nothing unstyled, nothing unreadable, no leftover GitHub colour.
+- [x] AC-01 (always, CI: site-data): The theme files in the repository are exactly what the website's theme command writes for sofarr's `docs/site/project.yml`; a pull request in which they differ fails the Site data check.
+- [x] AC-02 (always): sofarr draws its UI in the tokens of the active palette: the page ground is `bg`, the header, cards, tables and menus are `surface`, fields are `surface-raised`, body text is `text`, supporting text `text-secondary`, captions and placeholders `text-muted`, and hairlines are `border`; every colour property the components use has the value of a token (or a mix of two tokens) in both palettes.
+- [x] AC-03 (always): sofarr's accent is its brand green in the theme's roles: links and the active navigation entry are `accent-ink`; the primary button is filled with `accent-solid` and carries `on-accent`; the keyboard focus ring is `focus`. A success, warning or error message shows its words in the status' `-ink` colour, on the status' `-subtle` fill where it has one.
+- [x] AC-04 (state): While no theme choice is stored, the active palette is dark, whatever the system prefers.
+- [x] AC-05 (event): When the user picks Dunkel, Hell or System in the switch, then the whole UI has that choice's palette as soon as the pick is handled, without a reload, and the choice is remembered in the browser.
+- [x] AC-06 (state): While the theme choice is System, the active palette is light where the system prefers light and dark otherwise, and it follows a change of the system preference while the UI is open.
+- [x] AC-07 (event): When the UI loads with a stored theme choice, then the document carries that choice's palette before the app renders anything: at the moment the page's body first has content, the palette is the stored one.
+- [x] AC-08 (error): If local storage throws on reading or on writing, then the UI starts dark, a pick still applies until the page is reloaded or closed, it is not remembered, and nothing else fails.
+- [x] AC-09 (always): In both palettes text and controls meet WCAG 2.1 AA contrast on every page the accessibility scans cover (the axe scans of `ui/e2e/a11y.spec.ts`, `library-a11y.spec.ts`, `discover-a11y.spec.ts` and `extras-a11y.spec.ts` run in the dark and in the light palette and report no violation).
+- [x] AC-10 (always): UI text is set in Inter, which ships with sofarr: it shows without a connection to another host, and the UI requests no font, stylesheet or script from another host.
+- [x] AC-11 (always): A default button and a text field are 32 px high (`control-md`) with a 6 px corner (`radius-sm`); cards, tables and menus have an 8 px corner (`radius-md`).
+- [x] AC-12 (always): The built UI ships no stylesheet of `@primer/primitives`, and the package is gone from the UI's dependencies.
+- [x] AC-13 (state, manual: visual design): While either palette is active, the login page, the overview, the movie and series lists and detail pages, the calendar, discover, the system page and the error page look complete at 1280 px and 360 px width: nothing unstyled, nothing unreadable, no leftover GitHub colour.
 
 ## Technical notes
 
@@ -86,19 +96,19 @@ Terms. **Theme files**: `tokens.css`, `components.css` and `theme.json`, written
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | CI: site-data — `.github/workflows/site-data.yml` passes `theme-dir: ui/src/theme` to the website's reusable check and triggers on `ui/src/theme/**`. Locally: `node scripts/theme.ts <sofarr>/docs/site/project.yml --out <sofarr>/ui/src/theme --check` in a checkout of amigo-labs/website `main` (2843e5f) answers "up to date" for all three files, 2026-11-15 | built |  |
-| AC-02 | `dark palette` and `light palette` › `grounds, text and hairlines are the tokens (AC-02)`, `fields are surface-raised with muted placeholders, lists are surface (AC-02)` (`ui/e2e/theme.spec.ts`); `aliases of the shared theme` › `every custom property in use is a token or defined in app.css`, `every token an alias names exists`, `every colour alias is a token or a mix of two tokens (AC-02)`, `maps the roles of AC-02 and AC-03`, `components carry no colour of their own` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
-| AC-03 | `dark palette` and `light palette` › `links, the active navigation entry and the focus ring are the accent (AC-03)`, `the primary button is accent-solid with on-accent (AC-03)`, `status messages show their words in the status ink on its subtle fill (AC-03)` (`ui/e2e/theme.spec.ts`); `maps the roles of AC-02 and AC-03` (`ui/src/lib/theme/aliases.test.ts`, also the warning status) | built |  |
-| AC-04 | `theme (AC-10)` › `is dark while nothing is stored, whatever the system prefers (AC-04)` (`ui/e2e/layout.spec.ts`); `theme choice` › `is dark by default (amigo-theme AC-04)`, `counts unknown values as no choice`, `remembers the choice in storage` (`ui/src/lib/theme/theme.test.ts`) | built |  |
-| AC-05 | `theme (AC-10)` › `the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)` (`ui/e2e/layout.spec.ts`); `theme choice` › `offers dark, light and system with German labels, dark first`, `sets data-theme for dark and light and removes it for system` (`ui/src/lib/theme/theme.test.ts`) | built |  |
-| AC-06 | `theme (AC-10)` › `System follows the system setting, also when it changes (AC-06)` (`ui/e2e/layout.spec.ts`) | built |  |
-| AC-07 | `theme (AC-10)` › `a stored "light" / "dark" / "system" / "auto" / "" is on the document before the app renders (AC-07)` (five tests, `ui/e2e/layout.spec.ts`) | built |  |
-| AC-08 | `theme (AC-10)` › `blocked storage: dark at the start, a pick applies but is not remembered (AC-08)`, `storage that refuses writes: a pick applies until the reload (AC-08)` (`ui/e2e/layout.spec.ts`); `theme choice` › `starts dark and remembers nothing when the browser blocks storage (AC-08)` (`ui/src/lib/theme/theme.test.ts`) | built |  |
-| AC-09 | The axe scans with the palette stored as the theme choice: `dark theme` and `light theme` (`ui/e2e/a11y.spec.ts`), `axe, dark theme` and `axe, light theme` (`ui/e2e/library-a11y.spec.ts`, `ui/e2e/discover-a11y.spec.ts`, `ui/e2e/extras-a11y.spec.ts`) | built |  |
-| AC-10 | `font (AC-10)` › `text is set in Inter from sofarr itself; nothing comes from another host` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `Inter ships with the UI (AC-10)` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
-| AC-11 | `dark palette` and `light palette` › `buttons and fields are 32 px high with a 6 px corner, cards have 8 px (AC-11)` (`ui/e2e/theme.spec.ts`) | built |  |
-| AC-12 | `Primer primitives are gone (AC-12)` › `the built UI ships none of their stylesheets` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `is no dependency of the UI`, `no source imports its stylesheets` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
-| AC-13 | manual: the owner checked both palettes on the login page, the overview, the movie and series lists and detail pages, the calendar, discover, the system page and the error page ("Krake und Sofarr sind ok"), 2026-11-15 | built |        |
+| AC-01 | CI: site-data — `.github/workflows/site-data.yml` passes `theme-dir: ui/src/theme` to the website's reusable check and triggers on `ui/src/theme/**`. Locally: `node scripts/theme.ts <sofarr>/docs/site/project.yml --out <sofarr>/ui/src/theme --check` in a checkout of amigo-labs/website `main` (2843e5f) answers "up to date" for all three files, 2026-11-15; verified 2026-11-15: check run `site-data / validate` green for 239ec0c (run 43746534527), and `--check` against website `main` a9e1321 answers "up to date" | verified | 964c3e6 |
+| AC-02 | `dark palette` and `light palette` › `grounds, text and hairlines are the tokens (AC-02)`, `fields are surface-raised with muted placeholders, lists are surface (AC-02)` (`ui/e2e/theme.spec.ts`); `aliases of the shared theme` › `every custom property in use is a token or defined in app.css`, `every token an alias names exists`, `every colour alias is a token or a mix of two tokens (AC-02)`, `maps the roles of AC-02 and AC-03`, `components carry no colour of their own` (`ui/src/lib/theme/aliases.test.ts`) | verified | d0e8fd2 |
+| AC-03 | `dark palette` and `light palette` › `links, the active navigation entry and the focus ring are the accent (AC-03)`, `the primary button is accent-solid with on-accent (AC-03)`, `status messages show their words in the status ink on its subtle fill (AC-03)` (`ui/e2e/theme.spec.ts`); `maps the roles of AC-02 and AC-03` (`ui/src/lib/theme/aliases.test.ts`, also the warning status) | verified | d0e8fd2 |
+| AC-04 | `theme (AC-10)` › `is dark while nothing is stored, whatever the system prefers (AC-04)` (`ui/e2e/layout.spec.ts`); `theme choice` › `is dark by default (amigo-theme AC-04)`, `counts unknown values as no choice`, `remembers the choice in storage` (`ui/src/lib/theme/theme.test.ts`) | verified | 54fef01 |
+| AC-05 | `theme (AC-10)` › `the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)` (`ui/e2e/layout.spec.ts`); `theme choice` › `offers dark, light and system with German labels, dark first`, `sets data-theme for dark and light and removes it for system` (`ui/src/lib/theme/theme.test.ts`) | verified | 54fef01 |
+| AC-06 | `theme (AC-10)` › `System follows the system setting, also when it changes (AC-06)` (`ui/e2e/layout.spec.ts`) | verified | 54fef01 |
+| AC-07 | `theme (AC-10)` › `a stored "light" / "dark" / "system" / "auto" / "" is on the document before the app renders (AC-07)` (five tests, `ui/e2e/layout.spec.ts`) | verified | 54fef01 |
+| AC-08 | `theme (AC-10)` › `blocked storage: dark at the start, a pick applies but is not remembered (AC-08)`, `storage that refuses writes: a pick applies until the reload (AC-08)` (`ui/e2e/layout.spec.ts`); `theme choice` › `starts dark and remembers nothing when the browser blocks storage (AC-08)` (`ui/src/lib/theme/theme.test.ts`) | verified | 54fef01 |
+| AC-09 | The axe scans with the palette stored as the theme choice: `dark theme` and `light theme` (`ui/e2e/a11y.spec.ts`), `axe, dark theme` and `axe, light theme` (`ui/e2e/library-a11y.spec.ts`, `ui/e2e/discover-a11y.spec.ts`, `ui/e2e/extras-a11y.spec.ts`) | verified | d0e8fd2 |
+| AC-10 | `font (AC-10)` › `text is set in Inter from sofarr itself; nothing comes from another host` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `Inter ships with the UI (AC-10)` (`ui/src/lib/theme/aliases.test.ts`) | verified | d0e8fd2 |
+| AC-11 | `dark palette` and `light palette` › `buttons and fields are 32 px high with a 6 px corner, cards have 8 px (AC-11)` (`ui/e2e/theme.spec.ts`) | verified | d0e8fd2 |
+| AC-12 | `Primer primitives are gone (AC-12)` › `the built UI ships none of their stylesheets` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `is no dependency of the UI`, `no source imports its stylesheets` (`ui/src/lib/theme/aliases.test.ts`) | verified | d0e8fd2 |
+| AC-13 | manual: the owner checked both palettes on the login page, the overview, the movie and series lists and detail pages, the calendar, discover, the system page and the error page ("Krake und Sofarr sind ok"), 2026-11-15 | verified | 239ec0c |
 
 ## Decisions
 
