@@ -1,8 +1,9 @@
 //! Episode information in release titles of series.
 //!
 //! Own approach on top of the tokenizer: the first token that marks an episode
-//! (`S01E02`, `1x02`, `S01`, `Season 1`/`Staffel 1`, an air date, or an absolute number
-//! after ` - `) ends the series title; numbers are read from that token and its
+//! (`S01E02`, `1x02`, `S01`, `Season 1`/`Staffel 1`, `E02` without a season, an air
+//! date, or – behind a leading group – an absolute number after ` - `, in `[03]` or as a
+//! batch `(23-26)`) ends the series title; numbers are read from that token and its
 //! neighbours. Clean room: see `CLAUDE.md`.
 
 use crate::{
@@ -47,6 +48,44 @@ fn digits(s: &str) -> Option<u16> {
     (!s.is_empty() && s.len() <= 4 && s.bytes().all(|b| b.is_ascii_digit()))
         .then(|| s.parse().ok())
         .flatten()
+}
+
+fn is_year(key: &str) -> bool {
+    key.len() == 4 && digits(key).is_some_and(|y| (1900..2100).contains(&y))
+}
+
+fn is_resolution(key: &str) -> bool {
+    key.ends_with('p') && digits(&key[..key.len() - 1]).is_some()
+}
+
+/// `e06`, `e06e07` without a season → episodes (one to three digits each).
+fn bare_episodes(key: &str) -> Option<Vec<u16>> {
+    let mut rest = key.strip_prefix('e')?;
+    let mut episodes = Vec::new();
+    loop {
+        let n = rest.bytes().take_while(u8::is_ascii_digit).count();
+        if n == 0 || n > 3 {
+            return None;
+        }
+        episodes.push(digits(&rest[..n])?);
+        rest = &rest[n..];
+        if rest.is_empty() {
+            return Some(episodes);
+        }
+        rest = rest.strip_prefix('e')?;
+    }
+}
+
+/// An anime episode number in square brackets: `[06]`, `[052]`, `[06v2]` – two or three
+/// digits, not a bare vertical resolution.
+fn bracket_number(token: &Token<'_>) -> Option<u16> {
+    if token.opener != Some('[') {
+        return None;
+    }
+    let (num, _version) = token.key.split_once('v').unwrap_or((&token.key, ""));
+    digits(num)
+        .filter(|_| (2..=3).contains(&num.len()))
+        .filter(|n| !matches!(n, 480 | 576 | 720))
 }
 
 /// `s01e02e03`, `s01e02-03` (inside one token), `s01`, `s2026e10` → (season, episodes).
@@ -206,7 +245,80 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
             date: (year, u8::try_from(m).ok()?, u8::try_from(d).ok()?),
         });
     }
+    // `Title.E06` names no season; it is the first one.
+    if !t.bracketed
+        && let Some(mut episodes) = bare_episodes(key)
+    {
+        more_episodes(tokens, i + 1, Some(1), &mut episodes);
+        return Some(Marker::Episode {
+            season: 1,
+            episodes,
+        });
+    }
     absolute_at(tokens, i, title_start)
+        .or_else(|| batch_at(tokens, i, title_start))
+        .or_else(|| bracket_number_at(tokens, i, title_start))
+}
+
+/// Behind a leading group, a bracket that directly follows the title.
+fn directly_after_title(tokens: &[Token<'_>], i: usize, title_start: usize) -> bool {
+    title_start > 0 && i > title_start && tokens[i].sep == Sep::Bracket && !tokens[i - 1].bracketed
+}
+
+/// Anime batch `[Grp] Title (23-26)`: a rising range of fewer than 50 numbers.
+fn batch_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marker> {
+    let (first, last) = (&tokens[i], tokens.get(i + 1)?);
+    let closed = tokens.get(i + 2).is_none_or(|n| n.sep == Sep::Bracket);
+    if !directly_after_title(tokens, i, title_start)
+        || first.opener != Some('(')
+        || last.opener != Some('(')
+        || !tight_dash(tokens, i + 1)
+        || !closed
+        || is_year(&first.key)
+        || is_year(&last.key)
+    {
+        return None;
+    }
+    let (from, to) = (digits(&first.key)?, digits(&last.key)?);
+    (from < to && to - from < 50).then(|| Marker::Absolute {
+        numbers: (from..=to).collect(),
+    })
+}
+
+/// `[Grp].Title.[06][1080p]`: an episode number alone in square brackets after the title.
+fn bracket_number_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marker> {
+    let alone = tokens.get(i + 1).is_none_or(|n| n.sep == Sep::Bracket);
+    if !directly_after_title(tokens, i, title_start) || !alone {
+        return None;
+    }
+    bracket_number(&tokens[i]).map(|n| Marker::Absolute { numbers: vec![n] })
+}
+
+/// `[Grp][Title][06][1080p]`: group, title and number each in their own brackets.
+/// Returns the title's token range and the number.
+fn bracketed_title(tokens: &[Token<'_>]) -> Option<(std::ops::Range<usize>, Marker)> {
+    let starts: Vec<usize> = (0..tokens.len())
+        .filter(|&k| matches!(tokens[k].sep, Sep::Start | Sep::Bracket) && tokens[k].bracketed)
+        .collect();
+    let (&title, &number) = (starts.get(1)?, starts.get(2)?);
+    let alone = tokens.get(number + 1).is_none_or(|n| n.sep == Sep::Bracket);
+    let wordy = tokens[title..number]
+        .iter()
+        .any(|t| digits(&t.key).is_none());
+    // `[Grp][Title.S2][05]` names a season as well; that form is left open.
+    let season = tokens[title..number]
+        .iter()
+        .any(|t| season_episode(&t.key).is_some());
+    if starts[0] != 0
+        || !alone
+        || !wordy
+        || season
+        || !tokens[..=number].iter().all(|t| t.bracketed)
+    {
+        return None;
+    }
+    let n = bracket_number(&tokens[number])?;
+    Some((title..number, Marker::Absolute { numbers: vec![n] }))
 }
 
 /// Behind a leading group (anime style), a season followed by ` - 07` is part of the
@@ -220,15 +332,21 @@ fn anime_season_in_title(tokens: &[Token<'_>], after: usize, title_start: usize)
 fn absolute_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marker> {
     let t = &tokens[i];
     let key = t.key.as_str();
-    let clean_title = tokens[title_start..i].iter().all(|p| {
-        let year = p.key.len() == 4 && digits(&p.key).is_some_and(|y| (1900..2100).contains(&y));
-        let resolution = p.key.ends_with('p') && digits(&p.key[..p.key.len() - 1]).is_some();
-        !year && !resolution
-    });
+    // `[Grp] Title (2026) - 06`: a year in parentheses may end the title.
+    let year_before = title_start > 0
+        && i > title_start + 1
+        && t.dashed
+        && tokens[i - 1].opener == Some('(')
+        && is_year(&tokens[i - 1].key);
+    let title_end = if year_before { i - 1 } else { i };
+    let clean_title = tokens[title_start..title_end]
+        .iter()
+        .all(|p| !is_year(&p.key) && !is_resolution(&p.key));
     let next_ok = tokens
         .get(i + 1)
         .is_none_or(|n| matches!(n.sep, Sep::Bracket | Sep::Dash) || n.bracketed);
-    if t.sep == Sep::Dash && i > title_start && clean_title && next_ok {
+    let dash = t.sep == Sep::Dash || year_before;
+    if dash && !t.bracketed && i > title_start && clean_title && next_ok {
         let (num, _version) = key.split_once('v').unwrap_or((key, ""));
         if (2..=4).contains(&num.len())
             && let Some(n) = digits(num)
@@ -249,10 +367,10 @@ pub fn parse_episode(title: &str) -> Option<EpisodeInfo> {
     // A leading bracketed group (`[SubsPlease] Title - 01`) is not part of the title.
     let title_start = tokens.iter().take_while(|t| t.bracketed).count();
     // A marker needs a series title before it (`S86.2026.720p` is a movie).
-    let (index, marker) = (title_start + 1..tokens.len())
-        .find_map(|i| marker_at(&tokens, i, title_start).map(|m| (i, m)))?;
-    let series_title =
-        crate::title::title_text(input, &tokens, title_start..index).unwrap_or_default();
+    let (title_range, marker) = (title_start + 1..tokens.len())
+        .find_map(|i| marker_at(&tokens, i, title_start).map(|m| (title_start..i, m)))
+        .or_else(|| bracketed_title(&tokens))?;
+    let series_title = crate::title::title_text(input, &tokens, title_range).unwrap_or_default();
     let mut release = crate::parse(title);
     if release.release_group.is_none() && title_start > 0 {
         // Anime style: the leading bracket names the group.
@@ -378,6 +496,89 @@ mod tests {
         );
         // Without a leading group a season pack stays a season pack.
         assert!(ep("Kleine.Insel.S02.German.720p").full_season);
+    }
+
+    #[test]
+    fn year_in_parentheses_before_absolute_number() {
+        // AC-01
+        let e = ep("[SubsPlease].Magic.Knight.Rayearth.(2026).-.06.(1080p).[96B7C6E9]");
+        assert_eq!(e.series_title, "Magic Knight Rayearth (2026)");
+        assert_eq!(e.absolute_episodes, [6]);
+        assert_eq!((e.season, e.full_season), (None, false));
+        assert_eq!(
+            ep("[Grp] Sky Pirates (2026) - 12v2 [1080p]").absolute_episodes,
+            [12]
+        );
+    }
+
+    #[test]
+    fn season_less_episode_marker() {
+        // AC-02
+        let e = ep("Jyuou.Mujin.Dandivine.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST");
+        assert_eq!(e.series_title, "Jyuou Mujin Dandivine");
+        assert_eq!((e.season, e.episodes.as_slice()), (Some(1), &[6][..]));
+        let y = ep("Magic.Knight.Rayearth.2026.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST");
+        assert_eq!(y.series_title, "Magic Knight Rayearth 2026");
+        assert_eq!((y.season, y.episodes.as_slice()), (Some(1), &[6][..]));
+        assert_eq!(ep("Show.E06-E08.1080p.WEB-G").episodes, [6, 7, 8]);
+        assert_eq!(ep("Show.E06E07.1080p.WEB-G").episodes, [6, 7]);
+        // A season marker still wins.
+        assert_eq!(ep("Show.S02E06.1080p").season, Some(2));
+    }
+
+    #[test]
+    fn anime_batch_in_parentheses() {
+        // AC-03
+        let e = ep("[SubsPlease].Yamato.yo.Towa.ni.-.Rebel.3199.(23-26).(1080p).[Batch]");
+        assert_eq!(e.series_title, "Yamato yo Towa ni - Rebel 3199");
+        assert_eq!(e.absolute_episodes, [23, 24, 25, 26]);
+        assert_eq!((e.season, e.full_season), (None, false));
+    }
+
+    #[test]
+    fn bracket_number_after_title() {
+        // AC-04
+        let e =
+            ep("[Studio.GreenTea].Kusuriya.no.Hitorigoto.[52][WebRip][HEVC-10bit.1080p.AAC.ASSx2]");
+        assert_eq!(e.series_title, "Kusuriya no Hitorigoto");
+        assert_eq!(
+            (e.season, e.absolute_episodes.as_slice()),
+            (None, &[52][..])
+        );
+        assert_eq!(ep("[Grp].Some.Title.[06v2][WebRip]").absolute_episodes, [6]);
+        // A bracketed title behind the group.
+        let b = ep("[Nekomoe.kissaten][Chii.Fuyo][06][1080p][JPSC]");
+        assert_eq!(b.series_title, "Chii Fuyo");
+        assert_eq!(b.absolute_episodes, [6]);
+    }
+
+    #[test]
+    fn new_forms_reject_non_episodes() {
+        // AC-05
+        for title in [
+            "The Dam Busters (1955) - 1080p HDR - H265 BRRip - NLsub",
+            "[Grp].Some.Title.[1080p][WebRip]",
+            "[Grp].Some.Title.[2026][WebRip]",
+            "[Grp].Some.Title.[720][WebRip]",
+            "[Grp].Some.Title.[96B7C6E9]",
+            "[Grp].Some.Title.(26-23).[Batch]",
+            "[Grp].Some.Title.(01-120).[Batch]",
+            "The.Godfather.Trilogy.(1-3).1080p.BluRay.x264-G",
+            "Unforgettable (2011-2015) S 1-4",
+        ] {
+            let absolute = parse_episode(title).map(|e| e.absolute_episodes);
+            assert!(
+                absolute.as_ref().is_none_or(Vec::is_empty),
+                "{title}: {absolute:?}"
+            );
+        }
+        for title in [
+            "Show.2026.-.06.1080p",
+            "E06.1080p.WEB-G",
+            "[Grp].[52][WebRip]",
+        ] {
+            assert_eq!(parse_episode(title), None, "{title}");
+        }
     }
 
     #[test]

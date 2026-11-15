@@ -26,8 +26,43 @@ fn lines(path: &PathBuf) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+/// Whether a title names a season itself: `S01`/`S01E02`, `1x02` or a season word with
+/// a number (`Season 2`).
+fn has_season_marker(title: &str) -> bool {
+    let lower = title.to_lowercase();
+    let words: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    words.iter().enumerate().any(|(i, w)| {
+        let season = w
+            .strip_prefix('s')
+            .is_some_and(|r| r.starts_with(|c: char| c.is_ascii_digit()));
+        let cross = w
+            .split_once('x')
+            .is_some_and(|(a, b)| digits(a) && b.starts_with(|c: char| c.is_ascii_digit()));
+        let word = matches!(
+            *w,
+            "season" | "staffel" | "saison" | "temporada" | "stagione"
+        ) && words.get(i + 1).is_some_and(|n| digits(n));
+        season || cross || word
+    })
+}
+
+#[test]
+fn season_marker_detection() {
+    assert!(has_season_marker("Show.S01E02.1080p"));
+    assert!(has_season_marker("Show.S03.German.720p"));
+    assert!(has_season_marker("Old Show 3x07 Title"));
+    assert!(has_season_marker("Show Staffel 2 German"));
+    assert!(!has_season_marker("Show.E06.1080p.WEB"));
+    assert!(!has_season_marker("Unforgettable (2011-2015) S 1-4"));
+}
+
 /// The movie feed also carries real series (`S01E02`, season packs); only the weaker
-/// markers – air dates and absolute numbers – can misfire on movie titles.
+/// markers – air dates, absolute numbers and episodes without a season marker – can
+/// misfire on movie titles (spec parser-episode-gaps, AC-06).
 #[test]
 fn movies_are_rarely_episodes() {
     let fixtures = lines(&root().join("fixtures/public/radarr-parse.jsonl"));
@@ -36,8 +71,11 @@ fn movies_are_rarely_episodes() {
         .iter()
         .filter_map(|f| f["title"].as_str())
         .filter(|t| {
-            parse_episode(t)
-                .is_some_and(|e| e.air_date.is_some() || !e.absolute_episodes.is_empty())
+            parse_episode(t).is_some_and(|e| {
+                e.air_date.is_some()
+                    || !e.absolute_episodes.is_empty()
+                    || (e.season.is_some() && !has_season_marker(t))
+            })
         })
         .collect();
     #[allow(clippy::cast_precision_loss)]
@@ -145,6 +183,69 @@ fn actual(field: &str, title: &str) -> String {
         "full_season" => e.full_season.to_string(),
         _ => String::new(),
     }
+}
+
+/// The oracle titles of spec parser-episode-gaps (AC-07): each must match Sonarr on every
+/// compared field.
+const GAP_TITLES: [&str; 25] = [
+    "[AsukaRaws].Magic.Knight.Rayearth.(2026).-.06.(WEB-DL.1280x720.x264.AAC)",
+    "[SubsPlease].Magic.Knight.Rayearth.(2026).-.06.(1080p).[96B7C6E9]",
+    "[SubsPlease].Magic.Knight.Rayearth.(2026).-.06.(720p).[2DA08BB3]",
+    "[SubsPlease].Magic.Knight.Rayearth.(2026).-.06.(480p).[ED116078]",
+    "[Erai-raws].Magic.Knight.Rayearth.(2026).-.06.[480p.CR.WEB-DL.AVC.AAC][MultiSub][0C8F4306]",
+    "[Erai-raws].Magic.Knight.Rayearth.(2026).-.06.[720p.CR.WEB-DL.AVC.AAC][MultiSub][B923BEA0]",
+    "[Erai-raws].Magic.Knight.Rayearth.(2026).-.06.[1080p.CR.WEB-DL.AVC.AAC][MultiSub][3329235B]",
+    "[Erai-raws].Magic.Knight.Rayearth.(2026).-.06.[1080p.CR.WEBRip.HEVC.AAC][MultiSub][0AE67E21]",
+    "[ASW].Magic.Knight.Rayearth.(2026).-.06.[1080p.HEVC][688DE02C]",
+    "Jyuou.Mujin.Dandivine.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST",
+    "Magic.Knight.Rayearth.2026.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST",
+    "Sekai.Saikyou.no.Majo.Hajimemashita.E06.SUBFRENCH.1080p.WEB.H264-SLEEPINGFOREST",
+    "The.Human.Spark.E02.So.Human.So.Chimp.HDTV.XviD-FQM",
+    "[SubsPlease].Yamato.yo.Towa.ni.-.Rebel.3199.(23-26).(1080p).[Batch]",
+    "[SubsPlease].Yamato.yo.Towa.ni.-.Rebel.3199.(23-26).(720p).[Batch]",
+    "[SubsPlease].Yamato.yo.Towa.ni.-.Rebel.3199.(23-26).(480p).[Batch]",
+    "[KitaujiSub].FX.Senshi.Kurumi-chan.[03][WebRip][HEVC AAC][CHS JP&CHT JP]",
+    "[Studio.GreenTea].FX.Senshi.Kurumi-chan.[06][WebRip][HEVC-10bit.1080p.AAC][JPTC]",
+    "[Studio.GreenTea].Toaru.Anbu.no.Item.[03][WebRip][HEVC-10bit.1080p.AAC.ASSx2]",
+    "[Studio.GreenTea].Kusuriya.no.Hitorigoto.[52][WebRip][HEVC-10bit.1080p.AAC.ASSx2]",
+    "[Studio.GreenTea].Mahou.Shoujo.Ikusei.Keikaku.Restart.[06][WebRip][HEVC-10bit.1080p.AAC][JPSC]",
+    "[Studio.GreenTea].Mahou.Shoujo.Ikusei.Keikaku.Restart.[06][WebRip][HEVC-10bit.1080p.AAC][JPTC]",
+    "[Sakurato].Koori.no.Jouheki.[20][HEVC-10bit.1080P.AAC][CHS&CHT]",
+    "[Sakurato].Koori.no.Jouheki.[20][AVC-8bit.1080P.AAC][CHS]",
+    "[Sakurato].Koori.no.Jouheki.[20][AVC-8bit.1080P.AAC][CHT]",
+];
+
+#[test]
+fn episode_gap_titles_match_oracle() {
+    let fixtures: BTreeMap<String, Value> =
+        lines(&root().join("fixtures/public/sonarr-parse.jsonl"))
+            .into_iter()
+            .filter_map(|f| {
+                Some((
+                    f["title"].as_str()?.to_owned(),
+                    f["response"]["parsedEpisodeInfo"].clone(),
+                ))
+            })
+            .collect();
+    if fixtures.is_empty() {
+        println!("no Sonarr fixtures yet – skipping");
+        return;
+    }
+    let mut mismatches = Vec::new();
+    for title in GAP_TITLES {
+        let info = fixtures
+            .get(title)
+            .unwrap_or_else(|| panic!("{title} fehlt in den Fixtures"));
+        for field in FIELDS {
+            let (want, got) = (expected(field, info), actual(field, title));
+            if want != got {
+                mismatches.push(format!(
+                    "{title} {field}: erwartet {want:?}, erhalten {got:?}"
+                ));
+            }
+        }
+    }
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }
 
 #[test]
