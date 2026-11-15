@@ -232,7 +232,8 @@ Project knowledge belongs in the repository, not on one machine:
   `ui/test-results`, `ui/.svelte-kit`, das laufende `target/debug/amigo-sofarr` und den
   Log-Ordner der Gates. Parallel nur in getrennten Worktrees; die Port-Basis trennt nur die
   e2e-Server.
-- In Cloud-Containern, die als root laufen, sind `backup_api_tests::a_failed_delete_…` und
-  `a_failed_cancel_…` rot: root löscht die schreibgeschützte Datei trotzdem. Das liegt an der
-  Umgebung, nicht am Code; maßgeblich ist die CI (kein root). Dort fehlt außerdem oft der
-  Chromium-Build, den das Playwright der UI erwartet: `bunx playwright install chromium` in `ui/`.
+- Cloud-Container laufen oft als root, und root ignoriert Dateirechte: Ein Test, der einen
+  Fehlschlag über `chmod` erzwingt, ist dort grün statt rot. Fehlschläge beim Löschen von
+  Sicherungen erzwingen die Tests deshalb über `backup_files::remove_file`
+  (`backup_tests::Undeletable`). In solchen Containern fehlt außerdem oft der Chromium-Build,
+  den das Playwright der UI erwartet: `bunx playwright install chromium` in `ui/`.
