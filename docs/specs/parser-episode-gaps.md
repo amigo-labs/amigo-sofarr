@@ -164,12 +164,27 @@ numbers; AC-06 adds the season read without a season marker.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
+| AC-01 | `year_in_parentheses_before_absolute_number` (`crates/sofarr-parser/src/episode.rs`) | built |        |
+| AC-02 | `season_less_episode_marker` (`crates/sofarr-parser/src/episode.rs`) | built |        |
+| AC-03 | `anime_batch_in_parentheses` (`crates/sofarr-parser/src/episode.rs`) | built |        |
+| AC-04 | `bracket_number_after_title` (`crates/sofarr-parser/src/episode.rs`) | built |        |
+| AC-05 | `new_forms_reject_non_episodes` (`crates/sofarr-parser/src/episode.rs`) | built |        |
 | AC-06 |      | open   |        |
 | AC-07 |      | open   |        |
 
 ## Decisions
+
+- 2026-11-15 (build): The edge case `[Grp][Chii.Fuyo][06][1080p][JPSC]` was marked "already
+  passing", but the parser returned nothing for it. It is now built along with AC-04 (group,
+  title and number each in their own square brackets), because the edge case table asks for
+  "Chii Fuyo", absolute 6. A bracketed title that names a season (`[Grp][Title.S2][05]`) stays
+  unrecognised, because that form is out of scope.
+- 2026-11-15 (build): Tokens now record whether a dash was among their separators and which
+  bracket encloses them, because `(2026).-.06` (the bracket wins the separator kind) and the
+  `[03]`/`(23-26)` distinction cannot be seen otherwise.
+- 2026-11-15 (build): An absolute number after ` - ` must no longer sit inside brackets, because
+  otherwise the end of a range such as `(01-120)` became an absolute episode (AC-05).
+- 2026-11-15 (build): `[Onalrie].Yamato.yo.Towa.ni.Rebel.3199.-.E23…` (4 titles) and
+  `[Onalrie].Shin.Tennis…U-17…-.E07…` now give season 1 with the `E` number, as AC-02 says.
+  Sonarr reads an absolute number out of the title there (3199, 17), which sofarr does not
+  copy. They are recorded in `docs/parity.md` as deliberate deviations.

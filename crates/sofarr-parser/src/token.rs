@@ -29,6 +29,11 @@ pub struct Token<'a> {
     pub sep: Sep,
     /// Inside `()`, `[]` or `{}`.
     pub bracketed: bool,
+    /// The separators before the token contain a `-` (also when a bracket makes `sep`
+    /// `Bracket`, as in `(2026).-.06`).
+    pub dashed: bool,
+    /// Opening character of the innermost bracket around the token.
+    pub opener: Option<char>,
 }
 
 /// Removes a trailing container/NZB extension.
@@ -55,11 +60,12 @@ fn is_bracket(c: char) -> bool {
 
 pub fn tokenize(input: &str) -> Vec<Token<'_>> {
     let mut tokens = Vec::new();
-    let mut depth: u32 = 0;
+    let mut open: Vec<char> = Vec::new();
     let mut sep = Sep::Start;
+    let mut dashed = false;
     let mut token_start: Option<usize> = None;
 
-    let mut push = |start: usize, end: usize, sep: Sep, depth: u32| {
+    let mut push = |start: usize, end: usize, sep: Sep, dashed: bool, open: &[char]| {
         let text = &input[start..end];
         let key = text
             .chars()
@@ -72,22 +78,28 @@ pub fn tokenize(input: &str) -> Vec<Token<'_>> {
             start,
             end,
             sep,
-            bracketed: depth > 0,
+            bracketed: !open.is_empty(),
+            dashed,
+            opener: open.last().copied(),
         });
     };
 
     for (i, c) in input.char_indices() {
         if is_separator(c) || is_bracket(c) {
             if let Some(start) = token_start.take() {
-                push(start, i, sep, depth);
+                push(start, i, sep, dashed, &open);
                 sep = Sep::Plain;
+                dashed = false;
             }
+            dashed |= c == '-';
             // Strongest separator in the run wins: bracket > dash > plain.
             if is_bracket(c) {
                 sep = Sep::Bracket;
                 match c {
-                    '(' | '[' | '{' => depth += 1,
-                    _ => depth = depth.saturating_sub(1),
+                    '(' | '[' | '{' => open.push(c),
+                    _ => {
+                        open.pop();
+                    }
                 }
             } else if c == '-' && sep != Sep::Bracket && sep != Sep::Start {
                 sep = Sep::Dash;
@@ -97,7 +109,7 @@ pub fn tokenize(input: &str) -> Vec<Token<'_>> {
         }
     }
     if let Some(start) = token_start {
-        push(start, input.len(), sep, depth);
+        push(start, input.len(), sep, dashed, &open);
     }
     tokens
 }
@@ -125,6 +137,15 @@ mod tests {
         assert_eq!(seps, [Sep::Start, Sep::Plain, Sep::Dash, Sep::Bracket]);
         assert!(tokens[3].bracketed);
         assert!(!tokens[2].bracketed);
+    }
+
+    #[test]
+    fn records_dash_and_bracket_kind() {
+        let tokens = tokenize("[Grp].Title.(2026).-.06.[52]");
+        let dashed: Vec<bool> = tokens.iter().map(|t| t.dashed).collect();
+        assert_eq!(dashed, [false, false, false, true, false]);
+        let openers: Vec<Option<char>> = tokens.iter().map(|t| t.opener).collect();
+        assert_eq!(openers, [Some('['), None, Some('('), None, Some('[')]);
     }
 
     #[test]
