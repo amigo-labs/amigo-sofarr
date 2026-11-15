@@ -1,20 +1,23 @@
 <!doctype html>
-<html lang="de" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+<html lang="de" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark light" />
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
     <title>sofarr</title>
     <script>
-      // Applies the remembered color scheme before the first paint (see lib/theme/theme.ts).
+      // Applies the remembered theme choice before the first paint (see lib/theme/theme.ts):
+      // the document is dark unless `light` or `system` is stored.
       try {
         var choice = localStorage.getItem('sofarr-theme');
-        if (choice === 'light' || choice === 'dark') {
-          document.documentElement.setAttribute('data-color-mode', choice);
+        if (choice === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+        } else if (choice === 'system') {
+          document.documentElement.removeAttribute('data-theme');
         }
       } catch (e) {
-        // Blocked storage: the page follows the system.
+        // Blocked storage: the page stays dark.
       }
     </script>
     %sveltekit.head%

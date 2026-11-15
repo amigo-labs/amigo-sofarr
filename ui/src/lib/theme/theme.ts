@@ -1,34 +1,38 @@
-// The color scheme (spec web-ui-shell AC-10): light, dark or following the system,
-// remembered in the browser when it lets us.
+// The theme choice (specs web-ui-shell AC-10, amigo-theme AC-04 .. AC-08): dark until the
+// user picks light or system, remembered in the browser when it lets us.
 
-export type ThemeChoice = 'light' | 'dark' | 'system';
+export type ThemeChoice = 'dark' | 'light' | 'system';
 
 export const THEME_KEY = 'sofarr-theme';
 
+/** The palette while nothing is stored. */
+export const DEFAULT_CHOICE: ThemeChoice = 'dark';
+
 export const THEME_CHOICES: readonly { readonly value: ThemeChoice; readonly label: string }[] = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Hell' },
   { value: 'dark', label: 'Dunkel' },
+  { value: 'light', label: 'Hell' },
+  { value: 'system', label: 'System' },
 ];
 
 /** The part of `Storage` the theme needs; tests pass a fake. */
 export type ThemeStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
-export function parseChoice(value: string | null): ThemeChoice {
-  return value === 'light' || value === 'dark' ? value : 'system';
+/** A stored value as a choice; anything unknown is no choice. */
+export function parseChoice(value: string | null): ThemeChoice | null {
+  return value === 'dark' || value === 'light' || value === 'system' ? value : null;
 }
 
-/** The `data-color-mode` of Primer's theme files for a choice. */
-export function colorMode(choice: ThemeChoice): 'light' | 'dark' | 'auto' {
-  return choice === 'system' ? 'auto' : choice;
+/** The `data-theme` of the theme files for a choice; none lets them follow the system. */
+export function dataTheme(choice: ThemeChoice): 'dark' | 'light' | null {
+  return choice === 'system' ? null : choice;
 }
 
-/** The stored choice; a browser that blocks storage follows the system. */
+/** The stored choice; without one, or in a browser that blocks storage, the default. */
 export function readChoice(storage: () => ThemeStorage): ThemeChoice {
   try {
-    return parseChoice(storage().getItem(THEME_KEY));
+    return parseChoice(storage().getItem(THEME_KEY)) ?? DEFAULT_CHOICE;
   } catch {
-    return 'system';
+    return DEFAULT_CHOICE;
   }
 }
 
@@ -42,7 +46,12 @@ export function storeChoice(storage: () => ThemeStorage, choice: ThemeChoice): b
   }
 }
 
-/** Applies a choice to the document element (Primer reads `data-color-mode`). */
-export function applyChoice(root: HTMLElement, choice: ThemeChoice): void {
-  root.dataset['colorMode'] = colorMode(choice);
+/** Applies a choice to the document element (`theme/tokens.css` reads `data-theme`). */
+export function applyChoice(
+  root: Pick<HTMLElement, 'setAttribute' | 'removeAttribute'>,
+  choice: ThemeChoice,
+): void {
+  const theme = dataTheme(choice);
+  if (theme === null) root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme);
 }

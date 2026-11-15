@@ -10,9 +10,10 @@ import {
 } from './helpers';
 import { e2ePassword } from './env.mjs';
 import { SERVERS } from './servers';
+import { THEME_KEY, storeTheme, token } from './theme-helpers';
 
-const DARK_BG = 'rgb(13, 17, 23)';
-const LIGHT_BG = 'rgb(255, 255, 255)';
+const DARK_BG = token('dark', 'bg');
+const LIGHT_BG = token('light', 'bg');
 
 const background = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -121,35 +122,100 @@ test.describe('wide screens', () => {
   });
 });
 
+// web-ui-shell AC-10 as revised by spec amigo-theme (its AC-04 .. AC-08).
 test.describe('theme (AC-10)', () => {
-  test('follows the system setting, also when it changes', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'dark' });
+  test('is dark while nothing is stored, whatever the system prefers (AC-04)', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
-    await page.emulateMedia({ colorScheme: 'light' });
-    expect(await background(page)).toBe(LIGHT_BG);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.getByLabel('Farbschema')).toHaveValue('dark');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    expect(await background(page)).toBe(DARK_BG);
+    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBeNull();
   });
 
-  test('the switch offers Hell, Dunkel and System and is remembered', async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light' });
+  test('the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)', async ({
+    page,
+  }) => {
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
     const select = page.getByLabel('Farbschema');
-    await expect(select.locator('option')).toHaveText(['System', 'Hell', 'Dunkel']);
-    await select.selectOption({ label: 'Dunkel' });
-    expect(await background(page)).toBe(DARK_BG);
+    await expect(select.locator('option')).toHaveText(['Dunkel', 'Hell', 'System']);
+    await select.selectOption({ label: 'Hell' });
+    expect(await background(page)).toBe(LIGHT_BG);
+    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('light');
     await page.reload();
     await expectSystemPage(page);
+    expect(await background(page)).toBe(LIGHT_BG);
+    await expect(page.getByLabel('Farbschema')).toHaveValue('light');
+    // The system changing does not move a fixed choice.
+    await page.emulateMedia({ colorScheme: 'dark' });
+    expect(await background(page)).toBe(LIGHT_BG);
+    await page.getByLabel('Farbschema').selectOption({ label: 'Dunkel' });
     expect(await background(page)).toBe(DARK_BG);
-    await expect(page.getByLabel('Farbschema')).toHaveValue('dark');
+    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('dark');
+    await page.emulateMedia({ colorScheme: 'light' });
+    expect(await background(page)).toBe(DARK_BG);
+  });
+
+  test('System follows the system setting, also when it changes (AC-06)', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto(`${SERVERS.open}/system`);
+    await expectSystemPage(page);
     await page.getByLabel('Farbschema').selectOption({ label: 'System' });
     expect(await background(page)).toBe(LIGHT_BG);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await background(page)).toBe(DARK_BG);
+    await page.reload();
+    await expectSystemPage(page);
+    await expect(page.getByLabel('Farbschema')).toHaveValue('system');
+    expect(await background(page)).toBe(DARK_BG);
+    await page.emulateMedia({ colorScheme: 'light' });
+    expect(await background(page)).toBe(LIGHT_BG);
   });
 
-  test('blocked storage: the theme follows the system and is not remembered', async ({ page }) => {
+  // What the document carries at the moment its body first has content: `data-theme`.
+  for (const [stored, expected] of [
+    ['light', 'light'],
+    ['dark', 'dark'],
+    ['system', null],
+    ['auto', 'dark'],
+    ['', 'dark'],
+  ] as const) {
+    test(`a stored "${stored}" is on the document before the app renders (AC-07)`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: 'light' });
+      await storeTheme(page, stored);
+      await page.addInitScript(() => {
+        const seen = { done: false, theme: null as string | null };
+        Object.assign(window, { firstContent: seen });
+        new MutationObserver((_, observer) => {
+          if (document.body === null || document.body.childNodes.length === 0) return;
+          seen.done = true;
+          seen.theme = document.documentElement.getAttribute('data-theme');
+          observer.disconnect();
+        }).observe(document, { childList: true, subtree: true });
+      });
+      await page.goto(`${SERVERS.open}/system`);
+      await expectSystemPage(page);
+      const seen = await page.evaluate(
+        () =>
+          (window as unknown as { firstContent: { done: boolean; theme: string | null } })
+            .firstContent,
+      );
+      expect(seen).toEqual({ done: true, theme: expected });
+      expect(await background(page)).toBe(expected === 'dark' ? DARK_BG : LIGHT_BG);
+    });
+  }
+
+  test('blocked storage: dark at the start, a pick applies but is not remembered (AC-08)', async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
     await page.addInitScript(() => {
       Object.defineProperty(window, 'localStorage', {
         get() {
@@ -157,15 +223,53 @@ test.describe('theme (AC-10)', () => {
         },
       });
     });
-    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
     await page.getByLabel('Farbschema').selectOption({ label: 'Hell' });
     expect(await background(page)).toBe(LIGHT_BG);
+    await page
+      .getByRole('navigation', { name: 'Hauptnavigation' })
+      .getByRole('link', { name: 'Übersicht', exact: true })
+      .click();
+    await expectOverview(page);
+    expect(await background(page)).toBe(LIGHT_BG);
+    await page.reload();
+    await expectOverview(page);
+    expect(await background(page)).toBe(DARK_BG);
+    expect(errors).toEqual([]);
+  });
+
+  test('storage that refuses writes: a pick applies until the reload (AC-08)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.addInitScript(() => {
+      Storage.prototype.setItem = () => {
+        throw new DOMException('Der Speicher ist voll', 'QuotaExceededError');
+      };
+    });
+    await page.goto(`${SERVERS.open}/system`);
+    await expectSystemPage(page);
+    await page.getByLabel('Farbschema').selectOption({ label: 'Hell' });
+    expect(await background(page)).toBe(LIGHT_BG);
     await page.reload();
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
+    expect(errors).toEqual([]);
+  });
+
+  test('without JavaScript the notice shows in the dark palette', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false, colorScheme: 'light' });
+    const page = await context.newPage();
+    await page.goto(`${SERVERS.open}/system`);
+    const notice = page.locator('p.noscript');
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText('benötigt JavaScript');
+    expect(await notice.evaluate((el) => getComputedStyle(el).color)).toBe(token('dark', 'text'));
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await background(page)).toBe(DARK_BG);
+    await context.close();
   });
 });
 

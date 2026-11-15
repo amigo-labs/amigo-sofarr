@@ -86,18 +86,18 @@ Terms. **Theme files**: `tokens.css`, `components.css` and `theme.json`, written
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-01 | CI: site-data — `.github/workflows/site-data.yml` passes `theme-dir: ui/src/theme` to the website's reusable check and triggers on `ui/src/theme/**`. Locally: `node scripts/theme.ts <sofarr>/docs/site/project.yml --out <sofarr>/ui/src/theme --check` in a checkout of amigo-labs/website `main` (2843e5f) answers "up to date" for all three files, 2026-11-15 | built |  |
+| AC-02 | `dark palette` and `light palette` › `grounds, text and hairlines are the tokens (AC-02)`, `fields are surface-raised with muted placeholders, lists are surface (AC-02)` (`ui/e2e/theme.spec.ts`); `aliases of the shared theme` › `every custom property in use is a token or defined in app.css`, `every token an alias names exists`, `every colour alias is a token or a mix of two tokens (AC-02)`, `maps the roles of AC-02 and AC-03`, `components carry no colour of their own` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
+| AC-03 | `dark palette` and `light palette` › `links, the active navigation entry and the focus ring are the accent (AC-03)`, `the primary button is accent-solid with on-accent (AC-03)`, `status messages show their words in the status ink on its subtle fill (AC-03)` (`ui/e2e/theme.spec.ts`); `maps the roles of AC-02 and AC-03` (`ui/src/lib/theme/aliases.test.ts`, also the warning status) | built |  |
+| AC-04 | `theme (AC-10)` › `is dark while nothing is stored, whatever the system prefers (AC-04)` (`ui/e2e/layout.spec.ts`); `theme choice` › `is dark by default (amigo-theme AC-04)`, `counts unknown values as no choice`, `remembers the choice in storage` (`ui/src/lib/theme/theme.test.ts`) | built |  |
+| AC-05 | `theme (AC-10)` › `the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)` (`ui/e2e/layout.spec.ts`); `theme choice` › `offers dark, light and system with German labels, dark first`, `sets data-theme for dark and light and removes it for system` (`ui/src/lib/theme/theme.test.ts`) | built |  |
+| AC-06 | `theme (AC-10)` › `System follows the system setting, also when it changes (AC-06)` (`ui/e2e/layout.spec.ts`) | built |  |
+| AC-07 | `theme (AC-10)` › `a stored "light" / "dark" / "system" / "auto" / "" is on the document before the app renders (AC-07)` (five tests, `ui/e2e/layout.spec.ts`) | built |  |
+| AC-08 | `theme (AC-10)` › `blocked storage: dark at the start, a pick applies but is not remembered (AC-08)`, `storage that refuses writes: a pick applies until the reload (AC-08)` (`ui/e2e/layout.spec.ts`); `theme choice` › `starts dark and remembers nothing when the browser blocks storage (AC-08)` (`ui/src/lib/theme/theme.test.ts`) | built |  |
+| AC-09 | The axe scans with the palette stored as the theme choice: `dark theme` and `light theme` (`ui/e2e/a11y.spec.ts`), `axe, dark theme` and `axe, light theme` (`ui/e2e/library-a11y.spec.ts`, `ui/e2e/discover-a11y.spec.ts`, `ui/e2e/extras-a11y.spec.ts`) | built |  |
+| AC-10 | `font (AC-10)` › `text is set in Inter from sofarr itself; nothing comes from another host` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `Inter ships with the UI (AC-10)` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
+| AC-11 | `dark palette` and `light palette` › `buttons and fields are 32 px high with a 6 px corner, cards have 8 px (AC-11)` (`ui/e2e/theme.spec.ts`) | built |  |
+| AC-12 | `Primer primitives are gone (AC-12)` › `the built UI ships none of their stylesheets` (`ui/e2e/theme.spec.ts`); `@primer/primitives is gone (AC-12)` › `is no dependency of the UI`, `no source imports its stylesheets` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
 | AC-13 |      | open   |        |
 
 ## Decisions
@@ -105,3 +105,14 @@ Terms. **Theme files**: `tokens.css`, `components.css` and `theme.json`, written
 - 2026-11-15: Inter is bundled here as in Pincel and Krake. The owner chose "embed Inter: the same type in every app" when Pincel asked; D29 records it for sofarr.
 - 2026-11-15: The stored key stays `sofarr-theme`, so a browser's earlier choice survives.
 - 2026-11-15: The Primer-style property names stay as aliases of the tokens, because renaming them in 64 files changes nothing visible.
+- 2026-11-15 (build): Red runs against the unchanged UI (dc10bf8, old build of `ui/`). `bun run test`: 14 failed in `src/lib/theme/theme.test.ts` and `src/lib/theme/aliases.test.ts` (no `DEFAULT_CHOICE`, `dataTheme`; `parseChoice(null)` is `'system'`; `readChoice` on empty storage is `'system'`; no `--am-*` alias in `app.css`; `@primer/primitives` in `package.json`). `bunx playwright test e2e/theme.spec.ts e2e/layout.spec.ts -g "palette|font|Primer|theme"`: 25 failed — every theme test of `layout.spec.ts` (body background `rgb(255, 255, 255)` or `rgb(13, 17, 23)` instead of the tokens' `bg`, options `System, Hell, Dunkel`, no `data-theme` at the first content) and every test of `theme.spec.ts` (Primer colours instead of tokens, 6 px card corner, no Inter font face, `data-color-mode` in the built stylesheet).
+- 2026-11-15 (build): AC-01 cannot go red locally; its proof is the first run of the Site data workflow on the pull request. The local `--check` against the website's `main` is in Evidence.
+- 2026-11-15 (build): The axe scans and the palette tests choose the palette by storing the theme choice before the page loads (`storeTheme` in `ui/e2e/theme-helpers.ts`), because the system preference no longer decides it. The tests read the expected colours from `ui/src/theme/tokens.css`, so a regenerated theme needs no test change.
+- 2026-11-15 (build): Besides the 69 Primer-style names, `app.css` defines five of sofarr's own in the same style, because one Primer name stood for two of the theme's roles: `--bgColor-surface` (cards, header, dialogs, lists; `--bgColor-default` is the page ground), `--control-bgColor-rest` (fields), `--fgColor-caption` (placeholders and the terms of fact lists, `text-muted`), `--fgColor-attention` (warning words) and `--bgColor-backdrop`. `--fgColor-muted` is `text-secondary` everywhere else.
+- 2026-11-15 (build): The dialog backdrop is `bg` mixed with transparent (70 %), the only colour that is not a token or a mix of two tokens: the theme has no scrim token, and a scrim has to let the page show through. The static test allows `transparent` as the second part of a mix.
+- 2026-11-15 (build): The `-muted` status borders of notices are a mix of the status' `-ink` (40 %) and `-subtle`; the primary button's hover is `accent-solid` mixed with 12 % `text`, which raises the contrast to `on-accent` in both palettes (the shared `am-btn` uses a brightness filter, which is not a colour value).
+- 2026-11-15 (build): Notices (`Flash`) show their words in the status' ink (info: `accent-ink` on `accent-subtle`) and get the 8 px corner of the theme's banner; the header is `surface` with a `border` hairline, its navigation entries `text-secondary`, the active one `accent-ink`; the focus ring in the header is `focus` like everywhere else (the white ring of the dark GitHub header went).
+- 2026-11-15 (build): Text sizes follow the theme's text styles: h1 24 px (`title-lg`), h2 20 px (`title`), h3 16 px (`title-sm`), body 14/20 px, small text 13 px (`body-sm`; Primer's was 12 px). The `--am-text-*` tokens are `font` shorthands and cannot be split in CSS, so `app.css` repeats their sizes as numbers.
+- 2026-11-15 (build): `@font-face` for Inter is written in `app.css` with the address of the package's latin file (same family name, weight range and unicode range as the package's `wght.css`), because importing `wght.css` would ship six more subsets. Vite copies the file into `_app/immutable/assets/`; the server already serves `.woff2` as `font/woff2`. The server sets no Content-Security-Policy header, so the inline script of `app.html` needed no change in Rust.
+- 2026-11-15 (build): Without JavaScript Chromium under Playwright renders the notice's paragraph; the test checks it by `p.noscript` and its colour (`text` of the dark palette).
+- 2026-11-15 (build): New public API of `ui/src/lib/theme/theme.ts`: `DEFAULT_CHOICE`, `dataTheme` (replaces `colorMode`); `parseChoice` returns `null` for no choice; `applyChoice` sets or removes `data-theme`.
