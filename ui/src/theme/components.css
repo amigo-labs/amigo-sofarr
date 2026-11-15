@@ -54,6 +54,8 @@ body {
 .am-input::placeholder { color: var(--am-text-muted); }
 .am-input:focus-visible { outline: 2px solid var(--am-focus); outline-offset: 0; border-color: transparent; }
 .am-input[aria-invalid="true"] { border-color: var(--am-danger-ink); }
+.am-input--sm { height: var(--am-control-sm); padding: 0 var(--am-space-2); font-size: 13px; }
+.am-input--lg { height: var(--am-control-lg); }
 .am-hint { font-size: 12px; line-height: 16px; color: var(--am-text-muted); }
 .am-hint--error { color: var(--am-danger-ink); }
 
@@ -88,6 +90,7 @@ body {
 }
 .am-seg button:hover { color: var(--am-text); }
 .am-seg button[aria-pressed="true"] { background: var(--am-surface); color: var(--am-text); box-shadow: var(--am-elev-1); }
+.am-seg--sm button { height: 18px; padding: 0 var(--am-space-2); font-size: 12px; line-height: 16px; }
 .am-tabs { display: flex; gap: var(--am-space-4); border-bottom: 1px solid var(--am-border); overflow-x: auto; }
 .am-tabs button {
   height: 36px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
@@ -112,6 +115,31 @@ body {
 .am-chip--warning::before { background: var(--am-warning); }
 .am-chip--danger  { background: var(--am-danger-subtle);  color: var(--am-danger-ink); }
 .am-chip--danger::before  { background: var(--am-danger); }
+
+/* ---- Slider ---- */
+/* The travelled part needs the value as a share: set --am-range-fill
+   (0% to 100%) on the input; Firefox draws it by itself. */
+.am-range {
+  appearance: none; width: 100%; height: 16px; margin: 0;
+  background: transparent; cursor: pointer; --am-range-fill: 0%;
+}
+.am-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: var(--am-radius-full);
+  background: linear-gradient(to right, var(--am-accent) 0 var(--am-range-fill), var(--am-border-strong) var(--am-range-fill) 100%);
+}
+.am-range::-moz-range-track { height: 4px; border-radius: var(--am-radius-full); background: var(--am-border-strong); }
+.am-range::-moz-range-progress { height: 4px; border-radius: var(--am-radius-full); background: var(--am-accent); }
+.am-range::-webkit-slider-thumb {
+  appearance: none; width: 14px; height: 14px; margin-top: -5px;
+  border: 2px solid var(--am-surface); border-radius: var(--am-radius-full); background: var(--am-accent);
+}
+.am-range::-moz-range-thumb {
+  width: 10px; height: 10px;
+  border: 2px solid var(--am-surface); border-radius: var(--am-radius-full); background: var(--am-accent);
+}
+.am-range:hover:not(:disabled)::-webkit-slider-thumb { background: var(--am-accent-ink); }
+.am-range:hover:not(:disabled)::-moz-range-thumb { background: var(--am-accent-ink); }
+.am-range:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ---- Progress ---- */
 .am-progress { height: 6px; border-radius: var(--am-radius-full); background: var(--am-active); overflow: hidden; }
