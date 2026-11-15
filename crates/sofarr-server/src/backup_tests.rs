@@ -411,50 +411,29 @@ async fn a_failed_backup_leaves_nothing_and_is_shown() {
     assert!(blocked.write_backup(Kind::Manual, now).await.is_err());
 }
 
-/// Makes deleting `file` fail until the guard is dropped.
+/// Makes deleting `file` fail until the guard is dropped. Deletion is refused by
+/// `backup_files::remove_file` itself: file permissions don't stop root, and a read-only
+/// folder would also block writing new backups next to the file.
 pub struct Undeletable {
-    #[cfg(windows)]
-    _file: std::fs::File,
-    #[cfg(unix)]
-    dir: PathBuf,
+    file: PathBuf,
 }
 
 impl Undeletable {
     pub fn new(file: &Path) -> Self {
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::OpenOptionsExt;
-            let handle = std::fs::OpenOptions::new()
-                .read(true)
-                // Others may read (and inspect) it, nobody may delete it.
-                .share_mode(1)
-                .open(file)
-                .expect("lock file");
-            Self { _file: handle }
-        }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let dir = file.parent().expect("dir").to_path_buf();
-            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).expect("chmod");
-            Self { dir }
+        backup_files::undeletable::add(file);
+        Self {
+            file: file.to_path_buf(),
         }
     }
 }
 
-#[cfg(unix)]
 impl Drop for Undeletable {
     fn drop(&mut self) {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&self.dir, std::fs::Permissions::from_mode(0o755));
+        backup_files::undeletable::remove(&self.file);
     }
 }
 
-/// Pruning that fails keeps the old backup; the new one still counts. Windows only: there
-/// an open file cannot be deleted, while under unix the read-only folder that blocks the
-/// deletion would block the new backup too (the delete case runs on both, see
-/// `backup_api_tests::a_failed_delete_keeps_the_backup_and_is_shown`).
-#[cfg(windows)]
+/// Pruning that fails keeps the old backup; the new one still counts.
 #[tokio::test]
 async fn a_failed_pruning_keeps_the_backup_and_is_shown() {
     let env = Env::new("prunefail");
@@ -658,8 +637,7 @@ async fn backup_operations_wait_for_each_other() {
 }
 
 /// Pruning pre-migration backups at start fails: the start goes on, the list shows the
-/// error. Windows only, like `a_failed_pruning_keeps_the_backup_and_is_shown`.
-#[cfg(windows)]
+/// error.
 #[tokio::test]
 async fn a_failed_pre_migration_pruning_is_shown() {
     let env = Env::new("prepruning");
