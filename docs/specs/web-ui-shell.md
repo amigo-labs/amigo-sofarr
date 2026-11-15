@@ -15,7 +15,7 @@ oracle: none
 
 - SvelteKit static SPA (Svelte 5, strict TypeScript, Bun) in `ui/`, embedded into `amigo-sofarr` with `rust-embed` (`allow_missing`); every page address gets the app document, `_app/immutable/` assets are cached for a year and served precompressed, a German page explains a missing UI build.
 - Login and logout pages on top of spec `auth` with return to the requested page, throttling countdown, expired-session handling that never repeats a write action; no login where auth is off or the network is trusted.
-- GitHub look (Primer tokens, Octicons) with header navigation, a menu button below 768 px, light/dark/system theme remembered in the browser, axe-checked WCAG 2.1 AA in both themes, all texts German.
+- The shared amigo theme (`amigo-theme`, D29) with Octicons, header navigation, a menu button below 768 px, a dark/light/system theme choice (dark by default) remembered in the browser, axe-checked WCAG 2.1 AA in both themes, all texts German.
 - System page backed by `GET /api/system`: version, mode, in-memory job runs and last contacts per download client and indexer, the configuration with every secret masked; refresh every 15 s, shared loading/error/retry handling and a one-time reload on stale assets.
 - API types generated with `ts-rs` with a drift test; UI gates, CI job `ui`, and a Bun stage in the Dockerfile whose image the `docker` job checks for the UI.
 
@@ -23,8 +23,9 @@ oracle: none
 
 sofarr has no user interface; everything runs through the CLI and a small JSON API. D16 decides a
 web UI built with Svelte 5 and SvelteKit as a static single-page app, built with Bun and embedded
-into the `amigo-sofarr` binary, so the container stays one binary. D23 decides the look: GitHub's
-(Primer design tokens and Octicons, MIT), light and dark following the system.
+into the `amigo-sofarr` binary, so the container stays one binary. D23 decided the look as GitHub's
+(Primer design tokens and Octicons, MIT); D29 replaces it with the shared amigo theme (`amigo-theme`):
+dark by default, light and system selectable, Octicons kept.
 
 This spec builds the shell every later page lives in: build and embedding, login (spec `auth`),
 navigation, theme, the system page, error handling, and the checks in CI. The library pages are
@@ -51,7 +52,7 @@ Terms used below:
 - Building the UI with Bun and embedding it into the binary; serving it with client-side routing
 - Login and logout pages on top of spec `auth`
 - Layout with header and navigation to every page, responsive from 360 px
-- Light and dark theme following the system, switchable, GitHub look (Primer tokens, Octicons)
+- Dark and light theme, dark by default, switchable (Dunkel / Hell / System); the look is the shared amigo theme (`amigo-theme`, D29) with Octicons
 - System page: version, mode, jobs, connections, read-only configuration overview
 - Shared handling of loading, errors and an expired session
 - API types for the UI generated from the Rust types, with a drift check
@@ -93,9 +94,10 @@ Terms used below:
 - Stack (D16): SvelteKit with `adapter-static` and a fallback page (SPA), Svelte 5 runes, strict
   TypeScript, Bun as package manager and runner; Oxlint, Oxfmt, Vitest, `svelte-check`; Playwright
   for end-to-end tests against the built binary with the fake services of the server tests.
-- Look (D23): `@primer/primitives` CSS variables for colors, spacing and type (light and dark
-  sets), `@primer/octicons` for icons; components (header, boxes, labels, tables, buttons, flash
-  notices) are own Svelte components in Primer's visual language. System font stack.
+- Look (D29, replacing D23): the generated tokens of the shared amigo theme under
+  `ui/src/theme/` for colors, spacing, radii and type (dark and light sets), `@primer/octicons`
+  for icons; components (header, boxes, labels, tables, buttons, flash notices) are own Svelte
+  components. Inter, served by sofarr itself.
 - Embedding: `rust-embed` in `sofarr-server` with `allow_missing = true` (AC-03); the folder is
   `ui/build`.
 - Types: `ts-rs` derives on the API types; a test compares them with `ui/src/lib/api/generated/`
@@ -121,7 +123,7 @@ Terms used below:
 | sofarr is updated while the UI is open | The next page that needs an asset of the old build fails to load it and reloads the app document once (AC-19) |
 | The system color scheme changes while the UI is open | The theme follows at once when set to "system" |
 | A very long movie title in a narrow window | Wraps or truncates with the full title on hover/focus; no horizontal scrolling (AC-09) |
-| The browser blocks local storage | The theme follows the system; the choice is not remembered |
+| The browser blocks local storage | The UI starts dark; a picked theme applies until the reload and is not remembered |
 | The API answers slowly (several seconds) | A loading indicator appears after 300 ms; the page stays usable |
 | JavaScript is disabled | A German note that the UI needs JavaScript |
 
@@ -163,7 +165,7 @@ Terms used below:
 
 ## Decisions
 
-- 2026-11-15: AC-10 revised: dark is the default palette instead of the system's, and the look is the shared amigo theme instead of GitHub's (D29, `amigo-theme`). AC-11 stays as worded; its scans now run on the new palettes.
+- 2026-11-15: AC-10 revised: dark is the default palette instead of the system's, and the look is the shared amigo theme instead of GitHub's (D29, `amigo-theme`). AC-11 stays as worded; its scans now run on the new palettes. Scope, technical notes and the blocked-storage edge case are reworded to match (found by `spec-check`).
 
 - 2026-11-12: Two UI specs: `web-ui-shell` (this) and `web-ui-library` (owner).
 - 2026-11-12: Responsive from 360 px; light and dark following the system (owner).
