@@ -52,11 +52,14 @@
 <style>
   .theme-switch button {
     display: inline-flex;
-    flex: 1 1 0;
+    flex: 1 1 auto;
     align-items: center;
     justify-content: center;
     gap: var(--base-size-4);
     min-width: 0;
+    padding: 0 6px;
+    white-space: nowrap;
+    overflow-wrap: normal;
   }
 
   .theme-switch:not(.compact) {
