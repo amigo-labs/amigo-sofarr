@@ -23,7 +23,7 @@
     <li class="person">
       <TmdbImage src={person.photo} name={person.name} shape="photo" />
       {#if links}
-        <a href={personHref(person.id)}>{person.name}</a>
+        <a class="ui-link" href={personHref(person.id)}>{person.name}</a>
       {:else}
         <span class="name">{person.name}</span>
       {/if}

@@ -8,5 +8,6 @@
 <span
   class="label"
   class:label-success={status.tone === 'success'}
-  class:label-danger={status.tone === 'danger'}>{status.text}</span
+  class:label-danger={status.tone === 'danger'}
+  class:label-accent={status.tone === 'accent'}>{status.text}</span
 >

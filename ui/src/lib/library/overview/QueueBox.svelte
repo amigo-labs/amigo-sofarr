@@ -35,7 +35,8 @@
     <ul class="rows">
       {#each queue.items as item (item.grab_id)}
         <li class="box-row" data-testid="queue-item">
-          <a href={mediaHref(item.kind, item.media_id)} class="strong">{item.media_title}</a>
+          <a href={mediaHref(item.kind, item.media_id)} class="strong ui-link">{item.media_title}</a
+          >
           <span class="muted release">{item.release_title}</span>
           <div class="progress">
             <progress

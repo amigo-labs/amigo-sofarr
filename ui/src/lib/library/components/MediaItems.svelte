@@ -33,7 +33,7 @@
         />
       </div>
       <div class="main">
-        <a class="title" href={row.href}>{row.title}</a>
+        <a class="title ui-link" href={row.href}>{row.title}</a>
         <span class="meta">
           {#if row.year !== null}{row.year}{/if}
           {#if row.subtitle !== null}· {row.subtitle}{/if}

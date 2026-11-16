@@ -28,7 +28,8 @@
 </script>
 
 <span class="entry" data-state={entry.state} data-testid="calendar-entry">
-  {#if href !== null}<a {href}>{entry.title}</a>{:else}<span>{entry.title}</span>{/if}
+  {#if href !== null}<a class="ui-link" {href}>{entry.title}</a>{:else}<span>{entry.title}</span
+    >{/if}
   <span class="detail">{what}</span>
   <Label text={state.text} tone={state.tone} />
 </span>

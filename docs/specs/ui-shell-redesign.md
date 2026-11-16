@@ -139,11 +139,11 @@ Terms:
 | AC-07 | `narrow window` › `the drawer slides in from the left with everything and keeps the focus (AC-07)`, `the drawer opens without sliding where reduced motion is asked for (AC-07)` (`ui/e2e/shell.spec.ts`) | built |  |
 | AC-08 | `narrow window` › `Escape and a click on the dimmed page close the drawer and return the focus (AC-08)`, `a page change closes the drawer (AC-08)`, `growing the window to wide closes the drawer and shows the sidebar` (`ui/e2e/shell.spec.ts`) | built |  |
 | AC-09 | `theme switch (AC-09)` › `three buttons named Farbschema, the pressed one marked, a pick applies and is remembered` (`ui/e2e/shell.spec.ts`); `theme (AC-10)` (all amigo-theme AC-04 .. AC-08 tests, now through the buttons, `ui/e2e/layout.spec.ts`) | built |  |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
+| AC-10 | `dark palette` and `light palette` › `a button / disabled button / primary button / disabled primary button / danger button / link as a button / box looks like its shared counterpart (AC-10)`, `a field (input / select / textarea) looks like am-input (AC-10)`, `a field without a form-field wrapper looks like am-input (AC-10)`, `a clear / checked checkbox looks like am-check's box (AC-10)` (`ui/e2e/look.spec.ts`); `buttons and fields are 32 px high with a 6 px corner, cards have 8 px (AC-11)` (`ui/e2e/theme.spec.ts`); `aliases of the shared theme` (`ui/src/lib/theme/aliases.test.ts`) | built |  |
+| AC-11 | `dark palette` and `light palette` › `a neutral / success / danger / accent status label is a filled chip with a dot (AC-10, AC-11)`, `the labels in use keep their tone (AC-11)` (`ui/e2e/look.spec.ts`) | built |  |
+| AC-12 | `links (AC-12)` › `navigation entries and the brand are not underlined`, `titles in lists are underlined only on hover and focus; prose links always`, `the overview, the calendar and the missing page show titles without underline`, `a prose link in a paragraph is underlined` (`ui/e2e/look.spec.ts`) | built |  |
+| AC-13 | `dark theme` and `light theme` › `collapsed sidebar with a tooltip (ui-shell-redesign AC-13)`, `top bar of the login page on a wide window (ui-shell-redesign AC-13)`, `logged-in header and open menu` (open drawer) and every other axe scan of `ui/e2e/a11y.spec.ts`, `library-a11y.spec.ts`, `discover-a11y.spec.ts`, `extras-a11y.spec.ts`; `keyboard (AC-11)` › `every control is reachable by Tab with a visible focus` (`ui/e2e/layout.spec.ts`) | built |  |
+| AC-14 | `transfer budget (AC-16)` (`ui/e2e/assets.spec.ts`) | built |  |
 | AC-15 |      | open   |        |
 
 ## Decisions
@@ -158,4 +158,10 @@ Terms:
 - 2026-11-16 (build): The sidebar and the drawer render the same entries, so the DOM holds two `Hauptnavigation` landmarks; only one is ever displayed (the other is `display: none`), so assistive technology and the tests see one.
 - 2026-11-16 (build): The keyboard test of web-ui-shell AC-11 now presses Tab up to 24 times, because ten navigation entries come before the theme switch and logout; its assertions are unchanged.
 - 2026-11-16 (build): `components.css` is loaded with block A, because the theme switch uses the shared segmented control (`am-seg`).
+- 2026-11-16 (build): Red run for block B against c7ca8fb: `bunx playwright test e2e/look.spec.ts` failed 32 of 40 (buttons, checkboxes, the textarea, a bare field, every status label, list titles underlined). Green at once: the box, the input and the select inside `.form-field` (already matching `am-panel` and `am-input` from amigo-theme), the navigation and brand without underline (block A) and the prose link in a paragraph (unchanged behavior).
+- 2026-11-16 (build): AC-10 is measured by putting sofarr's class and its `am-*` counterpart side by side into the same page and comparing the computed height, corner, border colour and width, background and text colour; the textarea's height is left out, because it grows with its rows.
+- 2026-11-16 (build): Fields and checkboxes without a look of their own get the shared look through `:where(...)` rules in `app.css`, so a component's own styles still win; buttons keep the colour-mix hover of amigo-theme instead of the shared `filter`, and the danger button's hover mixes the same way.
+- 2026-11-16 (build): A disabled button of any kind shows `text-muted` on `surface-raised` like `am-btn:disabled`; amigo-theme's comment that the disabled label keeps AA contrast went, because WCAG exempts disabled controls and the shared look does the same.
+- 2026-11-16 (build): UI links carry the global class `ui-link` (titles in lists, cards, tables and the calendar, cast names, "Mehr"); every other link stays underlined. The accent tone is proven by rendering the label's classes, because the UI has no component test setup and no label uses accent yet.
+- 2026-11-16 (build): New public API: `Tone` gains `'accent'` (`ui/src/lib/system/format.ts`); `navGroups`, `NAV_GROUPS` and `NavPage.group`/`icon` (`ui/src/lib/nav.ts`); `ui/src/lib/sidebar.ts`.
 

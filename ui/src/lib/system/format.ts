@@ -6,7 +6,7 @@ import type { JobResult } from '../api/generated/JobResult';
 import type { Mode } from '../api/generated/Mode';
 
 /** The tone of a status label: Primer's semantic colors. */
-export type Tone = 'success' | 'danger' | 'neutral';
+export type Tone = 'success' | 'danger' | 'accent' | 'neutral';
 
 export type StatusText = { readonly text: string; readonly tone: Tone };
 

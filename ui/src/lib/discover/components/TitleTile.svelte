@@ -26,7 +26,7 @@
 </script>
 
 <li class="tile" data-testid="title-card" data-key="{card.kind}/{card.tmdb_id}">
-  <a class="link" href={titleHref(card.kind, card.tmdb_id, state.library)}>
+  <a class="link ui-link" href={titleHref(card.kind, card.tmdb_id, state.library)}>
     <TmdbImage src={card.poster} name={card.title} />
     <span class="title">{card.title}</span>
   </a>

@@ -71,10 +71,10 @@
   --fgColor-onEmphasis: var(--am-on-accent);
 
   /* Buttons. */
-  --button-default-bgColor-rest: var(--am-surface-raised);
+  --button-default-bgColor-rest: var(--am-surface);
   --button-default-bgColor-hover: var(--am-hover);
   --button-default-bgColor-disabled: var(--am-surface-raised);
-  --button-default-borderColor-rest: var(--am-border);
+  --button-default-borderColor-rest: var(--am-border-strong);
   --button-default-borderColor-hover: var(--am-border-strong);
   --button-default-borderColor-disabled: var(--am-border);
   --button-default-fgColor-rest: var(--am-text);
@@ -88,6 +88,7 @@
   );
   --button-primary-fgColor-rest: var(--am-on-accent);
   --button-danger-fgColor-rest: var(--am-danger-ink);
+  --button-danger-bgColor-hover: color-mix(in srgb, var(--am-danger-solid) 88%, var(--am-text));
 
   /* Space: the theme's steps where it has them. */
   --base-size-4: var(--am-space-1);
@@ -146,15 +147,58 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Fields without a look of their own are still fields of the theme. */
-input:not([type='checkbox'], [type='radio'], [type='range']),
-select,
-textarea {
+/* Fields without a look of their own are fields of the theme (`am-input`, D30). */
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'])),
+:where(select, textarea) {
+  height: var(--am-control-md);
+  padding: 0 var(--am-space-3);
+  border: 1px solid var(--am-border-strong);
+  border-radius: var(--am-radius-sm);
   background: var(--control-bgColor-rest);
   color: var(--fgColor-default);
+  font: inherit;
 }
 
-input[type='checkbox'],
+:where(textarea) {
+  height: auto;
+  padding: var(--am-space-2) var(--am-space-3);
+}
+
+/* Checkboxes are the shared check box (`am-check`). */
+:where(input[type='checkbox']) {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--am-border-strong);
+  border-radius: var(--am-radius-xs);
+  background: var(--am-surface-raised);
+  cursor: pointer;
+}
+
+:where(input[type='checkbox']:checked) {
+  border-color: transparent;
+  background: var(--am-accent-solid);
+}
+
+:where(input[type='checkbox']:checked)::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  margin-top: -2px;
+  border-bottom: 2px solid var(--am-on-accent);
+  border-left: 2px solid var(--am-on-accent);
+  transform: rotate(-45deg);
+}
+
+:where(input[type='checkbox']:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 input[type='radio'],
 input[type='range'],
 progress {
@@ -166,10 +210,21 @@ progress {
   opacity: 1;
 }
 
+/* Links in sentences are underlined; UI links (titles, "Mehr", navigation) only on hover and
+   focus (spec ui-shell-redesign AC-12). */
 a {
   color: var(--fgColor-accent);
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+a.ui-link {
+  text-decoration: none;
+}
+
+a.ui-link:hover,
+a.ui-link:focus-visible {
+  text-decoration: underline;
 }
 
 h1,
@@ -228,6 +283,7 @@ code,
   display: inline-flex;
   align-items: center;
   gap: var(--base-size-8);
+  justify-content: center;
   min-height: var(--control-medium-size);
   padding: 0 var(--base-size-12);
   border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
@@ -238,36 +294,47 @@ code,
   font-weight: var(--base-text-weight-medium);
   cursor: pointer;
   text-decoration: none;
+  transition:
+    background var(--am-dur-fast),
+    border-color var(--am-dur-fast);
 }
 
 .btn:hover:not(:disabled) {
   background: var(--button-default-bgColor-hover);
-  border-color: var(--button-default-borderColor-hover);
 }
 
-.btn:disabled {
-  cursor: not-allowed;
-  background: var(--button-default-bgColor-disabled);
-  border-color: var(--button-default-borderColor-disabled);
-  color: var(--fgColor-muted);
+.btn:active:not(:disabled) {
+  background: var(--am-active);
 }
 
 .btn-primary {
   background: var(--button-primary-bgColor-rest);
-  border-color: var(--button-primary-borderColor-rest);
+  border-color: transparent;
   color: var(--button-primary-fgColor-rest);
+  font-weight: var(--base-text-weight-semibold);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--button-primary-bgColor-hover);
-  border-color: var(--button-primary-borderColor-hover);
 }
 
-.btn-primary:disabled {
-  /* The same disabled look as a default button: its label keeps AA contrast. */
+.btn-danger {
+  background: var(--bgColor-danger-emphasis);
+  border-color: transparent;
+  color: var(--fgColor-onEmphasis);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--button-danger-bgColor-hover);
+}
+
+/* Disabled: one look for every kind of button. */
+.btn:disabled {
+  cursor: not-allowed;
   background: var(--button-default-bgColor-disabled);
   border-color: var(--button-default-borderColor-disabled);
-  color: var(--fgColor-muted);
+  color: var(--fgColor-caption);
 }
 
 /* Cards with a header row. */
@@ -281,7 +348,6 @@ code,
   padding: var(--base-size-12) var(--base-size-16);
   border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
   border-radius: var(--borderRadius-large) var(--borderRadius-large) 0 0;
-  background: var(--bgColor-muted);
 }
 
 .box-row {
@@ -293,41 +359,58 @@ code,
   border-top: 0;
 }
 
-/* Status labels. */
+/* Status labels: filled chips with a dot (`am-chip`, spec ui-shell-redesign AC-11). */
 .label {
-  display: inline-block;
-  padding: 0 var(--base-size-8);
-  border: var(--borderWidth-thin) solid var(--borderColor-default);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 var(--am-space-2);
   border-radius: var(--borderRadius-full);
-  font-size: var(--text-body-size-small);
-  font-weight: var(--base-text-weight-medium);
-  line-height: 1.5rem;
+  background: var(--am-surface-raised);
+  color: var(--am-text-secondary);
+  font: 500 12px/16px var(--am-font-sans);
   white-space: nowrap;
-  color: var(--fgColor-muted);
+}
+
+.label::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--borderRadius-full);
+  background: var(--am-border-strong);
 }
 
 .label-success {
-  border-color: var(--borderColor-success-emphasis);
-  color: var(--fgColor-success);
+  background: var(--am-success-subtle);
+  color: var(--am-success-ink);
+}
+
+.label-success::before {
+  background: var(--am-success);
 }
 
 .label-danger {
-  border-color: var(--borderColor-danger-emphasis);
-  color: var(--fgColor-danger);
+  background: var(--am-danger-subtle);
+  color: var(--am-danger-ink);
+}
+
+.label-danger::before {
+  background: var(--am-danger);
+}
+
+.label-accent {
+  background: var(--am-accent-subtle);
+  color: var(--am-accent-ink);
+}
+
+.label-accent::before {
+  background: var(--am-accent);
 }
 
 .muted {
   color: var(--fgColor-muted);
-}
-
-.btn-danger {
-  color: var(--button-danger-fgColor-rest);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: var(--bgColor-danger-emphasis);
-  border-color: var(--borderColor-danger-emphasis);
-  color: var(--fgColor-onEmphasis);
 }
 
 /* A box of facts: term above value, in columns that wrap. */
@@ -356,15 +439,7 @@ code,
   font-weight: var(--base-text-weight-semibold);
 }
 
-.form-field select,
-.form-field input:not([type='checkbox']) {
-  min-height: var(--control-medium-size);
-  padding: 0 var(--base-size-8);
-  border: var(--borderWidth-thin) solid var(--control-borderColor-emphasis);
-  border-radius: var(--borderRadius-medium);
-  background: var(--control-bgColor-rest);
-  color: var(--fgColor-default);
-  font: inherit;
+.form-field :is(select, textarea, input:not([type='checkbox'])) {
   font-weight: var(--base-text-weight-normal);
 }
 
@@ -375,10 +450,7 @@ code,
 }
 
 .check input {
-  width: 1.1rem;
-  height: 1.1rem;
-  margin: 0.15rem 0 0;
-  flex: none;
+  margin-top: 2px;
 }
 
 .table-wrap {

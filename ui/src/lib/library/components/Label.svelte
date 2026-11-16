@@ -5,6 +5,9 @@
   let { text, tone = 'neutral' }: Props = $props();
 </script>
 
-<span class="label" class:label-success={tone === 'success'} class:label-danger={tone === 'danger'}
-  >{text}</span
+<span
+  class="label"
+  class:label-success={tone === 'success'}
+  class:label-danger={tone === 'danger'}
+  class:label-accent={tone === 'accent'}>{text}</span
 >
