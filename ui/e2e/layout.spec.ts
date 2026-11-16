@@ -10,7 +10,7 @@ import {
 } from './helpers';
 import { e2ePassword } from './env.mjs';
 import { SERVERS } from './servers';
-import { THEME_KEY, storeTheme, token } from './theme-helpers';
+import { THEME_KEY, pickTheme, storeTheme, themeButton, token } from './theme-helpers';
 
 const DARK_BG = token('dark', 'bg');
 const LIGHT_BG = token('light', 'bg');
@@ -130,7 +130,7 @@ test.describe('theme (AC-10)', () => {
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect(page.getByLabel('Farbschema')).toHaveValue('dark');
+    await expect(themeButton(page, 'Dunkel')).toHaveAttribute('aria-pressed', 'true');
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await background(page)).toBe(DARK_BG);
     expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBeNull();
@@ -141,19 +141,22 @@ test.describe('theme (AC-10)', () => {
   }) => {
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    const select = page.getByLabel('Farbschema');
-    await expect(select.locator('option')).toHaveText(['Dunkel', 'Hell', 'System']);
-    await select.selectOption({ label: 'Hell' });
+    await expect(page.getByRole('group', { name: 'Farbschema' }).getByRole('button')).toHaveText([
+      'Dunkel',
+      'Hell',
+      'System',
+    ]);
+    await pickTheme(page, 'Hell');
     expect(await background(page)).toBe(LIGHT_BG);
     expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('light');
     await page.reload();
     await expectSystemPage(page);
     expect(await background(page)).toBe(LIGHT_BG);
-    await expect(page.getByLabel('Farbschema')).toHaveValue('light');
+    await expect(themeButton(page, 'Hell')).toHaveAttribute('aria-pressed', 'true');
     // The system changing does not move a fixed choice.
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await background(page)).toBe(LIGHT_BG);
-    await page.getByLabel('Farbschema').selectOption({ label: 'Dunkel' });
+    await pickTheme(page, 'Dunkel');
     expect(await background(page)).toBe(DARK_BG);
     expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('dark');
     await page.emulateMedia({ colorScheme: 'light' });
@@ -164,13 +167,13 @@ test.describe('theme (AC-10)', () => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    await page.getByLabel('Farbschema').selectOption({ label: 'System' });
+    await pickTheme(page, 'System');
     expect(await background(page)).toBe(LIGHT_BG);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await background(page)).toBe(DARK_BG);
     await page.reload();
     await expectSystemPage(page);
-    await expect(page.getByLabel('Farbschema')).toHaveValue('system');
+    await expect(themeButton(page, 'System')).toHaveAttribute('aria-pressed', 'true');
     expect(await background(page)).toBe(DARK_BG);
     await page.emulateMedia({ colorScheme: 'light' });
     expect(await background(page)).toBe(LIGHT_BG);
@@ -227,7 +230,7 @@ test.describe('theme (AC-10)', () => {
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
-    await page.getByLabel('Farbschema').selectOption({ label: 'Hell' });
+    await pickTheme(page, 'Hell');
     expect(await background(page)).toBe(LIGHT_BG);
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })
@@ -251,7 +254,7 @@ test.describe('theme (AC-10)', () => {
     });
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    await page.getByLabel('Farbschema').selectOption({ label: 'Hell' });
+    await pickTheme(page, 'Hell');
     expect(await background(page)).toBe(LIGHT_BG);
     await page.reload();
     await expectSystemPage(page);
@@ -284,7 +287,8 @@ test.describe('keyboard (AC-11)', () => {
     await page.reload();
     await expectSystemPage(page);
     const reached: string[] = [];
-    for (let i = 0; i < 14; i += 1) {
+    // Skip link, brand, ten navigation entries, the theme switch, logout and collapse.
+    for (let i = 0; i < 24; i += 1) {
       await page.keyboard.press('Tab');
       const focus = await page.evaluate(() => {
         const el = document.activeElement;

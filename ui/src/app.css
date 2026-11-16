@@ -3,9 +3,11 @@
  * by amigo-labs/website for sofarr's accent and holds every value as `--am-*`, dark on
  * `:root` and light under `data-theme="light"` (or the system's setting without the
  * attribute). The components still name their values the way Primer does; this file defines
- * those names from the tokens. `theme/components.css` is generated too, but not loaded yet.
+ * those names from the tokens. `theme/components.css` is generated too and holds the shared
+ * component classes (`am-*`, D30); sofarr's own classes below take their look.
  */
 @import './theme/tokens.css';
+@import './theme/components.css';
 
 /* Inter, the theme's UI font: the latin subset, served by sofarr itself. */
 @font-face {

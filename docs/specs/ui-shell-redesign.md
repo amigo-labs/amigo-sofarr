@@ -130,15 +130,15 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
+| AC-01 | `wide window` › `the sidebar sits at the left with groups, entries, theme switch and logout (AC-01)`, `the sidebar also shows on the page-not-found page (AC-01)` (`ui/e2e/shell.spec.ts`); `groups the pages without changing their order` (`ui/src/lib/nav.test.ts`) | built |  |
+| AC-02 | `wide window` › `every entry has an icon; the current one is the accent (AC-02, dark/light)` (`ui/e2e/shell.spec.ts`); `gives every page an icon` (`ui/src/lib/nav.test.ts`) | built |  |
+| AC-03 | `wide window` › `collapses to icons with names and tooltips, and expands again (AC-03)` (`ui/e2e/shell.spec.ts`) | built |  |
+| AC-04 | `wide window` › `the collapsed state is on the document before the app renders (AC-04)`, `an unknown stored value counts as expanded (AC-04)` (`ui/e2e/shell.spec.ts`); `sidebar state` (`ui/src/lib/sidebar.test.ts`) | built |  |
+| AC-05 | `wide window` › `blocked storage: expanded at the start, collapsing works, nothing is remembered (AC-05)`, `storage that refuses writes: collapsed until the reload (AC-05)` (`ui/e2e/shell.spec.ts`); `starts expanded and remembers nothing when the browser blocks storage (AC-05)` (`ui/src/lib/sidebar.test.ts`) | built |  |
+| AC-06 | `narrow window` › `a top bar with menu button and brand instead of the sidebar (AC-06)`, `the login page has a top bar with brand and theme switch, no menu (AC-06)`; `breakpoint` › `1024 px shows the sidebar, 1023 px the menu button` (`ui/e2e/shell.spec.ts`); `narrow screens (AC-09)` (`ui/e2e/layout.spec.ts`) | built |  |
+| AC-07 | `narrow window` › `the drawer slides in from the left with everything and keeps the focus (AC-07)`, `the drawer opens without sliding where reduced motion is asked for (AC-07)` (`ui/e2e/shell.spec.ts`) | built |  |
+| AC-08 | `narrow window` › `Escape and a click on the dimmed page close the drawer and return the focus (AC-08)`, `a page change closes the drawer (AC-08)`, `growing the window to wide closes the drawer and shows the sidebar` (`ui/e2e/shell.spec.ts`) | built |  |
+| AC-09 | `theme switch (AC-09)` › `three buttons named Farbschema, the pressed one marked, a pick applies and is remembered` (`ui/e2e/shell.spec.ts`); `theme (AC-10)` (all amigo-theme AC-04 .. AC-08 tests, now through the buttons, `ui/e2e/layout.spec.ts`) | built |  |
 | AC-10 |      | open   |        |
 | AC-11 |      | open   |        |
 | AC-12 |      | open   |        |
@@ -152,3 +152,10 @@ Terms:
 - 2026-11-16: The shared page header comes with the page specs, not here (owner).
 - 2026-11-16: The sidebar can be collapsed to icons; the state is remembered (owner).
 - 2026-11-16: On narrow windows the navigation is a drawer from the left over a dimmed page (owner).
+- 2026-11-16 (build): Red runs against the unchanged UI (9fb8b63): `bunx vitest run src/lib/nav.test.ts src/lib/sidebar.test.ts` failed (no `./sidebar` module, no `navGroups`/`icon`); `bunx playwright test e2e/shell.spec.ts` failed 18 of 18 (no sidebar, no drawer, no theme buttons, no collapse button).
+- 2026-11-16 (build): The drawer is a `<dialog>` opened with `showModal()`: the page behind is inert, Escape closes it natively and the browser returns the focus to the menu button. Chromium still lets Tab leave a modal dialog for the browser's own UI, so the drawer wraps Tab and Shift+Tab itself (AC-07).
+- 2026-11-16 (build): The tooltip of the collapsed sidebar is one fixed-position element placed next to the hovered or focused entry, because the sidebar's entries scroll (`overflow-y: auto`) and would clip a tooltip inside them.
+- 2026-11-16 (build): The sidebar and the drawer render the same entries, so the DOM holds two `Hauptnavigation` landmarks; only one is ever displayed (the other is `display: none`), so assistive technology and the tests see one.
+- 2026-11-16 (build): The keyboard test of web-ui-shell AC-11 now presses Tab up to 24 times, because ten navigation entries come before the theme switch and logout; its assertions are unchanged.
+- 2026-11-16 (build): `components.css` is loaded with block A, because the theme switch uses the shared segmented control (`am-seg`).
+

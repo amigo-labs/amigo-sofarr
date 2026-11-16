@@ -3,7 +3,7 @@
   import { onMount, type Snippet } from 'svelte';
   import { afterNavigate, goto } from '$app/navigation';
   import { page } from '$app/state';
-  import AppHeader from '#lib/components/AppHeader.svelte';
+  import AppNav from '#lib/components/AppNav.svelte';
   import Flash from '#lib/components/Flash.svelte';
   import Loading from '#lib/components/Loading.svelte';
   import PageError from '#lib/components/PageError.svelte';
@@ -23,6 +23,7 @@
     me === null ? null : routeFor(me, page.url.pathname, page.url.search, page.url.hash),
   );
   const onLoginPage = $derived(page.url.pathname === LOGIN_PATH);
+  const showNav = $derived(me !== null && !loginRequired(me));
 
   onMount(() => {
     void loadSession();
@@ -55,55 +56,67 @@
 </script>
 
 <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
-<AppHeader
-  pathname={page.url.pathname}
-  showNav={me !== null && !loginRequired(me)}
-  showLogout={me !== null && canLogOut(me)}
-  {logoutBusy}
-  onlogout={() => void logout()}
-/>
+<div class="app" class:with-sidebar={showNav}>
+  <AppNav
+    pathname={page.url.pathname}
+    {showNav}
+    showLogout={me !== null && canLogOut(me)}
+    {logoutBusy}
+    onlogout={() => void logout()}
+  />
 
-<main id="inhalt" tabindex="-1">
-  {#if logoutFailure !== null}
-    <Flash tone="danger">
-      <p>Abmelden fehlgeschlagen: {logoutFailure} Die Anmeldung bleibt bestehen.</p>
-      <button type="button" class="btn" onclick={() => (logoutFailure = null)}>Schließen</button>
-    </Flash>
-  {/if}
-  {#if session.interrupted !== null && !onLoginPage && me !== null && !loginRequired(me)}
-    <Flash tone="warning">
-      <p>
-        „{session.interrupted}“ wurde nicht ausgeführt, weil die Anmeldung abgelaufen war. Bitte bei
-        Bedarf erneut auslösen.
-      </p>
-      <button type="button" class="btn" onclick={dismissInterrupted}>Schließen</button>
-    </Flash>
-  {/if}
-
-  <Notices />
-
-  {#if me === null}
-    {#if session.failure !== null}
-      <PageError
-        title="sofarr ist nicht erreichbar"
-        message={session.failure.message}
-        action="Erneut versuchen"
-        onaction={() => void loadSession()}
-      />
-    {:else}
-      <Loading label="sofarr wird geladen …" />
+  <main id="inhalt" tabindex="-1">
+    {#if logoutFailure !== null}
+      <Flash tone="danger">
+        <p>Abmelden fehlgeschlagen: {logoutFailure} Die Anmeldung bleibt bestehen.</p>
+        <button type="button" class="btn" onclick={() => (logoutFailure = null)}>Schließen</button>
+      </Flash>
     {/if}
-  {:else if redirect === null}
-    {@render children()}
-  {/if}
-</main>
+    {#if session.interrupted !== null && !onLoginPage && me !== null && !loginRequired(me)}
+      <Flash tone="warning">
+        <p>
+          „{session.interrupted}“ wurde nicht ausgeführt, weil die Anmeldung abgelaufen war. Bitte
+          bei Bedarf erneut auslösen.
+        </p>
+        <button type="button" class="btn" onclick={dismissInterrupted}>Schließen</button>
+      </Flash>
+    {/if}
+
+    <Notices />
+
+    {#if me === null}
+      {#if session.failure !== null}
+        <PageError
+          title="sofarr ist nicht erreichbar"
+          message={session.failure.message}
+          action="Erneut versuchen"
+          onaction={() => void loadSession()}
+        />
+      {:else}
+        <Loading label="sofarr wird geladen …" />
+      {/if}
+    {:else if redirect === null}
+      {@render children()}
+    {/if}
+  </main>
+</div>
 
 <style>
+  @media (min-width: 1024px) {
+    .with-sidebar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+
   main {
     display: flex;
     flex-direction: column;
     gap: var(--base-size-16);
+    width: 100%;
     max-width: 80rem;
+    min-width: 0;
     margin: 0 auto;
     padding: var(--base-size-24) var(--base-size-16);
   }
