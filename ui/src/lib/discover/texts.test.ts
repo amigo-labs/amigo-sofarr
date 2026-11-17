@@ -7,6 +7,7 @@ import {
   fetchedText,
   jobText,
   libraryLabel,
+  ratingCompact,
   ratingLine,
   runtimeText,
   seasonText,
@@ -66,5 +67,23 @@ describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
     ]);
     const refs = Array.from({ length: 1001 }, (_, i) => ({ kind: 'movie' as const, tmdb_id: i }));
     expect(batches(refs).map((b) => b.length)).toEqual([500, 500, 1]);
+  });
+});
+
+describe('compact tile rating (ui-consistency AC-03)', () => {
+  it('shows the star and keeps the full text for tooltip and name', () => {
+    expect(ratingCompact({ state: 'rated', rating: 7.8, votes: 12345 })).toEqual({
+      text: '★ 7,8',
+      full: 'IMDb 7,8 (12.345 Stimmen)',
+    });
+    expect(ratingCompact({ state: 'none', rating: null, votes: null })).toEqual({
+      text: '–',
+      full: 'IMDb –',
+    });
+    expect(ratingCompact({ state: 'pending', rating: null, votes: null })).toEqual({
+      text: '…',
+      full: 'IMDb-Bewertung folgt',
+    });
+    expect(ratingCompact({ state: 'off', rating: null, votes: null })).toBeNull();
   });
 });

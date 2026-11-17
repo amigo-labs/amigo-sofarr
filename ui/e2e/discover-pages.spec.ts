@@ -45,15 +45,15 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
       '/entdecken/filme/502',
     );
     await expect(star.getByRole('button', { name: 'Hinzufügen „Sternenfahrt“' })).toBeVisible();
-    await expect(star.getByTestId('rating')).toHaveText('IMDb 7,8 (12.345 Stimmen)');
+    await expect(star.getByTestId('rating')).toHaveAccessibleName('IMDb 7,8 (12.345 Stimmen)');
     const unrated = cards(page, 'movie/505').first();
-    await expect(unrated.getByTestId('rating')).toHaveText('IMDb –');
+    await expect(unrated.getByTestId('rating')).toHaveAccessibleName('IMDb –');
 
     // A title whose IMDb id is still loading shows the placeholder until it is known.
     const slow = cards(trending, 'movie/504').getByTestId('rating');
-    await expect(slow).toHaveText('IMDb … (Bewertung folgt)');
+    await expect(slow).toHaveAccessibleName('IMDb-Bewertung folgt');
     await release(page.request, 'movie', 504);
-    await expect(slow).toHaveText('IMDb 5,0 (1.000 Stimmen)', { timeout: 15_000 });
+    await expect(slow).toHaveAccessibleName('IMDb 5,0 (1.000 Stimmen)', { timeout: 15_000 });
 
     await expect(page.getByTestId('fetched').first()).toContainText('Stand: ');
     await expect(page.getByRole('link', { name: /Information courtesy of IMDb/ })).toHaveAttribute(
@@ -149,15 +149,16 @@ test.describe('filters (AC-02)', () => {
 
     // Still loading its rating, the title stays with the placeholder; at 5.0 it goes.
     const slow = cards(results, 'movie/507');
-    await expect(slow.getByTestId('rating')).toHaveText('IMDb … (Bewertung folgt)');
+    await expect(slow.getByTestId('rating')).toHaveAccessibleName('IMDb-Bewertung folgt');
     await release(page.request, 'movie', 507);
     await expect(slow).toHaveCount(0, { timeout: 15_000 });
     await expect
       .poll(() => results.getByTestId('title-card').count(), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(20);
-    for (const rating of await results.getByTestId('rating').allTextContents()) {
-      expect(rating).toMatch(/^IMDb (7|8|9),\d|^IMDb …/);
-    }
+    const names = await results
+      .getByTestId('rating')
+      .evaluateAll((all) => all.map((el) => el.getAttribute('aria-label') ?? ''));
+    for (const name of names) expect(name).toMatch(/^IMDb (7|8|9),\d|^IMDb-Bewertung folgt/);
 
     await openDiscoverFilters(page);
     await page.getByRole('button', { name: 'Filter zurücksetzen' }).click();

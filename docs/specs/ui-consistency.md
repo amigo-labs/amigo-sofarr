@@ -139,10 +139,10 @@ Terms:
 | ----- | ---- | ------ | ------ |
 | AC-01 | `title links and notices (AC-01, AC-02), dark/light` › `a title link rests in the text colour and turns to the accent on hover`, `the active navigation entry keeps the accent` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-02 | `title links and notices (AC-01, AC-02), dark/light` › `an info notice has the neutral muted ground and the text colour` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
+| AC-03 | `discover tiles (AC-03, AC-04)` › `a tile shows the compact rating with the full text as tooltip and name` (`ui/e2e/ui-consistency.spec.ts`); `compact tile rating (ui-consistency AC-03)` (`ui/src/lib/discover/texts.test.ts`); the tile rating checks of `ui/e2e/discover-pages.spec.ts` and `ui/e2e/discover-person.spec.ts` | built |  |
+| AC-04 | `discover tiles (AC-03, AC-04)` › `the library state chip and the add button have the same height` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
+| AC-05 | `discover search (AC-05, AC-06)` › `a magnifier sits at the start of the search field` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
+| AC-06 | `discover search (AC-05, AC-06)` › `at 360 px …`, `at 390 px the field takes the width, „Suchen“ and „Filter“ share the next line` (`ui/e2e/ui-consistency.spec.ts`); `narrow window (AC-05)` (`ui/e2e/discover-polish.spec.ts`) | built |  |
 | AC-07 |      | open   |        |
 | AC-08 |      | open   |        |
 | AC-09 |      | open   |        |
@@ -160,3 +160,8 @@ Terms:
 - 2026-11-17: The overview's dashboard look is split off into `ui-overview-polish`, because both together exceed one M block.
 - 2026-11-17 (build): Red run of block A against 9f58f78: `bunx playwright test e2e/ui-consistency.spec.ts` failed 5 of 7 (title links in the accent, the info notice on the accent ground, no episode toggle buttons); the two navigation tests were green at once (the active entry already had the accent) and stay as guards.
 - 2026-11-17 (build): The episode disclosures became two toggle buttons (`aria-expanded`) with their contents below, because two `<details>` cannot share one line and still open in the row's full width. On narrow windows they are 32 px high, because `ui-detail-boxes` AC-07 measures every button of a season.
+- 2026-11-17 (build): Red run of block B against e399146: the five discover tests of `ui/e2e/ui-consistency.spec.ts` failed (full rating text, chip 10 px lower than the button, no magnifier, „Suchen“ 40 px above „Filter“) and `ratingCompact` did not exist.
+- 2026-11-17 (build): The pending placeholder is checked by the unit test only, because the fake TMDB releases a held-back rating for every test at once and the tests run in parallel.
+- 2026-11-17 (build): Chip and add button of a tile are both 28 px high, because 32 px made the chip a heavy block; 28 px stays above the 24 px target size of WCAG 2.2.
+- 2026-11-17 (build): The filter button is passed into the search form, so that on narrow windows it can share the line with „Suchen“ while the field takes its own; „Suchen“ lost its icon, because the magnifier now sits in the field.
+- 2026-11-17 (build): One run of `ui/e2e/discover-a11y.spec.ts` reported a contrast violation on the add dialog's primary button in the light palette; two reruns of the file were green (42 of 42). The scan probably caught the button mid-transition after the click.

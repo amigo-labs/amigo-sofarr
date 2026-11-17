@@ -3,6 +3,7 @@
 // that break at their separators; sofarr's monogram.
 
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { DISCOVER, cards, settle } from './discover-helpers';
 import { LIBRARY, seriesId } from './library-helpers';
 import { PALETTES, storeTheme } from './theme-helpers';
 
@@ -99,4 +100,87 @@ test.describe('episode disclosures (AC-11)', () => {
       expect(box?.width ?? 0).toBeGreaterThan((rowBox?.width ?? 0) * 0.8);
     }
   });
+});
+
+test.describe('discover tiles (AC-03, AC-04)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('a tile shows the compact rating with the full text as tooltip and name', async ({
+    page,
+  }) => {
+    await page.goto(`${DISCOVER}/entdecken`);
+    await settle(page);
+    const trending = page.getByTestId('shelf').first();
+    const star = cards(trending, 'movie/502').getByTestId('rating');
+    await expect(star).toHaveText('★ 7,8');
+    await expect(star).toHaveAccessibleName('IMDb 7,8 (12.345 Stimmen)');
+    await expect(star).toHaveAttribute('title', 'IMDb 7,8 (12.345 Stimmen)');
+    const unrated = cards(page, 'movie/505').first().getByTestId('rating');
+    await expect(unrated).toHaveText('–');
+    await expect(unrated).toHaveAccessibleName('IMDb –');
+    // One line, also at 360 px.
+    for (const width of [1440, 360]) {
+      await page.setViewportSize({ width, height: 900 });
+      const box = await star.boundingBox();
+      const lineHeight = await star.evaluate((e) => parseFloat(getComputedStyle(e).lineHeight));
+      expect(box?.height ?? 99).toBeLessThan(lineHeight * 1.5);
+    }
+  });
+
+  test('the library state chip and the add button have the same height', async ({ page }) => {
+    await page.goto(`${DISCOVER}/entdecken`);
+    await settle(page);
+    const shelf = page.getByTestId('shelf').first();
+    const chip = shelf.locator('[data-testid="library-state"] > *').first();
+    const add = shelf.getByRole('button', { name: /^Hinzufügen/ }).first();
+    await expect(chip).toBeVisible();
+    await expect(add).toBeVisible();
+    const a = await chip.boundingBox();
+    const b = await add.boundingBox();
+    expect(Math.abs((a?.height ?? 0) - (b?.height ?? 99))).toBeLessThan(1);
+  });
+});
+
+test.describe('discover search (AC-05, AC-06)', () => {
+  test('a magnifier sits at the start of the search field', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${DISCOVER}/entdecken`);
+    await settle(page);
+    const field = await page.getByLabel('Suchbegriff').boundingBox();
+    const icons = await page
+      .getByRole('search')
+      .locator('svg')
+      .evaluateAll((all) => all.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    const inside = icons.filter(
+      (r) =>
+        r.x >= (field?.x ?? 0) &&
+        r.x + r.width <= (field?.x ?? 0) + (field?.width ?? 0) / 4 &&
+        r.y >= (field?.y ?? 0) &&
+        r.y + r.height <= (field?.y ?? 0) + (field?.height ?? 0),
+    );
+    expect(inside.length).toBe(1);
+    await page.getByLabel('Suchbegriff').fill('Sternen');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/entdecken\/suche\?begriff=Sternen/);
+  });
+
+  for (const width of [360, 390]) {
+    test(`at ${width} px the field takes the width, „Suchen“ and „Filter“ share the next line`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`${DISCOVER}/entdecken`);
+      await settle(page);
+      const field = await page.getByLabel('Suchbegriff').boundingBox();
+      const main = await page.locator('main').boundingBox();
+      const go = await page.getByRole('button', { name: 'Suchen' }).boundingBox();
+      const filter = await page.getByRole('button', { name: /^Filter/ }).boundingBox();
+      expect(field?.width ?? 0).toBeGreaterThan((main?.width ?? 0) - 40);
+      expect(Math.abs((go?.y ?? 0) - (filter?.y ?? 99))).toBeLessThan(4);
+      expect(go?.y ?? 0).toBeGreaterThan((field?.y ?? 0) + (field?.height ?? 0) - 1);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+    });
+  }
 });

@@ -1,16 +1,27 @@
 <script lang="ts">
   import type { Rating } from '../../api/generated/Rating';
-  import { ratingLine } from '../texts';
+  import { ratingCompact, ratingLine } from '../texts';
 
   // A title's IMDb rating and votes (spec imdb-ratings AC-04): a placeholder while it is
-  // still loading, "–" without one, nothing while ratings are off.
-  type Props = { rating: Rating };
-  let { rating }: Props = $props();
+  // still loading, "–" without one, nothing while ratings are off. Compact on the title
+  // tiles, with the votes in tooltip and name, as the library rows (ui-consistency AC-03).
+  type Props = { rating: Rating; compact?: boolean };
+  let { rating, compact = false }: Props = $props();
 
   const text = $derived(ratingLine(rating));
+  const short = $derived(compact ? ratingCompact(rating) : null);
 </script>
 
-{#if text !== null}
+{#if short !== null}
+  <span
+    class="rating"
+    class:pending={rating.state === 'pending'}
+    data-testid="rating"
+    role="img"
+    aria-label={short.full}
+    title={short.full}>{short.text}</span
+  >
+{:else if !compact && text !== null}
   <span class="rating" class:pending={rating.state === 'pending'} data-testid="rating"
     >IMDb {text}{#if rating.state === 'pending'}<span class="sr-only">{' (Bewertung folgt)'}</span
       >{/if}</span
@@ -21,5 +32,6 @@
   .rating {
     color: var(--fgColor-muted);
     font-size: var(--text-body-size-small);
+    white-space: nowrap;
   }
 </style>
