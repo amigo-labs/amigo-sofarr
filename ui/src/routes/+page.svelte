@@ -67,21 +67,21 @@
   <ul class="figures" aria-label="Kennzahlen">
     <li>
       <a class="figure ui-link" href="#queue-title">
-        <strong>{overview.data.queue.items.length}</strong><span class="label"
+        <strong>{overview.data.queue.items.length}</strong><span class="figure-label"
           ><Icon svg={downloadIcon} />Warteschlange</span
         >
       </a>
     </li>
     <li>
       <a class="figure ui-link" class:danger={problems > 0} href="#problems-title">
-        <strong>{problems}</strong><span class="label"
+        <strong>{problems}</strong><span class="figure-label"
           ><Icon svg={alertIcon} />Probleme (7 Tage)</span
         >
       </a>
     </li>
     <li>
       <a class="figure ui-link" href="#upcoming-title">
-        <strong>{overview.data.upcoming.length}</strong><span class="label"
+        <strong>{overview.data.upcoming.length}</strong><span class="figure-label"
           ><Icon svg={calendarIcon} />Nächste 7 Tage</span
         >
       </a>
@@ -166,7 +166,7 @@
     font-size: var(--text-body-size-small);
   }
 
-  .figure .label {
+  .figure .figure-label {
     display: inline-flex;
     align-items: center;
     gap: var(--base-size-4);

@@ -92,3 +92,4 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 - 2026-11-17 (build): The UI no longer appends „Stand: …“ to the queue notice, because the server's notice already names the time of the last state („– Stand von 17.11.2026 10:23“), to the minute.
 - 2026-11-17 (build): With a configured client the empty queue keeps „Nichts in der Warteschlange.“, now with the download icon like the other empty boxes (AC-06).
 - 2026-11-17 (build): „Heute“ is computed from the browser's clock at every refresh of the overview (every 15 s), so the headings move on after midnight without a reload.
+- 2026-11-17 (build): The regenerated overview screenshot showed the figure labels as status chips (dot and ground): their class `label` collided with the global chip class. The figure test now checks that the label has no dot and no ground (red against f558a6f), and the class is `figure-label`.

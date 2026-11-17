@@ -65,6 +65,12 @@ test.describe('key figures (AC-01)', () => {
       const icon = figure.locator('svg');
       await expect(icon).toHaveCount(1);
       expect(await icon.evaluate((e) => e.closest('[aria-hidden="true"]') !== null)).toBe(true);
+      // The label is plain text, not a status chip (no dot, no ground).
+      const label = icon.locator('xpath=ancestor::span[not(@aria-hidden)][1]');
+      expect(await label.evaluate((e) => getComputedStyle(e, '::before').content)).toBe('none');
+      expect(await label.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(
+        'rgba(0, 0, 0, 0)',
+      );
       const number = figure.locator('strong');
       expect(await number.evaluate((e) => getComputedStyle(e).fontVariantNumeric)).toContain(
         'tabular-nums',
