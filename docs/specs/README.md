@@ -36,7 +36,7 @@ because later specs build on earlier ones.
 | 18 | [ui-calendar](ui-calendar.md) | M | ui-detail-boxes | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) | done |
 | 19 | [ui-overview-pages](ui-overview-pages.md) | M | ui-calendar | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) | done |
 | 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | done |
-| 21 | [reencode-rule](reencode-rule.md) | M | mediainfo | Re-encoding 1: duration in the media info, size-per-minute thresholds per resolution, candidate list by API and CLI, largest first (D31) | `/spec-build reencode-rule` |
+| 21 | [reencode-rule](reencode-rule.md) | M | mediainfo | Re-encoding 1: duration in the media info, size-per-minute thresholds per resolution, candidate list by API and CLI, largest first (D31) | done |
 | 22 | reencode-job | M | reencode-rule, trailers | Re-encoding 2: ffmpeg (libx265) in a time window, checked result, swap with the original to the recycle bin, history, system page (D31) | `/spec reencode-job` |
 | 23 | ui-reencode | M | reencode-job | Re-encoding 3: page "Neu encodieren" with candidates, running encode, history and saved space; exclude a title, encode now (D31) | `/spec ui-reencode` |
 
@@ -67,6 +67,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [ui-calendar](ui-calendar.md) | 2026-11-17 | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) |
 | [ui-overview-pages](ui-overview-pages.md) | 2026-11-17 | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) |
 | [ui-discover-polish](ui-discover-polish.md) | 2026-11-17 | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) |
+| [reencode-rule](reencode-rule.md) | 2026-11-17 | Re-encoding 1: duration from Matroska and MP4 headers, size-per-minute thresholds per resolution (`[reencode]`), candidate list by `GET /api/reencode/candidates` and `amigo-sofarr reencode-candidates`, largest first, read-only in both modes (D31) |
 
 ## Existing behavior without a feature spec
 

@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §3, sofarr.md §5, sofarr.md §9 D22, sofarr.md §9 D31]
@@ -76,18 +76,18 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): sofarr reads the duration of a Matroska file and of an MP4/QuickTime file from its header and stores it with the file's media info; a file whose header carries no duration, or one that is zero, negative, not a number or the MP4 marker for unknown (all bits set), has none, and its other media info is the same as before this feature.
-- [ ] AC-02 (state): While a library file's stored media info has no duration because it was read before this feature, sofarr leaves it unread as long as the file is unchanged (spec `mediainfo` AC-01 stands) and uses the metadata runtime for it; once the file is read again under that spec's rules, its header duration is stored and used.
-- [ ] AC-03 (always): sofarr gives every library file exactly one verdict, the first that applies in the order of the term "Verdict"; a file whose size per minute is exactly the threshold is fine, one above it is not.
-- [ ] AC-04 (always): A file that is fine by its size per minute is never reported as excluded for Dolby Vision or HDR10+, and a file in a switched-off resolution class is reported as "Auflösung ausgeschaltet" whatever else applies to it except missing media info.
-- [ ] AC-05 (always): The duration from the file's header wins over the metadata runtime, however much they differ; the metadata runtime is used only where the header has none, for a file with several episodes multiplied by their number.
-- [ ] AC-06 (event): When a client asks `GET /api/reencode/candidates`, then sofarr answers with the whole candidate list, largest file first, each entry with what it belongs to (movie, or series and its episodes), title, path, file size, duration and its source, resolution class, video codec, size per minute and threshold, plus a summary: the number of candidates, their total size, the number of fine files, and the number of excluded files per reason. The numbers of the summary add up to the number of library files.
-- [ ] AC-07 (event): When the user runs `amigo-sofarr reencode-candidates`, then sofarr prints the candidate list in the same order, one line per file with size in GB, size per minute and threshold in MB, and the path, then one closing line with the number of candidates and their total size and one line per exclusion reason that has files; with no candidate, "Keine Datei ist zu groß." stands in place of the list and the closing line, and the reason lines stay. The command reads the database itself and works while the server runs.
-- [ ] AC-08 (state): While sofarr runs in shadow mode, AC-06 and AC-07 answer exactly as in live mode; in both modes they change no file in the library and no row in the database.
-- [ ] AC-09 (error): If a `[reencode]` threshold is negative or not a number, or the section has an unknown key, then sofarr refuses to start with a German message that names the key.
-- [ ] AC-10 (option): Where no `[reencode]` section is set, the defaults 30 / 60 / 150 apply, and `config/sofarr.example.toml` shows the section with these values.
-- [ ] AC-11 (always): For a library of 2,500 movies and 20,000 episode files, half of them candidates, sofarr builds the answer of AC-06 – reading the library from the database included – in under 2 s (`cargo test -p sofarr-server --release reencode_candidates_large_library`, measured duration in the test output; the limit holds on the developer's machine and on the CI runner).
-- [ ] AC-12 (error): If the stored media info of a library file cannot be parsed, then that file counts as "keine Media-Infos" and the list is still answered.
+- [x] AC-01 (always): sofarr reads the duration of a Matroska file and of an MP4/QuickTime file from its header and stores it with the file's media info; a file whose header carries no duration, or one that is zero, negative, not a number or the MP4 marker for unknown (all bits set), has none, and its other media info is the same as before this feature.
+- [x] AC-02 (state): While a library file's stored media info has no duration because it was read before this feature, sofarr leaves it unread as long as the file is unchanged (spec `mediainfo` AC-01 stands) and uses the metadata runtime for it; once the file is read again under that spec's rules, its header duration is stored and used.
+- [x] AC-03 (always): sofarr gives every library file exactly one verdict, the first that applies in the order of the term "Verdict"; a file whose size per minute is exactly the threshold is fine, one above it is not.
+- [x] AC-04 (always): A file that is fine by its size per minute is never reported as excluded for Dolby Vision or HDR10+, and a file in a switched-off resolution class is reported as "Auflösung ausgeschaltet" whatever else applies to it except missing media info.
+- [x] AC-05 (always): The duration from the file's header wins over the metadata runtime, however much they differ; the metadata runtime is used only where the header has none, for a file with several episodes multiplied by their number.
+- [x] AC-06 (event): When a client asks `GET /api/reencode/candidates`, then sofarr answers with the whole candidate list, largest file first, each entry with what it belongs to (movie, or series and its episodes), title, path, file size, duration and its source, resolution class, video codec, size per minute and threshold, plus a summary: the number of candidates, their total size, the number of fine files, and the number of excluded files per reason. The numbers of the summary add up to the number of library files.
+- [x] AC-07 (event): When the user runs `amigo-sofarr reencode-candidates`, then sofarr prints the candidate list in the same order, one line per file with size in GB, size per minute and threshold in MB, and the path, then one closing line with the number of candidates and their total size and one line per exclusion reason that has files; with no candidate, "Keine Datei ist zu groß." stands in place of the list and the closing line, and the reason lines stay. The command reads the database itself and works while the server runs.
+- [x] AC-08 (state): While sofarr runs in shadow mode, AC-06 and AC-07 answer exactly as in live mode; in both modes they change no file in the library and no row in the database.
+- [x] AC-09 (error): If a `[reencode]` threshold is negative or not a number, or the section has an unknown key, then sofarr refuses to start with a German message that names the key.
+- [x] AC-10 (option): Where no `[reencode]` section is set, the defaults 30 / 60 / 150 apply, and `config/sofarr.example.toml` shows the section with these values.
+- [x] AC-11 (always): For a library of 2,500 movies and 20,000 episode files, half of them candidates, sofarr builds the answer of AC-06 – reading the library from the database included – in under 2 s (`cargo test -p sofarr-server --release reencode_candidates_large_library`, measured duration in the test output; the limit holds on the developer's machine and on the CI runner).
+- [x] AC-12 (error): If the stored media info of a library file cannot be parsed, then that file counts as "keine Media-Infos" and the list is still answered.
 
 ## Technical notes
 
@@ -149,22 +149,31 @@ Terms used below:
 
 <!-- One bullet per open question; empty means: everything settled, spec-build may start -->
 
+## Summary
+
+> Completed: 2026-11-17
+
+- The media info reader stores the duration from the Matroska `Info` (also through the `SeekHead`) and the MP4 `mvhd` as `duration_ms`; unusable values stay unset and older stored JSON is unchanged.
+- A pure rule in `sofarr_core::reencode` judges every library file as candidate, fine or excluded (no media info, resolution off, unknown duration, Dolby Vision/HDR10+) by size per minute against a threshold per resolution class.
+- `[reencode]` thresholds in `sofarr.toml` (defaults 30 / 60 / 150 MB per minute, checked at start).
+- The candidate list, largest file first with a summary, through `GET /api/reencode/candidates` and the CLI `amigo-sofarr reencode-candidates`, read-only in shadow and live mode.
+
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `matroska::tests::the_duration_comes_from_the_segment_info`, `an_unusable_duration_is_none_and_changes_nothing_else`, `the_info_is_found_through_the_seek_head` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `mp4::tests::the_duration_comes_from_the_movie_header`, `an_unusable_movie_duration_is_none_and_changes_nothing_else` (`crates/sofarr-mediainfo/src/mp4/tests.rs`) | built |        |
-| AC-02 | `reencode::tests::the_metadata_runtime_fills_in_for_a_missing_header_duration` (`crates/sofarr-server/src/reencode/tests.rs`); unchanged files stay unread: `media_tests::the_disk_scan_reads_new_and_changed_files_only` (spec `mediainfo` AC-01, unchanged) | built |        |
-| AC-03 | `reencode::tests::exactly_the_threshold_is_fine_and_above_it_is_a_candidate`, `every_file_gets_the_first_verdict_that_applies`, `resolution_classes_follow_width_or_height` (`crates/sofarr-core/src/reencode.rs`) | built |        |
-| AC-04 | `reencode::tests::every_file_gets_the_first_verdict_that_applies` (`crates/sofarr-core/src/reencode.rs`); `reencode::tests::a_switched_off_resolution_and_broken_media_info_are_counted`, `the_list_holds_the_too_large_files_largest_first` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
-| AC-05 | `reencode::tests::the_header_duration_wins_and_metadata_fills_in` (`crates/sofarr-core/src/reencode.rs`); `reencode::tests::the_metadata_runtime_fills_in_for_a_missing_header_duration` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
-| AC-06 | `reencode::tests::the_list_holds_the_too_large_files_largest_first`, `the_api_answers_the_same_in_shadow_and_live_mode_and_changes_nothing` (`crates/sofarr-server/src/reencode/tests.rs`); `media::tests::media_info_follows_its_file` (`crates/sofarr-db/src/media.rs`) | built |        |
-| AC-07 | `reencode::tests::the_cli_report_lists_sizes_and_reasons_in_german` (`crates/sofarr-server/src/reencode/tests.rs`); `the_command_prints_the_candidates_largest_first`, `an_empty_library_has_no_file_that_is_too_large` (`crates/sofarr-server/tests/cli_reencode.rs`) | built |        |
-| AC-08 | `reencode::tests::the_api_answers_the_same_in_shadow_and_live_mode_and_changes_nothing` (`crates/sofarr-server/src/reencode/tests.rs`); `the_command_prints_the_candidates_largest_first` (`crates/sofarr-server/tests/cli_reencode.rs`) | built |        |
-| AC-09 | `config::tests::reencode_thresholds_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
-| AC-10 | `config::tests::reencode_thresholds_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
-| AC-11 | `reencode::tests::reencode_candidates_large_library` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
-| AC-12 | `reencode::tests::a_switched_off_resolution_and_broken_media_info_are_counted` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
+| AC-01 | `matroska::tests::the_duration_comes_from_the_segment_info`, `an_unusable_duration_is_none_and_changes_nothing_else`, `the_info_is_found_through_the_seek_head` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `mp4::tests::the_duration_comes_from_the_movie_header`, `an_unusable_movie_duration_is_none_and_changes_nothing_else` (`crates/sofarr-mediainfo/src/mp4/tests.rs`) | verified | 39f7000 |
+| AC-02 | `reencode::tests::the_metadata_runtime_fills_in_for_a_missing_header_duration` (`crates/sofarr-server/src/reencode/tests.rs`); unchanged files stay unread: `media_tests::the_disk_scan_reads_new_and_changed_files_only` (spec `mediainfo` AC-01, unchanged) | verified | b9a9be5 |
+| AC-03 | `reencode::tests::exactly_the_threshold_is_fine_and_above_it_is_a_candidate`, `every_file_gets_the_first_verdict_that_applies`, `resolution_classes_follow_width_or_height` (`crates/sofarr-core/src/reencode.rs`) | verified | 0f7d0c7 |
+| AC-04 | `reencode::tests::every_file_gets_the_first_verdict_that_applies` (`crates/sofarr-core/src/reencode.rs`); `reencode::tests::a_switched_off_resolution_and_broken_media_info_are_counted`, `the_list_holds_the_too_large_files_largest_first` (`crates/sofarr-server/src/reencode/tests.rs`) | verified | 0f7d0c7 |
+| AC-05 | `reencode::tests::the_header_duration_wins_and_metadata_fills_in` (`crates/sofarr-core/src/reencode.rs`); `reencode::tests::the_metadata_runtime_fills_in_for_a_missing_header_duration` (`crates/sofarr-server/src/reencode/tests.rs`) | verified | 0f7d0c7 |
+| AC-06 | `reencode::tests::the_list_holds_the_too_large_files_largest_first`, `the_api_answers_the_same_in_shadow_and_live_mode_and_changes_nothing` (`crates/sofarr-server/src/reencode/tests.rs`); `media::tests::media_info_follows_its_file` (`crates/sofarr-db/src/media.rs`) | verified | 495f950 |
+| AC-07 | `reencode::tests::the_cli_report_lists_sizes_and_reasons_in_german` (`crates/sofarr-server/src/reencode/tests.rs`); `the_command_prints_the_candidates_largest_first`, `an_empty_library_has_no_file_that_is_too_large` (`crates/sofarr-server/tests/cli_reencode.rs`) | verified | b9a9be5 |
+| AC-08 | `reencode::tests::the_api_answers_the_same_in_shadow_and_live_mode_and_changes_nothing` (`crates/sofarr-server/src/reencode/tests.rs`); `the_command_prints_the_candidates_largest_first` (`crates/sofarr-server/tests/cli_reencode.rs`) | verified | b9a9be5 |
+| AC-09 | `config::tests::reencode_thresholds_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | verified | b9a9be5 |
+| AC-10 | `config::tests::reencode_thresholds_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | verified | b9a9be5 |
+| AC-11 | `reencode::tests::reencode_candidates_large_library` (`crates/sofarr-server/src/reencode/tests.rs`) | verified | b9a9be5 |
+| AC-12 | `reencode::tests::a_switched_off_resolution_and_broken_media_info_are_counted` (`crates/sofarr-server/src/reencode/tests.rs`) | verified | b9a9be5 |
 
 ## Decisions
 
