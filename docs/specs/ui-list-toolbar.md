@@ -134,9 +134,9 @@ Terms:
 | AC-07 | `chips (AC-05 .. AC-08)` › `"Alle Filter zurücksetzen" clears every filter, keeps search and sort (AC-07)` (`ui/e2e/library-toolbar.spec.ts`); `resetting clears every filter and keeps search and sort (AC-07)` (`filter-chips.test.ts`) | built |  |
 | AC-08 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)` (`ui/e2e/library-toolbar.spec.ts`); `filters combine with AND, are part of the address and survive a reload` (`ui/e2e/library-lists.spec.ts`); `minimum rating and votes combine, …`, `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`) | built |  |
 | AC-09 | `attribution (AC-09)` › `IMDb's attribution stands once, below the list` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
-| AC-10 | `narrow window (AC-10)` › `the toolbar wraps, the search takes the full width, nothing scrolls sideways` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
+| AC-10 | `narrow window (AC-10)` › `the toolbar wraps, the search takes the full width, nothing scrolls sideways` (360 px); `narrow window between 600 and 767 px (AC-10)` › `the panel shows its dropdowns in at most two columns; the chips wrap` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
 | AC-11 | `axe, dark theme` and `axe, light theme` › `open filter panel and chips (ui-list-toolbar AC-11)`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-12 | `movie list speed (AC-04)` (`ui/e2e/library-perf.spec.ts`, the filter now set in the open panel); `transfer budget (shell AC-16)` › `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
+| AC-12 | `large library (AC-04)` › `first entries within 1 s, filter and search updates within 200 ms` (`ui/e2e/library-perf.spec.ts`, the filter now set in the open panel); `transfer budget (shell AC-16)` › `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-13 | manual: the owner checked the movie and series lists with the filter panel closed and open and with chips, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
@@ -147,4 +147,4 @@ Terms:
 - 2026-11-17 (build): The toolbar is `role="toolbar"` named „Liste“; the search and sort labels are visually hidden (the placeholder and the selected value show what they are), the filter dropdowns keep their visible labels in the panel.
 - 2026-11-17 (build): The chips are filled `am-chip am-chip--accent` buttons with an `x` icon; „Alle Filter zurücksetzen“ is a small ghost button. Their names („Filter … entfernen“) contain the filter labels, so tests that look a dropdown up by `getByLabel('Mindestbewertung')` now pass `exact: true`.
 - 2026-11-17 (build): Existing tests that set filters open the panel first (`openFilters` in `ui/e2e/library-helpers.ts`); the perf test opens it before the measured change, so the measurement still covers only the list update.
-
+- 2026-11-17 (fix): spec-check found AC-10 broken: below 768 px the panel showed up to four columns (auto-fill). Red first: `narrow window between 600 and 767 px (AC-10)` at 700 px measured 4 columns; the panel is now two columns below 768 px.

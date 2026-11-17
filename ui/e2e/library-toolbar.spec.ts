@@ -208,6 +208,32 @@ test.describe('narrow window (AC-10)', () => {
   });
 });
 
+test.describe('narrow window between 600 and 767 px (AC-10)', () => {
+  test.use({ viewport: { width: 700, height: 800 } });
+
+  test('the panel shows its dropdowns in at most two columns; the chips wrap', async ({ page }) => {
+    await page.goto(
+      `${LIBRARY}/filme?ueberwacht=ja&fehlt=nein&cutoff=nein&datei=ja&profil=4&tag=1`,
+    );
+    await openFilters(page);
+    const columns = await page
+      .locator('#liste-filter .field')
+      .evaluateAll(
+        (all) => new Set(all.map((el) => Math.round(el.getBoundingClientRect().x))).size,
+      );
+    expect(columns).toBeGreaterThanOrEqual(1);
+    expect(columns).toBeLessThanOrEqual(2);
+    const rows = await chips(page).evaluateAll(
+      (all) => new Set(all.map((el) => Math.round(el.getBoundingClientRect().y))).size,
+    );
+    expect(rows).toBeGreaterThan(1);
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(fits).toBe(true);
+  });
+});
+
 test('series have the Komplett filter and its chip', async ({ page }) => {
   await page.goto(`${LIBRARY}/serien?komplett=ja`);
   await expect(chips(page)).toHaveText(['Komplett: Ja']);
