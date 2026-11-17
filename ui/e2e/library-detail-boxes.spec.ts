@@ -27,7 +27,7 @@ async function openSeries(page: Page, title = 'Kleine Insel'): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Staffeln' })).toBeVisible();
 }
 
-const MAIN = ['Datei', 'Untertitel', 'Grabs', 'Blocklist'];
+const MAIN = ['Datei', 'Untertitel', 'Grabs', 'Sperrliste'];
 const SIDE = ['Einstellungen', 'Ordner und Dateiaktionen'];
 
 test.describe('two columns (AC-01)', () => {

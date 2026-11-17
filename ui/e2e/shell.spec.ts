@@ -13,7 +13,7 @@ const ENTRIES = [
   'Kalender',
   'Fehlend',
   'Entdecken',
-  'Blocklist',
+  'Sperrliste',
   'Untertitel',
   'Backups',
   'System',

@@ -60,7 +60,7 @@
 </section>
 
 <section class="box" aria-labelledby="blocked-title">
-  <h2 id="blocked-title" class="box-header">Blocklist</h2>
+  <h2 id="blocked-title" class="box-header">Sperrliste</h2>
   {#if blocklist.length === 0}
     <p class="box-row muted">Keine gesperrten Releases.</p>
   {:else}

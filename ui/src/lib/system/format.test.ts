@@ -33,10 +33,11 @@ describe('job texts', () => {
     expect(lastRunText(null, TZ)).toBe('noch nicht gelaufen');
   });
 
-  it('writes points in time as German date and time', () => {
-    expect(dateTimeText('2026-11-12T13:24:04.5741636Z', TZ)).toBe('12.11.2026, 14:24:04');
-    expect(lastRunText('2026-07-01T08:00:00Z', TZ)).toBe('01.07.2026, 10:00:00');
-    expect(nextRunText('2026-11-13T13:24:04Z', 1440, TZ)).toBe('13.11.2026, 14:24:04');
+  it('writes points in time as German date and time, to the minute (ui-consistency AC-09)', () => {
+    expect(dateTimeText('2026-11-12T13:24:04.5741636Z', TZ)).toBe('12.11.2026, 14:24');
+    expect(dateTimeText('2026-11-12T13:24:59Z', TZ)).toBe('12.11.2026, 14:24');
+    expect(lastRunText('2026-07-01T08:00:00Z', TZ)).toBe('01.07.2026, 10:00');
+    expect(nextRunText('2026-11-13T13:24:04Z', 1440, TZ)).toBe('13.11.2026, 14:24');
     expect(nextRunText(null, 30, TZ)).toBe('noch nicht geplant');
     expect(dateTimeText('kein Datum', TZ)).toBe('kein Datum');
   });

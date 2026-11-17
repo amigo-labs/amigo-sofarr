@@ -5,7 +5,7 @@
   import type { FolderState } from '../../api/generated/FolderState';
   import type { RenameEntry } from '../../api/generated/RenameEntry';
   import { libraryKind, moveFolder, remove, rename, renamePreview } from '../../api/library';
-  import { itemCount, removeText } from '../format';
+  import { itemCount, removeText, sentence } from '../format';
   import { notify } from '../notices.svelte';
   import Dialog from '../components/Dialog.svelte';
 
@@ -116,8 +116,8 @@
     {#if !fileActions.available}
       <Flash tone="info">
         <p>
-          {fileActions.reason ?? 'Dateiaktionen sind gerade nicht möglich.'} Überwachung, Profil und Entfernen
-          ohne Dateien funktionieren trotzdem.
+          {sentence(fileActions.reason ?? 'Dateiaktionen sind gerade nicht möglich')} Überwachung, Profil
+          und Entfernen ohne Dateien funktionieren trotzdem.
         </p>
       </Flash>
     {/if}

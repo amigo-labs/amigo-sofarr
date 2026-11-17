@@ -69,10 +69,10 @@
 </script>
 
 <svelte:head>
-  <title>Blocklist – sofarr</title>
+  <title>Sperrliste – sofarr</title>
 </svelte:head>
 
-<PageHeader title="Blocklist">
+<PageHeader title="Sperrliste">
   {#snippet count()}
     {#if answer !== null}
       <span data-testid="blocklist-total">{itemCount(answer.total, 'item')}</span>
@@ -82,16 +82,16 @@
 
 {#if failure !== null}
   <Flash tone="danger">
-    <p>Die Blocklist konnte nicht geladen werden: {failure.message}</p>
+    <p>Die Sperrliste konnte nicht geladen werden: {failure.message}</p>
     <button type="button" class="btn" onclick={() => void load()}>Erneut versuchen</button>
   </Flash>
 {/if}
 
 {#if answer === null && failure === null}
-  <Loading label="Blocklist wird geladen …" />
+  <Loading label="Sperrliste wird geladen …" />
 {:else if answer !== null}
   {#if answer.entries.length === 0}
-    <p class="muted">Die Blocklist ist leer.</p>
+    <p class="muted">Die Sperrliste ist leer.</p>
   {:else}
     <ul class="box rows">
       {#each answer.entries as entry (entry.id)}
@@ -109,7 +109,7 @@
           <button
             type="button"
             class="btn btn-danger"
-            aria-label={`„${entry.title}“ von der Blocklist entfernen`}
+            aria-label={`„${entry.title}“ von der Sperrliste entfernen`}
             onclick={() => (removing = entry)}
           >
             <Icon svg={trashIcon} />
@@ -143,7 +143,7 @@
 
 <Dialog
   open={removing !== null}
-  title="Von der Blocklist entfernen"
+  title="Von der Sperrliste entfernen"
   onclose={() => (removing = null)}
 >
   <p>

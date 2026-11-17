@@ -180,3 +180,21 @@ export function episodeCode(season: number | null, episode: number | null): stri
 export function missingText(missing: number): string {
   return `${missing} ${missing === 1 ? 'fehlt' : 'fehlen'}`;
 }
+
+const SERIES_TYPES: Readonly<Record<string, string>> = {
+  standard: 'Standard',
+  anime: 'Anime',
+  daily: 'Täglich',
+};
+
+/** A series type in German; any other value as it came, „–“ without one (ui-consistency AC-08). */
+export function seriesTypeText(type: string | null): string {
+  if (type === null || type === '') return '–';
+  return SERIES_TYPES[type] ?? type;
+}
+
+/** A text as a sentence: a full stop added where it has none. */
+export function sentence(text: string): string {
+  const trimmed = text.trim();
+  return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}

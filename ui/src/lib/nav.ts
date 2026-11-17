@@ -32,7 +32,7 @@ export const PAGES: readonly NavPage[] = [
   { label: 'Kalender', href: '/kalender', built: true, group: 'Bibliothek', icon: calendarIcon },
   { label: 'Fehlend', href: '/fehlend', built: true, group: 'Bibliothek', icon: inboxIcon },
   { label: 'Entdecken', href: '/entdecken', built: true, group: 'Entdecken', icon: telescopeIcon },
-  { label: 'Blocklist', href: '/blocklist', built: true, group: 'Verwaltung', icon: blockedIcon },
+  { label: 'Sperrliste', href: '/blocklist', built: true, group: 'Verwaltung', icon: blockedIcon },
   { label: 'Untertitel', href: '/untertitel', built: true, group: 'Verwaltung', icon: commentIcon },
   { label: 'Backups', href: '/backups', built: true, group: 'Verwaltung', icon: databaseIcon },
   { label: 'System', href: '/system', built: true, group: 'Verwaltung', icon: serverIcon },

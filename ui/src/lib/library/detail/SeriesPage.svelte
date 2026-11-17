@@ -6,7 +6,7 @@
   import { ensureOptions, options } from '../options.svelte';
   import { createResource } from '../../resource.svelte';
   import { searchBody } from '../actions';
-  import { bytesText, missingText } from '../format';
+  import { bytesText, missingText, seriesTypeText } from '../format';
   import { notify } from '../notices.svelte';
   import Label from '../components/Label.svelte';
   import CastBox from '../../discover/CastBox.svelte';
@@ -70,8 +70,9 @@
       <dl class="facts facts-compact">
         <div>
           <dt>Episoden</dt>
-          <dd data-testid="episode-counts">
-            {s.files} mit Datei / {s.monitored_episodes} überwacht / {s.episodes} gesamt
+          <dd class="counts" data-testid="episode-counts">
+            <span>{s.files} von {s.episodes} mit Datei</span>
+            <span class="muted">{s.monitored_episodes} überwacht</span>
           </dd>
         </div>
         <div>
@@ -88,7 +89,7 @@
         </div>
         <div>
           <dt>Serientyp</dt>
-          <dd>{s.series_type}</dd>
+          <dd>{seriesTypeText(s.series_type)}</dd>
         </div>
       </dl>
     {/snippet}
@@ -152,6 +153,11 @@
 {/if}
 
 <style>
+  .counts {
+    display: flex;
+    flex-direction: column;
+  }
+
   .seasons {
     display: flex;
     flex-direction: column;

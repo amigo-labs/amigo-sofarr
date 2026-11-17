@@ -10,6 +10,8 @@ import {
   percentText,
   removeText,
   searchText,
+  sentence,
+  seriesTypeText,
   statusText,
 } from './format';
 
@@ -72,5 +74,23 @@ describe('library texts', () => {
     expect(removeText('Weg', { files_removed: 2, recycle_bin: true, downloads_removed: 1 })).toBe(
       '„Weg“ wurde aus der Bibliothek entfernt. 2 Dateien in den Papierkorb verschoben. 1 Download beim Download-Client entfernt.',
     );
+  });
+});
+
+describe('series type (ui-consistency AC-08)', () => {
+  it('names the known types in German and keeps any other', () => {
+    expect(seriesTypeText('standard')).toBe('Standard');
+    expect(seriesTypeText('anime')).toBe('Anime');
+    expect(seriesTypeText('daily')).toBe('Täglich');
+    expect(seriesTypeText('miniserie')).toBe('miniserie');
+    expect(seriesTypeText('')).toBe('–');
+    expect(seriesTypeText(null)).toBe('–');
+  });
+});
+
+describe('sentence', () => {
+  it('ends a text with a full stop once', () => {
+    expect(sentence('Erst danach möglich')).toBe('Erst danach möglich.');
+    expect(sentence('Gibt es nur im Live-Modus.')).toBe('Gibt es nur im Live-Modus.');
   });
 });

@@ -8,8 +8,8 @@ import { expectAttribution } from './helpers';
 import { LIBRARY, movieId, seriesId } from './library-helpers';
 
 const SHELVES = [
-  'Trending heute',
-  'Trending diese Woche',
+  'Heute beliebt',
+  'Diese Woche beliebt',
   'Beliebte Filme',
   'Demnächst im Kino',
   'Jetzt im Kino',
@@ -110,7 +110,7 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
     await expect(page.getByTestId('stale-notice')).toHaveText(
       'TMDB ist nicht erreichbar – Stand von vor 2 Tagen.',
     );
-    await expect(page.getByTestId('fetched')).toHaveText('Stand: 10.11.2026, 09:00:00');
+    await expect(page.getByTestId('fetched')).toHaveText('Stand: 10.11.2026, 09:00');
     await expect(page.getByTestId('shelf')).toHaveCount(7);
   });
 

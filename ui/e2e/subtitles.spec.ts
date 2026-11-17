@@ -9,7 +9,7 @@ import { json } from './helpers';
 import { EXTRAS, RATINGS, waitForSubtitleRun } from './extras-helpers';
 import { movieId, seriesId } from './library-helpers';
 
-const DATE = /\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2}/;
+const DATE = /\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}/;
 
 test.describe('subtitle overview (AC-11)', () => {
   test.beforeEach(async ({ request }) => {

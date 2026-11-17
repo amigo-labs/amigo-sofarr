@@ -184,3 +184,67 @@ test.describe('discover search (AC-05, AC-06)', () => {
     });
   }
 });
+
+test.describe('wording and date-times (AC-07 to AC-10)', () => {
+  test('„Sperrliste“ in navigation, heading and page title; the address stays', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${LIBRARY}/`);
+    await page.getByRole('link', { name: 'Sperrliste' }).click();
+    await expect(page).toHaveURL(`${LIBRARY}/blocklist`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sperrliste');
+    await expect(page).toHaveTitle('Sperrliste – sofarr');
+    await expect(page.getByText('Blocklist')).toHaveCount(0);
+  });
+
+  test('discover says „Heute beliebt“ and „Diese Woche beliebt“', async ({ page }) => {
+    await page.goto(`${DISCOVER}/entdecken`);
+    await settle(page);
+    await expect(page.getByRole('heading', { name: 'Heute beliebt' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Diese Woche beliebt' })).toBeVisible();
+    await expect(page.getByText(/Trending/)).toHaveCount(0);
+    await page.getByRole('link', { name: /^Mehr aus „Heute beliebt“/ }).click();
+    await expect(page).toHaveURL(/\/entdecken\/regal\/trending-heute$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Heute beliebt');
+  });
+
+  test('the series page: type in German, episode counts on two lines, the note without syntax', async ({
+    page,
+  }) => {
+    await openSeries(page);
+    const facts = page.locator('dl').filter({ hasText: 'Serientyp' }).first();
+    await expect(facts.locator('div').filter({ hasText: 'Serientyp' }).locator('dd')).toHaveText(
+      'Standard',
+    );
+    const counts = page.getByTestId('episode-counts');
+    await expect(counts.locator('> *')).toHaveText(['1 von 5 mit Datei', '3 überwacht']);
+    const [first, second] = await counts.locator('> *').all();
+    expect((await second?.boundingBox())?.y ?? 0).toBeGreaterThan(
+      ((await first?.boundingBox())?.y ?? 0) + 4,
+    );
+    const muted = await resolved(page, 'color', 'var(--fgColor-muted)');
+    expect(second ? await colour(second) : '').toBe(muted);
+    await expect(page.locator('.flash-info')).toHaveText(
+      'Dateiaktionen (Umbenennen, Ordner verschieben, Dateien löschen) gibt es nur im ' +
+        'Live-Modus. Überwachung, Profil und Entfernen ohne Dateien funktionieren trotzdem.',
+    );
+  });
+
+  test('the discover „Stand“ line is a caption to the minute', async ({ page }) => {
+    await page.goto(`${DISCOVER}/entdecken`);
+    await settle(page);
+    const fetched = page.getByTestId('fetched').first();
+    await expect(fetched).toHaveText(/^Stand: \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
+    expect(await colour(fetched)).toBe(await resolved(page, 'color', 'var(--fgColor-muted)'));
+    const size = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.fontSize = 'var(--text-body-size-small)';
+      document.body.append(probe);
+      const out = getComputedStyle(probe).fontSize;
+      probe.remove();
+      return out;
+    });
+    expect(await fetched.evaluate((e) => getComputedStyle(e).fontSize)).toBe(size);
+  });
+});

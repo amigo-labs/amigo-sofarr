@@ -226,9 +226,7 @@ test.describe('series page (AC-06, AC-10)', () => {
     const id = await seriesId(request, LIBRARY, 'Kleine Insel');
     await page.goto(`${LIBRARY}/serien/${id}`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Kleine Insel (2020)');
-    await expect(page.getByTestId('episode-counts')).toHaveText(
-      '1 mit Datei / 3 überwacht / 5 gesamt',
-    );
+    await expect(page.getByTestId('episode-counts')).toHaveText('1 von 5 mit Datei 3 überwacht');
     const counts = page.getByTestId('season-counts');
     await expect(counts.first()).toContainText('1 mit Datei / 3 überwacht / 3 gesamt');
     const e1 = page.locator('[data-episode="S01E01"]');

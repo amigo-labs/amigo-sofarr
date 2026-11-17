@@ -43,8 +43,8 @@ test.describe('system page (AC-12)', () => {
     const rss = page.locator('[data-job="rss"]');
     await expect(rss).toContainText('OK');
     await expect(rss).toContainText('alle 30 Minuten');
-    await expect(rss).toContainText('12.11.2026, 11:00:00');
-    await expect(rss).toContainText('12.11.2026, 11:30:00');
+    await expect(rss).toContainText('12.11.2026, 11:00');
+    await expect(rss).toContainText('12.11.2026, 11:30');
     const downloads = page.locator('[data-job="downloads"]');
     await expect(downloads).toContainText('Fehler');
     await expect(downloads).toContainText('nzbget antwortet nicht: Verbindung abgelehnt');
@@ -53,7 +53,7 @@ test.describe('system page (AC-12)', () => {
     const nzbget = page.locator('[data-connection="download_client"]');
     await expect(nzbget).toContainText('Fehler');
     await expect(nzbget).toContainText('Verbindung abgelehnt');
-    await expect(nzbget).toContainText('Letzter Kontakt: 12.11.2026, 11:02:00');
+    await expect(nzbget).toContainText('Letzter Kontakt: 12.11.2026, 11:02');
     await expect(page.getByText('erreichbar')).toBeVisible();
     await expect(page.getByText('noch kein Kontakt')).toBeVisible();
   });

@@ -10,7 +10,7 @@ describe('navigation', () => {
       'Kalender',
       'Fehlend',
       'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',
@@ -25,7 +25,7 @@ describe('navigation', () => {
       'Kalender',
       'Fehlend',
       'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',
@@ -37,7 +37,7 @@ describe('navigation', () => {
       'Kalender',
       'Fehlend',
       'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',
@@ -56,7 +56,7 @@ describe('navigation', () => {
     expect(navGroups().map((g) => [g.label, g.pages.map((p) => p.label)])).toEqual([
       ['Bibliothek', ['Übersicht', 'Filme', 'Serien', 'Kalender', 'Fehlend']],
       ['Entdecken', ['Entdecken']],
-      ['Verwaltung', ['Blocklist', 'Untertitel', 'Backups', 'System']],
+      ['Verwaltung', ['Sperrliste', 'Untertitel', 'Backups', 'System']],
     ]);
   });
 

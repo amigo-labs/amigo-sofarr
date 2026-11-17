@@ -42,7 +42,7 @@ describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
 
   it('dates cached answers; a stale page wins', () => {
     const freshness = { fetched_at: '2026-11-12T09:00:00Z', stale: false, notice: null };
-    expect(fetchedText(freshness, 'Europe/Berlin')).toBe('Stand: 12.11.2026, 10:00:00');
+    expect(fetchedText(freshness, 'Europe/Berlin')).toBe('Stand: 12.11.2026, 10:00');
     const stale = { ...freshness, stale: true, notice: 'alt' };
     expect(fresher(freshness, stale)).toBe(stale);
     expect(fresher(stale, freshness)).toBe(stale);

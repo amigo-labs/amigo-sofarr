@@ -30,7 +30,7 @@ test.describe('navigation (AC-08)', () => {
       'Kalender',
       'Fehlend',
       'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',

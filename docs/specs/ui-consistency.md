@@ -143,10 +143,10 @@ Terms:
 | AC-04 | `discover tiles (AC-03, AC-04)` › `the library state chip and the add button have the same height` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-05 | `discover search (AC-05, AC-06)` › `a magnifier sits at the start of the search field` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-06 | `discover search (AC-05, AC-06)` › `at 360 px …`, `at 390 px the field takes the width, „Suchen“ and „Filter“ share the next line` (`ui/e2e/ui-consistency.spec.ts`); `narrow window (AC-05)` (`ui/e2e/discover-polish.spec.ts`) | built |  |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-07 | `wording and date-times (AC-07 to AC-10)` › `„Sperrliste“ in navigation, heading and page title; the address stays`, `discover says „Heute beliebt“ and „Diese Woche beliebt“` (`ui/e2e/ui-consistency.spec.ts`); `shelves_come_in_order_with_library_state_and_ratings_that_load` (`crates/sofarr-server/src/discover/tests.rs`); `navigation` (`ui/src/lib/nav.test.ts`) | built |  |
+| AC-08 | `wording and date-times (AC-07 to AC-10)` › `the series page: type in German, episode counts on two lines, the note without syntax` (`ui/e2e/ui-consistency.spec.ts`); `series type (ui-consistency AC-08)` (`ui/src/lib/library/format.test.ts`) | built |  |
+| AC-09 | `job texts` › `writes points in time as German date and time, to the minute (ui-consistency AC-09)` (`ui/src/lib/system/format.test.ts`); `wording and date-times (AC-07 to AC-10)` › `the discover „Stand“ line is a caption to the minute` (`ui/e2e/ui-consistency.spec.ts`); the date-time checks of `ui/e2e/system.spec.ts`, `ui/e2e/discover-pages.spec.ts`, `ui/e2e/library-pages.spec.ts` | built |  |
+| AC-10 | `movie_page_shows_everything_about_one_movie` (`crates/sofarr-server/src/library_api_tests.rs`); `wording and date-times (AC-07 to AC-10)` › `the series page: …` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-11 | `episode disclosures (AC-11)` › `„Datei“ and „Untertitel“ share one muted line; both open in the full row width` (`ui/e2e/ui-consistency.spec.ts`); the episode file test of `ui/e2e/library-detail.spec.ts` and the episode subtitles test of `ui/e2e/subtitles.spec.ts` | built |  |
 | AC-12 |      | open   |        |
 | AC-13 |      | open   |        |
@@ -165,3 +165,8 @@ Terms:
 - 2026-11-17 (build): Chip and add button of a tile are both 28 px high, because 32 px made the chip a heavy block; 28 px stays above the 24 px target size of WCAG 2.2.
 - 2026-11-17 (build): The filter button is passed into the search form, so that on narrow windows it can share the line with „Suchen“ while the field takes its own; „Suchen“ lost its icon, because the magnifier now sits in the field.
 - 2026-11-17 (build): One run of `ui/e2e/discover-a11y.spec.ts` reported a contrast violation on the add dialog's primary button in the light palette; two reruns of the file were green (42 of 42). The scan probably caught the button mid-transition after the click.
+- 2026-11-17 (build): Red run of block C with its implementation stashed: `bunx vitest run` failed 7 (navigation names, date-times with seconds, no `seriesTypeText`); `cargo test -p sofarr-server discover::tests` and `library_api_tests` failed on „Trending heute“ and the configuration syntax. The discover „Stand“ line already had the caption style; its e2e check was green at once and stays as a guard.
+- 2026-11-17 (build): The shelf names come from the server (`discover/shelves.rs`) and the UI (`discover/links.ts`); both changed. The slugs `trending-heute` and `trending-woche` stay, because they are addresses.
+- 2026-11-17 (build): The file actions note joins the server's reason and the UI's second sentence with a full stop the busy reasons lacked („… erst danach möglich Überwachung …“), through a small `sentence` helper.
+- 2026-11-17 (build): The season headers keep their counts of today („8 mit Datei / 8 überwacht / 8 gesamt“, ui-detail-boxes AC-04), because AC-08 names only the series page's episode fact.
+- 2026-11-17 (build): Times the server writes into its own German messages (e.g. the login lock „Nächster Versuch ab 10:23:45 Uhr“) keep their format, because AC-09 covers the date-times the UI formats itself.
