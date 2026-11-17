@@ -48,7 +48,7 @@ Terms used below:
 - [x] AC-01 (event): When a day has passed since the ratings data was loaded (or none was loaded yet), then sofarr downloads the IMDb ratings dataset and replaces the ratings data with it as a whole, while API requests keep being answered.
 - [x] AC-02 (error): If the download fails, the file is damaged or incomplete, a required column is missing, or it holds clearly too few titles (fewer than half of the previous load), then sofarr keeps the previous ratings data, logs the reason, and tries again every hour until a load succeeds; the daily schedule of AC-01 counts from that success. A first load (no previous data) needs at least 100,000 titles.
 - [x] AC-03 (always): Loading the ratings data never leaves a mixture of old and new ratings visible; a crash during the load keeps the previous data.
-- [x] AC-04 (always): Every title sofarr shows — in the library lists and pages, and in the discover, search and person pages of spec `discover` — that has an IMDb id shows its rating and votes; a title without an IMDb id or without a rating in the data shows "–". In the movie and series lists the rating shows as „★ 7,4“ and the votes are in its tooltip and accessible name („IMDb 7,4 (24.000 Stimmen)“); everywhere else the votes are visible.
+- [x] AC-04 (always): Every title sofarr shows — in the library lists and pages, and in the discover, search and person pages of spec `discover` — that has an IMDb id shows its rating and votes; a title without an IMDb id or without a rating in the data shows "–". In the movie and series lists and on the title tiles of the discover, search, shelf and person pages the rating shows as „★ 7,4“ and the votes are in its tooltip and accessible name („IMDb 7,4 (24.000 Stimmen)“); on the movie, series and preview pages the votes are visible.
 - [x] AC-05 (event): When a movie or series has no IMDb id, or its IMDb id changed at TMDB/TVDB, then the next metadata refresh sets the current one — movies from TMDB, series from TVDB or, if TVDB has none, from TMDB's external ids; if no source reports an IMDb id any more, the previous one is kept.
 - [x] AC-12 (event): When the metadata refresh meets a series without a TMDB id, then it looks the series up at TMDB by its TVDB id and stores the TMDB id; a series TMDB does not know keeps none and is looked up again at the next refresh.
 - [x] AC-06 (event): When the user sorts a library list (movies, series) by rating, then titles are ordered by rating (higher first, votes as a tie-breaker), titles without a rating last.
@@ -89,13 +89,14 @@ Terms used below:
 
 ## Summary
 
-> Completed: 2026-11-12, AC-04 revised 2026-11-17
+> Completed: 2026-11-12, AC-04 revised 2026-11-17 (twice)
 
 - sofarr loads IMDb's `title.ratings.tsv.gz` once a day, streamed through `flate2` into a new table that is swapped in as a whole; a failed, damaged, incomplete or too small dataset keeps the previous ratings and is retried every hour.
 - Movies and series carry their IMDb id (series from TVDB, else TMDB's external ids) and series their TMDB id, found by TVDB id at the metadata refresh.
 - Library lists and pages and the discover, search and person pages show rating and votes ("–" without), with IMDb's attribution and the date of the data; library lists sort by rating and filter by minimum rating and votes.
 - `[imdb] enabled = false` switches downloads, ratings, sorting and filters off; a full dataset of 1.5 million titles loads in about a second with 45 MiB more peak memory on the CI runner.
 - Revision of AC-04 (spec `ui-list-items`): the movie and series lists show the rating as „★ 7,4“ with the votes in tooltip and accessible name; the other pages keep the votes visible.
+- Revision of AC-04 (spec `ui-consistency` AC-03): the title tiles of discover, search, shelf and person pages show the compact rating too; the movie, series and preview pages keep the votes visible.
 
 ## Open questions
 
@@ -120,6 +121,7 @@ Terms used below:
 
 ## Decisions
 
+- 2026-11-17: AC-04 revised by spec `ui-consistency` (AC-03): the discover, search, shelf and person tiles show the compact rating as the library lists do, because the two-line „IMDb 7,8 (112.400 Stimmen)“ made the tiles end at different heights; the evidence is `discover tiles (AC-03, AC-04)` in `ui/e2e/ui-consistency.spec.ts` and the tile checks of `ui/e2e/discover-pages.spec.ts` and `ui/e2e/discover-person.spec.ts`, which now read the accessible name.
 - 2026-11-17: AC-04 revised by spec `ui-list-items`: in the movie and series lists the votes move into the rating's tooltip and accessible name (owner: „★ 7,4, Stimmen nur im Tooltip“); the detail, discover, search and person pages keep them visible.
 - 2026-11-12: IMDb ratings are their own spec before `discover`, because they also change the library lists (owner).
 - 2026-11-12: Ratings are loaded into `imdb_ratings_next` and swapped in by renaming in one transaction; readers keep the previous table until the commit (AC-03).
