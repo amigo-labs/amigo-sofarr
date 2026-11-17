@@ -372,10 +372,11 @@ async fn movie_page_shows_everything_about_one_movie() {
     );
     // Shadow mode: no file actions (AC-17).
     assert_eq!(detail["file_actions"]["available"], false);
-    assert!(
-        detail["file_actions"]["reason"]
-            .as_str()
-            .is_some_and(|r| r.contains("Live-Modus")),
+    // German, without configuration syntax (ui-consistency AC-10).
+    assert_eq!(
+        detail["file_actions"]["reason"],
+        "Dateiaktionen (Umbenennen, Ordner verschieben, Dateien löschen) gibt es nur im \
+         Live-Modus.",
         "{detail}"
     );
     let (status, missing) = http.get("/api/library/movies/9999").await;

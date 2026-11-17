@@ -58,8 +58,8 @@ pub const SHELVES: [ShelfId; 7] = [
 impl ShelfId {
     pub fn title(self) -> &'static str {
         match self {
-            ShelfId::TrendingDay => "Trending heute",
-            ShelfId::TrendingWeek => "Trending diese Woche",
+            ShelfId::TrendingDay => "Heute beliebt",
+            ShelfId::TrendingWeek => "Diese Woche beliebt",
             ShelfId::PopularMovies => "Beliebte Filme",
             ShelfId::Upcoming => "Demnächst im Kino",
             ShelfId::NowPlaying => "Jetzt im Kino",

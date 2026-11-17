@@ -15,8 +15,8 @@ export const SHELVES: readonly {
   readonly slug: string;
   readonly title: string;
 }[] = [
-  { id: 'trending_day', slug: 'trending-heute', title: 'Trending heute' },
-  { id: 'trending_week', slug: 'trending-woche', title: 'Trending diese Woche' },
+  { id: 'trending_day', slug: 'trending-heute', title: 'Heute beliebt' },
+  { id: 'trending_week', slug: 'trending-woche', title: 'Diese Woche beliebt' },
   { id: 'popular_movies', slug: 'beliebte-filme', title: 'Beliebte Filme' },
   { id: 'upcoming', slug: 'demnaechst-im-kino', title: 'Demnächst im Kino' },
   { id: 'now_playing', slug: 'jetzt-im-kino', title: 'Jetzt im Kino' },

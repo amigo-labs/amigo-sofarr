@@ -9,7 +9,7 @@ import { json } from './helpers';
 import { EXTRAS, RATINGS, waitForSubtitleRun } from './extras-helpers';
 import { movieId, seriesId } from './library-helpers';
 
-const DATE = /\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2}/;
+const DATE = /\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}/;
 
 test.describe('subtitle overview (AC-11)', () => {
   test.beforeEach(async ({ request }) => {
@@ -117,7 +117,7 @@ test.describe('subtitle overview (AC-11)', () => {
     await page.goto(`${EXTRAS}/untertitel`);
     await expect(page.getByText(/^Schattenmodus: sofarr sucht Untertitel/)).toBeVisible();
     await expect(page.getByTestId('subtitles-quota')).toContainText(
-      'aufgebraucht; sofarr lädt ab 13.11.2026, 01:00:00 weiter.',
+      'aufgebraucht; sofarr lädt ab 13.11.2026, 01:00 weiter.',
     );
     const need = page.locator('[data-need="de-forced"]');
     await expect(need).toContainText('Deutsch · erzwungen');
@@ -203,8 +203,10 @@ test.describe('subtitles of a file (AC-12)', () => {
   test('an episode file shows its subtitles when opened', async ({ page, request }) => {
     await page.goto(`${EXTRAS}/serien/${await seriesId(request, EXTRAS, 'Untertitelserie')}`);
     const first = page.locator('[data-episode="S01E01"]');
-    await expect(page.locator('[data-episode="S01E02"] summary')).toHaveCount(0);
-    await first.locator('summary', { hasText: /^Untertitel/ }).click();
+    await expect(
+      page.locator('[data-episode="S01E02"]').getByRole('button', { name: /^Untertitel von/ }),
+    ).toHaveCount(0);
+    await first.getByRole('button', { name: /^Untertitel von/ }).click();
     await expect(first.getByTestId('subtitles-external')).toHaveText('keine');
     await expect(first.getByTestId('subtitles-needed').locator('li')).toHaveText([
       /Deutsch · normal/,

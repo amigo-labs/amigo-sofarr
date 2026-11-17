@@ -49,18 +49,19 @@
 </script>
 
 <div class="search-row">
-  <SearchForm />
-  <button
-    bind:this={filterButton}
-    type="button"
-    class="am-btn filter-button"
-    class:active={chips.length > 0}
-    aria-expanded={open}
-    aria-controls="entdecken-filter"
-    onclick={() => (open = !open)}
-  >
-    <Icon svg={filterIcon} />{chips.length > 0 ? `Filter (${chips.length})` : 'Filter'}
-  </button>
+  <SearchForm>
+    <button
+      bind:this={filterButton}
+      type="button"
+      class="am-btn filter-button"
+      class:active={chips.length > 0}
+      aria-expanded={open}
+      aria-controls="entdecken-filter"
+      onclick={() => (open = !open)}
+    >
+      <Icon svg={filterIcon} />{chips.length > 0 ? `Filter (${chips.length})` : 'Filter'}
+    </button>
+  </SearchForm>
 </div>
 
 <div id="entdecken-filter" class="panel" hidden={!open}>
@@ -94,7 +95,7 @@
 
   .search-row :global(.search) {
     flex: 1 1 24rem;
-    max-width: 40rem;
+    max-width: 44rem;
   }
 
   .filter-button {
@@ -133,12 +134,6 @@
 
   @media (max-width: 767.98px) {
     .search-row :global(.search) {
-      flex-basis: 100%;
-      flex-wrap: wrap;
-      max-width: none;
-    }
-
-    .search-row :global(.search input) {
       flex-basis: 100%;
     }
 

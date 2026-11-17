@@ -376,7 +376,7 @@ async function expectNoViolations(page: Page): Promise<void> {
 const PAGES = [
   ['Übersicht', `${LIBRARY}/`],
   ['Fehlend', `${LIBRARY}/fehlend`],
-  ['Blocklist', `${LIBRARY}/blocklist`],
+  ['Sperrliste', `${LIBRARY}/blocklist`],
   ['Backups', `${LIBRARY}/backups`],
   ['Untertitel', `${EXTRAS}/untertitel`],
   ['System', `${SERVERS.open}/system`],

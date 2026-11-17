@@ -226,9 +226,7 @@ test.describe('series page (AC-06, AC-10)', () => {
     const id = await seriesId(request, LIBRARY, 'Kleine Insel');
     await page.goto(`${LIBRARY}/serien/${id}`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Kleine Insel (2020)');
-    await expect(page.getByTestId('episode-counts')).toHaveText(
-      '1 mit Datei / 3 überwacht / 5 gesamt',
-    );
+    await expect(page.getByTestId('episode-counts')).toHaveText('1 von 5 mit Datei 3 überwacht');
     const counts = page.getByTestId('season-counts');
     await expect(counts.first()).toContainText('1 mit Datei / 3 überwacht / 3 gesamt');
     const e1 = page.locator('[data-episode="S01E01"]');
@@ -316,10 +314,7 @@ test.describe('series page (AC-06, AC-10)', () => {
     await expect(page.getByText('Kleine.Insel.S01E02.720p-ALT')).toBeVisible();
     await expect(page.getByText('Download fehlgeschlagen')).toBeVisible();
     const e1 = page.locator('[data-episode="S01E01"]');
-    await e1
-      .locator('summary')
-      .filter({ hasText: /^Datei/ })
-      .click();
+    await e1.getByRole('button', { name: /^Datei von/ }).click();
     await expect(e1.getByTestId('file-path')).toHaveText(/S01E01/);
     await expect(e1.getByText('Release-Gruppe')).toBeVisible();
     await expect(e1.getByRole('heading', { name: 'Media-Infos' })).toBeVisible();

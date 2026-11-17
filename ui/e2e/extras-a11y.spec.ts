@@ -60,8 +60,8 @@ const TARGETS: readonly Target[] = [
       const id = await seriesId(page.request, EXTRAS, 'Untertitelserie');
       await page.goto(`${EXTRAS}/serien/${id}`);
       await page
-        .locator('[data-episode="S01E01"] summary')
-        .filter({ hasText: /^Untertitel/ })
+        .locator('[data-episode="S01E01"]')
+        .getByRole('button', { name: /^Untertitel von/ })
         .click();
       await expect(page.getByTestId('subtitles-needed')).toBeVisible();
     },
@@ -72,10 +72,7 @@ const TARGETS: readonly Target[] = [
       const id = await seriesId(page.request, EXTRAS, 'Untertitelserie');
       await page.goto(`${EXTRAS}/serien/${id}`);
       const episode = page.locator('[data-episode="S01E01"]');
-      await episode
-        .locator('summary')
-        .filter({ hasText: /^Datei/ })
-        .click();
+      await episode.getByRole('button', { name: /^Datei von/ }).click();
       await expect(episode.getByTestId('file-path')).toBeVisible();
     },
   },

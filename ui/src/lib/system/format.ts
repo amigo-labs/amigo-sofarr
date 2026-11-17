@@ -30,7 +30,8 @@ export function dateTimeText(iso: string, timeZone?: string): string {
   if (Number.isNaN(date.getTime())) return iso;
   return new Intl.DateTimeFormat('de-DE', {
     dateStyle: 'medium',
-    timeStyle: 'medium',
+    // To the minute: seconds mean nothing to the user (ui-consistency AC-09).
+    timeStyle: 'short',
     ...(timeZone === undefined ? {} : { timeZone }),
   }).format(date);
 }

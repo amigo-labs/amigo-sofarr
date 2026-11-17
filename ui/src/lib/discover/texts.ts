@@ -4,7 +4,7 @@ import type { Freshness } from '../api/generated/Freshness';
 import type { LibraryStatus } from '../api/generated/LibraryStatus';
 import type { Rating } from '../api/generated/Rating';
 import type { TitleKind } from '../api/generated/TitleKind';
-import { ratingWithVotesText } from '../imdb/imdb';
+import { ratingCompactText, ratingWithVotesText } from '../imdb/imdb';
 import { dateTimeText } from '../system/format';
 import type { Tone } from '../system/format';
 
@@ -31,7 +31,27 @@ export function ratingLine(rating: Rating): string | null {
   }
 }
 
-/** When an answer was fetched, e.g. "Stand: 12.11.2026, 10:00:00" (AC-13). */
+/**
+ * A tile's rating as the library rows show it: „★ 7,8“ with the full text for tooltip and
+ * accessible name; `null` while ratings are off (ui-consistency AC-03).
+ */
+export function ratingCompact(rating: Rating): { text: string; full: string } | null {
+  switch (rating.state) {
+    case 'off':
+      return null;
+    case 'pending':
+      return { text: '…', full: 'IMDb-Bewertung folgt' };
+    case 'none':
+      return { text: '–', full: 'IMDb –' };
+    case 'rated':
+      return {
+        text: ratingCompactText(rating.rating),
+        full: `IMDb ${ratingWithVotesText(rating.rating, rating.votes)}`,
+      };
+  }
+}
+
+/** When an answer was fetched, e.g. "Stand: 12.11.2026, 10:00" (AC-13). */
 export function fetchedText(freshness: Freshness, timeZone?: string): string {
   return `Stand: ${dateTimeText(freshness.fetched_at, timeZone)}`;
 }

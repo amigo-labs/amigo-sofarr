@@ -1,11 +1,14 @@
 <script lang="ts">
+  import downloadIcon from '@primer/octicons/build/svg/download-16.svg?raw';
   import Flash from '../../components/Flash.svelte';
   import type { QueueAnswer } from '../../api/generated/QueueAnswer';
-  import { dateTimeText } from '../../system/format';
+  import EmptyLine from './EmptyLine.svelte';
   import { mediaHref, runMarkFailed } from '../actions';
   import { bytesText, durationText, percentText, statusText } from '../format';
 
-  // The queue with progress, size and remaining time (spec web-ui-library AC-01).
+  // The queue with progress, size and remaining time (spec web-ui-library AC-01). Without a
+  // download client one muted line instead of a warning; an unreachable client's notice
+  // already names the time of the state shown (ui-overview-polish AC-02, AC-03).
   type Props = { queue: QueueAnswer; onchanged: () => void };
   let { queue, onchanged }: Props = $props();
 
@@ -20,17 +23,20 @@
 
 <section class="box" aria-labelledby="queue-title">
   <h2 id="queue-title" class="box-header">Warteschlange</h2>
-  {#if queue.notice !== null}
+  {#if !queue.client_configured}
+    <EmptyLine
+      icon={downloadIcon}
+      text="Kein Download-Client eingerichtet – sofarr lädt nichts herunter."
+    />
+  {:else if queue.notice !== null}
     <div class="box-row">
-      <Flash tone="warning">
-        <p>
-          {queue.notice}{#if queue.as_of !== null}. Stand: {dateTimeText(queue.as_of)}{/if}
-        </p>
-      </Flash>
+      <Flash tone="warning"><p>{queue.notice}</p></Flash>
     </div>
   {/if}
   {#if queue.items.length === 0}
-    <p class="box-row muted">Nichts in der Warteschlange.</p>
+    {#if queue.client_configured}
+      <EmptyLine icon={downloadIcon} text="Nichts in der Warteschlange." />
+    {/if}
   {:else}
     <ul class="rows">
       {#each queue.items as item (item.grab_id)}

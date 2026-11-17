@@ -7,7 +7,7 @@ import type { MovieListItem } from '../api/generated/MovieListItem';
 import type { SeriesListItem } from '../api/generated/SeriesListItem';
 import type { Tone } from '../system/format';
 import { ratingCompactText, ratingWithVotesText } from '../imdb/imdb';
-import { bytesText } from './format';
+import { bytesText, missingText } from './format';
 
 export type RowLabel = { readonly text: string; readonly tone: Tone };
 
@@ -62,7 +62,7 @@ export function seriesRow(item: SeriesListItem): Row {
       tone: 'neutral',
     },
   ];
-  if (item.missing > 0) labels.push({ text: `${item.missing} fehlen`, tone: 'danger' });
+  if (item.missing > 0) labels.push({ text: missingText(item.missing), tone: 'danger' });
   if (item.cutoff_unmet > 0) {
     labels.push({ text: `${item.cutoff_unmet} unter Cutoff`, tone: 'neutral' });
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PathText from '../components/PathText.svelte';
   import type { FileDetail } from '../../api/generated/FileDetail';
   import { bytesText } from '../format';
   import { mediaInfoRows } from '../media-info';
@@ -26,9 +27,7 @@
       <dl class="facts">
         <div>
           <dt>Datei</dt>
-          <dd class="mono path" data-testid="file-path" title={file.relative_path}>
-            {file.relative_path}
-          </dd>
+          <dd><PathText path={file.relative_path} testid="file-path" /></dd>
         </div>
         <div>
           <dt>Qualität</dt>
@@ -68,11 +67,6 @@
 </section>
 
 <style>
-  .path {
-    overflow-wrap: anywhere;
-    word-break: break-all;
-  }
-
   .body {
     display: flex;
     flex-direction: column;

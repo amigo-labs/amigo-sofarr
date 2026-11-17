@@ -30,12 +30,14 @@ test.describe('overview (AC-01)', () => {
   }) => {
     await page.goto(`${LIBRARY}/`);
     await expectOverview(page);
-    await expect(page.getByText('Kein Download-Client konfiguriert')).toBeVisible();
+    await expect(
+      page.getByText('Kein Download-Client eingerichtet – sofarr lädt nichts herunter.'),
+    ).toBeVisible();
     const upcoming = page.getByRole('region', { name: 'Die nächsten 7 Tage' });
     await expect(upcoming.getByRole('link', { name: 'Kalenderfilm' }).first()).toBeVisible();
     await expect(upcoming.getByText('S01E03 · Abschied')).toBeVisible();
     await expect(page.getByText('Noch keine Grabs oder Importe.')).toBeVisible();
-    await expect(page.getByText('Keine fehlgeschlagenen Grabs oder Importprobleme.')).toBeVisible();
+    await expect(page.getByText('Keine Probleme in den letzten 7 Tagen.')).toBeVisible();
   });
 
   test('shows progress, size, remaining time ("–" when none), activity and problems', async ({
@@ -257,9 +259,9 @@ test.describe('blocklist (AC-18)', () => {
     await expect(page).toHaveURL(/seite=2/);
     await expect(page.getByTestId('blocklist-entry')).toHaveCount(2);
     await page
-      .getByRole('button', { name: '„Film.0001.Release.52-GRP“ von der Blocklist entfernen' })
+      .getByRole('button', { name: '„Film.0001.Release.52-GRP“ von der Sperrliste entfernen' })
       .click();
-    const dialog = page.getByRole('dialog', { name: 'Von der Blocklist entfernen' });
+    const dialog = page.getByRole('dialog', { name: 'Von der Sperrliste entfernen' });
     await expect(dialog).toContainText('Film.0001.Release.52-GRP');
     expect(deleted).toEqual([]);
     await dialog.getByRole('button', { name: 'Entfernen' }).click();
@@ -271,7 +273,7 @@ test.describe('blocklist (AC-18)', () => {
 
   test('an empty blocklist says so', async ({ page }) => {
     await page.goto(`${LIBRARY}/blocklist`);
-    await expect(page.getByText('Die Blocklist ist leer.')).toBeVisible();
+    await expect(page.getByText('Die Sperrliste ist leer.')).toBeVisible();
   });
 });
 
@@ -295,7 +297,7 @@ test.describe('backups (AC-19)', () => {
 
     await row.getByRole('button', { name: 'Wiederherstellen …' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sicherung einspielen' });
-    await expect(dialog).toContainText(/Die Sicherung vom \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2}/);
+    await expect(dialog).toContainText(/Die Sicherung vom \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}/);
     await dialog.getByRole('button', { name: 'Beim nächsten Start einspielen' }).click();
     await expect(page.getByTestId('pending-restore')).toContainText(name);
     await page.getByRole('button', { name: 'Wiederherstellung abbrechen' }).click();

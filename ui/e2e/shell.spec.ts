@@ -8,12 +8,12 @@ import { PALETTES, storeTheme, token } from './theme-helpers';
 
 const ENTRIES = [
   'Übersicht',
+  'Entdecken',
   'Filme',
   'Serien',
   'Kalender',
   'Fehlend',
-  'Entdecken',
-  'Blocklist',
+  'Sperrliste',
   'Untertitel',
   'Backups',
   'System',
@@ -47,11 +47,11 @@ test.describe('wide window (AC-01 .. AC-05)', () => {
     expect(main.x).toBeGreaterThanOrEqual(side.x + side.width);
     expect(side.height).toBeGreaterThanOrEqual(WIDE.height - 1);
     await expect(nav(page).getByRole('link')).toHaveText(ENTRIES);
-    await expect(sidebar.locator('.group-heading')).toHaveText([
-      'Bibliothek',
-      'Entdecken',
-      'Verwaltung',
-    ]);
+    // Übersicht and Entdecken first without a heading, then the two headed groups.
+    await expect(sidebar.locator('.group-heading')).toHaveText(['Bibliothek', 'Verwaltung']);
+    const first = sidebar.locator('.group').first();
+    await expect(first.locator('.group-heading')).toHaveCount(0);
+    await expect(first.getByRole('link')).toHaveText(['Übersicht', 'Entdecken']);
     // Brand on top; theme switch and logout below the entries.
     const brand = await box(page, '.sidebar .brand');
     const last = await nav(page).getByRole('link', { name: 'System' }).boundingBox();

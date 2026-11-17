@@ -218,12 +218,16 @@ a {
   text-underline-offset: 0.2em;
 }
 
+/* Title links rest in the text colour; the accent marks states, the place and the main
+   action, and a title link only while hovered or focused (spec ui-consistency AC-01). */
 a.ui-link {
+  color: var(--fgColor-default);
   text-decoration: none;
 }
 
 a.ui-link:hover,
 a.ui-link:focus-visible {
+  color: var(--fgColor-accent);
   text-decoration: underline;
 }
 

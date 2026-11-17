@@ -55,7 +55,7 @@ Terms:
 - [x] AC-04 (always): A season header shows:
   - the season's name
   - a progress bar of episodes with a file out of all episodes, with its numbers as text („x von y“) and the counts of today in `season-counts`
-  - the labels („N fehlen“, „N unter Cutoff“)
+  - the labels („N fehlen“ bzw. „1 fehlt“, „N unter Cutoff“)
   - the season's monitor toggle and its search action as icon buttons at the line's end, with their German names of today („Überwachen „{Serie} – Staffel N““, „Staffel N suchen“)
 - [x] AC-05 (event): When the user activates a season header (click, Enter or Space on it), then the season opens or closes, and a chevron in the header shows the state.
   - Its toggle and search buttons do not open or close the season.

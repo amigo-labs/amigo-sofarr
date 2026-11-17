@@ -5,12 +5,12 @@ describe('navigation', () => {
   it('keeps the order of the spec', () => {
     expect(PAGES.map((p) => p.label)).toEqual([
       'Übersicht',
+      'Entdecken',
       'Filme',
       'Serien',
       'Kalender',
       'Fehlend',
-      'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',
@@ -20,12 +20,12 @@ describe('navigation', () => {
   it('lists only built pages, in order', () => {
     expect(navPages().map((p) => p.label)).toEqual([
       'Übersicht',
+      'Entdecken',
       'Filme',
       'Serien',
       'Kalender',
       'Fehlend',
-      'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',
@@ -33,11 +33,11 @@ describe('navigation', () => {
     const built = PAGES.map((p) => ({ ...p, built: p.href !== '/filme' }));
     expect(navPages(built).map((p) => p.label)).toEqual([
       'Übersicht',
+      'Entdecken',
       'Serien',
       'Kalender',
       'Fehlend',
-      'Entdecken',
-      'Blocklist',
+      'Sperrliste',
       'Untertitel',
       'Backups',
       'System',
@@ -52,11 +52,11 @@ describe('navigation', () => {
   });
 
   it('groups the pages without changing their order (ui-shell-redesign AC-01)', () => {
-    expect(NAV_GROUPS).toEqual(['Bibliothek', 'Entdecken', 'Verwaltung']);
-    expect(navGroups().map((g) => [g.label, g.pages.map((p) => p.label)])).toEqual([
-      ['Bibliothek', ['Übersicht', 'Filme', 'Serien', 'Kalender', 'Fehlend']],
-      ['Entdecken', ['Entdecken']],
-      ['Verwaltung', ['Blocklist', 'Untertitel', 'Backups', 'System']],
+    expect(NAV_GROUPS).toEqual(['Start', 'Bibliothek', 'Verwaltung']);
+    expect(navGroups().map((g) => [g.label, g.heading, g.pages.map((p) => p.label)])).toEqual([
+      ['Start', false, ['Übersicht', 'Entdecken']],
+      ['Bibliothek', true, ['Filme', 'Serien', 'Kalender', 'Fehlend']],
+      ['Verwaltung', true, ['Sperrliste', 'Untertitel', 'Backups', 'System']],
     ]);
   });
 

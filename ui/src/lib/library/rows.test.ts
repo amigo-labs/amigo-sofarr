@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MovieListItem } from '../api/generated/MovieListItem';
 import type { SeriesListItem } from '../api/generated/SeriesListItem';
 import { idOf } from './detail/detail.svelte';
+import { missingText } from './format';
 import { initial, movieRow, seriesRow } from './rows';
 import { readView, storeView, viewKey } from './view';
 
@@ -77,13 +78,19 @@ describe('list rows (AC-02, AC-06)', () => {
     expect(row.subtitle).toBe('Die kleine Insel');
     expect(row.labels).toEqual([
       { text: '1 von 5 Dateien', tone: 'neutral' },
-      { text: '1 fehlen', tone: 'danger' },
+      { text: '1 fehlt', tone: 'danger' },
       { text: '2 unter Cutoff', tone: 'neutral' },
     ]);
     expect(
       seriesRow({ ...series, missing: 0, cutoff_unmet: 0, complete: true }).labels.slice(1),
     ).toEqual([{ text: 'komplett', tone: 'success' }]);
     expect(seriesRow({ ...series, episodes: 0, files: 0 }).labels[0]?.text).toBe('0 von 0 Dateien');
+  });
+
+  it('the missing count reads "1 fehlt" but "3 fehlen"', () => {
+    expect(missingText(1)).toBe('1 fehlt');
+    expect(missingText(3)).toBe('3 fehlen');
+    expect(seriesRow({ ...series, missing: 3 }).labels[1]?.text).toBe('3 fehlen');
   });
 
   it('rows carry the compact rating and the full text, "–" without (imdb-ratings AC-04)', () => {

@@ -111,7 +111,7 @@ test.describe('trailer state on the pages (AC-10)', () => {
     answer = cases[1]?.[0] ?? NONE;
     await page.goto(`${EXTRAS}/filme/${id}`);
     await expect(box(page)).toContainText(/Versuche\s*2 von 4/);
-    await expect(box(page)).toContainText(/Nächster Versuch\s*19\.11\.2026, 09:00:00/);
+    await expect(box(page)).toContainText(/Nächster Versuch\s*19\.11\.2026, 09:00/);
   });
 });
 
