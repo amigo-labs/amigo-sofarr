@@ -175,3 +175,8 @@ export function episodeCode(season: number | null, episode: number | null): stri
   if (season === null || episode === null) return '';
   return `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
 }
+
+/** The count of missing episodes: "1 fehlt", "3 fehlen". */
+export function missingText(missing: number): string {
+  return `${missing} ${missing === 1 ? 'fehlt' : 'fehlen'}`;
+}

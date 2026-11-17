@@ -67,7 +67,7 @@ test.describe('cards (AC-01, AC-04)', () => {
     await page.goto(`${LIBRARY}/serien?suche=Kleine%20Insel`);
     const insel = item(page, 'Kleine Insel');
     await expect(insel).toBeVisible();
-    expect(await chipTexts(insel)).toEqual(['1 von 5 Dateien', '1 fehlen', '1 unter Cutoff']);
+    expect(await chipTexts(insel)).toEqual(['1 von 5 Dateien', '1 fehlt', '1 unter Cutoff']);
   });
 
   test('the monitor toggle is an icon in the top right corner of the poster', async ({ page }) => {

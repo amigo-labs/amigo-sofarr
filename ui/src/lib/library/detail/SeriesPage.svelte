@@ -6,7 +6,7 @@
   import { ensureOptions, options } from '../options.svelte';
   import { createResource } from '../../resource.svelte';
   import { searchBody } from '../actions';
-  import { bytesText } from '../format';
+  import { bytesText, missingText } from '../format';
   import { notify } from '../notices.svelte';
   import Label from '../components/Label.svelte';
   import CastBox from '../../discover/CastBox.svelte';
@@ -59,7 +59,7 @@
     onsearch={() => void actions.search('search', s.title, searchBody({ series_id: s.id }))}
   >
     {#snippet chips()}
-      {#if s.missing > 0}<Label text={`${s.missing} fehlen`} tone="danger" />{/if}
+      {#if s.missing > 0}<Label text={missingText(s.missing)} tone="danger" />{/if}
       {#if s.cutoff_unmet > 0}<Label text={`${s.cutoff_unmet} unter Cutoff`} />{/if}
       {#if s.complete}<Label text="komplett" tone="success" />{/if}
     {/snippet}

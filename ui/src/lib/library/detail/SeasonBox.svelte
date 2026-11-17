@@ -4,7 +4,7 @@
   import Icon from '../../components/Icon.svelte';
   import type { SeasonAnswer } from '../../api/generated/SeasonAnswer';
   import { searchBody } from '../actions';
-  import { dateText, episodeCode } from '../format';
+  import { dateText, episodeCode, missingText } from '../format';
   import Label from '../components/Label.svelte';
   import MonitorButton from '../components/MonitorButton.svelte';
   import EpisodeSubtitles from '../../subtitles/EpisodeSubtitles.svelte';
@@ -47,7 +47,7 @@
       {season.episodes_with_file} mit Datei / {season.episodes_monitored} überwacht / {season.episodes_total}
       gesamt
     </span>
-    {#if season.missing > 0}<Label text={`${season.missing} fehlen`} tone="danger" />{/if}
+    {#if season.missing > 0}<Label text={missingText(season.missing)} tone="danger" />{/if}
     {#if season.cutoff_unmet > 0}<Label text={`${season.cutoff_unmet} unter Cutoff`} />{/if}
   </summary>
   <div class="season-actions">
