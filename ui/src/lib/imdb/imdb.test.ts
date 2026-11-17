@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ImdbInfo } from '../api/generated/ImdbInfo';
-import { dataDateText, ratingText, ratingWithVotesText, votesText } from './imdb';
+import {
+  dataDateText,
+  ratingCompactText,
+  ratingText,
+  ratingWithVotesText,
+  votesText,
+} from './imdb';
 
 const info: ImdbInfo = {
   enabled: true,
@@ -24,6 +30,12 @@ describe('IMDb texts (imdb-ratings AC-04, AC-08)', () => {
     expect(votesText(null)).toBe('–');
     expect(ratingWithVotesText(null, 12)).toBe('–');
     expect(ratingWithVotesText(6.1, null)).toBe('6,1');
+  });
+
+  it('shows the compact rating of the library lists (ui-list-items AC-03)', () => {
+    expect(ratingCompactText(7.4)).toBe('★ 7,4');
+    expect(ratingCompactText(8)).toBe('★ 8,0');
+    expect(ratingCompactText(null)).toBe('–');
   });
 
   it('dates the ratings data, and says nothing before the first load', () => {

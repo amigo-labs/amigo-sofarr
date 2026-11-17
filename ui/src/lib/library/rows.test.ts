@@ -50,9 +50,8 @@ const series: SeriesListItem = {
 };
 
 describe('list rows (AC-02, AC-06)', () => {
-  it('a movie without file shows "fehlt" and its labels', () => {
+  it('a movie without file shows "fehlt" once, as its status chip (ui-list-items AC-01)', () => {
     const row = movieRow(movie);
-    expect(row.file).toBe('fehlt');
     expect(row.size).toBe('–');
     expect(row.subtitle).toBeNull();
     expect(row.labels).toEqual([{ text: 'fehlt', tone: 'danger' }]);
@@ -63,26 +62,39 @@ describe('list rows (AC-02, AC-06)', () => {
       missing: false,
       cutoff_unmet: true,
     });
-    expect(below.file).toBe('Bluray-1080p');
-    expect(below.labels).toEqual([{ text: 'Cutoff nicht erreicht', tone: 'neutral' }]);
+    expect(below.labels).toEqual([
+      { text: 'Bluray-1080p', tone: 'accent' },
+      { text: 'Cutoff nicht erreicht', tone: 'neutral' },
+    ]);
+    // Without a file but not missing (not yet available): still "fehlt".
+    expect(movieRow({ ...movie, missing: false }).labels).toEqual([
+      { text: 'fehlt', tone: 'danger' },
+    ]);
   });
 
   it('a series shows its number of files and episode labels', () => {
     const row = seriesRow(series);
-    expect(row.file).toBe('1 von 5 Dateien');
     expect(row.subtitle).toBe('Die kleine Insel');
-    expect(row.labels.map((l) => l.text)).toEqual(['1 fehlen', '2 unter Cutoff']);
-    expect(seriesRow({ ...series, missing: 0, cutoff_unmet: 0, complete: true }).labels).toEqual([
-      { text: 'komplett', tone: 'success' },
+    expect(row.labels).toEqual([
+      { text: '1 von 5 Dateien', tone: 'neutral' },
+      { text: '1 fehlen', tone: 'danger' },
+      { text: '2 unter Cutoff', tone: 'neutral' },
     ]);
+    expect(
+      seriesRow({ ...series, missing: 0, cutoff_unmet: 0, complete: true }).labels.slice(1),
+    ).toEqual([{ text: 'komplett', tone: 'success' }]);
+    expect(seriesRow({ ...series, episodes: 0, files: 0 }).labels[0]?.text).toBe('0 von 0 Dateien');
   });
 
-  it('rows carry the IMDb rating with votes, "–" without (imdb-ratings AC-04)', () => {
+  it('rows carry the compact rating and the full text, "–" without (imdb-ratings AC-04)', () => {
     expect(movieRow(movie).rating).toBe('–');
-    expect(movieRow({ ...movie, imdb_rating: 8.4, imdb_votes: 271_000 }).rating).toBe(
-      '8,4 (271.000 Stimmen)',
+    expect(movieRow(movie).ratingFull).toBe('IMDb –');
+    const rated = movieRow({ ...movie, imdb_rating: 8.4, imdb_votes: 271_000 });
+    expect(rated.rating).toBe('★ 8,4');
+    expect(rated.ratingFull).toBe('IMDb 8,4 (271.000 Stimmen)');
+    expect(seriesRow({ ...series, imdb_rating: 7, imdb_votes: 1 }).ratingFull).toBe(
+      'IMDb 7,0 (1 Stimme)',
     );
-    expect(seriesRow({ ...series, imdb_rating: 7, imdb_votes: 1 }).rating).toBe('7,0 (1 Stimme)');
     expect(seriesRow(series).rating).toBe('–');
   });
 

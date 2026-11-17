@@ -92,7 +92,7 @@
         {@const link = href(entry)}
         <li class="box-row row" data-testid="blocklist-entry">
           <div class="main">
-            {#if link !== null}<a href={link}>{entry.media_title}</a>{:else}<span
+            {#if link !== null}<a class="ui-link" href={link}>{entry.media_title}</a>{:else}<span
                 >{entry.media_title}</span
               >{/if}
             <span class="release">{entry.title}</span>

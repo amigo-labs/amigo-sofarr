@@ -8,6 +8,8 @@
   import Label from '../components/Label.svelte';
   import CastBox from '../../discover/CastBox.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
+  import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
+  import { imdb } from '../../imdb/info.svelte';
   import SubtitlesBox from '../../subtitles/SubtitlesBox.svelte';
   import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
@@ -56,17 +58,19 @@
       void actions.setMonitored('monitor', !m.monitored, [{ kind: 'movie', id: m.id }])}
     onsearch={() => void actions.search('search', m.title, searchBody({ movie_id: m.id }))}
   >
+    {#snippet chips()}
+      {#if m.missing}<Label text="fehlt" tone="danger" />{/if}
+      {#if m.cutoff_unmet}<Label text="Cutoff nicht erreicht" />{/if}
+      <Label
+        text={m.available ? 'verfügbar' : 'noch nicht verfügbar'}
+        tone={m.available ? 'success' : 'neutral'}
+      />
+    {/snippet}
+    {#snippet rating()}
+      <RatingLine rating={m.imdb_rating} votes={m.imdb_votes} attribution={false} />
+    {/snippet}
     {#snippet facts()}
-      <RatingLine rating={m.imdb_rating} votes={m.imdb_votes} />
-      <div class="labels">
-        {#if m.missing}<Label text="fehlt" tone="danger" />{/if}
-        {#if m.cutoff_unmet}<Label text="Cutoff nicht erreicht" />{/if}
-        <Label
-          text={m.available ? 'verfügbar' : 'noch nicht verfügbar'}
-          tone={m.available ? 'success' : 'neutral'}
-        />
-      </div>
-      <dl class="facts">
+      <dl class="facts facts-compact">
         <div>
           <dt>Status</dt>
           <dd data-testid="stage">{STAGE_TEXT[m.stage]}</dd>
@@ -105,48 +109,53 @@
 
   <CastBox kind="movie" id={m.id} />
 
-  <div class="grid">
-    <FileBox file={m.file} cutoffReason={m.cutoff_reason} />
-    <SubtitlesBox movieId={m.id} title={m.title} hasFile={m.file !== null} />
-    <TrailerBox kind="movie" id={m.id} title={m.title} />
-    <SettingsBox
-      profiles={options.value?.movie_profiles ?? []}
-      profile={m.quality_profile}
-      availability={m.minimum_availability}
-      preview={(c) =>
-        previewMovieChange(m.id, {
-          quality_profile_id: c.profile,
-          minimum_availability: c.availability,
-        })}
-      save={async (c) => {
-        const r = await changeMovie(m.id, {
-          quality_profile_id: c.profile,
-          minimum_availability: c.availability,
-        });
-        if (r.ok) {
-          notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
-          await movie.reload();
-        } else if (r.failure.kind !== 'unauthorized') {
-          notify('danger', `Nicht gespeichert: ${r.failure.message}`);
-        }
-        return r.ok;
-      }}
-    />
-    <FilesBox
-      kind="movie"
-      id={m.id}
-      title={m.title}
-      folder={m.folder}
-      fileActions={m.file_actions}
-      onchanged={() => void movie.reload()}
-    />
-    <HistoryBox
-      kind="movie"
-      grabs={m.grabs}
-      blocklist={m.blocklist}
-      onchanged={() => void movie.reload()}
-    />
+  <div class="detail-columns">
+    <div class="detail-main">
+      <FileBox file={m.file} cutoffReason={m.cutoff_reason} />
+      <SubtitlesBox movieId={m.id} title={m.title} hasFile={m.file !== null} />
+      <HistoryBox
+        kind="movie"
+        grabs={m.grabs}
+        blocklist={m.blocklist}
+        onchanged={() => void movie.reload()}
+      />
+    </div>
+    <div class="detail-side">
+      <SettingsBox
+        profiles={options.value?.movie_profiles ?? []}
+        profile={m.quality_profile}
+        availability={m.minimum_availability}
+        preview={(c) =>
+          previewMovieChange(m.id, {
+            quality_profile_id: c.profile,
+            minimum_availability: c.availability,
+          })}
+        save={async (c) => {
+          const r = await changeMovie(m.id, {
+            quality_profile_id: c.profile,
+            minimum_availability: c.availability,
+          });
+          if (r.ok) {
+            notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
+            await movie.reload();
+          } else if (r.failure.kind !== 'unauthorized') {
+            notify('danger', `Nicht gespeichert: ${r.failure.message}`);
+          }
+          return r.ok;
+        }}
+      />
+      <FilesBox
+        kind="movie"
+        id={m.id}
+        title={m.title}
+        folder={m.folder}
+        fileActions={m.file_actions}
+        onchanged={() => void movie.reload()}
+      />
+      <TrailerBox kind="movie" id={m.id} title={m.title} />
+    </div>
   </div>
+  <ImdbAttribution info={imdb.info} />
 {:else if movie.failure !== null}
   <PageError
     title={movie.failure.status === 404 ? 'Film nicht gefunden' : 'Der Film ist nicht verfügbar'}
@@ -157,18 +166,3 @@
 {:else}
   <Loading label="Film wird geladen …" />
 {/if}
-
-<style>
-  .labels {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--base-size-4);
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    gap: var(--base-size-16);
-    align-items: start;
-  }
-</style>

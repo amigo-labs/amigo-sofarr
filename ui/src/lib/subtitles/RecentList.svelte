@@ -19,7 +19,7 @@
           {#if href === null}
             <strong>{found.item.title}</strong>
           {:else}
-            <a class="title" {href}>{found.item.title}</a>
+            <a class="title ui-link" {href}>{found.item.title}</a>
           {/if}
           <span>
             <strong>{languageName(found.language)}</strong> · {needKindText(

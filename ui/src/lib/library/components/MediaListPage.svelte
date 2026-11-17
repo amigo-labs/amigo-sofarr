@@ -186,8 +186,6 @@
   {onview}
 />
 
-<ImdbAttribution info={imdb.info} />
-
 {#if selected.size > 0}
   <div class="bulk" role="region" aria-label="Auswahl">
     <span><strong>{selected.size}</strong> ausgewählt</span>
@@ -233,6 +231,8 @@
   {/if}
 </div>
 
+<ImdbAttribution info={imdb.info} />
+
 <Dialog
   open={bulk !== null}
   title={bulk ? 'Auswahl überwachen' : 'Auswahl nicht mehr überwachen'}
@@ -261,7 +261,7 @@
   .head {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     gap: var(--base-size-8) var(--base-size-16);
   }
 

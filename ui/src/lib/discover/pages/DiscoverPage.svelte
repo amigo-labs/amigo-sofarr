@@ -157,7 +157,7 @@
         <div class="shelf-head">
           <h2 id="shelf-{shelf.id}">{shelf.title}</h2>
           {#if shelf.has_more}
-            <a href={shelfHref(shelf.id)}
+            <a class="ui-link" href={shelfHref(shelf.id)}
               >Mehr<span class="sr-only">{` aus „${shelf.title}“`}</span></a
             >
           {/if}

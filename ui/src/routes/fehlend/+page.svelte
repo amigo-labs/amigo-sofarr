@@ -199,7 +199,7 @@
             <span class="sr-only">„{item.label}“ auswählen</span>
           </label>
           <div class="main">
-            <a href={href(item)}>{item.label}</a>
+            <a class="ui-link" href={href(item)}>{item.label}</a>
             <span class="muted small">
               Profil {item.profile} · <span data-testid="reason">{item.reason}</span>
               {#if item.air_date !== null}

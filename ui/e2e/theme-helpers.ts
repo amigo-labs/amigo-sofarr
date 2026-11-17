@@ -1,7 +1,7 @@
 // Helpers of the theme tests (spec amigo-theme): the tokens of the generated theme files
 // and the palette a test wants.
 
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { tokensCss } from './theme-files.mjs';
 
 export const PALETTES = ['dark', 'light'] as const;
@@ -70,4 +70,14 @@ export async function styleOf(page: Page, selector: string, property: string): P
     .locator(selector)
     .first()
     .evaluate((el, name) => getComputedStyle(el).getPropertyValue(name), property);
+}
+
+/** The button of a theme choice in the switch (`Dunkel`, `Hell`, `System`). */
+export function themeButton(page: Page, label: string): Locator {
+  return page.getByRole('group', { name: 'Farbschema' }).getByRole('button', { name: label });
+}
+
+/** Picks a theme choice in the switch. */
+export async function pickTheme(page: Page, label: string): Promise<void> {
+  await themeButton(page, label).click();
 }

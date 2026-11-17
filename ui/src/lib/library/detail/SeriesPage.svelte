@@ -11,6 +11,8 @@
   import Label from '../components/Label.svelte';
   import CastBox from '../../discover/CastBox.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
+  import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
+  import { imdb } from '../../imdb/info.svelte';
   import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
   import FilesBox from './FilesBox.svelte';
@@ -56,14 +58,16 @@
       void actions.setMonitored('monitor', !s.monitored, [{ kind: 'series', id: s.id }])}
     onsearch={() => void actions.search('search', s.title, searchBody({ series_id: s.id }))}
   >
+    {#snippet chips()}
+      {#if s.missing > 0}<Label text={`${s.missing} fehlen`} tone="danger" />{/if}
+      {#if s.cutoff_unmet > 0}<Label text={`${s.cutoff_unmet} unter Cutoff`} />{/if}
+      {#if s.complete}<Label text="komplett" tone="success" />{/if}
+    {/snippet}
+    {#snippet rating()}
+      <RatingLine rating={s.imdb_rating} votes={s.imdb_votes} attribution={false} />
+    {/snippet}
     {#snippet facts()}
-      <RatingLine rating={s.imdb_rating} votes={s.imdb_votes} />
-      <div class="labels">
-        {#if s.missing > 0}<Label text={`${s.missing} fehlen`} tone="danger" />{/if}
-        {#if s.cutoff_unmet > 0}<Label text={`${s.cutoff_unmet} unter Cutoff`} />{/if}
-        {#if s.complete}<Label text="komplett" tone="success" />{/if}
-      </div>
-      <dl class="facts">
+      <dl class="facts facts-compact">
         <div>
           <dt>Episoden</dt>
           <dd data-testid="episode-counts">
@@ -92,46 +96,50 @@
 
   <CastBox kind="series" id={s.id} />
 
-  <section class="seasons" aria-labelledby="seasons-title">
-    <h2 id="seasons-title">Staffeln</h2>
-    {#each s.seasons as season (season.number)}
-      <SeasonBox seriesId={s.id} seriesTitle={s.title} {season} {actions} />
-    {/each}
-  </section>
-
-  <div class="grid">
-    <TrailerBox kind="series" id={s.id} title={s.title} />
-    <SettingsBox
-      profiles={options.value?.series_profiles ?? []}
-      profile={s.quality_profile}
-      availability={null}
-      preview={(c) => previewSeriesChange(s.id, { quality_profile_id: c.profile })}
-      save={async (c) => {
-        const r = await changeSeries(s.id, { quality_profile_id: c.profile });
-        if (r.ok) {
-          notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
-          await series.reload();
-        } else if (r.failure.kind !== 'unauthorized') {
-          notify('danger', `Nicht gespeichert: ${r.failure.message}`);
-        }
-        return r.ok;
-      }}
-    />
-    <FilesBox
-      kind="series"
-      id={s.id}
-      title={s.title}
-      folder={s.folder}
-      fileActions={s.file_actions}
-      onchanged={() => void series.reload()}
-    />
-    <HistoryBox
-      kind="series"
-      grabs={s.grabs}
-      blocklist={s.blocklist}
-      onchanged={() => void series.reload()}
-    />
+  <div class="detail-columns">
+    <div class="detail-main">
+      <section class="seasons" aria-labelledby="seasons-title">
+        <h2 id="seasons-title">Staffeln</h2>
+        {#each s.seasons as season (season.number)}
+          <SeasonBox seriesId={s.id} seriesTitle={s.title} {season} {actions} />
+        {/each}
+      </section>
+      <HistoryBox
+        kind="series"
+        grabs={s.grabs}
+        blocklist={s.blocklist}
+        onchanged={() => void series.reload()}
+      />
+    </div>
+    <div class="detail-side">
+      <SettingsBox
+        profiles={options.value?.series_profiles ?? []}
+        profile={s.quality_profile}
+        availability={null}
+        preview={(c) => previewSeriesChange(s.id, { quality_profile_id: c.profile })}
+        save={async (c) => {
+          const r = await changeSeries(s.id, { quality_profile_id: c.profile });
+          if (r.ok) {
+            notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
+            await series.reload();
+          } else if (r.failure.kind !== 'unauthorized') {
+            notify('danger', `Nicht gespeichert: ${r.failure.message}`);
+          }
+          return r.ok;
+        }}
+      />
+      <FilesBox
+        kind="series"
+        id={s.id}
+        title={s.title}
+        folder={s.folder}
+        fileActions={s.file_actions}
+        onchanged={() => void series.reload()}
+      />
+      <TrailerBox kind="series" id={s.id} title={s.title} />
+    </div>
   </div>
+  <ImdbAttribution info={imdb.info} />
 {:else if series.failure !== null}
   <PageError
     title={series.failure.status === 404 ? 'Serie nicht gefunden' : 'Die Serie ist nicht verfügbar'}
@@ -144,22 +152,13 @@
 {/if}
 
 <style>
-  .labels {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--base-size-4);
-  }
-
   .seasons {
     display: flex;
     flex-direction: column;
     gap: var(--base-size-12);
   }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    gap: var(--base-size-16);
-    align-items: start;
+  .seasons h2 {
+    font-size: var(--text-title-size-small);
   }
 </style>

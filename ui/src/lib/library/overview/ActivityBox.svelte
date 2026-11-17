@@ -19,7 +19,9 @@
       {#each entries as entry (entry.kind + entry.grab_id)}
         <li class="box-row">
           <div class="line">
-            <a href={mediaHref(entry.kind, entry.media_id)} class="strong">{entry.media_title}</a>
+            <a href={mediaHref(entry.kind, entry.media_id)} class="strong ui-link"
+              >{entry.media_title}</a
+            >
             <Label text={statusText(entry.status)} tone={statusTone(entry.status)} />
           </div>
           <span class="muted small">{entry.release_title}</span>

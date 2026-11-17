@@ -45,7 +45,7 @@
           {#if href === null}
             <strong>{group.item.title}</strong>
           {:else}
-            <a class="title" {href}>{group.item.title}</a>
+            <a class="title ui-link" {href}>{group.item.title}</a>
           {/if}
           {#if enabled}
             <button

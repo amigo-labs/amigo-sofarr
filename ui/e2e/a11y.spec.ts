@@ -69,6 +69,30 @@ for (const scheme of PALETTES) {
       await expectNoViolations(page);
     });
 
+    test('collapsed sidebar with a tooltip (ui-shell-redesign AC-13)', async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`${SERVERS.auth}/system`);
+      await logIn(page);
+      await expectSystemPage(page);
+      await expectNoViolations(page);
+      await page.getByRole('button', { name: 'Seitenleiste einklappen' }).click();
+      await page
+        .getByRole('navigation', { name: 'Hauptnavigation' })
+        .getByRole('link', { name: 'Filme' })
+        .focus();
+      await expect(page.locator('.nav-tooltip')).toBeVisible();
+      await expectNoViolations(page);
+    });
+
+    test('top bar of the login page on a wide window (ui-shell-redesign AC-13)', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`${SERVERS.auth}/anmelden`);
+      await expect(page.getByRole('heading', { name: 'Bei sofarr anmelden' })).toBeVisible();
+      await expectNoViolations(page);
+    });
+
     test('page not found', async ({ page }) => {
       await page.goto(`${SERVERS.open}/gibt-es-nicht`);
       await expect(page.getByRole('heading', { name: 'Seite nicht gefunden' })).toBeVisible();

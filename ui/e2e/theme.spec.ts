@@ -21,15 +21,13 @@ for (const palette of PALETTES) {
       await expectSystemPage(page);
       expect(await styleOf(page, 'body', 'background-color')).toBe(token(palette, 'bg'));
       expect(await styleOf(page, 'body', 'color')).toBe(token(palette, 'text'));
-      expect(await styleOf(page, '.app-header', 'background-color')).toBe(
-        token(palette, 'surface'),
-      );
+      expect(await styleOf(page, '.sidebar', 'background-color')).toBe(token(palette, 'surface'));
       expect(await styleOf(page, 'main .box', 'background-color')).toBe(token(palette, 'surface'));
       expect(await styleOf(page, 'main .box', 'border-top-color')).toBe(token(palette, 'border'));
       expect(await styleOf(page, 'main .muted', 'color')).toBe(token(palette, 'text-secondary'));
-      // The header's select is a field.
-      const select = page.getByLabel('Farbschema');
-      expect(await select.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+      // The theme switch is a raised control.
+      const group = page.getByRole('group', { name: 'Farbschema' });
+      expect(await group.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
         token(palette, 'surface-raised'),
       );
     });

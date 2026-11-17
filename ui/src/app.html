@@ -19,6 +19,14 @@
       } catch (e) {
         // Blocked storage: the page stays dark.
       }
+      // The same for the sidebar's collapsed state (see lib/sidebar.ts).
+      try {
+        if (localStorage.getItem('sofarr-sidebar') === 'collapsed') {
+          document.documentElement.setAttribute('data-sidebar', 'collapsed');
+        }
+      } catch (e) {
+        // Blocked storage: the sidebar stays expanded.
+      }
     </script>
     %sveltekit.head%
   </head>

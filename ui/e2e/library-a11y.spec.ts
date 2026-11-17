@@ -5,7 +5,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { expectNoHorizontalScroll, json } from './helpers';
-import { LIBRARY, movieId, seriesId } from './library-helpers';
+import { LIBRARY, movieId, openFilters, seriesId } from './library-helpers';
 import { PALETTES, storeTheme } from './theme-helpers';
 
 type Target = { readonly name: string; readonly path: (page: Page) => Promise<string> };
@@ -93,6 +93,54 @@ for (const scheme of PALETTES) {
         .getByRole('button', { name: 'Überwachen', exact: true })
         .click();
       await expect(page.getByRole('dialog')).toBeVisible();
+      await expectNoViolations(page);
+    });
+
+    test('list view with a selection, poster grid on a narrow screen (ui-list-items AC-09)', async ({
+      page,
+    }) => {
+      await page.goto(`${LIBRARY}/filme?suche=Film%20000`);
+      await page.getByRole('button', { name: 'Liste' }).click();
+      await page.getByLabel('„Film 0002“ auswählen').check();
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
+      await page.getByRole('button', { name: 'Poster' }).click();
+      await expectNoViolations(page);
+    });
+
+    test('detail heads with and without poster, wide and narrow (ui-detail-head AC-07)', async ({
+      page,
+    }) => {
+      for (const title of ['Das Boot', 'Film 0001']) {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto(`${LIBRARY}/filme/${await movieId(page.request, LIBRARY, title)}`);
+        await settle(page);
+        await expectNoViolations(page);
+        await page.setViewportSize({ width: 360, height: 740 });
+        await expectNoViolations(page);
+      }
+    });
+
+    test('series page with seasons open and closed, wide and narrow (ui-detail-boxes AC-08)', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`${LIBRARY}/serien/${await seriesId(page.request, LIBRARY, 'Kleine Insel')}`);
+      await settle(page);
+      await expectNoViolations(page);
+      await page.locator('details.season > summary .season-name').first().click();
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
+      await expectNoViolations(page);
+    });
+
+    test('open filter panel and chips (ui-list-toolbar AC-11)', async ({ page }) => {
+      await page.goto(`${LIBRARY}/filme?ueberwacht=ja&tag=1&sortierung=jahr&richtung=ab`);
+      await settle(page);
+      await openFilters(page);
+      await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible();
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
       await expectNoViolations(page);
     });
 
