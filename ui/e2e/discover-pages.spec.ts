@@ -17,6 +17,10 @@ const SHELVES = [
   'Beliebte Serien',
 ];
 
+/** Artwork through sofarr's image cache, and sofarr's own monogram (ui-consistency AC-13). */
+const fromSofarr = (url: string): boolean =>
+  url.startsWith(`${DISCOVER}/api/images/`) || url === `${DISCOVER}/favicon.svg`;
+
 test.describe('discover page (AC-01, AC-13, AC-17)', () => {
   test('shows the shelves in order with up to 20 titles, ratings and library state', async ({
     page,
@@ -92,7 +96,7 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
     await page.goto(`${DISCOVER}/entdecken/filme/502`);
     await expect(page.getByRole('heading', { level: 1, name: /Sternenfahrt/ })).toBeVisible();
     await expect.poll(() => images.length).toBeGreaterThan(2);
-    expect(images.filter((url) => !url.startsWith(`${DISCOVER}/api/images/`))).toEqual([]);
+    expect(images.filter((url) => !fromSofarr(url))).toEqual([]);
   });
 
   test('a stale answer shows the German notice with its age (AC-14)', async ({ page }) => {

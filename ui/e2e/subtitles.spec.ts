@@ -117,7 +117,7 @@ test.describe('subtitle overview (AC-11)', () => {
     await page.goto(`${EXTRAS}/untertitel`);
     await expect(page.getByText(/^Schattenmodus: sofarr sucht Untertitel/)).toBeVisible();
     await expect(page.getByTestId('subtitles-quota')).toContainText(
-      'aufgebraucht; sofarr lädt ab 13.11.2026, 01:00:00 weiter.',
+      'aufgebraucht; sofarr lädt ab 13.11.2026, 01:00 weiter.',
     );
     const need = page.locator('[data-need="de-forced"]');
     await expect(need).toContainText('Deutsch · erzwungen');
