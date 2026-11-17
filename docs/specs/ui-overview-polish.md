@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: S
 design: [sofarr.md §3, sofarr.md §9 D30]
@@ -8,6 +8,15 @@ oracle: none
 ---
 
 # UI redesign 10: overview polish
+
+## Summary
+
+> Completed: 2026-11-17
+
+- Key figures with decorative Octicons (download, alert, calendar) before their label and tabular figures; labels no longer take the status chip look.
+- The queue answer carries `client_configured`; without a client the queue box shows one muted line instead of a warning, an unreachable client's notice names the last state's time once.
+- Day headings „Heute“, „Morgen“ or weekday and date without year (`dayHeading`), the full date as tooltip and `datetime`.
+- Empty boxes show their sentence muted after a decorative icon; axe scans in both palettes at 1440 px and 360 px.
 
 ## Context
 
@@ -37,19 +46,19 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): sofarr shows each key figure with an icon before its label (Warteschlange: download, Probleme: alert, Nächste 7 Tage: calendar), the number in tabular figures, and the whole tile as its link of today (ui-overview-pages AC-02). The icons are decorative (hidden from assistive technology).
-- [ ] AC-02 (state): While no download client is configured (in shadow or live mode), the queue box shows one line of muted text „Kein Download-Client eingerichtet – sofarr lädt nichts herunter.“ and neither a warning nor „Nichts in der Warteschlange.“. Grabs that are active in the database still show as rows below it, as today.
-- [ ] AC-03 (error): If the configured download client is unreachable, then the queue box shows the warning of today with the time of the last known state exactly once (to the minute), or „Download-Client nicht erreichbar“ without a time when no state is known.
-- [ ] AC-04 (always): The queue answer (`GET /api/queue` and the overview's `queue`) carries `client_configured` (true while `[nzbget]` is configured). All fields of today stay, so existing clients keep working.
-- [ ] AC-05 (always): A day heading in „Die nächsten 7 Tage“ reads:
+- [x] AC-01 (always): sofarr shows each key figure with an icon before its label (Warteschlange: download, Probleme: alert, Nächste 7 Tage: calendar), the number in tabular figures, and the whole tile as its link of today (ui-overview-pages AC-02). The icons are decorative (hidden from assistive technology).
+- [x] AC-02 (state): While no download client is configured (in shadow or live mode), the queue box shows one line of muted text „Kein Download-Client eingerichtet – sofarr lädt nichts herunter.“ and neither a warning nor „Nichts in der Warteschlange.“. Grabs that are active in the database still show as rows below it, as today.
+- [x] AC-03 (error): If the configured download client is unreachable, then the queue box shows the warning of today with the time of the last known state exactly once (to the minute), or „Download-Client nicht erreichbar“ without a time when no state is known.
+- [x] AC-04 (always): The queue answer (`GET /api/queue` and the overview's `queue`) carries `client_configured` (true while `[nzbget]` is configured). All fields of today stay, so existing clients keep working.
+- [x] AC-05 (always): A day heading in „Die nächsten 7 Tage“ reads:
   - „Heute“ for today
   - „Morgen“ for tomorrow
   - otherwise the weekday and the date without year (e.g. „Donnerstag, 19.11.“)
 
   An entry's date is a calendar day without time (`YYYY-MM-DD`), compared with the browser's local date. The full date („19.11.2026“) stays available as the heading's tooltip and as a machine-readable date. A date that cannot be read shows as it came.
-- [ ] AC-06 (always): An empty box of the overview (queue without client is AC-02) shows its sentence of today with a decorative icon before it (Warteschlange: download, Die nächsten 7 Tage: calendar, Probleme: check, Letzte Aktivität: history), in the muted text colour. The problems box while empty says „Keine Probleme in den letzten 7 Tagen.“
-- [ ] AC-07 (always): The overview meets WCAG 2.1 AA in both palettes at 1440 px and 360 px with empty boxes and with a queue item, a problem and upcoming entries (axe scans).
-- [ ] AC-08 (state, manual: visual design): While either palette is active, the overview looks complete and calm at 1440 px and 360 px, with no client and with one.
+- [x] AC-06 (always): An empty box of the overview (queue without client is AC-02) shows its sentence of today with a decorative icon before it (Warteschlange: download, Die nächsten 7 Tage: calendar, Probleme: check, Letzte Aktivität: history), in the muted text colour. The problems box while empty says „Keine Probleme in den letzten 7 Tagen.“
+- [x] AC-07 (always): The overview meets WCAG 2.1 AA in both palettes at 1440 px and 360 px with empty boxes and with a queue item, a problem and upcoming entries (axe scans).
+- [x] AC-08 (state, manual: visual design): While either palette is active, the overview looks complete and calm at 1440 px and 360 px, with no client and with one.
 
 ## Technical notes
 
@@ -75,14 +84,14 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `key figures (AC-01)` › `each figure has a decorative icon before its label and tabular figures` (which Octicon per figure, icon before the label) (`ui/e2e/overview-polish.spec.ts`); `overview (AC-02 .. AC-04)` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
-| AC-02 | `queue without and with a client (AC-02, AC-03)` › `without a client: one muted line, no warning, no empty text`, `without a client, active grabs still show as rows below the line` (`ui/e2e/overview-polish.spec.ts`); `live_mode_without_a_client_says_no_client_is_configured` (`crates/sofarr-server/src/overview_tests.rs`); `overview (AC-01)` (`ui/e2e/library-pages.spec.ts`) | built |  |
-| AC-03 | `queue without and with a client (AC-02, AC-03)` › `an unreachable client with a known state names its time once`, `an unreachable client without a state shows no time` (`ui/e2e/overview-polish.spec.ts`); `queue_shows_progress_size_and_remaining_time` (`crates/sofarr-server/src/overview_tests.rs`) | built |  |
-| AC-04 | `queue_shows_progress_size_and_remaining_time`, `overview_shows_activity_problems_and_the_next_days` (`crates/sofarr-server/src/overview_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
-| AC-05 | `day headings (ui-overview-polish AC-05)` (`ui/src/lib/library/format.test.ts`); `day headings (AC-05)` › `„Heute“, „Morgen“, then weekday and date; the full date as tooltip` (`ui/e2e/overview-polish.spec.ts`) | built |  |
-| AC-06 | `empty states (AC-06)` › `empty boxes show their sentence after a decorative icon, muted` (all four boxes, the queue with a configured client; which Octicon per box, muted colour, icon before the sentence) (`ui/e2e/overview-polish.spec.ts`) | built |  |
-| AC-07 | `accessibility (AC-07), dark/light` › `empty boxes at 1440 px / 360 px`, `a queue item, a problem and upcoming entries at 1440 px / 360 px` (`ui/e2e/overview-polish.spec.ts`) | built |  |
-| AC-08 | manual: the owner checked the overview from the before/after screenshots of this branch and the regenerated `docs/site/screenshots/overview.png` („Visual check passt“), 2026-11-17 | built |  |
+| AC-01 | `key figures (AC-01)` › `each figure has a decorative icon before its label and tabular figures` (which Octicon per figure, icon before the label) (`ui/e2e/overview-polish.spec.ts`); `overview (AC-02 .. AC-04)` (`ui/e2e/pages-redesign.spec.ts`) | verified | f558a6f |
+| AC-02 | `queue without and with a client (AC-02, AC-03)` › `without a client: one muted line, no warning, no empty text`, `without a client, active grabs still show as rows below the line` (`ui/e2e/overview-polish.spec.ts`); `live_mode_without_a_client_says_no_client_is_configured`, `without_a_client_active_grabs_still_show_in_the_queue` (`crates/sofarr-server/src/overview_tests.rs`); `overview (AC-01)` (`ui/e2e/library-pages.spec.ts`) | verified | f558a6f |
+| AC-03 | `queue without and with a client (AC-02, AC-03)` › `an unreachable client with a known state names its time once`, `an unreachable client without a state shows no time` (`ui/e2e/overview-polish.spec.ts`); `queue_shows_progress_size_and_remaining_time`, `an_unreachable_client_without_a_known_state_names_no_time` (`crates/sofarr-server/src/overview_tests.rs`) | verified | f558a6f |
+| AC-04 | `queue_shows_progress_size_and_remaining_time`, `overview_shows_activity_problems_and_the_next_days` (`crates/sofarr-server/src/overview_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | verified | bf5b0dd |
+| AC-05 | `day headings (ui-overview-polish AC-05)` (`ui/src/lib/library/format.test.ts`); `day headings (AC-05)` › `„Heute“, „Morgen“, then weekday and date; the full date as tooltip` (`ui/e2e/overview-polish.spec.ts`) | verified | f558a6f |
+| AC-06 | `empty states (AC-06)` › `empty boxes show their sentence after a decorative icon, muted` (all four boxes, the queue with a configured client; which Octicon per box, muted colour, icon before the sentence) (`ui/e2e/overview-polish.spec.ts`) | verified | f558a6f |
+| AC-07 | `accessibility (AC-07), dark/light` › `empty boxes at 1440 px / 360 px`, `a queue item, a problem and upcoming entries at 1440 px / 360 px` (`ui/e2e/overview-polish.spec.ts`) | verified | f558a6f |
+| AC-08 | manual: the owner checked the overview from the before/after screenshots of this branch and the regenerated `docs/site/screenshots/overview.png` („Visual check passt“), 2026-11-17 | verified | 9b803b0 |
 
 ## Decisions
 
@@ -96,3 +105,5 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 - 2026-11-17 (spec-check, round 1: NOT READY): AC-06 lacked the empty queue with a configured client and the muted colour, AC-02 the muted colour. The tests now cover both; they were green at once, because the behaviour was already built (`EmptyLine` with the `muted` class).
 - 2026-11-17 (spec-check, round 2: NOT READY): the tests did not say which icon each figure and empty box shows. They now compare the icon's path with the Octicon from the package (`ui/e2e/octicons.mjs`); green at once, because the icons were built as specified.
 - 2026-11-17 (spec-check, round 3: NOT READY): AC-02 had no case in live mode and AC-03 checked only the notice's prefix. `live_mode_without_a_client_says_no_client_is_configured` and the full notice shape „… – Stand von 99.99.9999 99:99“ in `queue_shows_progress_size_and_remaining_time` now cover both; green at once.
+- 2026-11-17 (spec-check, round 4: NOT READY): the server's branch for an unreachable client with no known state and the grab rows without a client were only tested through made-up answers in the UI. `an_unreachable_client_without_a_known_state_names_no_time` and `without_a_client_active_grabs_still_show_in_the_queue` now test them on the server; green at once.
+

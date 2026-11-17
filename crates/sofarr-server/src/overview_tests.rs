@@ -368,3 +368,53 @@ async fn live_mode_without_a_client_says_no_client_is_configured() {
     let (_, overview) = http.get("/api/overview").await;
     assert_eq!(overview["queue"]["client_configured"], false, "{overview}");
 }
+
+#[tokio::test]
+async fn an_unreachable_client_without_a_known_state_names_no_time() {
+    // ui-overview-polish AC-03: down from the first request, so no state is known.
+    let s = Services::start().await;
+    s.lock().nzbget_down = true;
+    let toml = format!("[automation]\nmode = \"live\"\n{}", s.nzbget_toml());
+    let app = app(Library::Movies, &toml).await;
+    let http = Http::start(app).await;
+    let (status, queue) = http.get("/api/queue").await;
+    assert_eq!(status, StatusCode::OK, "{queue}");
+    assert_eq!(
+        queue["notice"], "Download-Client nicht erreichbar",
+        "{queue}"
+    );
+    assert_eq!(queue["as_of"], Value::Null, "{queue}");
+    assert_eq!(queue["client_configured"], true, "{queue}");
+}
+
+#[tokio::test]
+async fn without_a_client_active_grabs_still_show_in_the_queue() {
+    // ui-overview-polish AC-02: grabs active in the database stay listed without a client.
+    let app = app(Library::Movies, "").await;
+    let first = movie_id(&app, 101).await;
+    app.db
+        .add_grab(
+            &grab(
+                first,
+                "Erster.Film.2001.1080p-A",
+                GrabStatus::Queued,
+                Some("9"),
+            ),
+            Timestamp::now(),
+        )
+        .await
+        .expect("grab");
+    let http = Http::start(app).await;
+    let (_, queue) = http.get("/api/queue").await;
+    assert_eq!(queue["client_configured"], false, "{queue}");
+    let items = queue["items"].as_array().expect("items");
+    assert_eq!(items.len(), 1, "{queue}");
+    assert_eq!(items[0]["release_title"], "Erster.Film.2001.1080p-A");
+    assert_eq!(
+        items[0]["download_state"],
+        Value::Null,
+        "no client progress"
+    );
+    let (_, overview) = http.get("/api/overview").await;
+    assert_eq!(overview["queue"]["items"], queue["items"], "{overview}");
+}
