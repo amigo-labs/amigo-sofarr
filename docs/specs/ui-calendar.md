@@ -112,15 +112,20 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-01 | `month grid (AC-01)` › `seven columns headed Mo .. So, one row per week, every day of the month`, `outside days are dimmed and empty; today is marked and named` (`ui/e2e/calendar.spec.ts`); `month grid (ui-calendar AC-01)` (`ui/src/lib/library/calendar.test.ts`) | built |  |
+| AC-02 | `week columns (AC-02)` › `seven days side by side, headed with weekday and date, empty days say Nichts.` (`ui/e2e/calendar.spec.ts`) | built |  |
+| AC-03 | `agenda (AC-03)` › `the week stacks all seven days; the month only days with entries`, `an empty month shows only the note` (`ui/e2e/calendar.spec.ts`) | built |  |
+| AC-04 | `entries (AC-04)` › `title, detail and a state dot named by its German text`; `month grid (AC-01)` › `entries in a month cell are cut to one line with the full text as tooltip` (`ui/e2e/calendar.spec.ts`) | built |  |
+| AC-05 | `calendar (AC-07)` › `starts at the current week with one entry per date, marked by state`, `a movie with cinema, digital and disc dates appears three times in its month` (`ui/e2e/library-pages.spec.ts`) | built |  |
+| AC-06 | `toolbar (AC-06)` › `Woche and Monat are a segmented control; the range changes as before` (`ui/e2e/calendar.spec.ts`); `steps back and forth; an empty month shows a German note` (`ui/e2e/library-pages.spec.ts`) | built |  |
+| AC-07 | `axe, dark theme` and `axe, light theme` › `calendar: month grid, week columns and agenda (ui-calendar AC-07)`, `Kalender` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-08 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: The plan's spec 4 (remaining pages) is split into `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`, because together they exceed one M block.
+- 2026-11-17 (build): Red runs against f57437b: `bunx vitest run src/lib/library/calendar.test.ts` failed 4 of 10 (no `monthGrid`); `bunx playwright test e2e/calendar.spec.ts` failed 6 of 8. Green at once: the two agenda tests (the narrow grid was already one column, and the empty month already showed only the note); they stay as guards.
+- 2026-11-17 (build): A month cell's heading shows only the day number on wide windows and the full „Mo, 16.11.“ in the agenda; its `aria-label` always names weekday and date (and „· heute“). Today's number sits in an accent circle.
+- 2026-11-17 (build): `CalendarEntryLine` takes `dot` (state as a named dot, detail below the title) and `cut` (one line each, full text as tooltip); the overview keeps the label form.
+- 2026-11-17 (build): The month grid is shown also for an empty month (with the note above), so the month keeps its shape; on narrow windows the empty cells hide and only the note remains.
+
