@@ -82,7 +82,7 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 | AC-05 | `day headings (ui-overview-polish AC-05)` (`ui/src/lib/library/format.test.ts`); `day headings (AC-05)` › `„Heute“, „Morgen“, then weekday and date; the full date as tooltip` (`ui/e2e/overview-polish.spec.ts`) | built |  |
 | AC-06 | `empty states (AC-06)` › `empty boxes show their sentence after a decorative icon, muted` (`ui/e2e/overview-polish.spec.ts`) | built |  |
 | AC-07 | `accessibility (AC-07), dark/light` › `empty boxes at 1440 px / 360 px`, `a queue item, a problem and upcoming entries at 1440 px / 360 px` (`ui/e2e/overview-polish.spec.ts`) | built |  |
-| AC-08 |      | open   |        |
+| AC-08 | manual: the owner checked the overview from the before/after screenshots of this branch and the regenerated `docs/site/screenshots/overview.png` („Visual check passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

@@ -151,7 +151,7 @@ Terms:
 | AC-12 |      | open   |        |
 | AC-13 |      | open   |        |
 | AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
+| AC-15 | manual: the owner checked the library lists, a series page, discover and the calendar from the before/after screenshots of this branch (green only for states, the active place and the main action) („Visual check passt“), 2026-11-17 | built |  |
 
 ## Decisions
 
