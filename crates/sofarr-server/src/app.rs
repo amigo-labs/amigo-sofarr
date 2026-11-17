@@ -60,6 +60,8 @@ pub struct App {
     pub discover: crate::discover::Discover,
     /// Trailer downloads (spec trailers).
     pub trailers: crate::trailers::Runtime,
+    /// Re-encoding (spec reencode-file): the encode slot's lock and the tools.
+    pub reencode: crate::reencode::run::State,
 }
 
 pub type SharedApp = Arc<App>;
@@ -119,6 +121,7 @@ impl App {
             || sofarr_metadata::tvdb::TVDB_API.to_owned(),
             |t| t.url.clone(),
         );
+        let reencode = crate::reencode::run::State::new(&config.database.path);
         Ok(Self {
             config,
             db,
@@ -140,6 +143,7 @@ impl App {
             tvdb_api,
             discover: crate::discover::Discover::default(),
             trailers,
+            reencode,
         })
     }
 

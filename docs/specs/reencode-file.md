@@ -161,22 +161,22 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
-| AC-16 |      | open   |        |
+| AC-01 | `reencode::encode::tests::the_cli_prints_start_and_outcome_and_fails_on_failures`, `the_cli_finds_an_episode_by_series_season_and_number` (`crates/sofarr-server/src/reencode/encode/tests.rs`); `reencode_refuses_with_a_german_reason_and_an_error` (`crates/sofarr-server/tests/cli_reencode.rs`) | built |        |
+| AC-02 | `reencode::encode::tests::the_api_starts_an_encode_in_the_background`, `the_api_refuses_in_shadow_mode` (`crates/sofarr-server/src/reencode/encode/tests.rs`); `reencode::run::tests::the_slot_shows_the_running_encode` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-03 | `reencode::ffmpeg::tests::the_argument_list_is_fixed` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `reencode::run::tests::an_mp4_original_becomes_mkv_and_its_subtitles_stay`, `a_good_result_replaces_the_original_which_goes_to_the_recycle_bin` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-04 | `reencode::ffmpeg::tests::file_names_stay_one_argument_each` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `reencode::run::tests::odd_file_names_are_encoded_and_replaced_as_they_are` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-05 | `reencode::ffmpeg::tests::the_encoder_runs_at_the_lowest_priority_where_nice_exists` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | built |        |
+| AC-06 | `reencode::run::tests::a_good_result_replaces_the_original_which_goes_to_the_recycle_bin`, `without_a_recycle_bin_the_original_is_deleted`, `a_double_episode_keeps_both_episodes` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::tests::a_replaced_video_changes_only_path_and_size` (`crates/sofarr-db/src/reencode.rs`) | built |        |
+| AC-07 | `reencode::run::tests::a_result_above_the_size_limit_is_no_gain` (`crates/sofarr-server/src/reencode/run/tests.rs`); `the_cli_prints_start_and_outcome_and_fails_on_failures` (`crates/sofarr-server/src/reencode/encode/tests.rs`) | built |        |
+| AC-08 | `reencode::run::tests::a_failed_or_bad_result_keeps_the_original` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::a_missing_encoder_is_reported_in_german` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `process::tests::reasons_read_in_german` (`crates/sofarr-server/src/process.rs`) | built |        |
+| AC-09 | `reencode::run::tests::a_change_during_the_encode_discards_the_result` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-10 | `reencode::run::tests::requests_are_refused_and_recorded`, `shadow_mode_encodes_nothing` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::a_missing_encoder_is_reported_in_german` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `reencode_refuses_with_a_german_reason_and_an_error` (`crates/sofarr-server/tests/cli_reencode.rs`) | built |        |
+| AC-11 | `reencode::run::tests::a_failed_swap_puts_the_original_back` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-12 | `reencode::run::tests::an_interrupted_attempt_is_cleaned_up_first` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-13 | `reencode::run::tests::a_good_result_replaces_the_original_which_goes_to_the_recycle_bin` (`crates/sofarr-server/src/reencode/run/tests.rs`: a 10,000-byte file, fine by every threshold) | built |        |
+| AC-14 | `reencode::run::tests::an_mp4_original_becomes_mkv_and_its_subtitles_stay`, `a_double_episode_keeps_both_episodes` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-15 | `reencode::tests::attempts_are_recorded_and_outlive_their_file` (`crates/sofarr-db/src/reencode.rs`); `reencode::run::tests::a_good_result_replaces_the_original_which_goes_to_the_recycle_bin`, `requests_are_refused_and_recorded` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-16 | `config::tests::reencode_encoder_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
 | AC-17 |      | open   |        |
 
 ## Decisions
@@ -185,3 +185,12 @@ Terms used below:
 - 2026-11-17: The original is renamed aside before the result takes its place and goes to the recycle bin only after the library is updated, so a failure in between can always restore it.
 - 2026-11-17: MP4 text subtitles become SRT and MP4 data and timecode tracks are left out, because ffmpeg's Matroska muxer cannot copy them and the result is always Matroska; the track count check compares audio and subtitle tracks only.
 - 2026-11-17: An interrupted swap is repaired at the start of the next attempt on the same file, before its checks, so a hidden original is never lost (AC-12); `reencode-job` repairs every file at its start.
+- 2026-11-17: The process runner of the trailers moved to a shared module (`process::run`) that reports why it stopped as a type (time, size, start); the size limit watches a single file as well as a folder. yt-dlp keeps its German messages.
+- 2026-11-17: ffmpeg gets both paths with the `file:` protocol, so a name with a colon or a leading `-` is never read as a protocol or an option; `-x265-params log-level=error` keeps x265's own info lines out of the reason; `-map -0:d?` only for MP4 originals (optional, so files without data tracks pass).
+- 2026-11-17: `nice` is found by running `nice -n 19 nice` once when the encoder is built; the encoder is built at its first use, not at the start of the server.
+- 2026-11-17: The encode slot's lock (`<database folder>/reencode.lock`) holds the running encode as JSON (title, path, start, runner, attempt id); the clean-up of AC-12 skips the file and the attempt the lock names, so it can run before the checks of AC-10 without touching a running encode.
+- 2026-11-17: Checks against the original read its media info at the start of the attempt (AC-10); "unchanged" at the swap compares size and modification time with that read; "still recorded" compares the library's relative path.
+- 2026-11-17: In the recycle bin the original lands at `<item folder name>/<relative path>` (with a free `name (1)` where taken), like a removal from the library, so equally named episodes of different series do not collide.
+- 2026-11-17: An MP4 crash between placing the result and updating the library leaves the result next to the restored original; sofarr does not delete it, because it cannot prove the file is its own (AC-09 then reports the final name as taken).
+- 2026-11-17: Tests of `run`, `encode`, the encoder and the config were written together with their code, not before; to show they catch faults, five deliberate defects (no change check, no HDR check, no restore after a failed library update, no restore of a hidden original, size limit off by one) each turned one test red.
+- 2026-11-17: Checked by hand with the real ffmpeg 6.1 (libx265 3.5) of the development container through `amigo-sofarr reencode`: an MKV with two AC-3 tracks and SRT, and an MP4 with mov_text and a timecode track, both became HEVC Main10 Matroska with all tracks (mov_text as SRT), 73 % and 76 % smaller, originals in the recycle bin. This is not AC-17, which needs the owner's library and Jellyfin.

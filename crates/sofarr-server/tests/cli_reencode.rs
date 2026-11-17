@@ -111,3 +111,54 @@ fn an_empty_library_has_no_file_that_is_too_large() {
     assert_eq!(run(&root, "shadow"), "Keine Datei ist zu groß.\n");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Runs `amigo-sofarr reencode <args>`; returns success, stdout and stderr.
+fn reencode(root: &Path, mode: &str, args: &[&str]) -> (bool, String, String) {
+    let config = root.join("sofarr.toml");
+    std::fs::write(
+        &config,
+        format!(
+            "[database]\npath = '{}'\n[log]\nlevel = \"error\"\n[automation]\nmode = \"{mode}\"\n",
+            root.join("sofarr.db").display()
+        ),
+    )
+    .expect("config");
+    let output = Command::new(env!("CARGO_BIN_EXE_amigo-sofarr"))
+        .arg("--config")
+        .arg(&config)
+        .arg("reencode")
+        .args(args)
+        .output()
+        .expect("binary runs");
+    (
+        output.status.success(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[tokio::test]
+async fn reencode_refuses_with_a_german_reason_and_an_error() {
+    // Spec reencode-file AC-01, AC-10: a refusal is an error exit with the reason.
+    let root = root("reencode-refused");
+    let db = Db::open(&root.join("sofarr.db")).await.expect("db");
+    add_movie(&db, 1, "Gross", Some(20_480)).await;
+    let (ok, stdout, stderr) = reencode(&root, "shadow", &["1"]);
+    assert!(!ok);
+    assert_eq!(stdout, "");
+    assert!(
+        stderr.contains("Abgelehnt: Im Shadow-Mode encodiert sofarr nichts"),
+        "{stderr}"
+    );
+    let (ok, _, stderr) = reencode(&root, "live", &["99"]);
+    assert!(!ok);
+    assert!(
+        stderr.contains("Abgelehnt: Kein Film und keine Episode mit Datei unter dieser ID"),
+        "{stderr}"
+    );
+    let (ok, _, stderr) = reencode(&root, "live", &["--series", "1", "--season", "1"]);
+    assert!(!ok);
+    assert!(stderr.contains("Ziel fehlt"), "{stderr}");
+    db.pool().close().await;
+    let _ = std::fs::remove_dir_all(&root);
+}

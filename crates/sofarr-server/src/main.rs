@@ -33,6 +33,7 @@ mod media;
 mod metadata;
 mod overview;
 mod password_input;
+mod process;
 mod radarr;
 mod reencode;
 mod rescan;
@@ -162,6 +163,21 @@ enum Command {
     /// Listet die Dateien, die für ihre Auflösung zu groß sind, die größten zuerst
     /// (Schwellen: [reencode] in der Konfiguration)
     ReencodeCandidates,
+    /// Encodiert die Datei eines Films oder einer Episode neu (HEVC, MKV); das Original
+    /// kommt in den Papierkorb
+    Reencode {
+        /// sofarr-ID des Films
+        movie_id: Option<i64>,
+        /// sofarr-ID der Serie
+        #[arg(long)]
+        series: Option<i64>,
+        /// Staffel der Episode (nur mit --series)
+        #[arg(long)]
+        season: Option<u16>,
+        /// Nummer der Episode (nur mit --season)
+        #[arg(long)]
+        episode: Option<u16>,
+    },
     /// Übernimmt Einstellungen, Serien und Episoden aus Sonarr
     ImportSonarr {
         /// Verzeichnis eines Exports (…/config/sonarr) – enthält keine Episoden; ohne
@@ -467,6 +483,16 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             let report = app.refresh(true, false, true).await?;
             println!("Metadaten aktualisiert: {} Filme", report.movies);
             print_scan("Filme", report.movie_scan.as_ref());
+        }
+        Command::Reencode {
+            movie_id,
+            series,
+            season,
+            episode,
+        } => {
+            let target =
+                reencode::encode::cli_target(&app.db, movie_id, series, season, episode).await?;
+            reencode::encode::cli(&app, target, &mut |line| println!("{line}")).await?;
         }
         Command::ReencodeCandidates => {
             let thresholds = app.config.reencode.thresholds();

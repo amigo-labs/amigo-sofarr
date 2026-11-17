@@ -5,10 +5,9 @@
 use std::{
     ffi::OsString,
     fs,
-    io::ErrorKind,
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 /// Longest a trailer download may take (AC-04).
@@ -17,8 +16,6 @@ pub const TIMEOUT: Duration = Duration::from_secs(10 * 60);
 pub const MAX_MB: u64 = 500;
 /// How long `--version` may take.
 const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
-/// How often a running download is looked at.
-const POLL: Duration = Duration::from_millis(200);
 /// The program yt-dlp merges and remuxes with; found on `PATH` like yt-dlp does.
 const FFMPEG: &str = "ffmpeg";
 
@@ -45,13 +42,7 @@ impl VideoId {
     }
 }
 
-/// When a running program is stopped.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Limits {
-    pub timeout: Duration,
-    /// Most bytes the watched folder may hold.
-    pub max_bytes: u64,
-}
+pub use crate::process::Limits;
 
 impl Limits {
     /// The limits of AC-04.
@@ -161,72 +152,14 @@ fn runs(program: &Path, arg: &str, name: &str) -> Result<(), String> {
     }
 }
 
-/// Bytes of all files below `dir` (symbolic links are not followed).
-fn folder_size(dir: &Path) -> u64 {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return 0;
-    };
-    entries
-        .flatten()
-        .map(|entry| match entry.file_type() {
-            Ok(t) if t.is_dir() => folder_size(&entry.path()),
-            Ok(t) if t.is_file() => entry.metadata().map_or(0, |m| m.len()),
-            _ => 0,
-        })
-        .sum()
-}
-
-fn duration_text(d: Duration) -> String {
-    let secs = d.as_secs();
-    if secs >= 60 && secs.is_multiple_of(60) {
-        format!("{} Minuten", secs / 60)
-    } else {
-        format!("{secs} Sekunden")
-    }
-}
-
 /// Runs a command (no shell) and waits for it; stops it when it runs longer than the
 /// time limit or `watch` grows beyond the size limit. Errors are German.
 pub fn run_limited(
-    mut command: Command,
+    command: Command,
     watch: Option<&Path>,
     limits: Limits,
 ) -> Result<ExitStatus, String> {
-    let mut child = command.spawn().map_err(|e| match e.kind() {
-        ErrorKind::NotFound => "Programm nicht gefunden".to_owned(),
-        _ => format!("nicht startbar: {e}"),
-    })?;
-    let started = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => return Ok(status),
-            Ok(None) => {}
-            Err(e) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(format!("Zustand nicht lesbar: {e}"));
-            }
-        }
-        let stop = if started.elapsed() >= limits.timeout {
-            Some(format!(
-                "abgebrochen nach mehr als {}",
-                duration_text(limits.timeout)
-            ))
-        } else if watch.is_some_and(|dir| folder_size(dir) > limits.max_bytes) {
-            Some(format!(
-                "abgebrochen: größer als {} MB",
-                limits.max_bytes / (1024 * 1024)
-            ))
-        } else {
-            None
-        };
-        if let Some(reason) = stop {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(reason);
-        }
-        std::thread::sleep(POLL);
-    }
+    crate::process::run(command, watch, limits).map_err(|stop| stop.to_string())
 }
 
 /// yt-dlp's reason for a failure: its last `ERROR:` line, else its last line.
@@ -285,6 +218,7 @@ pub fn finished(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
 
     /// Set in the environment of the fake program (see [`fake_program`]).
     const FAKE: &str = "SOFARR_FAKE_PROGRAM";

@@ -13,6 +13,9 @@ use sofarr_db::{Db, FileRef, StoredMediaInfo};
 
 use crate::{api::ApiError, app::SharedApp};
 
+pub mod encode;
+pub mod ffmpeg;
+pub mod run;
 #[cfg(test)]
 mod tests;
 
