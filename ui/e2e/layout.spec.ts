@@ -25,11 +25,11 @@ test.describe('navigation (AC-08)', () => {
     const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
     await expect(nav.getByRole('link')).toHaveText([
       'Übersicht',
+      'Entdecken',
       'Filme',
       'Serien',
       'Kalender',
       'Fehlend',
-      'Entdecken',
       'Sperrliste',
       'Untertitel',
       'Backups',

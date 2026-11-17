@@ -125,8 +125,10 @@
   <nav aria-label="Hauptnavigation">
     {#each groups as group (group.label)}
       <div class="group">
-        <span class="group-heading" aria-hidden="true">{group.label}</span>
-        <ul aria-label={group.label}>
+        {#if group.heading}
+          <span class="group-heading" aria-hidden="true">{group.label}</span>
+        {/if}
+        <ul aria-label={group.heading ? group.label : 'Einstieg'}>
           {#each group.pages as item (item.href)}
             <li>
               <a

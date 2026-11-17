@@ -140,7 +140,7 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
+| AC-01 | `wide window` › `the sidebar sits at the left with groups, entries, theme switch and logout (AC-01)` (first group without heading: Übersicht, Entdecken; headings Bibliothek, Verwaltung), `the sidebar also shows on the page-not-found page (AC-01)` (`ui/e2e/shell.spec.ts`); `groups the pages without changing their order (ui-shell-redesign AC-01)` (`ui/src/lib/nav.test.ts`) | built |  |
 | AC-02 | `wide window` › `every entry has an icon; the current one is the accent (AC-02, dark/light)` (`ui/e2e/shell.spec.ts`); `gives every page an icon` (`ui/src/lib/nav.test.ts`) | verified | c7ca8fb |
 | AC-03 | `wide window` › `collapses to icons with names and tooltips, and expands again (AC-03)` (`ui/e2e/shell.spec.ts`) | verified | c7ca8fb |
 | AC-04 | `wide window` › `the collapsed state is on the document before the app renders (AC-04)`, `an unknown stored value counts as expanded (AC-04)` (`ui/e2e/shell.spec.ts`); `sidebar state` (`ui/src/lib/sidebar.test.ts`) | verified | c7ca8fb |
@@ -175,4 +175,5 @@ Terms:
 - 2026-11-16 (build): UI links carry the global class `ui-link` (titles in lists, cards, tables and the calendar, cast names, "Mehr"); every other link stays underlined. The accent tone is proven by rendering the label's classes, because the UI has no component test setup and no label uses accent yet.
 - 2026-11-16 (build): New public API: `Tone` gains `'accent'` (`ui/src/lib/system/format.ts`); `navGroups`, `NAV_GROUPS` and `NavPage.group`/`icon` (`ui/src/lib/nav.ts`); `ui/src/lib/sidebar.ts`.
 - 2026-11-17: AC-01 revised (owner): Übersicht and Entdecken stand first without a group heading, because a group „Entdecken“ with the single entry „Entdecken“ repeated itself and the two entry pages belong at the top; Bibliothek keeps Filme, Serien, Kalender and Fehlend. The navigation order of `web-ui-shell` AC-08 changes with it. Back to `status: todo` until spec-check accepts the revision.
+- 2026-11-17 (build): Red run of the revision against ff08f13: `bunx vitest run src/lib/nav.test.ts` failed 3 of 5 (order and groups). The first group is named „Start“ in the code and „Einstieg“ as the list's accessible name, without a visible heading.
 
