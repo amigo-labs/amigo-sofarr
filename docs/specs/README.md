@@ -50,7 +50,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [fail-handling](fail-handling.md) | 2026-11-12 | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) |
 | [backups](backups.md) | 2026-11-12 | Scheduled, manual and pre-migration backups, restore at the next start or by CLI (D14) |
 | [auth](auth.md) | 2026-11-12 | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) |
-| [web-ui-shell](web-ui-shell.md) | 2026-11-12, AC-10 revised 2026-11-15 | SvelteKit static UI in the binary, login, navigation, shared amigo theme, system page (D16, D23, D29) |
+| [web-ui-shell](web-ui-shell.md) | 2026-11-12, AC-10 revised 2026-11-15, AC-08 revised 2026-11-17 | SvelteKit static UI in the binary, login, navigation, shared amigo theme, system page (D16, D23, D29) |
 | [trailers](trailers.md) | 2026-11-12 | TMDB trailers via yt-dlp into `trailers/` within a daily budget, Alpine runtime image (D18) |
 | [imdb-ratings](imdb-ratings.md) | 2026-11-12, AC-04 revised 2026-11-17 (ui-list-items, ui-consistency) | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) |
 | [subtitles](subtitles.md) | 2026-11-12 | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) |
