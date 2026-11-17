@@ -34,6 +34,7 @@ mod metadata;
 mod overview;
 mod password_input;
 mod radarr;
+mod reencode;
 mod rescan;
 mod rss;
 mod search;
@@ -158,6 +159,9 @@ enum Command {
     RefreshMetadata,
     /// Gleicht Filme und Serien mit den Dateien auf der Festplatte ab
     Rescan,
+    /// Listet die Dateien, die für ihre Auflösung zu groß sind, die größten zuerst
+    /// (Schwellen: [reencode] in der Konfiguration)
+    ReencodeCandidates,
     /// Übernimmt Einstellungen, Serien und Episoden aus Sonarr
     ImportSonarr {
         /// Verzeichnis eines Exports (…/config/sonarr) – enthält keine Episoden; ohne
@@ -463,6 +467,11 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             let report = app.refresh(true, false, true).await?;
             println!("Metadaten aktualisiert: {} Filme", report.movies);
             print_scan("Filme", report.movie_scan.as_ref());
+        }
+        Command::ReencodeCandidates => {
+            let thresholds = app.config.reencode.thresholds();
+            let list = reencode::candidates(&app.db, &thresholds).await?;
+            print!("{}", reencode::report(&list));
         }
         Command::Rescan => {
             let (movies, shows) = app.rescan().await?;

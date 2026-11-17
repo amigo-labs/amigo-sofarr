@@ -37,6 +37,58 @@ pub struct Config {
     pub opensubtitles: Option<OpenSubtitlesConfig>,
     /// `[trailers]` (spec trailers).
     pub trailers: TrailersConfig,
+    /// `[reencode]` (spec reencode-rule).
+    pub reencode: ReencodeConfig,
+}
+
+/// `[reencode]`: which library files count as too large for their resolution (spec
+/// reencode-rule). Sizes per minute are binary megabytes; 0 switches a resolution off.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ReencodeConfig {
+    /// Largest size per minute up to 1280×720 (SD included).
+    pub max_mb_per_minute_720p: f64,
+    /// Largest size per minute up to 1920×1080.
+    pub max_mb_per_minute_1080p: f64,
+    /// Largest size per minute above 1920×1080.
+    pub max_mb_per_minute_2160p: f64,
+}
+
+impl Default for ReencodeConfig {
+    fn default() -> Self {
+        let defaults = sofarr_core::reencode::Thresholds::default();
+        Self {
+            max_mb_per_minute_720p: defaults.p720,
+            max_mb_per_minute_1080p: defaults.p1080,
+            max_mb_per_minute_2160p: defaults.p2160,
+        }
+    }
+}
+
+impl ReencodeConfig {
+    /// The thresholds for the rule.
+    pub fn thresholds(&self) -> sofarr_core::reencode::Thresholds {
+        sofarr_core::reencode::Thresholds {
+            p720: self.max_mb_per_minute_720p,
+            p1080: self.max_mb_per_minute_1080p,
+            p2160: self.max_mb_per_minute_2160p,
+        }
+    }
+
+    /// Every threshold is a number of at least 0 (German messages naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        for (key, value) in [
+            ("max_mb_per_minute_720p", self.max_mb_per_minute_720p),
+            ("max_mb_per_minute_1080p", self.max_mb_per_minute_1080p),
+            ("max_mb_per_minute_2160p", self.max_mb_per_minute_2160p),
+        ] {
+            anyhow::ensure!(
+                value.is_finite() && value >= 0.0,
+                "[reencode] {key} muss eine Zahl ab 0 sein (0 schaltet die Auflösung aus)"
+            );
+        }
+        Ok(())
+    }
 }
 
 /// `[subtitles]`: which subtitles sofarr fetches and how often it searches (spec subtitles).
@@ -620,6 +672,7 @@ impl Config {
         config.auth.check()?;
         config.subtitles.check()?;
         config.trailers.check()?;
+        config.reencode.check()?;
         Ok(config)
     }
 }
@@ -788,6 +841,50 @@ url = \"http://127.0.0.1:9/tvdb\"
         .expect("valid");
         assert_eq!(config.tmdb.expect("tmdb").url, "http://127.0.0.1:9/3");
         assert_eq!(config.tvdb.expect("tvdb").url, "http://127.0.0.1:9/tvdb");
+    }
+
+    #[test]
+    fn reencode_thresholds_have_defaults_and_are_checked() {
+        // Spec reencode-rule AC-09, AC-10.
+        let config = Config::parse("").expect("defaults");
+        let thresholds = config.reencode.thresholds();
+        assert_eq!(
+            (thresholds.p720, thresholds.p1080, thresholds.p2160),
+            (30.0, 60.0, 150.0)
+        );
+        let example = Config::parse(include_str!("../../../config/sofarr.example.toml"))
+            .expect("example config");
+        assert_eq!(example.reencode.thresholds(), thresholds);
+        assert!(
+            include_str!("../../../config/sofarr.example.toml").contains("[reencode]"),
+            "the example shows the section"
+        );
+        let config = Config::parse(
+            "[reencode]\nmax_mb_per_minute_720p = 12.5\nmax_mb_per_minute_1080p = 45\n\
+             max_mb_per_minute_2160p = 0\n",
+        )
+        .expect("valid");
+        let thresholds = config.reencode.thresholds();
+        assert_eq!(
+            (thresholds.p720, thresholds.p1080, thresholds.p2160),
+            (12.5, 45.0, 0.0)
+        );
+        for key in [
+            "max_mb_per_minute_720p",
+            "max_mb_per_minute_1080p",
+            "max_mb_per_minute_2160p",
+        ] {
+            for value in ["-1", "-0.5", "nan", "inf", "\"viel\"", "true"] {
+                let raw = format!("[reencode]\n{key} = {value}\n");
+                let error = Config::parse(&raw)
+                    .err()
+                    .unwrap_or_else(|| panic!("{key} = {value} must be rejected"));
+                let message = format!("{error:#}");
+                assert!(message.contains(key), "{key} = {value}: {message}");
+            }
+        }
+        let error = Config::parse("[reencode]\nmax_mb_per_minute = 3\n").expect_err("unknown key");
+        assert!(format!("{error:#}").contains("max_mb_per_minute"));
     }
 
     #[test]

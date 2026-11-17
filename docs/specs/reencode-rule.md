@@ -154,17 +154,17 @@ Terms used below:
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
 | AC-01 | `matroska::tests::the_duration_comes_from_the_segment_info`, `an_unusable_duration_is_none_and_changes_nothing_else`, `the_info_is_found_through_the_seek_head` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `mp4::tests::the_duration_comes_from_the_movie_header`, `an_unusable_movie_duration_is_none_and_changes_nothing_else` (`crates/sofarr-mediainfo/src/mp4/tests.rs`) | built |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-02 | `reencode::tests::the_metadata_runtime_fills_in_for_a_missing_header_duration` (`crates/sofarr-server/src/reencode/tests.rs`); unchanged files stay unread: `media_tests::the_disk_scan_reads_new_and_changed_files_only` (spec `mediainfo` AC-01, unchanged) | built |        |
+| AC-03 | `reencode::tests::exactly_the_threshold_is_fine_and_above_it_is_a_candidate`, `every_file_gets_the_first_verdict_that_applies`, `resolution_classes_follow_width_or_height` (`crates/sofarr-core/src/reencode.rs`) | built |        |
+| AC-04 | `reencode::tests::every_file_gets_the_first_verdict_that_applies` (`crates/sofarr-core/src/reencode.rs`); `reencode::tests::a_switched_off_resolution_and_broken_media_info_are_counted`, `the_list_holds_the_too_large_files_largest_first` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
+| AC-05 | `reencode::tests::the_header_duration_wins_and_metadata_fills_in` (`crates/sofarr-core/src/reencode.rs`); `reencode::tests::the_metadata_runtime_fills_in_for_a_missing_header_duration` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
+| AC-06 | `reencode::tests::the_list_holds_the_too_large_files_largest_first`, `the_api_answers_the_same_in_shadow_and_live_mode_and_changes_nothing` (`crates/sofarr-server/src/reencode/tests.rs`); `media::tests::media_info_follows_its_file` (`crates/sofarr-db/src/media.rs`) | built |        |
+| AC-07 | `reencode::tests::the_cli_report_lists_sizes_and_reasons_in_german` (`crates/sofarr-server/src/reencode/tests.rs`); `the_command_prints_the_candidates_largest_first`, `an_empty_library_has_no_file_that_is_too_large` (`crates/sofarr-server/tests/cli_reencode.rs`) | built |        |
+| AC-08 | `reencode::tests::the_api_answers_the_same_in_shadow_and_live_mode_and_changes_nothing` (`crates/sofarr-server/src/reencode/tests.rs`); `the_command_prints_the_candidates_largest_first` (`crates/sofarr-server/tests/cli_reencode.rs`) | built |        |
+| AC-09 | `config::tests::reencode_thresholds_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
+| AC-10 | `config::tests::reencode_thresholds_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
+| AC-11 | `reencode::tests::reencode_candidates_large_library` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
+| AC-12 | `reencode::tests::a_switched_off_resolution_and_broken_media_info_are_counted` (`crates/sofarr-server/src/reencode/tests.rs`) | built |        |
 
 ## Decisions
 
@@ -174,3 +174,9 @@ Terms used below:
 - 2026-11-17: The rule works on stored data only, because opening 20,000 files over the network for a list would take minutes; the disk scan keeps the stored data current.
 - 2026-11-17: Verdicts are ordered so that "fine" comes before the Dolby Vision exclusion: the summary then shows how many oversized files the exclusion really leaves untouched.
 - 2026-11-17: The duration is stored as whole milliseconds (`duration_ms`), left out of the stored JSON when unknown, so media info stored before stays byte-identical and `MediaInfo` keeps `Eq`. A Matroska `Info` is read where the walk meets it or through the `SeekHead`, at most 1 MiB; a duration below half a millisecond counts as none.
+- 2026-11-17: The rule lives in `sofarr_core::reencode` (`judge`, `Thresholds`, `Resolution`, `Verdict`) on plain numbers; too large is compared as `MB × 60 > threshold × seconds`, without the division, so a file exactly at the threshold never tips over by a rounding error. The German reasons are texts of the server (`reencode::reason`).
+- 2026-11-17: New public API for review: `sofarr_mediainfo::MediaInfo::duration_ms`, module `sofarr_core::reencode`, `sofarr_db::Db::all_media_info` (one query instead of one per file), `GET /api/reencode/candidates`, CLI `reencode-candidates`, config section `[reencode]`.
+- 2026-11-17: A TOML value of the wrong type (`"viel"`, `true`) is refused by the parser, whose message names the key in English inside the German "Konfiguration … ungültig"; negative values, `nan` and `inf` get the German message of the check.
+- 2026-11-17: The answer types get no generated TypeScript yet; `ui-reencode` registers them when the page uses them.
+- 2026-11-17: Tests: the config test and the CLI tests were written together with their code (no separate red run; the report's format was red against a stub). The large-library test writes its 20,000 episode files in bulk with SQL, because the per-file helpers took 100 s; a debug build gets 20 s instead of 2 s (measured: 1.2 s in a debug build).
+- 2026-11-17: AC-02 needs no code in the disk scan: the rule of spec `mediainfo` already leaves unchanged files unread, and the list falls back to the metadata runtime for stored media info without `duration_ms`.
