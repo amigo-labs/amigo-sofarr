@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §3, sofarr.md §9 D29, sofarr.md §9 D30]
@@ -70,31 +70,31 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): sofarr shows title links in the default text colour, not underlined. While hovered or focused they turn to the accent and are underlined.
+- [x] AC-01 (always): sofarr shows title links in the default text colour, not underlined. While hovered or focused they turn to the accent and are underlined.
   - Prose links in sentences and notices stay as today (accent, underlined; ui-shell-redesign AC-12).
   - The active navigation entry, the main action, selected tabs and segments, the monitor toggle while monitored and the accent status chips keep the accent.
-- [ ] AC-02 (always): An info notice uses the neutral muted ground with the default text colour, so it no longer looks like a success. Warning and danger notices stay as today.
-- [ ] AC-03 (always): A discover tile shows the rating compactly as the library rows do („★ 7,8“; „–“ without one or when it could not be fetched; the placeholder of today while it is pending), with the full text („IMDb 7,8 (112.400 Stimmen)“) as its tooltip and accessible name. The rating takes one line at 1440 px and 360 px.
-- [ ] AC-04 (always): Within one shelf or result list, the library state chip („In der Bibliothek“, „Ausgeschlossen“) and the „Hinzufügen“ button have the same height, so tiles with the same number of title lines end at the same height.
-- [ ] AC-05 (always): The discover search field shows a magnifier at its start, as the library search field does. Enter and „Suchen“ start the search as today.
-- [ ] AC-06 (state): While the window is narrow, the discover search field takes the full width and „Suchen“ and the filter button share the next line, at 360 px and 390 px (ui-discover-polish AC-05).
-- [ ] AC-07 (always): The UI says „Heute beliebt“ and „Diese Woche beliebt“ instead of „Trending heute“ and „Trending diese Woche“ (shelf headings, shelf pages, arrow and „Mehr“ names), and „Sperrliste“ instead of „Blocklist“ (navigation entry, page heading, page title, the overview's links to it). The addresses stay.
-- [ ] AC-08 (always): The series page shows the series type in German:
+- [x] AC-02 (always): An info notice uses the neutral muted ground with the default text colour, so it no longer looks like a success. Warning and danger notices stay as today.
+- [x] AC-03 (always): A discover tile shows the rating compactly as the library rows do („★ 7,8“; „–“ without one or when it could not be fetched; the placeholder of today while it is pending), with the full text („IMDb 7,8 (112.400 Stimmen)“) as its tooltip and accessible name. The rating takes one line at 1440 px and 360 px.
+- [x] AC-04 (always): Within one shelf or result list, the library state chip („In der Bibliothek“, „Ausgeschlossen“) and the „Hinzufügen“ button have the same height, so tiles with the same number of title lines end at the same height.
+- [x] AC-05 (always): The discover search field shows a magnifier at its start, as the library search field does. Enter and „Suchen“ start the search as today.
+- [x] AC-06 (state): While the window is narrow, the discover search field takes the full width and „Suchen“ and the filter button share the next line, at 360 px and 390 px (ui-discover-polish AC-05).
+- [x] AC-07 (always): The UI says „Heute beliebt“ and „Diese Woche beliebt“ instead of „Trending heute“ and „Trending diese Woche“ (shelf headings, shelf pages, arrow and „Mehr“ names), and „Sperrliste“ instead of „Blocklist“ (navigation entry, page heading, page title, the overview's links to it). The addresses stay.
+- [x] AC-08 (always): The series page shows the series type in German:
   - „Standard“, „Anime“, „Täglich“ for `standard`, `anime`, `daily`
   - the raw value for any other; „–“ when the series has none
 
   The episode fact reads „{mit Datei} von {gesamt} mit Datei“ with „{überwacht} überwacht“ on a second, muted line, also when a number is 0 („0 von 0 mit Datei“, „0 überwacht“).
-- [ ] AC-09 (always): sofarr's web UI shows every date-time it formats itself to the minute, without seconds (e.g. „17.11.2026, 10:23“): last and next runs on System, „Stand“ on discover and the queue, backups, grabs, blocklist entries, subtitle downloads. A value that is not a valid date-time shows as it came, as today. The discover „Stand“ line uses the caption style.
-- [ ] AC-10 (state): While sofarr runs in shadow mode, the file actions note reads „Dateiaktionen (Umbenennen, Ordner verschieben, Dateien löschen) gibt es nur im Live-Modus.“ followed by „Überwachung, Profil und Entfernen ohne Dateien funktionieren trotzdem.“ No configuration syntax is shown. The note follows the mode the page was loaded with, as today. The API's `file_actions.reason` carries the new text.
-- [ ] AC-11 (always): An episode row with a file shows one disclosure line below its main line (a row without a file shows none, as today):
+- [x] AC-09 (always): sofarr's web UI shows every date-time it formats itself to the minute, without seconds (e.g. „17.11.2026, 10:23“): last and next runs on System, „Stand“ on discover and the queue, backups, grabs, blocklist entries, subtitle downloads. A value that is not a valid date-time shows as it came, as today. The discover „Stand“ line uses the caption style.
+- [x] AC-10 (state): While sofarr runs in shadow mode, the file actions note reads „Dateiaktionen (Umbenennen, Ordner verschieben, Dateien löschen) gibt es nur im Live-Modus.“ followed by „Überwachung, Profil und Entfernen ohne Dateien funktionieren trotzdem.“ No configuration syntax is shown. The note follows the mode the page was loaded with, as today. The API's `file_actions.reason` carries the new text.
+- [x] AC-11 (always): An episode row with a file shows one disclosure line below its main line (a row without a file shows none, as today):
   - „Datei“ and „Untertitel“ side by side, in the muted text colour (the accent on hover and focus), with a chevron that shows whether each is open
   - each opens its content below that line in the row's full width, as today (web-ui-library AC-06, subtitles AC-12)
   - both can be open at once, as today, because file and subtitles are often checked together
   - their accessible names name the episode as today („Datei von …“, „Untertitel von …“)
-- [ ] AC-12 (always): A folder or file path breaks after a „/“ or „\“ (also both in one path) when it does not fit its box, and only inside a name when that name alone is wider than the box. It keeps the monospace font and the full path as tooltip (ui-detail-boxes AC-03).
-- [ ] AC-13 (always): The sidebar brand, the top bar on narrow windows and the browser tab show sofarr's own monogram (the pixel-art „So“ of the amigo brand, the same image as amigo-labs.dev shows for sofarr) instead of the server icon. The monogram is part of the built UI, so it shows without any request leaving sofarr. The brand link keeps its accessible name „sofarr“.
-- [ ] AC-14 (always): The pages changed here (movie list, series page with a file opened, discover start page, a preview page, Sperrliste, System) meet WCAG 2.1 AA in both palettes at 1440 px and 360 px (the automated accessibility scans of the other UI specs). The hovered title link's accent on the page ground has a contrast of at least 4.5:1 in both palettes (computed from the theme colours in a test).
-- [ ] AC-15 (state, manual: visual design): While either palette is active, the library lists, a series page, discover and the calendar read calmer than in the screenshots of 2026-11-17: green marks only states, the active place and the main action.
+- [x] AC-12 (always): A folder or file path breaks after a „/“ or „\“ (also both in one path) when it does not fit its box, and only inside a name when that name alone is wider than the box. It keeps the monospace font and the full path as tooltip (ui-detail-boxes AC-03).
+- [x] AC-13 (always): The sidebar brand, the top bar on narrow windows and the browser tab show sofarr's own monogram (the pixel-art „So“ of the amigo brand, the same image as amigo-labs.dev shows for sofarr) instead of the server icon. The monogram is part of the built UI, so it shows without any request leaving sofarr. The brand link keeps its accessible name „sofarr“.
+- [x] AC-14 (always): The pages changed here (movie list, series page with a file opened, discover start page, a preview page, Sperrliste, System) meet WCAG 2.1 AA in both palettes at 1440 px and 360 px (the automated accessibility scans of the other UI specs). The hovered title link's accent on the page ground has a contrast of at least 4.5:1 in both palettes (computed from the theme colours in a test).
+- [x] AC-15 (state, manual: visual design): While either palette is active, the library lists, a series page, discover and the calendar read calmer than in the screenshots of 2026-11-17: green marks only states, the active place and the main action.
 
 ## Technical notes
 
@@ -137,21 +137,30 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `title links and notices (AC-01, AC-02), dark/light` › `a title link rests in the text colour and turns to the accent on hover`, `a keyboard-focused title link turns to the accent and is underlined`, `the active navigation entry keeps the accent`, `the monitor toggle keeps the accent while monitored, not while unmonitored` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-02 | `title links and notices (AC-01, AC-02), dark/light` › `an info notice has the neutral muted ground and the text colour` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-03 | `discover tiles (AC-03, AC-04)` › `a tile shows the compact rating with the full text as tooltip and name` (`ui/e2e/ui-consistency.spec.ts`); `compact tile rating (ui-consistency AC-03)` (`ui/src/lib/discover/texts.test.ts`); the tile rating checks of `ui/e2e/discover-pages.spec.ts` and `ui/e2e/discover-person.spec.ts` | built |  |
-| AC-04 | `discover tiles (AC-03, AC-04)` › `the library state chip and the add button have the same height` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-05 | `discover search (AC-05, AC-06)` › `a magnifier sits at the start of the search field` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-06 | `discover search (AC-05, AC-06)` › `at 360 px …`, `at 390 px the field takes the width, „Suchen“ and „Filter“ share the next line` (`ui/e2e/ui-consistency.spec.ts`); `narrow window (AC-05)` (`ui/e2e/discover-polish.spec.ts`) | built |  |
-| AC-07 | `wording and date-times (AC-07 to AC-10)` › `„Sperrliste“ in navigation, heading and page title; the address stays`, `discover says „Heute beliebt“ and „Diese Woche beliebt“` (`ui/e2e/ui-consistency.spec.ts`); `shelves_come_in_order_with_library_state_and_ratings_that_load` (`crates/sofarr-server/src/discover/tests.rs`); `navigation` (`ui/src/lib/nav.test.ts`) | built |  |
-| AC-08 | `wording and date-times (AC-07 to AC-10)` › `the series page: type in German, episode counts on two lines, the note without syntax` (`ui/e2e/ui-consistency.spec.ts`); `series type (ui-consistency AC-08)` (`ui/src/lib/library/format.test.ts`) | built |  |
-| AC-09 | `job texts` › `writes points in time as German date and time, to the minute (ui-consistency AC-09)` (`ui/src/lib/system/format.test.ts`); `wording and date-times (AC-07 to AC-10)` › `the discover „Stand“ line is a caption to the minute` (`ui/e2e/ui-consistency.spec.ts`); the date-time checks of `ui/e2e/system.spec.ts`, `ui/e2e/discover-pages.spec.ts`, `ui/e2e/library-pages.spec.ts` | built |  |
-| AC-10 | `movie_page_shows_everything_about_one_movie` (`crates/sofarr-server/src/library_api_tests.rs`); `wording and date-times (AC-07 to AC-10)` › `the series page: …` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-11 | `episode disclosures (AC-11)` › `„Datei“ and „Untertitel“ share one muted line; both open in the full row width` (also the chevron's quarter turn when open and the accent on hover and focus) (`ui/e2e/ui-consistency.spec.ts`); the episode file test of `ui/e2e/library-detail.spec.ts` and the episode subtitles test of `ui/e2e/subtitles.spec.ts` | built |  |
-| AC-12 | `paths (AC-12)` › `a folder path breaks after its separators; the tooltip has the full path`, `a Windows path breaks after „\\“; a name wider than the box breaks inside` (`ui/e2e/ui-consistency.spec.ts`); `path pieces (ui-consistency AC-12)` (`ui/src/lib/library/format.test.ts`); `file path (AC-03)` (`ui/e2e/library-detail-boxes.spec.ts`) | built |  |
-| AC-13 | `monogram (AC-13)` › `the brand shows sofarr's monogram at 1440 px; the tab icon too`, `… at 360 px …` (`ui/e2e/ui-consistency.spec.ts`); `monogram (ui-consistency AC-13)` (`ui/src/lib/brand.test.ts`) | built |  |
-| AC-14 | `accessibility (AC-14), dark/light` › the six pages at 1440 px and 360 px, `a hovered title link has at least 4.5:1 against the page ground` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
-| AC-15 | manual: the owner checked the library lists, a series page, discover and the calendar from the before/after screenshots of this branch (green only for states, the active place and the main action) („Visual check passt“), 2026-11-17 | built |  |
+| AC-01 | `title links and notices (AC-01, AC-02), dark/light` › `a title link rests in the text colour and turns to the accent on hover`, `a keyboard-focused title link turns to the accent and is underlined`, `the active navigation entry keeps the accent`, `the monitor toggle keeps the accent while monitored, not while unmonitored` (`ui/e2e/ui-consistency.spec.ts`) | verified | e399146 |
+| AC-02 | `title links and notices (AC-01, AC-02), dark/light` › `an info notice has the neutral muted ground and the text colour` (`ui/e2e/ui-consistency.spec.ts`) | verified | e399146 |
+| AC-03 | `discover tiles (AC-03, AC-04)` › `a tile shows the compact rating with the full text as tooltip and name` (`ui/e2e/ui-consistency.spec.ts`); `compact tile rating (ui-consistency AC-03)` (`ui/src/lib/discover/texts.test.ts`); the tile rating checks of `ui/e2e/discover-pages.spec.ts` and `ui/e2e/discover-person.spec.ts` | verified | 7840a2a |
+| AC-04 | `discover tiles (AC-03, AC-04)` › `the library state chip and the add button have the same height` (`ui/e2e/ui-consistency.spec.ts`) | verified | 7840a2a |
+| AC-05 | `discover search (AC-05, AC-06)` › `a magnifier sits at the start of the search field` (`ui/e2e/ui-consistency.spec.ts`) | verified | 7840a2a |
+| AC-06 | `discover search (AC-05, AC-06)` › `at 360 px …`, `at 390 px the field takes the width, „Suchen“ and „Filter“ share the next line` (`ui/e2e/ui-consistency.spec.ts`); `narrow window (AC-05)` (`ui/e2e/discover-polish.spec.ts`) | verified | 7840a2a |
+| AC-07 | `wording and date-times (AC-07 to AC-10)` › `„Sperrliste“ in navigation, heading and page title; the address stays`, `discover says „Heute beliebt“ and „Diese Woche beliebt“` (`ui/e2e/ui-consistency.spec.ts`); `shelves_come_in_order_with_library_state_and_ratings_that_load` (`crates/sofarr-server/src/discover/tests.rs`); `navigation` (`ui/src/lib/nav.test.ts`) | verified | 54b79f4 |
+| AC-08 | `wording and date-times (AC-07 to AC-10)` › `the series page: type in German, episode counts on two lines, the note without syntax` (`ui/e2e/ui-consistency.spec.ts`); `series type (ui-consistency AC-08)` (`ui/src/lib/library/format.test.ts`) | verified | eb1474c |
+| AC-09 | `job texts` › `writes points in time as German date and time, to the minute (ui-consistency AC-09)` (`ui/src/lib/system/format.test.ts`); `wording and date-times (AC-07 to AC-10)` › `the discover „Stand“ line is a caption to the minute` (`ui/e2e/ui-consistency.spec.ts`); the date-time checks of `ui/e2e/system.spec.ts`, `ui/e2e/discover-pages.spec.ts`, `ui/e2e/library-pages.spec.ts` | verified | eb1474c |
+| AC-10 | `movie_page_shows_everything_about_one_movie` (`crates/sofarr-server/src/library_api_tests.rs`); `wording and date-times (AC-07 to AC-10)` › `the series page: …` (`ui/e2e/ui-consistency.spec.ts`) | verified | 54b79f4 |
+| AC-11 | `episode disclosures (AC-11)` › `„Datei“ and „Untertitel“ share one muted line; both open in the full row width` (also the chevron's quarter turn when open and the accent on hover and focus) (`ui/e2e/ui-consistency.spec.ts`); the episode file test of `ui/e2e/library-detail.spec.ts` and the episode subtitles test of `ui/e2e/subtitles.spec.ts` | verified | e399146 |
+| AC-12 | `paths (AC-12)` › `a folder path breaks after its separators; the tooltip has the full path`, `a Windows path breaks after „\\“; a name wider than the box breaks inside` (`ui/e2e/ui-consistency.spec.ts`); `path pieces (ui-consistency AC-12)` (`ui/src/lib/library/format.test.ts`); `file path (AC-03)` (`ui/e2e/library-detail-boxes.spec.ts`) | verified | 2b11fc5 |
+| AC-13 | `monogram (AC-13)` › `the brand shows sofarr's monogram at 1440 px; the tab icon too`, `… at 360 px …` (`ui/e2e/ui-consistency.spec.ts`); `monogram (ui-consistency AC-13)` (`ui/src/lib/brand.test.ts`) | verified | 2b11fc5 |
+| AC-14 | `accessibility (AC-14), dark/light` › the six pages at 1440 px and 360 px, `a hovered title link has at least 4.5:1 against the page ground` (`ui/e2e/ui-consistency.spec.ts`) | verified | 2b11fc5 |
+| AC-15 | manual: the owner checked the library lists, a series page, discover and the calendar from the before/after screenshots of this branch (green only for states, the active place and the main action) („Visual check passt“), 2026-11-17 | verified | 9b803b0 |
+
+## Summary
+
+> Completed: 2026-11-17
+
+- Title links rest in the text colour and take the accent only on hover and keyboard focus; info notices use the neutral muted ground, so green marks only states, the active place and the main action.
+- Discover tiles show the compact rating („★ 7,8“, full text as tooltip and name), chip and add button share one height, the search field has a magnifier, and on narrow windows „Suchen“ and „Filter“ share the line below the field.
+- German wording („Heute beliebt“, „Diese Woche beliebt“, „Sperrliste“, series types), episode counts on two lines, every date-time to the minute, and the file actions note without configuration syntax (server and UI).
+- Episode rows carry one muted line of „Datei“/„Untertitel“ toggles; paths break after their separators (`PathText`, `pathPieces`); sidebar, top bar and tab show sofarr's monogram (`ui/static/favicon.svg`, guarded against drift by a unit test).
 
 ## Decisions
 
