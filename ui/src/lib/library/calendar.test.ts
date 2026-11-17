@@ -4,6 +4,7 @@ import {
   dayTitle,
   daysOf,
   isDay,
+  monthGrid,
   rangeOf,
   rangeTitle,
   step,
@@ -57,5 +58,65 @@ describe('calendar ranges (AC-07)', () => {
     expect(isDay('12.11.2026')).toBe(false);
     expect(isDay(null)).toBe(false);
     expect(today(new Date(2026, 10, 12, 23, 30))).toBe('2026-11-12');
+  });
+});
+
+/** Rows, first and last day, and the outside days of a month's grid. */
+const shape = (day: string) => {
+  const weeks = monthGrid(day);
+  return {
+    rows: weeks.length,
+    first: weeks[0]?.[0]?.day,
+    last: weeks.at(-1)?.at(-1)?.day,
+    outside: weeks
+      .flat()
+      .filter((c) => c.outside)
+      .map((c) => c.day),
+  };
+};
+
+describe('month grid (ui-calendar AC-01)', () => {
+  it('a month starting on Monday has no leading outside days', () => {
+    // June 2026 starts on a Monday and ends on a Tuesday.
+    expect(shape('2026-06-15')).toEqual({
+      rows: 5,
+      first: '2026-06-01',
+      last: '2026-07-05',
+      outside: ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05'],
+    });
+  });
+
+  it('February of a non-leap year starting on Monday has exactly four rows', () => {
+    expect(shape('2027-02-10')).toEqual({
+      rows: 4,
+      first: '2027-02-01',
+      last: '2027-02-28',
+      outside: [],
+    });
+  });
+
+  it('a leap February and a month needing six rows', () => {
+    expect(shape('2028-02-29').rows).toBe(5);
+    expect(
+      monthGrid('2028-02-01')
+        .flat()
+        .filter((c) => !c.outside),
+    ).toHaveLength(29);
+    // November 2026 starts on a Sunday: six rows.
+    const november = shape('2026-11-16');
+    expect(november.rows).toBe(6);
+    expect(november.first).toBe('2026-10-26');
+    expect(november.last).toBe('2026-12-06');
+  });
+
+  it('every row has seven days, Monday first, in order', () => {
+    for (const week of monthGrid('2026-08-01')) {
+      expect(week).toHaveLength(7);
+      expect(dayTitle(week[0]?.day ?? '')).toMatch(/^Mo, /);
+    }
+    const days = monthGrid('2026-08-01')
+      .flat()
+      .map((c) => c.day);
+    expect(days).toEqual(daysOf({ from: days[0] ?? '', to: days.at(-1) ?? '' }));
   });
 });

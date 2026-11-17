@@ -10,9 +10,11 @@
   import type { ApiFailure } from '#lib/api/http.ts';
   import { getCalendar } from '#lib/api/library.ts';
   import {
+    WEEKDAYS,
     dayTitle,
     daysOf,
     isDay,
+    monthGrid,
     rangeOf,
     rangeTitle,
     step,
@@ -23,7 +25,8 @@
   import { REFRESH_MS } from '#lib/resource.svelte.ts';
 
   // The calendar (spec web-ui-library AC-07): a week or a month of release and air dates,
-  // starting at the current week; span and date are part of the page address.
+  // starting at the current week; span and date are part of the page address. The month is a
+  // grid of weeks, the week seven columns, both an agenda on narrow windows (spec ui-calendar).
   const span: Span = $derived(page.url.searchParams.get('ansicht') === 'monat' ? 'monat' : 'woche');
   const day = $derived.by(() => {
     const value = page.url.searchParams.get('datum');
@@ -57,13 +60,18 @@
     };
   });
 
-  const days = $derived(
-    daysOf(range).map((d) => ({
-      day: d,
-      entries: (answer?.entries ?? []).filter((e) => e.date === d),
-    })),
+  const entriesOf = (d: string) => (answer?.entries ?? []).filter((e) => e.date === d);
+  const weekDays = $derived(daysOf(range).map((d) => ({ day: d, entries: entriesOf(d) })));
+  const monthDays = $derived(
+    monthGrid(day)
+      .flat()
+      .map((cell) => ({
+        day: cell.day,
+        outside: cell.outside,
+        entries: cell.outside ? [] : entriesOf(cell.day),
+      })),
   );
-  const shown = $derived(span === 'woche' ? days : days.filter((d) => d.entries.length > 0));
+  const now = today();
 
   function show(nextSpan: Span, nextDay: string): void {
     const params = new URLSearchParams();
@@ -81,28 +89,18 @@
 <h1>Kalender</h1>
 
 <div class="toolbar">
-  <div class="group" role="group" aria-label="Zeitraum">
-    <button
-      type="button"
-      class="btn"
-      aria-pressed={span === 'woche'}
-      onclick={() => show('woche', day)}
-    >
+  <div class="am-seg" role="group" aria-label="Zeitraum">
+    <button type="button" aria-pressed={span === 'woche'} onclick={() => show('woche', day)}>
       Woche
     </button>
-    <button
-      type="button"
-      class="btn"
-      aria-pressed={span === 'monat'}
-      onclick={() => show('monat', day)}
-    >
+    <button type="button" aria-pressed={span === 'monat'} onclick={() => show('monat', day)}>
       Monat
     </button>
   </div>
   <div class="group">
     <button
       type="button"
-      class="btn"
+      class="btn icon-only"
       aria-label={span === 'woche' ? 'Vorherige Woche' : 'Vorheriger Monat'}
       onclick={() => show(span, step(span, day, -1))}
     >
@@ -111,7 +109,7 @@
     <button type="button" class="btn" onclick={() => show(span, today())}>Heute</button>
     <button
       type="button"
-      class="btn"
+      class="btn icon-only"
       aria-label={span === 'woche' ? 'Nächste Woche' : 'Nächster Monat'}
       onclick={() => show(span, step(span, day, 1))}
     >
@@ -135,20 +133,50 @@
       {answer.note ?? 'In diesem Zeitraum erscheint nichts.'}
     </p>
   {/if}
-  {#if shown.length > 0 && (span === 'woche' || answer.entries.length > 0)}
-    <ol class="days">
-      {#each shown as d (d.day)}
-        <li class="box day" class:today={d.day === today()} data-day={d.day}>
-          <h3 class="box-header">
-            {dayTitle(d.day)}{#if d.day === today()}
-              · heute{/if}
+  {#if span === 'monat'}
+    <div class="month">
+      <div class="weekdays" aria-hidden="true">
+        {#each WEEKDAYS as weekday (weekday)}<span>{weekday}</span>{/each}
+      </div>
+      <ol class="days">
+        {#each monthDays as d (d.day)}
+          <li
+            class="cell"
+            class:today={d.day === now}
+            class:empty={d.entries.length === 0}
+            data-day={d.day}
+            data-outside={d.outside ? '' : undefined}
+          >
+            <h3 aria-label={`${dayTitle(d.day)}${d.day === now ? ' · heute' : ''}`}>
+              <span class="number" aria-hidden="true">{Number(d.day.slice(8))}</span>
+              <span class="full" aria-hidden="true"
+                >{dayTitle(d.day)}{#if d.day === now}&nbsp;· heute{/if}</span
+              >
+            </h3>
+            {#if d.entries.length > 0}
+              <ul class="entries">
+                {#each d.entries as entry, i (i)}
+                  <li><CalendarEntryLine {entry} dot cut /></li>
+                {/each}
+              </ul>
+            {/if}
+          </li>
+        {/each}
+      </ol>
+    </div>
+  {:else}
+    <ol class="days week">
+      {#each weekDays as d (d.day)}
+        <li class="column" class:today={d.day === now} data-day={d.day}>
+          <h3>
+            {dayTitle(d.day)}{#if d.day === now}&nbsp;· heute{/if}
           </h3>
           {#if d.entries.length === 0}
-            <p class="box-row muted">Nichts.</p>
+            <p class="muted nothing">Nichts.</p>
           {:else}
             <ul class="entries">
               {#each d.entries as entry, i (i)}
-                <li class="box-row"><CalendarEntryLine {entry} /></li>
+                <li><CalendarEntryLine {entry} dot /></li>
               {/each}
             </ul>
           {/if}
@@ -171,9 +199,9 @@
     gap: var(--base-size-4);
   }
 
-  .group button[aria-pressed='true'] {
-    border-color: var(--borderColor-accent-emphasis);
-    box-shadow: inset 0 0 0 1px var(--borderColor-accent-emphasis);
+  .icon-only {
+    width: var(--control-medium-size);
+    padding: 0;
   }
 
   .range {
@@ -185,26 +213,165 @@
     color: var(--fgColor-muted);
   }
 
-  .days {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-    gap: var(--base-size-12);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .day.today {
-    border-color: var(--borderColor-accent-emphasis);
-  }
-
+  .days,
   .entries {
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  p {
+  h3 {
     margin: 0;
+    font-size: var(--text-body-size-small);
+    font-weight: var(--base-text-weight-semibold);
+  }
+
+  .entries {
+    display: flex;
+    flex-direction: column;
+    gap: var(--base-size-8);
+    min-width: 0;
+  }
+
+  /* Month grid. */
+  .month {
+    overflow: hidden;
+    border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-large);
+    background: var(--bgColor-surface);
+  }
+
+  .weekdays,
+  .month .days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .weekdays span {
+    padding: var(--base-size-8) var(--base-size-12);
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+    color: var(--fgColor-caption);
+    font-size: 12px;
+    font-weight: var(--base-text-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .cell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--base-size-8);
+    min-width: 0;
+    min-height: 7rem;
+    padding: var(--base-size-8);
+    border-right: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+  }
+
+  .cell:nth-child(7n) {
+    border-right: 0;
+  }
+
+  /* Outside days: their numbers in the muted text colour, which keeps AA contrast. */
+  .cell[data-outside] {
+    background: var(--bgColor-default);
+    color: var(--fgColor-caption);
+  }
+
+  .cell[data-outside] h3 {
+    font-weight: var(--base-text-weight-normal);
+  }
+
+  .cell .full {
+    display: none;
+  }
+
+  .cell.today .number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    border-radius: var(--borderRadius-full);
+    background: var(--am-accent-solid);
+    color: var(--am-on-accent);
+  }
+
+  /* Week columns. */
+  .week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--base-size-8);
+  }
+
+  .column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--base-size-8);
+    min-width: 0;
+    padding: var(--base-size-12);
+    border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-large);
+    background: var(--bgColor-surface);
+  }
+
+  .column.today {
+    border-color: var(--borderColor-accent-emphasis);
+  }
+
+  .column.today h3 {
+    color: var(--fgColor-accent);
+  }
+
+  .nothing {
+    margin: 0;
+    font-size: var(--text-body-size-small);
+  }
+
+  /* Agenda on narrow windows. */
+  @media (max-width: 767.98px) {
+    .month {
+      border: 0;
+      background: none;
+    }
+
+    .weekdays {
+      display: none;
+    }
+
+    .month .days,
+    .week {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--base-size-8);
+    }
+
+    .cell[data-outside],
+    .cell.empty {
+      display: none;
+    }
+
+    .cell {
+      min-height: 0;
+      padding: var(--base-size-12);
+      border: var(--borderWidth-thin) solid var(--borderColor-default);
+      border-radius: var(--borderRadius-large);
+      background: var(--bgColor-surface);
+    }
+
+    .cell.today {
+      border-color: var(--borderColor-accent-emphasis);
+    }
+
+    .cell .number {
+      display: none;
+    }
+
+    .cell .full {
+      display: inline;
+    }
+
+    .cell.today .full {
+      color: var(--fgColor-accent);
+    }
   }
 </style>

@@ -98,3 +98,21 @@ export function today(now: Date = new Date()): string {
   const date = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${date}`;
 }
+
+/** One cell of the month grid; `outside` for days of the previous or next month. */
+export type GridDay = { readonly day: string; readonly outside: boolean };
+
+/** The weeks (Monday to Sunday) that touch the month of `day` (spec ui-calendar AC-01). */
+export function monthGrid(day: string): GridDay[][] {
+  const { from, to } = rangeOf('monat', day);
+  const weeks: GridDay[][] = [];
+  for (let start = weekStart(from); start <= to; start = addDays(start, 7)) {
+    weeks.push(
+      daysOf({ from: start, to: addDays(start, 6) }).map((d) => ({
+        day: d,
+        outside: d < from || d > to,
+      })),
+    );
+  }
+  return weeks;
+}

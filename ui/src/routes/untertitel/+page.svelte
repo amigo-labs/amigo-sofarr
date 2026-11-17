@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '#lib/components/PageHeader.svelte';
   import { onMount } from 'svelte';
   import Flash from '#lib/components/Flash.svelte';
   import Loading from '#lib/components/Loading.svelte';
@@ -45,7 +46,7 @@
 
 {#if overview.data !== null}
   {@const o = overview.data}
-  <h1>Untertitel</h1>
+  <PageHeader title="Untertitel" />
   {#if o.reason !== null}
     <Flash tone="warning">
       <p data-testid="subtitles-off">Keine Untertitelsuche: {o.reason}</p>
@@ -89,14 +90,16 @@
     <RecentList recent={o.recent} />
   </section>
 {:else if overview.failure !== null}
+  <PageHeader title="Untertitel" />
   <PageError
+    sub
     title="Die Untertitel sind nicht verfügbar"
     message={overview.failure.message}
     action="Erneut versuchen"
     onaction={() => void overview.reload()}
   />
 {:else}
-  <h1>Untertitel</h1>
+  <PageHeader title="Untertitel" />
   <Loading label="Untertitel werden geladen …" />
 {/if}
 

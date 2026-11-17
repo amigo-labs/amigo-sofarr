@@ -1,4 +1,6 @@
 <script lang="ts">
+  import brandIcon from '@primer/octicons/build/svg/server-24.svg?raw';
+  import Icon from '#lib/components/Icon.svelte';
   import Flash from '#lib/components/Flash.svelte';
   import { logIn, session } from '#lib/auth/session.svelte.ts';
 
@@ -47,6 +49,7 @@
 </svelte:head>
 
 <section class="login">
+  <span class="login-icon"><Icon svg={brandIcon} /></span>
   <h1>Bei sofarr anmelden</h1>
 
   {#if session.expired}
@@ -109,6 +112,12 @@
 
   h1 {
     text-align: center;
+  }
+
+  .login-icon {
+    display: flex;
+    justify-content: center;
+    color: var(--fgColor-accent);
   }
 
   form {

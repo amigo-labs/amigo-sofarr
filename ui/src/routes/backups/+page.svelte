@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '#lib/components/PageHeader.svelte';
   import downloadIcon from '@primer/octicons/build/svg/download-16.svg?raw';
   import trashIcon from '@primer/octicons/build/svg/trash-16.svg?raw';
   import { onMount } from 'svelte';
@@ -62,18 +63,19 @@
   <title>Backups – sofarr</title>
 </svelte:head>
 
-<div class="head">
-  <h1>Backups</h1>
-  <button
-    type="button"
-    class="btn btn-primary"
-    disabled={busy}
-    onclick={() =>
-      void act(createBackup, (b) => `Sicherung „${b.name}“ erstellt.`, 'Sicherung erstellen')}
-  >
-    Sicherung erstellen
-  </button>
-</div>
+<PageHeader title="Backups">
+  {#snippet actions()}
+    <button
+      type="button"
+      class="btn btn-primary"
+      disabled={busy}
+      onclick={() =>
+        void act(createBackup, (b) => `Sicherung „${b.name}“ erstellt.`, 'Sicherung erstellen')}
+    >
+      Sicherung erstellen
+    </button>
+  {/snippet}
+</PageHeader>
 
 {#if backups.data !== null}
   {@const list = backups.data}
@@ -208,14 +210,6 @@
 </Dialog>
 
 <style>
-  .head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--base-size-8);
-  }
-
   .rows {
     margin: 0;
     padding: 0;

@@ -397,6 +397,22 @@ p.box-row {
   margin: 0;
 }
 
+/* List rows: the hover ground, the title in semibold (spec ui-overview-pages AC-06). */
+li.box-row:not(.day-group):hover {
+  background: var(--am-hover);
+}
+
+li.box-row:not(.day-group) a.ui-link {
+  font-weight: var(--base-text-weight-semibold);
+}
+
+/* An icon-only button is square. */
+.btn.icon-only {
+  justify-content: center;
+  width: var(--control-medium-size);
+  padding: 0;
+}
+
 /* Status labels: filled chips with a dot (`am-chip`, spec ui-shell-redesign AC-11). */
 .label {
   display: inline-flex;

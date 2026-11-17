@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '#lib/components/PageHeader.svelte';
   import { onMount } from 'svelte';
   import Flash from '#lib/components/Flash.svelte';
   import Loading from '#lib/components/Loading.svelte';
@@ -19,12 +20,13 @@
 </svelte:head>
 
 {#if system.data !== null}
-  <div class="page-head">
-    <h1>System</h1>
-    {#if system.slow}
-      <span class="muted" role="status">Wird aktualisiert …</span>
-    {/if}
-  </div>
+  <PageHeader title="System">
+    {#snippet status()}
+      {#if system.slow}
+        <span class="muted" role="status">Wird aktualisiert …</span>
+      {/if}
+    {/snippet}
+  </PageHeader>
   {#if system.failure !== null}
     <Flash tone="danger">
       <p>
@@ -38,7 +40,9 @@
   {/if}
   <SystemView system={system.data} />
 {:else if system.failure !== null}
+  <PageHeader title="System" />
   <PageError
+    sub
     title="Der Systemstatus ist nicht verfügbar"
     message={system.failure.message}
     hint="sofarr versucht es gleich von selbst erneut."
@@ -46,15 +50,6 @@
     onaction={() => void system.reload()}
   />
 {:else}
-  <h1>System</h1>
+  <PageHeader title="System" />
   <Loading label="Systemstatus wird geladen …" />
 {/if}
-
-<style>
-  .page-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--base-size-8) var(--base-size-16);
-  }
-</style>

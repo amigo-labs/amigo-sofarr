@@ -360,8 +360,9 @@
       flex-basis: 100%;
     }
 
+    /* At most two columns on narrow windows (spec ui-list-toolbar AC-10). */
     .panel {
-      grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 </style>

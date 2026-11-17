@@ -134,6 +134,21 @@ for (const scheme of PALETTES) {
       await expectNoViolations(page);
     });
 
+    test('calendar: month grid, week columns and agenda (ui-calendar AC-07)', async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`${LIBRARY}/kalender?ansicht=monat`);
+      await settle(page);
+      await expectNoViolations(page);
+      await page.goto(`${LIBRARY}/kalender`);
+      await settle(page);
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
+      await expectNoViolations(page);
+      await page.goto(`${LIBRARY}/kalender?ansicht=monat`);
+      await settle(page);
+      await expectNoViolations(page);
+    });
+
     test('open filter panel and chips (ui-list-toolbar AC-11)', async ({ page }) => {
       await page.goto(`${LIBRARY}/filme?ueberwacht=ja&tag=1&sortierung=jahr&richtung=ab`);
       await settle(page);

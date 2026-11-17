@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §3, sofarr.md §9 D24, sofarr.md §9 D30]
@@ -44,40 +44,40 @@ Terms:
 ### Out of scope
 
 - The toolbar, filters and attribution — because they are `ui-list-toolbar`.
-- The detail pages and the discover cards — because they are `ui-detail-redesign` and `ui-pages-redesign`; they keep the full rating text until then.
+- The detail pages and the discover cards — because they are `ui-detail-head` and `ui-detail-boxes` and `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`; they keep the full rating text until then.
 - The bulk actions themselves (the "Auswahl" bar, its dialogs) — because they work and only their trigger visibility changes here.
 - Poster sizes and the number of grid columns — because the current auto-fill grid already fills 1440 px with seven columns.
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): A card shows its poster (or the placeholder of web-ui-library AC-21), and below it the title (a UI link), the year, the subtitle where one exists, and one status chip.
+- [x] AC-01 (always): A card shows its poster (or the placeholder of web-ui-library AC-21), and below it the title (a UI link), the year, the subtitle where one exists, and one status chip.
   - The chip shows the quality in the accent tone, „fehlt“ in the danger tone, or for a series „x von y Dateien“ in the neutral tone.
   - The labels of today (e.g. „Cutoff nicht erreicht“, „3 fehlen“, „komplett“) follow as chips in their tone.
   - A movie without a file shows „fehlt“ once, not twice: the status chip replaces today's „fehlt“ label.
   - While ratings are shown, the rating (AC-03) follows the chips.
-- [ ] AC-02 (always): A row shows a small poster, the title with year and subtitle in one line, and the same chips as the card in a second line.
+- [x] AC-02 (always): A row shows a small poster, the title with year and subtitle in one line, and the same chips as the card in a second line.
   - From 768 px wide, the size (movies), the rating and the monitor toggle sit at the end of the row, right-aligned.
   - Below 768 px, the rating follows the chips and the toggle stays at the row's end.
   - Each row is at most 64 px high at 1280 px, as long as its title line fits one line.
   - A selected row has the `accent-subtle` ground.
-- [ ] AC-03 (state): While ratings are shown, each item shows its rating as „★ 7,4“, or „–“ without a rating.
+- [x] AC-03 (state): While ratings are shown, each item shows its rating as „★ 7,4“, or „–“ without a rating.
   - The rating's tooltip and accessible name are the full text „IMDb 7,4 (24.000 Stimmen)“, or „IMDb –“.
   - This revises imdb-ratings AC-04 for the movie and series lists.
-- [ ] AC-04 (always): The monitor toggle of an item is an icon button with the German name „Überwachen „{Titel}““.
+- [x] AC-04 (always): The monitor toggle of an item is an icon button with the German name „Überwachen „{Titel}““.
   - It is pressed (`aria-pressed="true"`) while the item is monitored.
   - Its icon is a filled bookmark while monitored and an outline bookmark otherwise.
   - Its tooltip says the state and what a press does, as today.
   - On a card it sits in the poster's top right corner on its own ground, against which the icon has a contrast of at least 3:1 in both palettes; in a row it sits at the row's end.
   - Pressing it saves at once, as web-ui-library AC-10 requires.
-- [ ] AC-05 (state): While no item is selected, on a hover device an item's selection checkbox is visible only while the pointer is over the item or the focus is inside it; on a touch device it is always visible.
+- [x] AC-05 (state): While no item is selected, on a hover device an item's selection checkbox is visible only while the pointer is over the item or the focus is inside it; on a touch device it is always visible.
   - The checkbox keeps its name „„{Titel}“ auswählen“ and stays in the Tab order, so keyboard users reach it.
   - On a card it sits in the poster's top left corner.
-- [ ] AC-06 (state): While in selection mode, every item shows its selection checkbox, and a selected card shows an accent outline around its poster. When the last item is deselected, the checkboxes hide again except where the pointer or focus is.
-- [ ] AC-07 (always): Monitored and unmonitored items look different without colour alone: an unmonitored item (card or row) shows its poster dimmed and its toggle as an outline bookmark; the toggle and the checkbox themselves are not dimmed.
-- [ ] AC-08 (state): While the window is narrow (below 768 px), cards and rows fit 360 px without horizontal scrolling, every control stays reachable, and the touch targets of the toggle and the checkbox are at least 32 × 32 px.
-- [ ] AC-09 (always): The lists meet WCAG 2.1 AA in both palettes in list and poster view, with an item selected and on narrow screens (the axe scans of the list pages), and every item's controls are reachable by keyboard with a visible focus.
-- [ ] AC-10 (always): The speed limits of web-ui-library AC-04 and imdb-ratings AC-11 still hold (the perf test with 2,500 movies).
-- [ ] AC-11 (state, manual: visual design): While either palette is active, the movie and series lists look complete at 1440 px and 360 px in list and poster view, with and without a selection: posters carry the grid, nothing overlaps, the chips and icons read clearly over light and dark posters.
+- [x] AC-06 (state): While in selection mode, every item shows its selection checkbox, and a selected card shows an accent outline around its poster. When the last item is deselected, the checkboxes hide again except where the pointer or focus is.
+- [x] AC-07 (always): Monitored and unmonitored items look different without colour alone: an unmonitored item (card or row) shows its poster dimmed and its toggle as an outline bookmark; the toggle and the checkbox themselves are not dimmed.
+- [x] AC-08 (state): While the window is narrow (below 768 px), cards and rows fit 360 px without horizontal scrolling, every control stays reachable, and the touch targets of the toggle and the checkbox are at least 32 × 32 px.
+- [x] AC-09 (always): The lists meet WCAG 2.1 AA in both palettes in list and poster view, with an item selected and on narrow screens (the axe scans of the list pages), and every item's controls are reachable by keyboard with a visible focus.
+- [x] AC-10 (always): The speed limits of web-ui-library AC-04 and imdb-ratings AC-11 still hold (the perf test with 2,500 movies).
+- [x] AC-11 (state, manual: visual design): While either palette is active, the movie and series lists look complete at 1440 px and 360 px in list and poster view, with and without a selection: posters carry the grid, nothing overlaps, the chips and icons read clearly over light and dark posters.
 
 ## Technical notes
 
@@ -89,7 +89,7 @@ Terms:
   - `ratingCompactText` next to `ratingWithVotesText` in `ui/src/lib/imdb/imdb.ts`, unit-tested.
   - `rows.ts` carries both texts.
   - `data-testid="rating"` stays on the element; its accessible name carries the full text (`aria-label` plus `title`).
-- **Monitor toggle:** `MonitorButton.svelte` gets an `icon` variant for the lists. The detail pages keep the variant with text until `ui-detail-redesign`.
+- **Monitor toggle:** `MonitorButton.svelte` gets an `icon` variant for the lists. The detail pages keep the variant with text until `ui-detail-head` and `ui-detail-boxes`.
 - **Chips:** `Label` with the tone `accent` from `ui-shell-redesign`; `rows.ts` returns the status chip as the first label, so `file` as plain text goes.
 - **Hover:** done in CSS with `@media (hover: hover)` and `:focus-within`, plus a `selecting` class on the list while in selection mode.
 - **Tests:**
@@ -118,23 +118,32 @@ Terms:
 | 64 px rows | A 36 px poster thumbnail (2:3 → 54 px high) plus 4 px padding; the title line (20 px) and the chip line (22 px) fit beside it | Low |
 | Touch devices always show the checkbox | They cannot hover; a long press would be hidden behavior | Low |
 
+## Summary
+
+> Completed: 2026-11-17
+
+- Cards and rows of the movie and series lists show one status chip first (quality in accent, „fehlt“ in danger, „x von y Dateien“ neutral for series), followed by the labels of today as chips.
+- The rating shows compactly as „★ 7,4“ with the full „IMDb 7,4 (24.000 Stimmen)“ as tooltip and accessible name (revises imdb-ratings AC-04 for the lists).
+- The monitor toggle is a bookmark icon button on the poster's corner (card) or at the row's end; unmonitored posters are dimmed.
+- The selection checkbox shows on hover, on focus, in selection mode and always on touch devices; selected rows get the accent-subtle ground, selected cards an accent outline.
+
 ## Open questions
 
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `cards (AC-01, AC-04)` › `a card shows the quality chip in accent, "fehlt" once, labels after it`, `a series card shows its files as a neutral chip first` (`ui/e2e/library-items.spec.ts`); `list rows (AC-02, AC-06)` (`ui/src/lib/library/rows.test.ts`) | built |  |
-| AC-02 | `rows (AC-02)` › `a row is at most 64 px high; rating and toggle at its end`, `a selected row has the accent-subtle ground` (`ui/e2e/library-items.spec.ts`); `cards on narrow screens …` (`ui/e2e/library-lists.spec.ts`) | built |  |
-| AC-03 | `every movie shows rating and votes, "–" without; attribution with the date`, `every series shows rating and votes, "–" without`, `cards on narrow screens show the rating` (`ui/e2e/imdb-ratings.spec.ts`, now `★ x,y` with the full text as name and tooltip); `shows the compact rating of the library lists` (`ui/src/lib/imdb/imdb.test.ts`); `rows carry the compact rating and the full text` (`rows.test.ts`) | built |  |
-| AC-04 | `cards (AC-01, AC-04)` › `the monitor toggle is an icon in the top right corner of the poster`, `the toggle's icon has 3:1 against its own ground (AC-04, dark/light)` (`ui/e2e/library-items.spec.ts`); `monitoring from the list (AC-10)` (`ui/e2e/library-lists.spec.ts`) | built |  |
-| AC-05 | `selection checkbox on a hover device (AC-05, AC-06)` › `shows on hover and focus only, stays in the Tab order`; `touch device (AC-05, AC-08)` (`ui/e2e/library-items.spec.ts`) | built |  |
-| AC-06 | `selection checkbox on a hover device (AC-05, AC-06)` › `in selection mode every checkbox shows; a selected card is outlined` (`ui/e2e/library-items.spec.ts`) | built |  |
-| AC-07 | `monitored or not (AC-07)` › `an unmonitored poster is dimmed, its controls are not` (`ui/e2e/library-items.spec.ts`) | built |  |
-| AC-08 | `touch device (AC-05, AC-08)` › `checkboxes always show; targets are at least 32 px; nothing scrolls sideways` (`ui/e2e/library-items.spec.ts`); `narrow screens …` (`ui/e2e/library-lists.spec.ts`) | built |  |
-| AC-09 | `axe, dark theme` and `axe, light theme` › `list view with a selection, poster grid on a narrow screen (ui-list-items AC-09)`, `poster grid with a selection and the bulk dialog`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-10 | `movie list speed (AC-04)` (`ui/e2e/library-perf.spec.ts`) | built |  |
-| AC-11 |      | open   |        |
+| AC-01 | `cards (AC-01, AC-04)` › `a card shows the quality chip in accent, "fehlt" once, labels after it`, `a series card shows its files as a neutral chip first` (`ui/e2e/library-items.spec.ts`); `list rows (AC-02, AC-06)` (`ui/src/lib/library/rows.test.ts`) | verified | f0fc20d |
+| AC-02 | `rows (AC-02)` › `a row is at most 64 px high; rating and toggle at its end`, `a selected row has the accent-subtle ground` (`ui/e2e/library-items.spec.ts`); `cards on narrow screens …` (`ui/e2e/library-lists.spec.ts`) | verified | f0fc20d |
+| AC-03 | `every movie shows rating and votes, "–" without; attribution with the date`, `every series shows rating and votes, "–" without`, `cards on narrow screens show the rating` (`ui/e2e/imdb-ratings.spec.ts`, now `★ x,y` with the full text as name and tooltip); `shows the compact rating of the library lists` (`ui/src/lib/imdb/imdb.test.ts`); `rows carry the compact rating and the full text` (`rows.test.ts`) | verified | f0fc20d |
+| AC-04 | `cards (AC-01, AC-04)` › `the monitor toggle is an icon in the top right corner of the poster`, `the toggle's icon has 3:1 against its own ground (AC-04, dark/light)` (`ui/e2e/library-items.spec.ts`); `monitoring from the list (AC-10)` (`ui/e2e/library-lists.spec.ts`) | verified | f0fc20d |
+| AC-05 | `selection checkbox on a hover device (AC-05, AC-06)` › `shows on hover and focus only, stays in the Tab order`; `touch device (AC-05, AC-08)` (`ui/e2e/library-items.spec.ts`) | verified | f0fc20d |
+| AC-06 | `selection checkbox on a hover device (AC-05, AC-06)` › `in selection mode every checkbox shows; a selected card is outlined` (`ui/e2e/library-items.spec.ts`) | verified | f0fc20d |
+| AC-07 | `monitored or not (AC-07)` › `an unmonitored poster is dimmed, its controls are not` (`ui/e2e/library-items.spec.ts`) | verified | f0fc20d |
+| AC-08 | `touch device (AC-05, AC-08)` › `checkboxes always show; targets are at least 32 px; nothing scrolls sideways` (`ui/e2e/library-items.spec.ts`); `narrow screens …` (`ui/e2e/library-lists.spec.ts`) | verified | f0fc20d |
+| AC-09 | `axe, dark theme` and `axe, light theme` › `list view with a selection, poster grid on a narrow screen (ui-list-items AC-09)`, `poster grid with a selection and the bulk dialog`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | verified | f0fc20d |
+| AC-10 | `large library (AC-04)` › `first entries within 1 s, filter and search updates within 200 ms` (`ui/e2e/library-perf.spec.ts`) | verified | f0fc20d |
+| AC-11 | manual: the owner checked list and poster view with and without a selection, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | verified | d51afe1 |
 
 ## Decisions
 

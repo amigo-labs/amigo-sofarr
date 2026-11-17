@@ -28,3 +28,10 @@ export async function settle(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(page.getByText(/wird geladen|werden geladen/)).toHaveCount(0);
 }
+
+/** Opens the filter panel of the discover start page (spec ui-discover-polish AC-01). */
+export async function openDiscoverFilters(page: Page): Promise<void> {
+  const button = page.getByRole('button', { name: /^Filter( \(\d+\))?$/ });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+}

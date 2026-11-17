@@ -19,9 +19,9 @@
   import { createTitleStates } from '../states.svelte';
   import { discover, ensureStatus } from '../status.svelte';
   import AddDialog from '../components/AddDialog.svelte';
-  import FilterForm from '../components/DiscoverFilters.svelte';
   import FreshnessNote from '../components/FreshnessNote.svelte';
-  import SearchForm from '../components/SearchForm.svelte';
+  import DiscoverToolbar from '../components/DiscoverToolbar.svelte';
+  import ShelfArrows from '../components/ShelfArrows.svelte';
   import StatusGate from '../components/StatusGate.svelte';
   import TitleList from '../components/TitleList.svelte';
 
@@ -119,8 +119,7 @@
 
 <StatusGate title="Entdecken" home={false}>
   <h1>Entdecken</h1>
-  <SearchForm />
-  <FilterForm {filters} {genres} {ratings} onchange={apply} />
+  <DiscoverToolbar {filters} {genres} {ratings} onchange={apply} />
 
   {#if filtered}
     <section aria-labelledby="results-title" class="section">
@@ -156,11 +155,16 @@
       <section class="section" aria-labelledby="shelf-{shelf.id}" data-testid="shelf">
         <div class="shelf-head">
           <h2 id="shelf-{shelf.id}">{shelf.title}</h2>
-          {#if shelf.has_more}
-            <a class="ui-link" href={shelfHref(shelf.id)}
-              >Mehr<span class="sr-only">{` aus „${shelf.title}“`}</span></a
-            >
-          {/if}
+          <span class="shelf-tools">
+            {#if shelf.has_more}
+              <a class="ui-link" href={shelfHref(shelf.id)}
+                >Mehr<span class="sr-only">{` aus „${shelf.title}“`}</span></a
+              >
+            {/if}
+            {#if shelf.error === null && shelf.items.length > 0}
+              <ShelfArrows name={shelf.title} />
+            {/if}
+          </span>
         </div>
         {#if shelf.error !== null}
           <p class="muted">{shelf.error}</p>
@@ -207,10 +211,16 @@
     min-width: 0;
   }
 
+  .shelf-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--base-size-12);
+  }
+
   .shelf-head {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: var(--base-size-8);
   }
