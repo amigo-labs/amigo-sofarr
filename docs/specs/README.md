@@ -37,7 +37,7 @@ because later specs build on earlier ones.
 | 19 | [ui-overview-pages](ui-overview-pages.md) | M | ui-calendar | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) | done |
 | 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | done |
 | 21 | [ui-consistency](ui-consistency.md) | M | ui-discover-polish | UI redesign 9: accent only for states and the main action, discover tiles and search like the library, German wording, date-times to the minute, calmer episode rows, paths break at slashes, sofarr's monogram (D30) | done |
-| 22 | [ui-overview-polish](ui-overview-polish.md) | S | ui-consistency | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) | build |
+| 22 | [ui-overview-polish](ui-overview-polish.md) | S | ui-consistency | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) | done |
 | 23 | [ui-shell-redesign](ui-shell-redesign.md), [web-ui-shell](web-ui-shell.md) (revision) | S | ui-consistency | Übersicht and Entdecken first in the sidebar without a group heading; ui-shell-redesign AC-01 and web-ui-shell AC-08 revised | done |
 
 Large specs (L) are split while being written when they need more than a few sessions
@@ -68,6 +68,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [ui-overview-pages](ui-overview-pages.md) | 2026-11-17 | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) |
 | [ui-discover-polish](ui-discover-polish.md) | 2026-11-17 | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) |
 | [ui-consistency](ui-consistency.md) | 2026-11-17 | UI redesign 9: accent only for states and the main action, discover tiles and search like the library, German wording, date-times to the minute, calmer episode rows, paths break at slashes, sofarr's monogram (D30) |
+| [ui-overview-polish](ui-overview-polish.md) | 2026-11-17 | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) |
 
 ## Existing behavior without a feature spec
 
