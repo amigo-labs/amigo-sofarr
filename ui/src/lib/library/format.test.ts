@@ -4,6 +4,7 @@ import {
   bulkSearchText,
   bytesText,
   dateText,
+  dayHeading,
   durationText,
   episodeCode,
   itemCount,
@@ -105,5 +106,23 @@ describe('path pieces (ui-consistency AC-12)', () => {
     expect(pathPieces('')).toEqual([]);
     const long = '/data/x/'.repeat(5);
     expect(pathPieces(long).join('')).toBe(long);
+  });
+});
+
+describe('day headings (ui-overview-polish AC-05)', () => {
+  const today = '2026-11-17';
+  it('says „Heute“ and „Morgen“, otherwise weekday and date without year', () => {
+    expect(dayHeading('2026-11-17', today)).toBe('Heute');
+    expect(dayHeading('2026-11-18', today)).toBe('Morgen');
+    expect(dayHeading('2026-11-19', today)).toBe('Donnerstag, 19.11.');
+    expect(dayHeading('2026-11-23', today)).toBe('Montag, 23.11.');
+    // Across a month and a year.
+    expect(dayHeading('2026-12-01', '2026-11-30')).toBe('Morgen');
+    expect(dayHeading('2027-01-01', '2026-12-31')).toBe('Morgen');
+    expect(dayHeading('2027-01-02', '2026-12-31')).toBe('Samstag, 02.01.');
+  });
+
+  it('shows a date it cannot read as it came', () => {
+    expect(dayHeading('bald', today)).toBe('bald');
   });
 });

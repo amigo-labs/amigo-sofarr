@@ -75,16 +75,20 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-01 | `key figures (AC-01)` › `each figure has a decorative icon before its label and tabular figures` (`ui/e2e/overview-polish.spec.ts`); `overview (AC-02 .. AC-04)` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-02 | `queue without and with a client (AC-02, AC-03)` › `without a client: one muted line, no warning, no empty text`, `without a client, active grabs still show as rows below the line` (`ui/e2e/overview-polish.spec.ts`); `overview (AC-01)` (`ui/e2e/library-pages.spec.ts`) | built |  |
+| AC-03 | `queue without and with a client (AC-02, AC-03)` › `an unreachable client with a known state names its time once`, `an unreachable client without a state shows no time` (`ui/e2e/overview-polish.spec.ts`); `queue_shows_progress_size_and_remaining_time` (`crates/sofarr-server/src/overview_tests.rs`) | built |  |
+| AC-04 | `queue_shows_progress_size_and_remaining_time`, `overview_shows_activity_problems_and_the_next_days` (`crates/sofarr-server/src/overview_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
+| AC-05 | `day headings (ui-overview-polish AC-05)` (`ui/src/lib/library/format.test.ts`); `day headings (AC-05)` › `„Heute“, „Morgen“, then weekday and date; the full date as tooltip` (`ui/e2e/overview-polish.spec.ts`) | built |  |
+| AC-06 | `empty states (AC-06)` › `empty boxes show their sentence after a decorative icon, muted` (`ui/e2e/overview-polish.spec.ts`) | built |  |
+| AC-07 | `accessibility (AC-07), dark/light` › `empty boxes at 1440 px / 360 px`, `a queue item, a problem and upcoming entries at 1440 px / 360 px` (`ui/e2e/overview-polish.spec.ts`) | built |  |
 | AC-08 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: Running without a download client is a normal setup (shadow mode needs none, sofarr.md §5 step 3), so it is a muted line, not a warning, in either mode; whether sofarr may download at all is the System page's mode, not the queue's business. An unreachable configured client stays a warning in either mode.
 - 2026-11-17: `client_configured` is a new field rather than a check of the notice text, because the UI must not depend on a German sentence; the field is additive, so the API stays compatible.
+- 2026-11-17 (build): Red runs: `cargo test -p sofarr-server overview` failed on the missing `client_configured`; against bf5b0dd `bunx vitest run src/lib/library/format.test.ts` failed 2 (no `dayHeading`) and `bunx playwright test e2e/overview-polish.spec.ts` failed 10 of 14. Green at once: „an unreachable client without a state shows no time“ and the scans with a queue item, which stay as guards.
+- 2026-11-17 (build): The UI no longer appends „Stand: …“ to the queue notice, because the server's notice already names the time of the last state („– Stand von 17.11.2026 10:23“), to the minute.
+- 2026-11-17 (build): With a configured client the empty queue keeps „Nichts in der Warteschlange.“, now with the download icon like the other empty boxes (AC-06).
+- 2026-11-17 (build): „Heute“ is computed from the browser's clock at every refresh of the overview (every 15 s), so the headings move on after midnight without a reload.

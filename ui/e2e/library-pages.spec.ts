@@ -30,12 +30,14 @@ test.describe('overview (AC-01)', () => {
   }) => {
     await page.goto(`${LIBRARY}/`);
     await expectOverview(page);
-    await expect(page.getByText('Kein Download-Client konfiguriert')).toBeVisible();
+    await expect(
+      page.getByText('Kein Download-Client eingerichtet – sofarr lädt nichts herunter.'),
+    ).toBeVisible();
     const upcoming = page.getByRole('region', { name: 'Die nächsten 7 Tage' });
     await expect(upcoming.getByRole('link', { name: 'Kalenderfilm' }).first()).toBeVisible();
     await expect(upcoming.getByText('S01E03 · Abschied')).toBeVisible();
     await expect(page.getByText('Noch keine Grabs oder Importe.')).toBeVisible();
-    await expect(page.getByText('Keine fehlgeschlagenen Grabs oder Importprobleme.')).toBeVisible();
+    await expect(page.getByText('Keine Probleme in den letzten 7 Tagen.')).toBeVisible();
   });
 
   test('shows progress, size, remaining time ("–" when none), activity and problems', async ({

@@ -5,7 +5,14 @@
   import Loading from '#lib/components/Loading.svelte';
   import PageError from '#lib/components/PageError.svelte';
   import { getOverview } from '#lib/api/library.ts';
-  import { dateText } from '#lib/library/format.ts';
+  import alertIcon from '@primer/octicons/build/svg/alert-16.svg?raw';
+  import calendarIcon from '@primer/octicons/build/svg/calendar-16.svg?raw';
+  import checkIcon from '@primer/octicons/build/svg/check-16.svg?raw';
+  import downloadIcon from '@primer/octicons/build/svg/download-16.svg?raw';
+  import historyIcon from '@primer/octicons/build/svg/history-16.svg?raw';
+  import Icon from '#lib/components/Icon.svelte';
+  import { dateText, dayHeading, localToday } from '#lib/library/format.ts';
+  import EmptyLine from '#lib/library/overview/EmptyLine.svelte';
   import CalendarEntryLine from '#lib/library/components/CalendarEntryLine.svelte';
   import ActivityBox from '#lib/library/overview/ActivityBox.svelte';
   import QueueBox from '#lib/library/overview/QueueBox.svelte';
@@ -17,6 +24,12 @@
   const overview = createResource(getOverview);
 
   onMount(() => overview.start());
+
+  // Recomputed with every refresh, so „Heute“ moves on after midnight (AC-05).
+  const today = $derived.by(() => {
+    void overview.data;
+    return localToday();
+  });
 
   const upcomingDays = $derived.by(() => {
     const days = new Map<string, NonNullable<typeof overview.data>['upcoming']>();
@@ -54,17 +67,23 @@
   <ul class="figures" aria-label="Kennzahlen">
     <li>
       <a class="figure ui-link" href="#queue-title">
-        <strong>{overview.data.queue.items.length}</strong><span>Warteschlange</span>
+        <strong>{overview.data.queue.items.length}</strong><span class="label"
+          ><Icon svg={downloadIcon} />Warteschlange</span
+        >
       </a>
     </li>
     <li>
       <a class="figure ui-link" class:danger={problems > 0} href="#problems-title">
-        <strong>{problems}</strong><span>Probleme (7 Tage)</span>
+        <strong>{problems}</strong><span class="label"
+          ><Icon svg={alertIcon} />Probleme (7 Tage)</span
+        >
       </a>
     </li>
     <li>
       <a class="figure ui-link" href="#upcoming-title">
-        <strong>{overview.data.upcoming.length}</strong><span>Nächste 7 Tage</span>
+        <strong>{overview.data.upcoming.length}</strong><span class="label"
+          ><Icon svg={calendarIcon} />Nächste 7 Tage</span
+        >
       </a>
     </li>
   </ul>
@@ -74,14 +93,17 @@
       <section class="box" aria-labelledby="upcoming-title">
         <h2 id="upcoming-title" class="box-header">Die nächsten 7 Tage</h2>
         {#if upcomingDays.length === 0}
-          <p class="box-row muted">
-            Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen.
-          </p>
+          <EmptyLine
+            icon={calendarIcon}
+            text="Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen."
+          />
         {:else}
           <ul class="days">
             {#each upcomingDays as [day, entries] (day)}
               <li class="box-row day-group">
-                <h3>{dateText(day)}</h3>
+                <h3>
+                  <time datetime={day} title={dateText(day)}>{dayHeading(day, today)}</time>
+                </h3>
                 <ul class="entries">
                   {#each entries as entry, i (i)}
                     <li><CalendarEntryLine {entry} /></li>
@@ -98,13 +120,15 @@
         id="problems-title"
         title="Probleme der letzten 7 Tage"
         entries={overview.data.problems}
-        empty="Keine fehlgeschlagenen Grabs oder Importprobleme."
+        empty="Keine Probleme in den letzten 7 Tagen."
+        emptyIcon={checkIcon}
       />
       <ActivityBox
         id="activity-title"
         title="Letzte Aktivität"
         entries={overview.data.activity}
         empty="Noch keine Grabs oder Importe."
+        emptyIcon={historyIcon}
       />
     </div>
   </div>
@@ -142,8 +166,15 @@
     font-size: var(--text-body-size-small);
   }
 
+  .figure .label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--base-size-4);
+  }
+
   .figure strong {
     color: var(--fgColor-default);
+    font-variant-numeric: tabular-nums;
     font-size: var(--text-title-size-large);
     line-height: 1.2;
   }

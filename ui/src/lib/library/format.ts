@@ -206,3 +206,34 @@ export function sentence(text: string): string {
 export function pathPieces(path: string): string[] {
   return path.match(/[^/\\]*(?:[/\\]|$)/g)?.filter((piece) => piece !== '') ?? [];
 }
+
+const WEEKDAY = new Intl.DateTimeFormat('de-DE', { weekday: 'long', timeZone: 'UTC' });
+
+/** Days since 1970 of a `YYYY-MM-DD` calendar day; `null` when it cannot be read. */
+function dayNumber(date: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (match === null) return null;
+  return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86_400_000;
+}
+
+/**
+ * The heading of a day in „Die nächsten 7 Tage“: „Heute“, „Morgen“, else weekday and date
+ * without year, e.g. „Donnerstag, 19.11.“; a date it cannot read as it came
+ * (ui-overview-polish AC-05). `today` is the browser's local date, `YYYY-MM-DD`.
+ */
+export function dayHeading(date: string, today: string): string {
+  const day = dayNumber(date);
+  const now = dayNumber(today);
+  if (day === null || now === null) return date;
+  if (day === now) return 'Heute';
+  if (day === now + 1) return 'Morgen';
+  const [, month, dom] = date.split('-');
+  return `${WEEKDAY.format(new Date(day * 86_400_000))}, ${dom}.${month}.`;
+}
+
+const twoDigits = (n: number): string => String(n).padStart(2, '0');
+
+/** The browser's local date as `YYYY-MM-DD`. */
+export function localToday(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${twoDigits(now.getMonth() + 1)}-${twoDigits(now.getDate())}`;
+}
