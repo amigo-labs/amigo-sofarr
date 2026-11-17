@@ -22,17 +22,17 @@ because later specs build on earlier ones.
 | 4 | [mediainfo](mediainfo.md) | L | – | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) | done |
 | 5 | [web-ui-shell](web-ui-shell.md) | L | auth | SvelteKit static UI in the binary, login, navigation, shared amigo theme, system page (D16, D23, D29) | done |
 | 6 | [web-ui-library](web-ui-library.md) | L | web-ui-shell, fail-handling, backups | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) | done |
-| 7 | [imdb-ratings](imdb-ratings.md) | M | web-ui-library | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) | AC-04 revised by ui-list-items |
+| 7 | [imdb-ratings](imdb-ratings.md) | M | web-ui-library | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) | done |
 | 8 | [discover](discover.md) | L | web-ui-library, imdb-ratings | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) | done |
 | 9 | [subtitles](subtitles.md) | L | mediainfo, web-ui-library | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) | done |
 | 10 | [trailers](trailers.md) | M | imdb-ratings | TMDB trailers via yt-dlp into `trailers/` within a daily budget, Alpine runtime image (D18) | done |
 | 11 | [parser-episode-gaps](parser-episode-gaps.md) | M | – | Episode parser: year before ` - 06`, `E06` without a season, batches `(23-26)`, `[03]` after a dotted anime title | done |
 | 12 | [amigo-theme](amigo-theme.md) | L | web-ui-library | The shared amigo app theme from amigo-labs/website with sofarr's accent, dark by default, Inter (D29); revises web-ui-shell AC-10 | done |
-| 13 | [ui-shell-redesign](ui-shell-redesign.md) | M | amigo-theme | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes loaded, filled status labels, UI links without underline (D30); moves web-ui-shell's menu breakpoint to 1024 px | spec-build |
+| 13 | [ui-shell-redesign](ui-shell-redesign.md) | M | amigo-theme | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes loaded, filled status labels, UI links without underline (D30); moves web-ui-shell's menu breakpoint to 1024 px | done |
 | 14 | [ui-list-toolbar](ui-list-toolbar.md) | M | ui-shell-redesign | UI redesign 2: list header, one-row toolbar, filters in a panel, active filters as chips, IMDb attribution below the list (D30) | spec-build |
-| 15 | [ui-list-items](ui-list-items.md) | M | ui-list-toolbar | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30); revises imdb-ratings AC-04 | spec-build |
-| 16 | [ui-detail-head](ui-detail-head.md) | M | ui-list-items | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) | spec-build |
-| 17 | [ui-detail-boxes](ui-detail-boxes.md) | M | ui-detail-head | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) | spec-build |
+| 15 | [ui-list-items](ui-list-items.md) | M | ui-list-toolbar | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30); revises imdb-ratings AC-04 | done |
+| 16 | [ui-detail-head](ui-detail-head.md) | M | ui-list-items | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) | done |
+| 17 | [ui-detail-boxes](ui-detail-boxes.md) | M | ui-detail-head | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) | done |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -46,13 +46,17 @@ Large specs (L) are split while being written when they need more than a few ses
 | [auth](auth.md) | 2026-11-12 | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) |
 | [web-ui-shell](web-ui-shell.md) | 2026-11-12, AC-10 revised 2026-11-15 | SvelteKit static UI in the binary, login, navigation, shared amigo theme, system page (D16, D23, D29) |
 | [trailers](trailers.md) | 2026-11-12 | TMDB trailers via yt-dlp into `trailers/` within a daily budget, Alpine runtime image (D18) |
-| [imdb-ratings](imdb-ratings.md) | 2026-11-12 | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) |
+| [imdb-ratings](imdb-ratings.md) | 2026-11-12, AC-04 revised 2026-11-17 | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) |
 | [subtitles](subtitles.md) | 2026-11-12 | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) |
 | [discover](discover.md) | 2026-11-12 | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) |
 | [mediainfo](mediainfo.md) | 2026-11-13 | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) |
 | [web-ui-library](web-ui-library.md) | 2026-11-13 | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) |
 | [parser-episode-gaps](parser-episode-gaps.md) | 2026-11-15 | Episode parser: year before ` - 06`, `E06` without a season, batches `(23-26)`, `[03]` after a dotted anime title |
 | [amigo-theme](amigo-theme.md) | 2026-11-15 | The shared amigo app theme from amigo-labs/website with sofarr's accent, dark by default, Inter (D29) |
+| [ui-shell-redesign](ui-shell-redesign.md) | 2026-11-17 | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes, filled status labels, UI links without underline (D30) |
+| [ui-list-items](ui-list-items.md) | 2026-11-17 | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30) |
+| [ui-detail-head](ui-detail-head.md) | 2026-11-17 | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) |
+| [ui-detail-boxes](ui-detail-boxes.md) | 2026-11-17 | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) |
 
 ## Existing behavior without a feature spec
 
