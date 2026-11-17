@@ -1,5 +1,5 @@
 ---
-status: implemented
+status: todo
 created: 2026-11-12
 size: M
 design: [sofarr.md §8, sofarr.md §9 D10, sofarr.md §9 D20, sofarr.md §9 D26]
@@ -48,7 +48,7 @@ Terms used below:
 - [x] AC-01 (event): When a day has passed since the ratings data was loaded (or none was loaded yet), then sofarr downloads the IMDb ratings dataset and replaces the ratings data with it as a whole, while API requests keep being answered.
 - [x] AC-02 (error): If the download fails, the file is damaged or incomplete, a required column is missing, or it holds clearly too few titles (fewer than half of the previous load), then sofarr keeps the previous ratings data, logs the reason, and tries again every hour until a load succeeds; the daily schedule of AC-01 counts from that success. A first load (no previous data) needs at least 100,000 titles.
 - [x] AC-03 (always): Loading the ratings data never leaves a mixture of old and new ratings visible; a crash during the load keeps the previous data.
-- [x] AC-04 (always): Every title sofarr shows — in the library lists and pages, and in the discover, search and person pages of spec `discover` — that has an IMDb id shows its rating and votes; a title without an IMDb id or without a rating in the data shows "–".
+- [ ] AC-04 (always): Every title sofarr shows — in the library lists and pages, and in the discover, search and person pages of spec `discover` — that has an IMDb id shows its rating and votes; a title without an IMDb id or without a rating in the data shows "–". In the movie and series lists the rating shows as „★ 7,4“ and the votes are in its tooltip and accessible name („IMDb 7,4 (24.000 Stimmen)“); everywhere else the votes are visible.
 - [x] AC-05 (event): When a movie or series has no IMDb id, or its IMDb id changed at TMDB/TVDB, then the next metadata refresh sets the current one — movies from TMDB, series from TVDB or, if TVDB has none, from TMDB's external ids; if no source reports an IMDb id any more, the previous one is kept.
 - [x] AC-12 (event): When the metadata refresh meets a series without a TMDB id, then it looks the series up at TMDB by its TVDB id and stores the TMDB id; a series TMDB does not know keeps none and is looked up again at the next refresh.
 - [x] AC-06 (event): When the user sorts a library list (movies, series) by rating, then titles are ordered by rating (higher first, votes as a tie-breaker), titles without a rating last.
@@ -107,7 +107,7 @@ Terms used below:
 | AC-01 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`) | verified | 2d6bc23 |
 | AC-02 | `imdb_tests::a_valid_dataset_replaces_the_ratings_and_bad_ones_keep_them`, `imdb_tests::the_next_attempt_is_a_day_after_success_or_an_hour_after_failure` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::rows_are_checked` (`crates/sofarr-server/src/imdb.rs`) | verified | 7f334d1 |
 | AC-03 | `imdb_tests::readers_see_the_old_ratings_until_the_swap` (`crates/sofarr-server/src/imdb_tests.rs`); `imdb::tests::a_load_is_swapped_in_as_a_whole` (`crates/sofarr-db/src/imdb.rs`) | verified | 2d6bc23 |
-| AC-04 | `imdb_list_tests::lists_and_pages_show_rating_and_votes_or_nothing` (`crates/sofarr-server/src/imdb_list_tests.rs`); `every movie shows rating and votes, "–" without; attribution with the date`; `every series shows rating and votes, "–" without`; `cards on narrow screens show the rating`; `a movie and a series show rating and votes with the attribution`; `titles without an IMDb id or without a rating show "–"` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/rows.test.ts`, `src/lib/imdb/imdb.test.ts`; discover pages: `shows the shelves in order with up to 20 titles, ratings and library state` (`ui/e2e/discover-pages.spec.ts`), `sorts by IMDb rating once ratings are known, and filters` (`ui/e2e/discover-person.spec.ts`) | verified | cfd1a23 |
+| AC-04 | `imdb_list_tests::lists_and_pages_show_rating_and_votes_or_nothing` (`crates/sofarr-server/src/imdb_list_tests.rs`); `every movie shows rating and votes, "–" without; attribution with the date`; `every series shows rating and votes, "–" without`; `cards on narrow screens show the rating`; `a movie and a series show rating and votes with the attribution`; `titles without an IMDb id or without a rating show "–"` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/rows.test.ts`, `src/lib/imdb/imdb.test.ts`; discover pages: `shows the shelves in order with up to 20 titles, ratings and library state` (`ui/e2e/discover-pages.spec.ts`), `sorts by IMDb rating once ratings are known, and filters` (`ui/e2e/discover-person.spec.ts`) | open |  |
 | AC-05 | `imdb_ids_tests::series_ids_follow_tvdb_then_tmdb_and_are_kept_when_gone` (`crates/sofarr-server/src/imdb_ids_tests.rs`); `metadata::tests::the_refresh_takes_tmdbs_imdb_id_and_keeps_the_old_one_without` (`crates/sofarr-server/src/metadata.rs`); `tests::series_ids_from_find_and_external_ids` (`crates/sofarr-metadata/src/lib.rs`) | verified | 317bbba |
 | AC-06 | `imdb_list_tests::sorting_by_rating_puts_unrated_titles_last` (`crates/sofarr-server/src/imdb_list_tests.rs`); `sorting by rating puts the best first and titles without a rating last` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/list-query.test.ts` | verified | 761d397 |
 | AC-07 | `imdb_list_tests::minimum_rating_and_votes_hide_unrated_titles` (`crates/sofarr-server/src/imdb_list_tests.rs`); `minimum rating and votes combine, are part of the address and survive a reload`; `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`); unit `src/lib/library/list-query.test.ts` | verified | 761d397 |
@@ -119,6 +119,7 @@ Terms used below:
 
 ## Decisions
 
+- 2026-11-17: AC-04 revised by spec `ui-list-items`: in the movie and series lists the votes move into the rating's tooltip and accessible name (owner: „★ 7,4, Stimmen nur im Tooltip“); the detail, discover, search and person pages keep them visible.
 - 2026-11-12: IMDb ratings are their own spec before `discover`, because they also change the library lists (owner).
 - 2026-11-12: Ratings are loaded into `imdb_ratings_next` and swapped in by renaming in one transaction; readers keep the previous table until the commit (AC-03).
 - 2026-11-12: The dataset is streamed: a blocking task decompresses and parses it and hands batches of rows over a bounded channel to the database, so the whole file never sits in memory (AC-10).
