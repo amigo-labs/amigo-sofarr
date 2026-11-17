@@ -165,6 +165,18 @@ impl Db {
         Ok(rows.iter().map(attempt_from_row).collect())
     }
 
+    /// Every attempt that still belongs to a library file, newest first.
+    pub async fn all_reencodes(&self) -> Result<Vec<ReencodeAttempt>> {
+        let rows = sqlx::query(
+            "SELECT * FROM reencode_attempts
+             WHERE movie_id IS NOT NULL OR episode_file_id IS NOT NULL
+             ORDER BY started_at DESC, id DESC",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(attempt_from_row).collect())
+    }
+
     /// The attempts on one library file, newest first.
     pub async fn reencodes_of(&self, file: FileRef) -> Result<Vec<ReencodeAttempt>> {
         let (movie_id, episode_file_id) = ids(file);
@@ -398,6 +410,15 @@ mod tests {
         assert_eq!(last.finished_at, Some(second_start));
 
         let both = db.reencodes_of(FileRef::Movie(id)).await.expect("of file");
+        assert_eq!(
+            db.all_reencodes()
+                .await
+                .expect("all")
+                .iter()
+                .map(|a| a.id)
+                .collect::<Vec<_>>(),
+            [second, first]
+        );
         assert_eq!(
             both.iter().map(|a| a.id).collect::<Vec<_>>(),
             [second, first]
