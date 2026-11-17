@@ -1,5 +1,5 @@
 ---
-status: implemented
+status: todo
 created: 2026-11-16
 size: M
 design: [sofarr.md §3, sofarr.md §9 D16, sofarr.md §9 D23, sofarr.md §9 D29, sofarr.md §9 D30]
@@ -23,9 +23,9 @@ Terms:
 - **Sidebar**: the navigation area at the left edge on wide windows.
 - **Collapsed sidebar**: the sidebar showing only the entries' icons.
 - **Drawer**: the sidebar shown over the page on narrow windows after the menu button is pressed.
-- **Navigation order**: Übersicht, Filme, Serien, Kalender, Fehlend, Entdecken, Blocklist, Untertitel, Backups, System — the order of `web-ui-shell` AC-08 with the Untertitel page that spec `subtitles` added.
+- **Navigation order**: Übersicht, Entdecken, Filme, Serien, Kalender, Fehlend, Sperrliste, Untertitel, Backups, System — the order of `web-ui-shell` AC-08 (revised 2026-11-17) with the Untertitel page that spec `subtitles` added.
 - **Logged-in state**: the user is logged in, or auth needs no login (auth off or trusted network); the navigation shows only then, as today. A **logout exists** where it does today (auth on and the browser not in a trusted network).
-- **Navigation groups**: Bibliothek (Übersicht, Filme, Serien, Kalender, Fehlend), Entdecken (Entdecken), Verwaltung (Blocklist, Untertitel, Backups, System).
+- **Navigation groups**: a first group without a heading (Übersicht, Entdecken), Bibliothek (Filme, Serien, Kalender, Fehlend), Verwaltung (Sperrliste, Untertitel, Backups, System).
 - **Status label**: the small marker that states a state such as `fehlt`, `vorhanden`, `noch nicht erschienen` or a quality, today the `Label` component.
 - **UI link**: a navigation entry, the brand, a link that is the title of an item in a list, card, table or calendar, and a "Mehr" link. Every other link is a **prose link** (links in sentences of paragraphs, notices, list items and table cells, such as the IMDb attribution).
 
@@ -52,7 +52,7 @@ Terms:
 
 ## Acceptance criteria
 
-- [x] AC-01 (state): While the window is wide and in the logged-in state, sofarr shows the navigation as a sidebar along the left edge of the window, next to the page content (also on the error and not-found pages): no menu button, the brand at the top, the entries in the navigation order under the visible group headings Bibliothek, Entdecken and Verwaltung, and the theme switch and (where a logout exists) the logout action at the bottom.
+- [ ] AC-01 (state): While the window is wide and in the logged-in state, sofarr shows the navigation as a sidebar along the left edge of the window, next to the page content (also on the error and not-found pages): no menu button, the brand at the top, the entries in the navigation order — Übersicht and Entdecken first without a heading, then the others under the visible group headings Bibliothek and Verwaltung — and the theme switch and (where a logout exists) the logout action at the bottom.
 - [x] AC-02 (always): sofarr shows every navigation entry with an icon and its German label, and marks the current page's entry (`aria-current="page"`) with the accent (`accent-ink` text on a `accent-subtle` ground).
 - [x] AC-03 (event): When the user presses the sidebar's collapse button on a wide window, then the sidebar shows only the icons (the group headings and the brand's name are hidden, a hairline separates the groups), the page content takes the freed width, each entry keeps its label as its accessible name and shows it as a visible tooltip next to the entry on hover and on keyboard focus, and the button's German name changes from "Seitenleiste einklappen" to "Seitenleiste ausklappen"; pressing it again restores the full sidebar.
 - [x] AC-04 (event): When the UI is opened or reloaded after the sidebar was collapsed or expanded, then it shows the sidebar in the last chosen state: at the moment the page's body first has content, the document already carries that state, so the content area never starts at the other width; with nothing stored the sidebar is expanded.
@@ -140,7 +140,7 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `wide window` › `the sidebar sits at the left with groups, entries, theme switch and logout (AC-01)`, `the sidebar also shows on the page-not-found page (AC-01)` (`ui/e2e/shell.spec.ts`); `groups the pages without changing their order` (`ui/src/lib/nav.test.ts`) | verified | c7ca8fb |
+| AC-01 |      | open   |        |
 | AC-02 | `wide window` › `every entry has an icon; the current one is the accent (AC-02, dark/light)` (`ui/e2e/shell.spec.ts`); `gives every page an icon` (`ui/src/lib/nav.test.ts`) | verified | c7ca8fb |
 | AC-03 | `wide window` › `collapses to icons with names and tooltips, and expands again (AC-03)` (`ui/e2e/shell.spec.ts`) | verified | c7ca8fb |
 | AC-04 | `wide window` › `the collapsed state is on the document before the app renders (AC-04)`, `an unknown stored value counts as expanded (AC-04)` (`ui/e2e/shell.spec.ts`); `sidebar state` (`ui/src/lib/sidebar.test.ts`) | verified | c7ca8fb |
@@ -174,4 +174,5 @@ Terms:
 - 2026-11-16 (build): A disabled button of any kind shows `text-muted` on `surface-raised` like `am-btn:disabled`; amigo-theme's comment that the disabled label keeps AA contrast went, because WCAG exempts disabled controls and the shared look does the same.
 - 2026-11-16 (build): UI links carry the global class `ui-link` (titles in lists, cards, tables and the calendar, cast names, "Mehr"); every other link stays underlined. The accent tone is proven by rendering the label's classes, because the UI has no component test setup and no label uses accent yet.
 - 2026-11-16 (build): New public API: `Tone` gains `'accent'` (`ui/src/lib/system/format.ts`); `navGroups`, `NAV_GROUPS` and `NavPage.group`/`icon` (`ui/src/lib/nav.ts`); `ui/src/lib/sidebar.ts`.
+- 2026-11-17: AC-01 revised (owner): Übersicht and Entdecken stand first without a group heading, because a group „Entdecken“ with the single entry „Entdecken“ repeated itself and the two entry pages belong at the top; Bibliothek keeps Filme, Serien, Kalender and Fehlend. The navigation order of `web-ui-shell` AC-08 changes with it. Back to `status: todo` until spec-check accepts the revision.
 
