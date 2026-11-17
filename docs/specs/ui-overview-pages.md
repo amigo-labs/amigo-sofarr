@@ -113,7 +113,7 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `page header (AC-01)` › `/fehlend: the count sits in the heading's row, right after it`, `/blocklist: …`, `Backups: the main action at the end of the heading row; below it on 360 px` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-01 | `page header (AC-01)` › `/fehlend: the count sits in the heading's row, right after it`, `/blocklist: …`, `Backups: the main action at the end of the heading row; below it on 360 px`, `System: a failed first load keeps the page header above the error`, `Untertitel: a failed first load keeps the page header above the error` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
 | AC-02 | `overview (AC-02 .. AC-04)` › `three key figures, counted from the boxes, each linking to its box` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
 | AC-03 | `overview (AC-02 .. AC-04)` › `the problems figure is danger while there are problems, neutral without` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
 | AC-04 | `overview (AC-02 .. AC-04)` › `two columns from 1200 px, one below` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
@@ -131,4 +131,4 @@ Terms:
 - 2026-11-17 (build): `PageHeader.svelte` takes `title` and the snippets `count`, `status`, `actions`; the counts of Fehlend and Blocklist moved into it with their test ids.
 - 2026-11-17 (build): List rows (`li.box-row`) take the hover ground and their UI link title in semibold globally; the overview's day groups carry `day-group` and are left out. `.btn.icon-only` makes square icon buttons.
 - 2026-11-17 (build): The login card kept its width (22 rem) and centring; it gained the brand icon above the heading.
-
+- 2026-11-17 (fix): spec-check found the edge case „first load fails“ broken on System and Untertitel: only the page error showed, without the page header. Red first: `System/Untertitel: a failed first load keeps the page header above the error` failed (no h1 „System“/„Untertitel“). Both pages now render `PageHeader` above `PageError`, whose title becomes an `h2` there (`sub`), so the page keeps one `h1`.

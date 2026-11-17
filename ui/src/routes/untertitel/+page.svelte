@@ -90,7 +90,9 @@
     <RecentList recent={o.recent} />
   </section>
 {:else if overview.failure !== null}
+  <PageHeader title="Untertitel" />
   <PageError
+    sub
     title="Die Untertitel sind nicht verfügbar"
     message={overview.failure.message}
     action="Erneut versuchen"

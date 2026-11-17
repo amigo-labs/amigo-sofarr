@@ -40,7 +40,9 @@
   {/if}
   <SystemView system={system.data} />
 {:else if system.failure !== null}
+  <PageHeader title="System" />
   <PageError
+    sub
     title="Der Systemstatus ist nicht verfügbar"
     message={system.failure.message}
     hint="sofarr versucht es gleich von selbst erneut."

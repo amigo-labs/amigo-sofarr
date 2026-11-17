@@ -39,6 +39,23 @@ test.describe('page header (AC-01)', () => {
     });
   }
 
+  for (const [name, url, api] of [
+    ['System', `${SERVERS.open}/system`, '**/api/system'],
+    ['Untertitel', `${EXTRAS}/untertitel`, '**/api/subtitles'],
+  ] as const) {
+    test(`${name}: a failed first load keeps the page header above the error`, async ({ page }) => {
+      await page.route(api, (route) =>
+        route.fulfill({ status: 503, json: { error: 'Datenbank gesperrt' } }),
+      );
+      await page.goto(url);
+      await expect(page.getByText('Datenbank gesperrt')).toBeVisible();
+      const header = page.getByRole('heading', { level: 1, name, exact: true });
+      await expect(header).toBeVisible();
+      const error = await box(page.getByText('Datenbank gesperrt'));
+      expect((await box(header)).y).toBeLessThan(error.y);
+    });
+  }
+
   test('Backups: the main action at the end of the heading row; below it on 360 px', async ({
     page,
   }) => {
