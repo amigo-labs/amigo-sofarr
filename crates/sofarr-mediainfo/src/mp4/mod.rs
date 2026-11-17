@@ -56,7 +56,29 @@ pub(crate) fn read<R: Read + Seek>(src: &mut Source<'_, R>) -> MediaInfo {
         }
     }
     let drafts = tracks.into_iter().map(|track| track.draft).collect();
-    track::finish(status, Some(container), drafts, None)
+    let mut info = track::finish(status, Some(container), drafts, None);
+    info.duration_ms = movie_duration(&moov.data);
+    info
+}
+
+/// The duration `mvhd` names, in milliseconds; `None` without a usable one (missing or
+/// cut-off header, zero, a timescale of zero, or all bits set, which means "unknown").
+fn movie_duration(moov: &[u8]) -> Option<u64> {
+    let (_, mvhd) = Boxes::new(moov)
+        .map_while(Result::ok)
+        .find(|(kind, _)| kind == b"mvhd")?;
+    let (timescale, duration) = if mvhd.first() == Some(&1) {
+        let duration = be64(mvhd, 24).filter(|duration| *duration != u64::MAX)?;
+        (be32(mvhd, 20)?, duration)
+    } else {
+        let duration = be32(mvhd, 16).filter(|duration| *duration != u32::MAX)?;
+        (be32(mvhd, 12)?, u64::from(duration))
+    };
+    if timescale == 0 {
+        return None;
+    }
+    let ms = u128::from(duration) * 1000 / u128::from(timescale);
+    u64::try_from(ms).ok().filter(|ms| *ms > 0)
 }
 
 /// The payload of `moov`; `cut` when the input ends inside it and `data` is only its start.

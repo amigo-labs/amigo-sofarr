@@ -130,6 +130,7 @@ fn tracks_languages_and_flags() {
                     hearing_impaired: true,
                 },
             ],
+            duration_ms: None,
         }
     );
     let labels = info.labels();
@@ -451,4 +452,84 @@ fn a_file_without_video_track_has_the_video_fields_unknown() {
     assert_eq!(labels.video, None);
     assert_eq!(labels.dynamic_range, None);
     assert_eq!(labels.audio.as_deref(), Some("FLAC"));
+}
+
+const INFO: u32 = 0x1549_A966;
+const TIMESTAMP_SCALE: u32 = 0x002A_D7B1;
+const DURATION: u32 = 0x4489;
+
+fn el_f64(id: u32, value: f64) -> Vec<u8> {
+    el(id, &value.to_be_bytes())
+}
+
+fn with_info(children: &[Vec<u8>]) -> MediaInfo {
+    let tracks = master(TRACKS, &[audio_entry(1, "A_FLAC", 2)]);
+    info(&mkv("matroska", &[master(INFO, children), tracks]))
+}
+
+#[test]
+fn the_duration_comes_from_the_segment_info() {
+    // Spec reencode-rule AC-01. Default TimestampScale: one tick is a millisecond.
+    assert_eq!(
+        with_info(&[el_f64(DURATION, 5_400_000.0)]).duration_ms,
+        Some(5_400_000)
+    );
+    // A 32-bit float and an own scale of 0.1 ms.
+    let short = el(DURATION, &120_000.0f32.to_be_bytes());
+    assert_eq!(
+        with_info(&[el_uint(TIMESTAMP_SCALE, 100_000), short]).duration_ms,
+        Some(12_000)
+    );
+    // The scale may follow the duration.
+    assert_eq!(
+        with_info(&[
+            el_f64(DURATION, 10.0),
+            el_uint(TIMESTAMP_SCALE, 1_000_000_000)
+        ])
+        .duration_ms,
+        Some(10_000)
+    );
+}
+
+#[test]
+fn an_unusable_duration_is_none_and_changes_nothing_else() {
+    let without = with_info(&[]);
+    assert_eq!(without.duration_ms, None);
+    assert_eq!(without.status, ReadStatus::Complete);
+    for bad in [0.0, -5.0, f64::NAN, f64::INFINITY] {
+        let read = with_info(&[el_f64(DURATION, bad)]);
+        assert_eq!(read, without, "duration {bad}");
+    }
+    // A duration of the wrong width and a scale of zero are unusable too.
+    assert_eq!(with_info(&[el(DURATION, &[1, 2, 3])]), without);
+    assert_eq!(
+        with_info(&[el_uint(TIMESTAMP_SCALE, 0), el_f64(DURATION, 1000.0)]),
+        without
+    );
+    // Apart from the duration the media info is what it was before.
+    let mut with = with_info(&[el_f64(DURATION, 1000.0)]);
+    assert_eq!(with.duration_ms.take(), Some(1000));
+    assert_eq!(with, without);
+}
+
+#[test]
+fn the_info_is_found_through_the_seek_head() {
+    // Tracks and Info behind an unknown-size cluster: only the SeekHead leads there.
+    let tracks = master(TRACKS, &[audio_entry(1, "A_FLAC", 2)]);
+    let cluster = master_unknown(CLUSTER, &[el_uint(0xE7, 0), simple_block(1, &[0; 32])]);
+    let head_len = seek_head(&[(TRACKS, 0), (INFO, 0)]).len() as u64;
+    let tracks_at = head_len + cluster.len() as u64;
+    let info_at = tracks_at + tracks.len() as u64;
+    let file = mkv(
+        "matroska",
+        &[
+            seek_head(&[(TRACKS, tracks_at), (INFO, info_at)]),
+            cluster,
+            tracks,
+            master(INFO, &[el_f64(DURATION, 42_000.0)]),
+        ],
+    );
+    let read = info(&file);
+    assert_eq!(read.status, ReadStatus::Complete);
+    assert_eq!(read.duration_ms, Some(42_000));
 }

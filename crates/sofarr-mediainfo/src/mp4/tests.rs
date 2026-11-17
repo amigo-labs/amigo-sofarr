@@ -253,6 +253,60 @@ fn invalid_box_sizes_are_damage_and_missing_moov_is_partial() {
             video: None,
             audio: Vec::new(),
             subtitles: Vec::new(),
+            duration_ms: None,
         }
     );
+}
+
+fn mvhd(version: u8, timescale: u32, duration: u64) -> Vec<u8> {
+    let mut payload = Vec::new();
+    if version == 1 {
+        payload.extend([0; 16]);
+        payload.extend(timescale.to_be_bytes());
+        payload.extend(duration.to_be_bytes());
+    } else {
+        payload.extend([0; 8]);
+        payload.extend(timescale.to_be_bytes());
+        payload.extend((duration as u32).to_be_bytes());
+    }
+    payload.extend([0; 80]);
+    full_bx(b"mvhd", version, 0, &payload)
+}
+
+fn with_mvhd(header: Vec<u8>) -> MediaInfo {
+    let mut file = ftyp(b"isom");
+    file.extend(boxes(b"moov", &[header]));
+    read(&mut Cursor::new(file))
+}
+
+#[test]
+fn the_duration_comes_from_the_movie_header() {
+    // Spec reencode-rule AC-01.
+    assert_eq!(
+        with_mvhd(mvhd(0, 1000, 5_400_000)).duration_ms,
+        Some(5_400_000)
+    );
+    assert_eq!(with_mvhd(mvhd(0, 600, 90_000)).duration_ms, Some(150_000));
+    assert_eq!(
+        with_mvhd(mvhd(1, 90_000, 90_000 * 7200)).duration_ms,
+        Some(7_200_000)
+    );
+}
+
+#[test]
+fn an_unusable_movie_duration_is_none_and_changes_nothing_else() {
+    let mut file = ftyp(b"isom");
+    file.extend(boxes(b"moov", &[]));
+    let without = read(&mut Cursor::new(file));
+    assert_eq!(without.duration_ms, None);
+    assert_eq!(without.status, ReadStatus::Complete);
+    // Zero, a timescale of zero, the markers for "unknown" and a cut-off header.
+    assert_eq!(with_mvhd(mvhd(0, 1000, 0)), without);
+    assert_eq!(with_mvhd(mvhd(0, 0, 5000)), without);
+    assert_eq!(with_mvhd(mvhd(0, 1000, u64::from(u32::MAX))), without);
+    assert_eq!(with_mvhd(mvhd(1, 1000, u64::MAX)), without);
+    assert_eq!(with_mvhd(full_bx(b"mvhd", 0, 0, &[0; 6])), without);
+    let mut with = with_mvhd(mvhd(0, 1000, 5000));
+    assert_eq!(with.duration_ms.take(), Some(5000));
+    assert_eq!(with, without);
 }

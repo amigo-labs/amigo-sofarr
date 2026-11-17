@@ -104,6 +104,10 @@ pub struct MediaInfo {
     pub video: Option<Video>,
     pub audio: Vec<Audio>,
     pub subtitles: Vec<Subtitle>,
+    /// The playing time the container header names, in milliseconds; `None` when it
+    /// names none or an unusable one (zero, negative, not a number, "unknown").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 /// The texts derived from media info for the naming tokens.

@@ -153,7 +153,7 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
+| AC-01 | `matroska::tests::the_duration_comes_from_the_segment_info`, `an_unusable_duration_is_none_and_changes_nothing_else`, `the_info_is_found_through_the_seek_head` (`crates/sofarr-mediainfo/src/matroska/tests.rs`); `mp4::tests::the_duration_comes_from_the_movie_header`, `an_unusable_movie_duration_is_none_and_changes_nothing_else` (`crates/sofarr-mediainfo/src/mp4/tests.rs`) | built |        |
 | AC-02 |      | open   |        |
 | AC-03 |      | open   |        |
 | AC-04 |      | open   |        |
@@ -173,3 +173,4 @@ Terms used below:
 - 2026-11-17: The duration extends the reader of spec `mediainfo`; that spec stays `implemented`, because none of its acceptance criteria names the set of fields and every value it specifies stays the same (AC-01).
 - 2026-11-17: The rule works on stored data only, because opening 20,000 files over the network for a list would take minutes; the disk scan keeps the stored data current.
 - 2026-11-17: Verdicts are ordered so that "fine" comes before the Dolby Vision exclusion: the summary then shows how many oversized files the exclusion really leaves untouched.
+- 2026-11-17: The duration is stored as whole milliseconds (`duration_ms`), left out of the stored JSON when unknown, so media info stored before stays byte-identical and `MediaInfo` keeps `Eq`. A Matroska `Info` is read where the walk meets it or through the `SeekHead`, at most 1 MiB; a duration below half a millisecond counts as none.
