@@ -96,6 +96,18 @@ for (const scheme of PALETTES) {
       await expectNoViolations(page);
     });
 
+    test('list view with a selection, poster grid on a narrow screen (ui-list-items AC-09)', async ({
+      page,
+    }) => {
+      await page.goto(`${LIBRARY}/filme?suche=Film%20000`);
+      await page.getByRole('button', { name: 'Liste' }).click();
+      await page.getByLabel('„Film 0002“ auswählen').check();
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
+      await page.getByRole('button', { name: 'Poster' }).click();
+      await expectNoViolations(page);
+    });
+
     test('open filter panel and chips (ui-list-toolbar AC-11)', async ({ page }) => {
       await page.goto(`${LIBRARY}/filme?ueberwacht=ja&tag=1&sortierung=jahr&richtung=ab`);
       await settle(page);

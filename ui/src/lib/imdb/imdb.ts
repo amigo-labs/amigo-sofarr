@@ -32,6 +32,11 @@ export function ratingWithVotesText(rating: number | null, votes: number | null)
   return votes === null ? ratingText(rating) : `${ratingText(rating)} (${votesText(votes)})`;
 }
 
+/** The compact rating of the library lists, e.g. "★ 7,7"; "–" without one (ui-list-items AC-03). */
+export function ratingCompactText(rating: number | null): string {
+  return rating === null || !Number.isFinite(rating) ? '–' : `★ ${ratingText(rating)}`;
+}
+
 /** The date line under the attribution; `null` while no data was loaded yet (AC-08). */
 export function dataDateText(info: ImdbInfo, timeZone?: string): string | null {
   return info.loaded_at === null

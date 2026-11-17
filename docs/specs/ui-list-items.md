@@ -124,19 +124,25 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-01 | `cards (AC-01, AC-04)` › `a card shows the quality chip in accent, "fehlt" once, labels after it`, `a series card shows its files as a neutral chip first` (`ui/e2e/library-items.spec.ts`); `list rows (AC-02, AC-06)` (`ui/src/lib/library/rows.test.ts`) | built |  |
+| AC-02 | `rows (AC-02)` › `a row is at most 64 px high; rating and toggle at its end`, `a selected row has the accent-subtle ground` (`ui/e2e/library-items.spec.ts`); `cards on narrow screens …` (`ui/e2e/library-lists.spec.ts`) | built |  |
+| AC-03 | `every movie shows rating and votes, "–" without; attribution with the date`, `every series shows rating and votes, "–" without`, `cards on narrow screens show the rating` (`ui/e2e/imdb-ratings.spec.ts`, now `★ x,y` with the full text as name and tooltip); `shows the compact rating of the library lists` (`ui/src/lib/imdb/imdb.test.ts`); `rows carry the compact rating and the full text` (`rows.test.ts`) | built |  |
+| AC-04 | `cards (AC-01, AC-04)` › `the monitor toggle is an icon in the top right corner of the poster`, `the toggle's icon has 3:1 against its own ground (AC-04, dark/light)` (`ui/e2e/library-items.spec.ts`); `monitoring from the list (AC-10)` (`ui/e2e/library-lists.spec.ts`) | built |  |
+| AC-05 | `selection checkbox on a hover device (AC-05, AC-06)` › `shows on hover and focus only, stays in the Tab order`; `touch device (AC-05, AC-08)` (`ui/e2e/library-items.spec.ts`) | built |  |
+| AC-06 | `selection checkbox on a hover device (AC-05, AC-06)` › `in selection mode every checkbox shows; a selected card is outlined` (`ui/e2e/library-items.spec.ts`) | built |  |
+| AC-07 | `monitored or not (AC-07)` › `an unmonitored poster is dimmed, its controls are not` (`ui/e2e/library-items.spec.ts`) | built |  |
+| AC-08 | `touch device (AC-05, AC-08)` › `checkboxes always show; targets are at least 32 px; nothing scrolls sideways` (`ui/e2e/library-items.spec.ts`); `narrow screens …` (`ui/e2e/library-lists.spec.ts`) | built |  |
+| AC-09 | `axe, dark theme` and `axe, light theme` › `list view with a selection, poster grid on a narrow screen (ui-list-items AC-09)`, `poster grid with a selection and the bulk dialog`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
+| AC-10 | `movie list speed (AC-04)` (`ui/e2e/library-perf.spec.ts`) | built |  |
 | AC-11 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: The rating shows as „★ 7,4“ with the votes in tooltip and accessible name (owner); this revises imdb-ratings AC-04 for the library lists.
 - 2026-11-17: The monitor toggle is an icon in the poster's corner, the checkbox shows on hover, focus or in selection mode, and always on touch devices (owner).
+- 2026-11-17 (build): Red runs against 30680b4: `bunx vitest run src/lib/library/rows.test.ts src/lib/imdb/imdb.test.ts` failed 4 of 11 (no `ratingCompactText`, no status chip, no `ratingFull`); `bunx playwright test e2e/library-items.spec.ts` failed 9 of 11. Green at once: the toggle's 3:1 contrast in both palettes, because today's outlined button already had it; it stays as the check for the new ground.
+- 2026-11-17 (build): The checkbox is hidden with `opacity: 0` (not `display`/`visibility`), so it stays in the Tab order and in the accessibility tree; the tests measure its opacity, because Playwright counts a transparent element as visible.
+- 2026-11-17 (build): The rating is a `span` with `role="img"`, its `aria-label` and `title` the full text, because `aria-label` on a span without a role is not allowed.
+- 2026-11-17 (build): `Row.file` went; the status chip is the first entry of `Row.labels`. A movie without a file shows „fehlt“ whether or not it counts as missing, as the plain text did before.
+- 2026-11-17 (build): New public API: `ratingCompactText` (`ui/src/lib/imdb/imdb.ts`), `Row.ratingFull`, the `icon` variant of `MonitorButton`.
+

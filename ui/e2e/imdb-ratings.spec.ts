@@ -1,10 +1,17 @@
 // spec imdb-ratings AC-04, AC-06 to AC-09 in the browser: the `ratings` server loads a local
 // dataset at start (e2e/seed-extras.mjs); the `extras` server has ratings switched off.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { expectAttribution, expectNoHorizontalScroll } from './helpers';
 import { EXTRAS, RATINGS, waitForRatings } from './extras-helpers';
 import { expectTotal, items, movieId, openFilters, seriesId } from './library-helpers';
+
+/** The compact rating of the lists, with votes in tooltip and name (ui-list-items AC-03). */
+async function expectRating(rating: Locator, full: string, compact: string): Promise<void> {
+  await expect(rating).toHaveText(compact);
+  await expect(rating).toHaveAccessibleName(full);
+  await expect(rating).toHaveAttribute('title', full);
+}
 
 const titles = (page: Page) => items(page).locator('a.title').allTextContents();
 
@@ -19,33 +26,35 @@ test.describe('ratings in the lists (AC-04, AC-08)', () => {
     await page.goto(`${RATINGS}/filme`);
     await expectTotal(page, 6, 'Filme');
     const rating = (title: string) => items(page).filter({ hasText: title }).getByTestId('rating');
-    await expect(rating('Bestnote')).toHaveText('IMDb 9,1 (250.000 Stimmen)');
-    await expect(rating('Nischenfilm')).toHaveText('IMDb 9,8 (12 Stimmen)');
-    await expect(rating('Mittelmaß')).toHaveText('IMDb 5,2 (80.000 Stimmen)');
-    await expect(rating('Ohne IMDb')).toHaveText('IMDb –');
-    await expect(rating('Unbewertet')).toHaveText('IMDb –');
+    await expectRating(rating('Bestnote'), 'IMDb 9,1 (250.000 Stimmen)', '★ 9,1');
+    await expectRating(rating('Nischenfilm'), 'IMDb 9,8 (12 Stimmen)', '★ 9,8');
+    await expectRating(rating('Mittelmaß'), 'IMDb 5,2 (80.000 Stimmen)', '★ 5,2');
+    await expectRating(rating('Ohne IMDb'), 'IMDb –', '–');
+    await expectRating(rating('Unbewertet'), 'IMDb –', '–');
     await expectAttribution(page);
 
     await page.getByRole('button', { name: 'Poster' }).click();
     await expect(page.getByTestId('library-items')).toHaveClass(/grid/);
-    await expect(rating('Gutfilm')).toHaveText('IMDb 7,5 (12.000 Stimmen)');
+    await expectRating(rating('Gutfilm'), 'IMDb 7,5 (12.000 Stimmen)', '★ 7,5');
   });
 
   test('every series shows rating and votes, "–" without', async ({ page }) => {
     await page.goto(`${RATINGS}/serien`);
     await expectTotal(page, 3, 'Serien');
     const rating = (title: string) => items(page).filter({ hasText: title }).getByTestId('rating');
-    await expect(rating('Hochserie')).toHaveText('IMDb 8,8 (50.000 Stimmen)');
-    await expect(rating('Tiefserie')).toHaveText('IMDb 6,0 (3.000 Stimmen)');
-    await expect(rating('Serie ohne IMDb')).toHaveText('IMDb –');
+    await expectRating(rating('Hochserie'), 'IMDb 8,8 (50.000 Stimmen)', '★ 8,8');
+    await expectRating(rating('Tiefserie'), 'IMDb 6,0 (3.000 Stimmen)', '★ 6,0');
+    await expectRating(rating('Serie ohne IMDb'), 'IMDb –', '–');
     await expectAttribution(page);
   });
 
   test('cards on narrow screens show the rating', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto(`${RATINGS}/filme`);
-    await expect(items(page).filter({ hasText: 'Bestnote' }).getByTestId('rating')).toHaveText(
+    await expectRating(
+      items(page).filter({ hasText: 'Bestnote' }).getByTestId('rating'),
       'IMDb 9,1 (250.000 Stimmen)',
+      '★ 9,1',
     );
     await expectNoHorizontalScroll(page);
   });
