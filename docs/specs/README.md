@@ -40,7 +40,7 @@ because later specs build on earlier ones.
 | 22 | [reencode-file](reencode-file.md) | M | reencode-rule, trailers | Re-encoding 2: one file on request by CLI and API: ffmpeg (libx265, MKV, low priority), checked result, swap with the original to the recycle bin, outcome of every attempt (D31) | `/spec-build reencode-file` |
 | 23 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | `/spec-build reencode-job` after reencode-file AC-17 |
 | 24 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | `/spec-build ui-reencode` |
-| 25 | reencode-audio | M | reencode-job | Re-encoding 5: lossless audio tracks without Atmos/DTS:X (TrueHD, DTS-HD MA, PCM, FLAC) to E-AC-3 640 kbit/s in the same encode (owner 2026-11-17) | `/spec reencode-audio` |
+| 25 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | `/spec-build reencode-audio` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
