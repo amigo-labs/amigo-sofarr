@@ -604,3 +604,131 @@ mod job {
         assert!(took.as_secs() < limit, "took {took:?}");
     }
 }
+
+mod system_and_race {
+    //! The job's runs on the system page (AC-08) and a slot taken during a round (AC-03).
+
+    use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+
+    use jiff::Timestamp;
+    use sofarr_db::ReencodeOutcome;
+    use sofarr_mediainfo::Container;
+
+    use super::super::*;
+    use crate::reencode::{
+        ffmpeg::{EncodeError, Encoder, Job as EncodeJob},
+        run::{
+            Running, Tools,
+            tests::{Env, hevc, info, read_fake, write_fake},
+        },
+    };
+
+    const LIVE: &str = "[reencode]\nmax_mb_per_minute_1080p = 0.00001\nenabled = true\n";
+
+    #[tokio::test]
+    async fn the_system_page_shows_the_last_run_and_the_next_look() {
+        let env = Env::with("job-runs", "live", LIVE).await;
+        env.movie_sized(1, "Film", &info(Container::Matroska, "h264"), 10_000)
+            .await;
+        let app = Arc::clone(&env.app);
+        let seen = Arc::new(std::sync::Mutex::new(None));
+        let inside = Arc::clone(&seen);
+        let behavior: crate::reencode::run::tests::Behavior = Box::new(move |job: &EncodeJob| {
+            // While it encodes, the job has no next look.
+            *inside.lock().expect("seen") =
+                Some(app.status.job(crate::status::Job::Reencode).next_run);
+            write_fake(&job.output, &hevc(), 4000);
+            Ok(())
+        });
+        let (tools, _) = env.tools(Ok(()), behavior);
+        *env.app.reencode.tools.lock().expect("tools") = Some(Arc::new(tools));
+        let http = crate::testkit::Http::start_shared(Arc::clone(&env.app)).await;
+        let job = |body: &serde_json::Value| {
+            body["jobs"]
+                .as_array()
+                .expect("jobs")
+                .iter()
+                .find(|j| j["name"] == "reencode")
+                .expect("listed")
+                .clone()
+        };
+        let (_, before) = http.get("/api/system").await;
+        assert_eq!(job(&before)["interval_minutes"], 60);
+        assert!(job(&before)["last_run"].is_null());
+
+        // A round that encodes: a last run, and no next look while it encodes.
+        assert_eq!(next_wait(&env.app).await, Duration::ZERO);
+        assert_eq!(*seen.lock().expect("seen"), Some(None));
+        let (_, after) = http.get("/api/system").await;
+        assert!(job(&after)["last_run"].is_string());
+        assert_eq!(job(&after)["result"]["state"], "ok");
+
+        // Nothing due: the next look an hour later.
+        let looked = Timestamp::now();
+        assert_eq!(next_wait(&env.app).await, LOOK);
+        let (_, waiting) = http.get("/api/system").await;
+        let next: Timestamp = job(&waiting)["next_run"]
+            .as_str()
+            .expect("next look")
+            .parse()
+            .expect("timestamp");
+        let ahead = next.duration_since(looked).as_secs();
+        assert!((3590..=3610).contains(&ahead), "{ahead} s");
+    }
+
+    /// An encoder whose check lets another encode take the slot, as a CLI may between the
+    /// job's look and its start.
+    struct LockingEncoder {
+        lock: PathBuf,
+    }
+
+    impl Encoder for LockingEncoder {
+        fn check(&self) -> Result<(), String> {
+            let running = Running {
+                title: "Anderer Film (2020)".to_owned(),
+                path: "/filme/a.mkv".to_owned(),
+                started_at: Timestamp::now().to_string(),
+                runner: "cli".to_owned(),
+                attempt: None,
+            };
+            fs::write(&self.lock, serde_json::to_string(&running).expect("json")).expect("lock");
+            Ok(())
+        }
+
+        fn encode(&self, _: &EncodeJob) -> Result<(), EncodeError> {
+            Err(EncodeError::Failed("must not run".to_owned()))
+        }
+    }
+
+    #[tokio::test]
+    async fn a_slot_taken_during_a_round_ends_it_without_a_rest() {
+        let env = Env::with("job-race", "live", LIVE).await;
+        env.movie_sized(1, "Gross", &info(Container::Matroska, "h264"), 20_000)
+            .await;
+        env.movie_sized(2, "Klein", &info(Container::Matroska, "h264"), 10_000)
+            .await;
+        let tools = Tools {
+            encoder: Arc::new(LockingEncoder {
+                lock: env.app.reencode.lock.clone(),
+            }),
+            read: Arc::new(read_fake),
+        };
+        let end = round(&env.app, &tools, Timestamp::now())
+            .await
+            .expect("round");
+        assert!(matches!(end, RoundEnd::SlotHeld), "{end:?}");
+        let attempts = env.db().all_reencodes().await.expect("attempts");
+        assert_eq!(attempts.len(), 1, "the round ended at the first refusal");
+        assert_eq!(attempts[0].outcome, Some(ReencodeOutcome::Refused));
+        assert!(
+            attempts[0]
+                .reason
+                .as_deref()
+                .is_some_and(|r| r.starts_with(SLOT_TAKEN))
+        );
+        // That refusal does not make the file rest.
+        fs::remove_file(&env.app.reencode.lock).expect("unlock");
+        let due = due_files(&env.app, Timestamp::now()).await.expect("due");
+        assert_eq!(due.len(), 2);
+    }
+}

@@ -95,6 +95,8 @@ mod search_tests;
 #[cfg(test)]
 mod series_search_tests;
 #[cfg(test)]
+mod serve_tests;
+#[cfg(test)]
 mod test_secret;
 #[cfg(test)]
 mod testkit;
@@ -384,22 +386,33 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         rss_minutes = interval,
         "starting"
     );
-    let running = Arc::clone(&state);
-    let app = api::app_router(state);
     let listener = TcpListener::bind(bind)
         .await
         .with_context(|| format!("Port {bind} nicht verfügbar"))?;
 
     tracing::info!(addr = %bind, version = env!("CARGO_PKG_VERSION"), "listening");
+    serve_until(state, listener, shutdown_signal()).await?;
+    tracing::info!("shut down");
+    Ok(())
+}
+
+/// Serves the API until `shutdown` resolves, then stops running encodes and waits for
+/// them to record their end: Docker kills the container 10 s after the signal (spec
+/// reencode-job AC-06).
+async fn serve_until(
+    state: Arc<App>,
+    listener: TcpListener,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
+) -> anyhow::Result<()> {
+    let running = Arc::clone(&state);
+    let app = api::app_router(state);
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown_signal())
+    .with_graceful_shutdown(shutdown)
     .await?;
-    // Docker kills the container 10 s after the signal (spec reencode-job AC-06).
     reencode::run::stop(&running, std::time::Duration::from_secs(9)).await;
-    tracing::info!("shut down");
     Ok(())
 }
 

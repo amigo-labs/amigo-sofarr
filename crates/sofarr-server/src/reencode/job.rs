@@ -191,17 +191,24 @@ pub fn spawn_schedule(app: &SharedApp) -> Option<tokio::task::JoinHandle<()>> {
                 break;
             }
             let wait = next_wait(&app).await;
-            if wait.is_zero() {
-                continue;
+            if !wait.is_zero() {
+                tokio::time::sleep(wait).await;
             }
-            app.status.job_waits(Job::Reencode, Timestamp::now(), wait);
-            tokio::time::sleep(wait).await;
         }
     }))
 }
 
-/// Runs what is to do now and answers how long to wait before the next look.
+/// Runs what is to do now and answers how long to wait before the next look; the system
+/// page shows that look as the job's next run (AC-08).
 pub async fn next_wait(app: &App) -> Duration {
+    let wait = look(app).await;
+    if !wait.is_zero() {
+        app.status.job_waits(Job::Reencode, Timestamp::now(), wait);
+    }
+    wait
+}
+
+async fn look(app: &App) -> Duration {
     let tools = run::tools(app);
     if let Err(reason) = check_encoder(app, &tools).await {
         tracing::warn!(%reason, "re-encode job: ffmpeg missing");
@@ -211,6 +218,8 @@ pub async fn next_wait(app: &App) -> Duration {
         return SLOT_POLL;
     }
     let at = Timestamp::now();
+    // While the round encodes, the job has no next look.
+    app.status.job_busy(Job::Reencode);
     let result = round(app, &tools, at).await;
     match result {
         Ok(RoundEnd::Encoded(report)) => {

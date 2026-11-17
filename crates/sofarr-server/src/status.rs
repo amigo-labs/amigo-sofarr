@@ -155,6 +155,13 @@ impl Status {
         }
     }
 
+    /// The job runs now: it has no next run until it waits again.
+    pub fn job_busy(&self, job: Job) {
+        if let Ok(mut jobs) = self.jobs.lock() {
+            jobs.entry(job).or_default().next_run = None;
+        }
+    }
+
     /// The job ran at `at` with `result`.
     pub fn job_ran<E: Display>(&self, job: Job, at: Timestamp, result: &Result<(), E>) {
         if let Ok(mut jobs) = self.jobs.lock() {
