@@ -157,6 +157,132 @@ test.describe('overview (AC-02 .. AC-04)', () => {
   });
 });
 
+test.describe('overview while loading (AC-02)', () => {
+  test('no figures during the first load; the page error, not the figures, after a failed one', async ({
+    page,
+  }) => {
+    const { promise: held, resolve: release } = Promise.withResolvers<void>();
+    await page.route('**/api/overview', async (route) => {
+      await held;
+      await route.fulfill({ status: 503, json: { error: 'Datenbank gesperrt' } });
+    });
+    await page.goto(`${LIBRARY}/`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Übersicht' })).toBeVisible();
+    await expect(page.getByText('Übersicht wird geladen …')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Kennzahlen' })).toHaveCount(0);
+    release();
+    await expect(page.getByText('Datenbank gesperrt')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Kennzahlen' })).toHaveCount(0);
+  });
+});
+
+const QUEUE_ITEM = {
+  download_state: 'downloading',
+  progress: 0.4,
+  remaining_bytes: 600_000_000,
+  remaining_seconds: 300,
+  kind: 'movie',
+  grab_id: 77,
+  media_id: 1,
+  media_title: 'Film 0001',
+  release_title: 'Film.0001.1951.1080p.BluRay.x264-GRP',
+  quality: 'Bluray-1080p',
+  size: 1_000_000_000,
+  status: 'downloading',
+  message: null,
+  episode_ids: [],
+  grabbed_at: '2026-11-17T08:00:00Z',
+  updated_at: '2026-11-17T08:05:00Z',
+} as const;
+
+async function expectRowLook(row: Locator, details: Locator, action: Locator): Promise<void> {
+  const r = await box(row);
+  const a = await box(action);
+  expect(a.x + a.width, 'action at the end of the row').toBeGreaterThan(r.x + r.width - 32);
+  expect(a.height).toBeGreaterThanOrEqual(32);
+  const title = await row
+    .getByRole('link')
+    .first()
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const look = await details.evaluate((el) => ({
+    size: parseFloat(getComputedStyle(el).fontSize),
+    colour: getComputedStyle(el).color,
+  }));
+  expect(look.size).toBeLessThan(title);
+  expect(look.colour).toBe(token('dark', 'text-secondary'));
+}
+
+test.describe('list rows on the other pages (AC-06)', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('queue rows: details small and secondary, the action at the end', async ({ page }) => {
+    const real = await overviewAnswer(page);
+    await page.route('**/api/overview', (route) =>
+      route.fulfill({ json: { ...real, queue: { ...real.queue, items: [QUEUE_ITEM] } } }),
+    );
+    await page.goto(`${LIBRARY}/`);
+    const row = page.getByTestId('queue-item');
+    await expect(row).toBeVisible();
+    await expectRowLook(
+      row,
+      row.locator('.release'),
+      row.getByRole('button', { name: 'Als fehlgeschlagen markieren' }),
+    );
+  });
+
+  test('blocklist and backup rows: details small and secondary, the actions at the end', async ({
+    page,
+  }) => {
+    await page.route('**/api/blocklist?*', (route) =>
+      route.fulfill({
+        json: {
+          page: 1,
+          page_size: 50,
+          total: 1,
+          entries: [
+            {
+              id: 1,
+              movie_id: 1,
+              series_id: null,
+              media_title: 'Film 0001',
+              title: 'Film.0001.1951.1080p-GRP',
+              indexer: 'Testindexer',
+              reason: 'Download fehlgeschlagen',
+              blocklisted_at: '2026-11-10T08:00:00Z',
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto(`${LIBRARY}/blocklist`);
+    const entry = page.getByTestId('blocklist-entry').first();
+    await expect(entry).toBeVisible();
+    await expectRowLook(entry, entry.locator('.small').first(), entry.getByRole('button').last());
+    await page.goto(`${LIBRARY}/backups`);
+    const backup = page.getByTestId('backup').first();
+    await expect(backup).toBeVisible();
+    const backupRow = await box(backup);
+    const last = await box(backup.getByRole('button').last());
+    expect(last.x + last.width).toBeGreaterThan(backupRow.x + backupRow.width - 32);
+    expect(
+      await backup
+        .locator('.small')
+        .first()
+        .evaluate((el) => getComputedStyle(el).color),
+    ).toBe(token('dark', 'text-secondary'));
+  });
+
+  test('the day groups of „Die nächsten 7 Tage“ take no hover ground', async ({ page }) => {
+    await page.goto(`${LIBRARY}/`);
+    const group = page.locator('li.day-group').first();
+    await expect(group).toBeVisible();
+    const rest = await group.evaluate((el) => getComputedStyle(el).backgroundColor);
+    await group.hover();
+    await page.waitForTimeout(200);
+    expect(await group.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rest);
+  });
+});
+
 test.describe('Fehlend (AC-05)', () => {
   test('shared tabs with the accent underline; Filme/Episoden a segmented control', async ({
     page,
