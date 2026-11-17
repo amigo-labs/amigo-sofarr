@@ -88,6 +88,7 @@ export const SAMPLE_SYSTEM: SystemAnswer = {
     { kind: 'indexer', name: 'Indexer B', state: 'no_contact', at: null, message: null },
   ],
   trailers: { active: false, message: 'Schattenmodus: sofarr lädt keine Trailer' },
+  reencode: { active: false, message: 'im Shadow-Mode', running: null },
   config: {
     server: { bind: '0.0.0.0:7676' },
     auth: { enabled: true, password_hash: '***', api_key: '***' },
