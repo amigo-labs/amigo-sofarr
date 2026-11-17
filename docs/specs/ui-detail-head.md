@@ -114,7 +114,7 @@ Terms:
 | AC-05 | `cast strip (AC-05)` › `one scrolling row of round portraits; focus scrolls a link into view` (`ui/e2e/library-detail-head.spec.ts`); `cast on the library pages (AC-06)` (`ui/e2e/discover-pages.spec.ts`) | built |  |
 | AC-06 | `narrow window (AC-06)` › `the head stacks: the poster at most 9 rem above the text, nothing scrolls sideways`, `a series page fits as well` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
 | AC-07 | `axe, dark theme` and `axe, light theme` › `detail heads with and without poster, wide and narrow (ui-detail-head AC-07)`, `Film`, `Serie` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-08 |      | open   |        |
+| AC-08 | manual: the owner checked the movie and series heads with and without poster, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

@@ -137,7 +137,7 @@ Terms:
 | AC-10 | `narrow window (AC-10)` › `the toolbar wraps, the search takes the full width, nothing scrolls sideways` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
 | AC-11 | `axe, dark theme` and `axe, light theme` › `open filter panel and chips (ui-list-toolbar AC-11)`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-12 | `movie list speed (AC-04)` (`ui/e2e/library-perf.spec.ts`, the filter now set in the open panel); `transfer budget (shell AC-16)` › `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-13 |      | open   |        |
+| AC-13 | manual: the owner checked the movie and series lists with the filter panel closed and open and with chips, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

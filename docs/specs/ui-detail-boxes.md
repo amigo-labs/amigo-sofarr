@@ -119,7 +119,7 @@ Terms:
 | AC-06 | `episode rows (AC-06)` › `one line: code, title, date, status chip, labels and icon buttons` (`ui/e2e/library-detail-boxes.spec.ts`); episode tests of `ui/e2e/library-detail.spec.ts` and `ui/e2e/subtitles.spec.ts` | built |  |
 | AC-07 | `narrow window (AC-07)` › `boxes, seasons and episodes fit; icon buttons are 32 px` (`ui/e2e/library-detail-boxes.spec.ts`) | built |  |
 | AC-08 | `axe, dark theme` and `axe, light theme` › `series page with seasons open and closed, wide and narrow (ui-detail-boxes AC-08)`, `Film`, `Serie`, `remove dialog and settings preview` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-09 |      | open   |        |
+| AC-09 | manual: the owner checked a movie page with a file and a series page with seasons, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

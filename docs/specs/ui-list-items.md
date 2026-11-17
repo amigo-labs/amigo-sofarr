@@ -134,7 +134,7 @@ Terms:
 | AC-08 | `touch device (AC-05, AC-08)` › `checkboxes always show; targets are at least 32 px; nothing scrolls sideways` (`ui/e2e/library-items.spec.ts`); `narrow screens …` (`ui/e2e/library-lists.spec.ts`) | built |  |
 | AC-09 | `axe, dark theme` and `axe, light theme` › `list view with a selection, poster grid on a narrow screen (ui-list-items AC-09)`, `poster grid with a selection and the bulk dialog`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-10 | `movie list speed (AC-04)` (`ui/e2e/library-perf.spec.ts`) | built |  |
-| AC-11 |      | open   |        |
+| AC-11 | manual: the owner checked list and poster view with and without a selection, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

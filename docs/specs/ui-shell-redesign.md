@@ -144,7 +144,7 @@ Terms:
 | AC-12 | `links (AC-12)` › `navigation entries and the brand are not underlined`, `titles in lists are underlined only on hover and focus; prose links always`, `the overview, the calendar and the missing page show titles without underline`, `a prose link in a paragraph is underlined` (`ui/e2e/look.spec.ts`) | built |  |
 | AC-13 | `dark theme` and `light theme` › `collapsed sidebar with a tooltip (ui-shell-redesign AC-13)`, `top bar of the login page on a wide window (ui-shell-redesign AC-13)`, `logged-in header and open menu` (open drawer) and every other axe scan of `ui/e2e/a11y.spec.ts`, `library-a11y.spec.ts`, `discover-a11y.spec.ts`, `extras-a11y.spec.ts`; `keyboard (AC-11)` › `every control is reachable by Tab with a visible focus` (`ui/e2e/layout.spec.ts`) | built |  |
 | AC-14 | `transfer budget (AC-16)` (`ui/e2e/assets.spec.ts`) | built |  |
-| AC-15 |      | open   |        |
+| AC-15 | manual: the owner checked the new shell in both palettes at 1440 px (sidebar expanded and collapsed) and 360 px (drawer closed and open) on the screenshots of 2026-11-16 and in PR #18 („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 
