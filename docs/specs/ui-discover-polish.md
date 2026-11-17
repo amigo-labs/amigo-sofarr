@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §3, sofarr.md §9 D19, sofarr.md §9 D30]
@@ -42,23 +42,23 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (state): While discover is available (a TMDB key is set, discover AC-15), the discover start page shows the search field, its „Suchen“ button and a filter button in one row.
+- [x] AC-01 (state): While discover is available (a TMDB key is set, discover AC-15), the discover start page shows the search field, its „Suchen“ button and a filter button in one row.
   - The filter button reads „Filter“, or „Filter (n)“ while n discover filters are active (each filter with a value from the address counts, also a genre id that is not offered).
   - It opens and closes a panel with the discover filters of today (labels, choices, „Filter zurücksetzen“), marked `aria-expanded`.
   - The panel is closed whenever the page loads.
-- [ ] AC-02 (state): While a discover filter is active, a chip names it and its value (e.g. „Art: Filme“, „Jahr von: 1990“, „Originalsprache: Dänisch“, „IMDb-Bewertung: ab 7,0“), with the panel open or closed.
+- [x] AC-02 (state): While a discover filter is active, a chip names it and its value (e.g. „Art: Filme“, „Jahr von: 1990“, „Originalsprache: Dänisch“, „IMDb-Bewertung: ab 7,0“), with the panel open or closed.
   - Pressing a chip removes that filter as its field's empty choice would.
   - The address parameters stay as today (discover AC-02).
   - After a chip is removed, the focus moves to the next chip, else the one before it, else the filter button (as ui-list-toolbar AC-06).
   - Removing „Jahr von“ keeps „Jahr bis“ and the other way round.
-- [ ] AC-03 (always): Every shelf that shows titles has two arrow buttons beside its heading (an empty or failed shelf shows its text of today and no arrows), named „Zurück in „{Regal}““ and „Weiter in „{Regal}““.
+- [x] AC-03 (always): Every shelf that shows titles has two arrow buttons beside its heading (an empty or failed shelf shows its text of today and no arrows), named „Zurück in „{Regal}““ and „Weiter in „{Regal}““.
   - Each scrolls the shelf by about its visible width.
   - The back button is disabled at the shelf's start and the forward button at its end.
   - The page itself never scrolls sideways.
-- [ ] AC-04 (state): While a preview's title has a backdrop image and it has loaded, the preview page's head shows it blurred behind the head under the page ground at an opacity of at least 70 %, fading into the page ground at its lower edge, as the library head does (ui-detail-head AC-01); without one, or when it fails to load, the head has the plain page ground. The facts of the preview head are the compact panel of ui-detail-head AC-03.
-- [ ] AC-05 (state): While the window is narrow (below 768 px), the search field takes the full width with „Suchen“ and the filter button on the next line, the filter panel shows its fields in at most two columns, the arrow buttons stay visible beside each shelf heading, and nothing scrolls sideways at 360 px.
-- [ ] AC-06 (always): The discover start page with the panel open and chips shown, and a preview page with a backdrop, meet WCAG 2.1 AA in both palettes at 1440 px and 360 px (new axe scans), and every control is reachable by keyboard with a visible focus.
-- [ ] AC-07 (always, manual: images): The screenshots in `docs/site/screenshots/` show the redesigned UI (sidebar, chips, the new heads and the month grid), taken from this spec's build; the discover shot shows the start page with its panel closed. The set:
+- [x] AC-04 (state): While a preview's title has a backdrop image and it has loaded, the preview page's head shows it blurred behind the head under the page ground at an opacity of at least 70 %, fading into the page ground at its lower edge, as the library head does (ui-detail-head AC-01); without one, or when it fails to load, the head has the plain page ground. The facts of the preview head are the compact panel of ui-detail-head AC-03.
+- [x] AC-05 (state): While the window is narrow (below 768 px), the search field takes the full width with „Suchen“ and the filter button on the next line, the filter panel shows its fields in at most two columns, the arrow buttons stay visible beside each shelf heading, and nothing scrolls sideways at 360 px.
+- [x] AC-06 (always): The discover start page with the panel open and chips shown, and a preview page with a backdrop, meet WCAG 2.1 AA in both palettes at 1440 px and 360 px (new axe scans), and every control is reachable by keyboard with a visible focus.
+- [x] AC-07 (always, manual: images): The screenshots in `docs/site/screenshots/` show the redesigned UI (sidebar, chips, the new heads and the month grid), taken from this spec's build; the discover shot shows the start page with its panel closed. The set:
   - discover
   - movie list
   - movie page
@@ -66,7 +66,7 @@ Terms:
   - calendar month
   - person page
   - overview (new)
-- [ ] AC-08 (state, manual: visual design): While either palette is active, the discover start page and a preview page look complete at 1440 px and 360 px, and the new screenshots read well on amigo-labs.dev.
+- [x] AC-08 (state, manual: visual design): While either palette is active, the discover start page and a preview page look complete at 1440 px and 360 px, and the new screenshots read well on amigo-labs.dev.
 
 ## Technical notes
 
@@ -92,20 +92,30 @@ Terms:
 | ---------- | ------ | ---- |
 | The overview is a worthwhile new screenshot | It shows the key figures and the next dates, and is the first page after login; the demo has no queue or activity, so those boxes show their empty texts | Low |
 
+## Summary
+
+> Completed: 2026-11-17
+
+- The discover start page has search, „Suchen“ and a filter button („Filter (n)“) in one row; the filters sit in a panel closed at every load, two columns at most below 768 px.
+- Active discover filters show as removable chips from the pure `discoverChips` (`ui/src/lib/discover/filters.ts`), with the focus moving as on the library lists and the address parameters unchanged.
+- Every shelf with titles has back/forward arrow buttons that scroll by about its visible width and disable at its ends.
+- The preview page's head shows the title's TMDB backdrop blurred under at least 70 % of the page ground, with the compact facts panel.
+- The website's screenshots in `docs/site/screenshots/` were regenerated from this build, with the overview as a new one.
+
 ## Open questions
 
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `search row and filter panel (AC-01, AC-02)` › `search, Suchen and the filter button in one row; the panel closed at load` (`ui/e2e/discover-polish.spec.ts`); `filters (AC-02)` (`ui/e2e/discover-pages.spec.ts`, through the open panel) | built |  |
-| AC-02 | `search row and filter panel (AC-01, AC-02)` › `chips name the filters; pressing one removes it and moves the focus` (`ui/e2e/discover-polish.spec.ts`); `discover chips` (`ui/src/lib/discover/discover-chips.test.ts`) | built |  |
-| AC-03 | `shelf arrows (AC-03)` › `back and forward scroll the shelf; disabled at its ends` (`ui/e2e/discover-polish.spec.ts`) | built |  |
-| AC-04 | `preview head (AC-04)` › `the backdrop blurred under at least 70 % of the page ground; compact facts`, `no backdrop when it fails to load` (`ui/e2e/discover-polish.spec.ts`) | built |  |
-| AC-05 | `narrow window (AC-05)` › `the search takes the full width, two filter columns, arrows visible` (`ui/e2e/discover-polish.spec.ts`) | built |  |
-| AC-06 | `axe: start page with panel and chips, preview with backdrop (AC-06, dark/light)` (`ui/e2e/discover-polish.spec.ts`); `ui/e2e/discover-a11y.spec.ts` | built |  |
-| AC-07 | manual: the owner checked the regenerated screenshots in docs/site/screenshots (5ecdb4c) („Sichtcheck passt“), 2026-11-17 | built |  |
-| AC-08 | manual: the owner checked the discover start page and a preview page in both palettes at 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
+| AC-01 | `search row and filter panel (AC-01, AC-02)` › `search, Suchen and the filter button in one row; the panel closed at load` (`ui/e2e/discover-polish.spec.ts`); `filters (AC-02)` (`ui/e2e/discover-pages.spec.ts`, through the open panel) | verified | d8b58e6 |
+| AC-02 | `search row and filter panel (AC-01, AC-02)` › `chips name the filters; pressing one removes it and moves the focus` (`ui/e2e/discover-polish.spec.ts`); `discover chips` (`ui/src/lib/discover/discover-chips.test.ts`) | verified | d8b58e6 |
+| AC-03 | `shelf arrows (AC-03)` › `back and forward scroll the shelf; disabled at its ends` (`ui/e2e/discover-polish.spec.ts`) | verified | d8b58e6 |
+| AC-04 | `preview head (AC-04)` › `the backdrop blurred under at least 70 % of the page ground; compact facts`, `no backdrop when it fails to load` (`ui/e2e/discover-polish.spec.ts`) | verified | d8b58e6 |
+| AC-05 | `narrow window (AC-05)` › `the search takes the full width, two filter columns, arrows visible` (`ui/e2e/discover-polish.spec.ts`) | verified | d8b58e6 |
+| AC-06 | `axe: start page with panel and chips, preview with backdrop (AC-06, dark/light)` (`ui/e2e/discover-polish.spec.ts`); `ui/e2e/discover-a11y.spec.ts` | verified | d8b58e6 |
+| AC-07 | manual: the owner checked the regenerated screenshots in docs/site/screenshots (5ecdb4c) („Sichtcheck passt“), 2026-11-17 | verified | 5ecdb4c |
+| AC-08 | manual: the owner checked the discover start page and a preview page in both palettes at 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | verified | e448529 |
 
 ## Decisions
 

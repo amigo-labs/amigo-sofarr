@@ -29,13 +29,13 @@ because later specs build on earlier ones.
 | 11 | [parser-episode-gaps](parser-episode-gaps.md) | M | – | Episode parser: year before ` - 06`, `E06` without a season, batches `(23-26)`, `[03]` after a dotted anime title | done |
 | 12 | [amigo-theme](amigo-theme.md) | L | web-ui-library | The shared amigo app theme from amigo-labs/website with sofarr's accent, dark by default, Inter (D29); revises web-ui-shell AC-10 | done |
 | 13 | [ui-shell-redesign](ui-shell-redesign.md) | M | amigo-theme | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes loaded, filled status labels, UI links without underline (D30); moves web-ui-shell's menu breakpoint to 1024 px | done |
-| 14 | [ui-list-toolbar](ui-list-toolbar.md) | M | ui-shell-redesign | UI redesign 2: list header, one-row toolbar, filters in a panel, active filters as chips, IMDb attribution below the list (D30) | spec-build |
+| 14 | [ui-list-toolbar](ui-list-toolbar.md) | M | ui-shell-redesign | UI redesign 2: list header, one-row toolbar, filters in a panel, active filters as chips, IMDb attribution below the list (D30) | done |
 | 15 | [ui-list-items](ui-list-items.md) | M | ui-list-toolbar | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30); revises imdb-ratings AC-04 | done |
 | 16 | [ui-detail-head](ui-detail-head.md) | M | ui-list-items | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) | done |
 | 17 | [ui-detail-boxes](ui-detail-boxes.md) | M | ui-detail-head | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) | done |
-| 18 | [ui-calendar](ui-calendar.md) | M | ui-detail-boxes | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) | spec-build |
+| 18 | [ui-calendar](ui-calendar.md) | M | ui-detail-boxes | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) | done |
 | 19 | [ui-overview-pages](ui-overview-pages.md) | M | ui-calendar | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) | spec-build |
-| 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | spec-build |
+| 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | done |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -60,6 +60,9 @@ Large specs (L) are split while being written when they need more than a few ses
 | [ui-list-items](ui-list-items.md) | 2026-11-17 | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30) |
 | [ui-detail-head](ui-detail-head.md) | 2026-11-17 | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) |
 | [ui-detail-boxes](ui-detail-boxes.md) | 2026-11-17 | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) |
+| [ui-list-toolbar](ui-list-toolbar.md) | 2026-11-17 | UI redesign 2: list header, one-row toolbar, filters in a panel, active filters as chips, IMDb attribution below the list (D30) |
+| [ui-calendar](ui-calendar.md) | 2026-11-17 | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) |
+| [ui-discover-polish](ui-discover-polish.md) | 2026-11-17 | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) |
 
 ## Existing behavior without a feature spec
 

@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §3, sofarr.md §9 D24, sofarr.md §9 D30]
@@ -54,32 +54,32 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): sofarr shows the list page's heading ("Filme" or "Serien") and the item count (the number of items matching search and filters, as today) in one row, and below it one toolbar.
+- [x] AC-01 (always): sofarr shows the list page's heading ("Filme" or "Serien") and the item count (the number of items matching search and filters, as today) in one row, and below it one toolbar.
   - The toolbar holds, in this order: the search field ("Suche"), the sort field ("Sortierung"), a sort direction button, the view switch ("Ansicht": Liste, Poster) and the filter button.
   - At 1280 px and wider the toolbar is one row, and the first item of the list starts at most 200 px below the top edge of the page's `main` element while the filter panel is closed and no chip shows.
-- [ ] AC-02 (event): When the user presses the sort direction button, then the list's direction flips between ascending and descending, exactly as the former "Reihenfolge" dropdown did.
+- [x] AC-02 (event): When the user presses the sort direction button, then the list's direction flips between ascending and descending, exactly as the former "Reihenfolge" dropdown did.
   - It changes the same URL parameter in the same way.
   - The button's German name says what pressing it does ("Absteigend sortieren" or "Aufsteigend sortieren").
   - Its icon shows the current direction.
-- [ ] AC-03 (state): While no filter is active, the filter button reads "Filter"; while n filters are active, it reads "Filter (n)".
-- [ ] AC-04 (event): When the user presses the filter button, then the filter panel opens below the toolbar with every filter as a labelled dropdown (the labels and choices of today), and the button is marked expanded (`aria-expanded="true"`); pressing it again closes the panel.
+- [x] AC-03 (state): While no filter is active, the filter button reads "Filter"; while n filters are active, it reads "Filter (n)".
+- [x] AC-04 (event): When the user presses the filter button, then the filter panel opens below the toolbar with every filter as a labelled dropdown (the labels and choices of today), and the button is marked expanded (`aria-expanded="true"`); pressing it again closes the panel.
   - Whenever the page loads, the panel is closed.
-- [ ] AC-05 (state): While a filter is active, a chip names it and its value (e.g. „Überwacht: Ja“, „Qualitätsprofil: HD-1080p“, „Mindestbewertung: ab 7,0“) below the toolbar, whether the panel is open or closed.
+- [x] AC-05 (state): While a filter is active, a chip names it and its value (e.g. „Überwacht: Ja“, „Qualitätsprofil: HD-1080p“, „Mindestbewertung: ab 7,0“) below the toolbar, whether the panel is open or closed.
   - Chips appear in the panel's order.
   - Each chip's German name says that pressing it removes the filter („Filter Überwacht: Ja entfernen“).
-- [ ] AC-06 (event): When the user presses a chip, then that filter goes back to "Alle", the list and the URL update as if it had been set to "Alle" in its dropdown, and the focus moves to the next chip; when the removed chip was the last one, to the chip before it; when no chip is left, to the filter button.
-- [ ] AC-07 (event): When two or more filters are active and the user presses "Alle Filter zurücksetzen", then every filter goes back to "Alle" at once, in one list update, including rating minimums that are in the URL but hidden while ratings are off.
+- [x] AC-06 (event): When the user presses a chip, then that filter goes back to "Alle", the list and the URL update as if it had been set to "Alle" in its dropdown, and the focus moves to the next chip; when the removed chip was the last one, to the chip before it; when no chip is left, to the filter button.
+- [x] AC-07 (event): When two or more filters are active and the user presses "Alle Filter zurücksetzen", then every filter goes back to "Alle" at once, in one list update, including rating minimums that are in the URL but hidden while ratings are off.
   - Search and sort stay as they were.
   - The focus moves to the filter button.
-- [ ] AC-08 (always): Opening a list address with filters, search and sort in it shows exactly the list of today (web-ui-library AC-03), with the chips of its active filters, the search text in the field, and the sort field and direction set; the URL parameters are unchanged.
-- [ ] AC-09 (always): While ratings are shown, IMDb's attribution with the date of the ratings data stands once on the list page, below the list and the "Weitere laden" control, not between the controls and the list.
-- [ ] AC-10 (state): While the window is narrow (below 768 px), the toolbar wraps without horizontal scrolling down to 360 px.
+- [x] AC-08 (always): Opening a list address with filters, search and sort in it shows exactly the list of today (web-ui-library AC-03), with the chips of its active filters, the search text in the field, and the sort field and direction set; the URL parameters are unchanged.
+- [x] AC-09 (always): While ratings are shown, IMDb's attribution with the date of the ratings data stands once on the list page, below the list and the "Weitere laden" control, not between the controls and the list.
+- [x] AC-10 (state): While the window is narrow (below 768 px), the toolbar wraps without horizontal scrolling down to 360 px.
   - The search field takes the full width.
   - The filter panel shows its dropdowns in one or two columns.
   - The chips wrap.
-- [ ] AC-11 (always): The toolbar, the open filter panel and the chips meet WCAG 2.1 AA in both palettes (the axe scans of the list pages run with the panel closed and open and with chips shown), every control is reachable by keyboard with a visible focus, and every icon-only control has a German name.
-- [ ] AC-12 (always): The speed limits of web-ui-library AC-04 and imdb-ratings AC-11 still hold (the perf test with 2,500 movies), and opening a list page directly transfers at most 200 KB of JavaScript and CSS (web-ui-shell AC-16).
-- [ ] AC-13 (state, manual: visual design): While either palette is active, the movie and series lists look complete at 1440 px and 360 px with the filter panel closed and open and with chips shown: nothing overlapping, the toolbar on one row at 1440 px.
+- [x] AC-11 (always): The toolbar, the open filter panel and the chips meet WCAG 2.1 AA in both palettes (the axe scans of the list pages run with the panel closed and open and with chips shown), every control is reachable by keyboard with a visible focus, and every icon-only control has a German name.
+- [x] AC-12 (always): The speed limits of web-ui-library AC-04 and imdb-ratings AC-11 still hold (the perf test with 2,500 movies), and opening a list page directly transfers at most 200 KB of JavaScript and CSS (web-ui-shell AC-16).
+- [x] AC-13 (state, manual: visual design): While either palette is active, the movie and series lists look complete at 1440 px and 360 px with the filter panel closed and open and with chips shown: nothing overlapping, the toolbar on one row at 1440 px.
 
 ## Technical notes
 
@@ -119,25 +119,34 @@ Terms:
 | The attribution may sit below the list | imdb-ratings AC-08 requires it on the page, not a place | Low |
 | No "Alle Filter zurücksetzen" for one filter | The chip already does the same in one press | Low |
 
+## Summary
+
+> Completed: 2026-11-17
+
+- The movie and series lists show heading and count in one row and one toolbar below: search, sort field, a sort direction icon button („Absteigend/Aufsteigend sortieren“), the Liste/Poster switch and a filter button reading „Filter“ or „Filter (n)“.
+- The filters sit in a panel the filter button opens and closes (`aria-expanded`), closed at every load, two columns at most below 768 px.
+- Active filters show as removable chips in the panel's order, built by the pure `filterChips` / `withoutFilters` (`ui/src/lib/library/filter-chips.ts`); the focus moves to the next chip, the one before it, or the filter button; „Alle Filter zurücksetzen“ clears every filter in one list update and keeps search and sort.
+- IMDb's attribution moved below the list; URL parameters, filter logic, speed and transfer budget are unchanged.
+
 ## Open questions
 
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `header and toolbar (AC-01)` › `heading and count in one row, the toolbar in one row, the list starts high` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
-| AC-02 | `sort direction (AC-02)` › `the button flips the direction like the dropdown did, kept in the address` (`ui/e2e/library-toolbar.spec.ts`); `sorts by year descending, kept in the address` (`ui/e2e/library-lists.spec.ts`); `sorting by rating puts the best first …` (`ui/e2e/imdb-ratings.spec.ts`) | built |  |
-| AC-03 | `filter button and panel (AC-03, AC-04)` › `reads Filter, then Filter (n); …`, `search text alone is no filter` (`ui/e2e/library-toolbar.spec.ts`); `filter chips` (`ui/src/lib/library/filter-chips.test.ts`) | built |  |
-| AC-04 | `filter button and panel (AC-03, AC-04)` › `reads Filter, then Filter (n); opens and closes the panel; closed at every load` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
-| AC-05 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)`, `series have the Komplett filter and its chip` (`ui/e2e/library-toolbar.spec.ts`); `filter chips` › `names every active filter and its value in the panel's order (AC-05)`, `shows the id of an unknown profile or tag`, `leaves out the rating filters while ratings are off` (`ui/src/lib/library/filter-chips.test.ts`) | built |  |
-| AC-06 | `chips (AC-05 .. AC-08)` › `a chip removes its filter; the focus moves on (AC-06)` (`ui/e2e/library-toolbar.spec.ts`); `removing a chip sets only that filter back to Alle (AC-06)` (`filter-chips.test.ts`) | built |  |
-| AC-07 | `chips (AC-05 .. AC-08)` › `"Alle Filter zurücksetzen" clears every filter, keeps search and sort (AC-07)` (`ui/e2e/library-toolbar.spec.ts`); `resetting clears every filter and keeps search and sort (AC-07)` (`filter-chips.test.ts`) | built |  |
-| AC-08 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)` (`ui/e2e/library-toolbar.spec.ts`); `filters combine with AND, are part of the address and survive a reload` (`ui/e2e/library-lists.spec.ts`); `minimum rating and votes combine, …`, `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`) | built |  |
-| AC-09 | `attribution (AC-09)` › `IMDb's attribution stands once, below the list` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
-| AC-10 | `narrow window (AC-10)` › `the toolbar wraps, the search takes the full width, nothing scrolls sideways` (360 px); `narrow window between 600 and 767 px (AC-10)` › `the panel shows its dropdowns in at most two columns; the chips wrap` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
-| AC-11 | `axe, dark theme` and `axe, light theme` › `open filter panel and chips (ui-list-toolbar AC-11)`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-12 | `large library (AC-04)` › `first entries within 1 s, filter and search updates within 200 ms` (`ui/e2e/library-perf.spec.ts`, the filter now set in the open panel); `transfer budget (shell AC-16)` › `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-13 | manual: the owner checked the movie and series lists with the filter panel closed and open and with chips, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
+| AC-01 | `header and toolbar (AC-01)` › `heading and count in one row, the toolbar in one row, the list starts high` (`ui/e2e/library-toolbar.spec.ts`) | verified | 30680b4 |
+| AC-02 | `sort direction (AC-02)` › `the button flips the direction like the dropdown did, kept in the address` (`ui/e2e/library-toolbar.spec.ts`); `sorts by year descending, kept in the address` (`ui/e2e/library-lists.spec.ts`); `sorting by rating puts the best first …` (`ui/e2e/imdb-ratings.spec.ts`) | verified | 30680b4 |
+| AC-03 | `filter button and panel (AC-03, AC-04)` › `reads Filter, then Filter (n); …`, `search text alone is no filter` (`ui/e2e/library-toolbar.spec.ts`); `filter chips` (`ui/src/lib/library/filter-chips.test.ts`) | verified | 30680b4 |
+| AC-04 | `filter button and panel (AC-03, AC-04)` › `reads Filter, then Filter (n); opens and closes the panel; closed at every load` (`ui/e2e/library-toolbar.spec.ts`) | verified | 30680b4 |
+| AC-05 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)`, `series have the Komplett filter and its chip` (`ui/e2e/library-toolbar.spec.ts`); `filter chips` › `names every active filter and its value in the panel's order (AC-05)`, `shows the id of an unknown profile or tag`, `leaves out the rating filters while ratings are off` (`ui/src/lib/library/filter-chips.test.ts`) | verified | 30680b4 |
+| AC-06 | `chips (AC-05 .. AC-08)` › `a chip removes its filter; the focus moves on (AC-06)` (`ui/e2e/library-toolbar.spec.ts`); `removing a chip sets only that filter back to Alle (AC-06)` (`filter-chips.test.ts`) | verified | 30680b4 |
+| AC-07 | `chips (AC-05 .. AC-08)` › `"Alle Filter zurücksetzen" clears every filter, keeps search and sort (AC-07)` (`ui/e2e/library-toolbar.spec.ts`); `resetting clears every filter and keeps search and sort (AC-07)` (`filter-chips.test.ts`) | verified | 30680b4 |
+| AC-08 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)` (`ui/e2e/library-toolbar.spec.ts`); `filters combine with AND, are part of the address and survive a reload` (`ui/e2e/library-lists.spec.ts`); `minimum rating and votes combine, …`, `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`) | verified | 30680b4 |
+| AC-09 | `attribution (AC-09)` › `IMDb's attribution stands once, below the list` (`ui/e2e/library-toolbar.spec.ts`) | verified | 30680b4 |
+| AC-10 | `narrow window (AC-10)` › `the toolbar wraps, the search takes the full width, nothing scrolls sideways` (360 px); `narrow window between 600 and 767 px (AC-10)` › `the panel shows its dropdowns in at most two columns; the chips wrap` (`ui/e2e/library-toolbar.spec.ts`) | verified | 30680b4, 4dbc607 |
+| AC-11 | `axe, dark theme` and `axe, light theme` › `open filter panel and chips (ui-list-toolbar AC-11)`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | verified | 30680b4 |
+| AC-12 | `large library (AC-04)` › `first entries within 1 s, filter and search updates within 200 ms` (`ui/e2e/library-perf.spec.ts`, the filter now set in the open panel); `transfer budget (shell AC-16)` › `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | verified | 30680b4 |
+| AC-13 | manual: the owner checked the movie and series lists with the filter panel closed and open and with chips, both palettes, 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | verified | d51afe1 |
 
 ## Decisions
 
