@@ -50,7 +50,7 @@ Terms:
 - How a single movie or series shows in the list or grid — because that is `ui-list-items`.
 - New filters, new sort fields or new URL parameters — because the redesign changes the look, not what can be filtered.
 - Remembering whether the filter panel is open — because the owner chose a closed panel at every load, with the chips always visible.
-- The discover filters (`/entdecken`) — because they belong to `ui-pages-redesign`.
+- The discover filters (`/entdecken`) — because they belong to `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`.
 
 ## Acceptance criteria
 

@@ -13,7 +13,7 @@ oracle: none
 
 The web UI works (specs `web-ui-shell`, `web-ui-library`, `discover`, `amigo-theme` are implemented) but looks raw. Ten navigation entries crowd one header row, the theme switch is a plain select, links are underlined everywhere, and status labels are outlined pills with no shared look. The owner asked for a larger redesign of every area (2026-11-16) and left the direction to the agent.
 
-The redesign is a series of four specs, built in this order: **this spec** (shell, navigation, base styles), then `ui-library-lists-redesign` (movie and series lists), `ui-detail-redesign` (movie and series detail pages) and `ui-pages-redesign` (calendar, overview, discover, the remaining pages, new screenshots). This spec lays the ground the other three build on. It changes no page's content or layout inside the main area beyond what the shared base styles change.
+The redesign is a series of four specs, built in this order: **this spec** (shell, navigation, base styles), then `ui-list-toolbar` and `ui-list-items` (movie and series lists), `ui-detail-head` and `ui-detail-boxes` (movie and series detail pages) and `ui-calendar`, `ui-overview-pages` and `ui-discover-polish` (calendar, overview, discover, the remaining pages, new screenshots). This spec lays the ground the other three build on. It changes no page's content or layout inside the main area beyond what the shared base styles change.
 
 Decided (D30): the navigation moves from a top bar to a left sidebar, and the UI loads the generated shared component classes (`am-*`, `ui/src/theme/components.css`), which `amigo-theme` left unloaded. sofarr's existing global classes (buttons, boxes, labels, fields) keep their names but take the look of their shared counterparts. Renaming them in the page markup happens in specs 2–4, when those pages are rebuilt anyway.
 
@@ -43,10 +43,10 @@ Terms:
 
 ### Out of scope
 
-- A shared page header (title, count and actions in one row) — because it changes every page's markup; it comes with `ui-library-lists-redesign` and `ui-pages-redesign`, which rebuild those pages.
+- A shared page header (title, count and actions in one row) — because it changes every page's markup; it comes with `ui-list-toolbar` and `ui-list-items` and `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`, which rebuild those pages.
 - Renaming `.btn`, `.box`, `.label` and the field classes to `am-*` in the page markup — because it touches 33 files; specs 2–4 rename them per page as they rebuild it.
 - Filter controls, poster cards, detail pages and the calendar layout — because they belong to specs 2–4.
-- New screenshots for amigo-labs.dev — because they are regenerated once the whole redesign is accepted (`ui-pages-redesign`).
+- New screenshots for amigo-labs.dev — because they are regenerated once the whole redesign is accepted (`ui-calendar`, `ui-overview-pages` and `ui-discover-polish`).
 - Changes to the theme files under `ui/src/theme/` — because they are generated (amigo-theme AC-01).
 - A user setting for the sidebar's side or width — because nothing asks for it.
 

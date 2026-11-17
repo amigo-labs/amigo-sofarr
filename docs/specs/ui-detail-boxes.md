@@ -76,7 +76,7 @@ Terms:
 ## Technical notes
 
 - **Layout:** `MoviePage`/`SeriesPage` wrap their boxes in two column containers (`.detail-main`, `.detail-side`) inside a grid with `grid-template-columns: minmax(0, 2fr) minmax(0, 1fr)` from 1200 px; below that, one column.
-- **Box header:** `.box-header` in `app.css` takes the `am-panel > header` look (no ground, 16 px semibold heading, hairline). Box headings on other pages change with it; `ui-pages-redesign` relies on that.
+- **Box header:** `.box-header` in `app.css` takes the `am-panel > header` look (no ground, 16 px semibold heading, hairline). Box headings on other pages change with it; `ui-calendar`, `ui-overview-pages` and `ui-discover-polish` relies on that.
 - **Season:**
   - stays a `<details>`
   - the summary holds name, progress (`am-progress`), counts, labels and a chevron

@@ -41,7 +41,7 @@ Terms:
 
 - The boxes below the cast and the seasons — because they are `ui-detail-boxes`.
 - A real backdrop image from TMDB — because it would need the API and the image cache to carry a second image per title; the blurred poster gives the effect without that.
-- The discover preview and person pages — because they belong to `ui-pages-redesign`, although they share the people list.
+- The discover preview and person pages — because they belong to `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`, although they share the people list.
 
 ## Acceptance criteria
 
@@ -132,5 +132,5 @@ Terms:
 - 2026-11-17 (build): Red run against 83445f0: `bunx playwright test e2e/library-detail-head.spec.ts` failed 8 of 10. Green at once: „no backdrop without a poster …“ (there was no backdrop at all) and „a series page fits as well“ (web-ui-library AC-22 already held); both stay as guards.
 - 2026-11-17 (build): The head reaches out to the edges of `main` (negative margin of its padding), so the backdrop fills the width above the page instead of sitting in a box. The veil is `bg` at 78 % with a gradient to `bg` at the lower edge; axe checks the text on it.
 - 2026-11-17 (build): `DetailHead` takes the snippets `chips`, `rating` and `facts`; `RatingLine` takes `attribution={false}` on the detail pages, which render `ImdbAttribution` once after their boxes.
-- 2026-11-17 (build): `PeopleList` gets a `strip` variant (CastBox only); the discover preview and person pages keep the grid until `ui-pages-redesign`.
+- 2026-11-17 (build): `PeopleList` gets a `strip` variant (CastBox only); the discover preview and person pages keep the grid until `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`.
 

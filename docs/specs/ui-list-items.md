@@ -44,7 +44,7 @@ Terms:
 ### Out of scope
 
 - The toolbar, filters and attribution — because they are `ui-list-toolbar`.
-- The detail pages and the discover cards — because they are `ui-detail-redesign` and `ui-pages-redesign`; they keep the full rating text until then.
+- The detail pages and the discover cards — because they are `ui-detail-head` and `ui-detail-boxes` and `ui-calendar`, `ui-overview-pages` and `ui-discover-polish`; they keep the full rating text until then.
 - The bulk actions themselves (the "Auswahl" bar, its dialogs) — because they work and only their trigger visibility changes here.
 - Poster sizes and the number of grid columns — because the current auto-fill grid already fills 1440 px with seven columns.
 
@@ -89,7 +89,7 @@ Terms:
   - `ratingCompactText` next to `ratingWithVotesText` in `ui/src/lib/imdb/imdb.ts`, unit-tested.
   - `rows.ts` carries both texts.
   - `data-testid="rating"` stays on the element; its accessible name carries the full text (`aria-label` plus `title`).
-- **Monitor toggle:** `MonitorButton.svelte` gets an `icon` variant for the lists. The detail pages keep the variant with text until `ui-detail-redesign`.
+- **Monitor toggle:** `MonitorButton.svelte` gets an `icon` variant for the lists. The detail pages keep the variant with text until `ui-detail-head` and `ui-detail-boxes`.
 - **Chips:** `Label` with the tone `accent` from `ui-shell-redesign`; `rows.ts` returns the status chip as the first label, so `file` as plain text goes.
 - **Hover:** done in CSS with `@media (hover: hover)` and `:focus-within`, plus a `selecting` class on the list while in selection mode.
 - **Tests:**
