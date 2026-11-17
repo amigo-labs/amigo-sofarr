@@ -10,7 +10,7 @@ Two kinds of spec live here (`AGENTS.md`, "Spec-driven workflow"):
 
 ## Order
 
-Phase 6 "operations and comfort" (decisions D13–D26). All specs are written and committed;
+Phase 6 "operations and comfort" (decisions D13–D30). All specs are written and committed;
 the next step for each is `/spec-build <name>`, then `/spec-check <name>`. The order is binding
 because later specs build on earlier ones.
 
@@ -36,6 +36,8 @@ because later specs build on earlier ones.
 | 18 | [ui-calendar](ui-calendar.md) | M | ui-detail-boxes | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) | done |
 | 19 | [ui-overview-pages](ui-overview-pages.md) | M | ui-calendar | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) | done |
 | 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | done |
+| 21 | [ui-consistency](ui-consistency.md) | M | ui-discover-polish | UI redesign 9: accent only for states and the main action, discover tiles and search like the library, German wording, date-times to the minute, calmer episode rows, paths break at slashes, sofarr's monogram (D30) | build |
+| 22 | [ui-overview-polish](ui-overview-polish.md) | S | ui-consistency | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) | build |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).

@@ -1,0 +1,90 @@
+---
+status: todo
+created: 2026-11-17
+size: S
+design: [sofarr.md §3, sofarr.md §9 D30]
+media: both
+oracle: none
+---
+
+# UI redesign 10: overview polish
+
+## Context
+
+The overview (`/`, `web-ui-library` AC-01, `ui-overview-pages` AC-02 to AC-04) is the first page after login. In the screenshots of 2026-11-17 it reads as a plain list:
+
+- The key figures are bare numbers with a label.
+- The queue box shows a yellow warning „Kein Download-Client konfiguriert“ and below it „Nichts in der Warteschlange.“, although running without a client (shadow mode) is a normal setup.
+- The days of „Die nächsten 7 Tage“ are full dates („19.11.2026“) where „Morgen“ or „Donnerstag, 19.11.“ would read faster.
+- The empty boxes are a single grey sentence each.
+
+There is also a bug: while the client is unreachable and a last state is known, the queue notice names that state twice („Download-Client nicht erreichbar – Stand von 17.11.2026 10:23. Stand: 17.11.2026, 10:23:41“).
+
+This spec builds on `ui-consistency` (date-times to the minute, neutral info notices).
+
+## Scope
+
+### In scope
+
+- The key figures, the queue box's notice and empty state, the day headings of the next 7 days, the empty states of the four boxes.
+- The queue answer's new field that says whether a download client is configured.
+
+### Out of scope
+
+- New figures or boxes (e.g. library size, disk space) — because the overview answer has no such data and adding it is a feature of its own.
+- A hero or backdrop on the overview — because the overview shows states, not a title; the library heads carry the artwork.
+- The order and columns of the boxes — because `ui-overview-pages` AC-04 settled them.
+
+## Acceptance criteria
+
+- [ ] AC-01 (always): sofarr shows each key figure with an icon before its label (Warteschlange: download, Probleme: alert, Nächste 7 Tage: calendar), the number in tabular figures, and the whole tile as its link of today (ui-overview-pages AC-02). The icons are decorative (hidden from assistive technology).
+- [ ] AC-02 (state): While no download client is configured (in shadow or live mode), the queue box shows one line of muted text „Kein Download-Client eingerichtet – sofarr lädt nichts herunter.“ and neither a warning nor „Nichts in der Warteschlange.“. Grabs that are active in the database still show as rows below it, as today.
+- [ ] AC-03 (error): If the configured download client is unreachable, then the queue box shows the warning of today with the time of the last known state exactly once (to the minute), or „Download-Client nicht erreichbar“ without a time when no state is known.
+- [ ] AC-04 (always): The queue answer (`GET /api/queue` and the overview's `queue`) carries `client_configured` (true while `[nzbget]` is configured). All fields of today stay, so existing clients keep working.
+- [ ] AC-05 (always): A day heading in „Die nächsten 7 Tage“ reads:
+  - „Heute“ for today
+  - „Morgen“ for tomorrow
+  - otherwise the weekday and the date without year (e.g. „Donnerstag, 19.11.“)
+
+  An entry's date is a calendar day without time (`YYYY-MM-DD`), compared with the browser's local date. The full date („19.11.2026“) stays available as the heading's tooltip and as a machine-readable date. A date that cannot be read shows as it came.
+- [ ] AC-06 (always): An empty box of the overview (queue without client is AC-02) shows its sentence of today with a decorative icon before it (Warteschlange: download, Die nächsten 7 Tage: calendar, Probleme: check, Letzte Aktivität: history), in the muted text colour. The problems box while empty says „Keine Probleme in den letzten 7 Tagen.“
+- [ ] AC-07 (always): The overview meets WCAG 2.1 AA in both palettes at 1440 px and 360 px with empty boxes and with a queue item, a problem and upcoming entries (axe scans).
+- [ ] AC-08 (state, manual: visual design): While either palette is active, the overview looks complete and calm at 1440 px and 360 px, with no client and with one.
+
+## Technical notes
+
+- **Queue:** `client_state` in `crates/sofarr-server/src/overview.rs` already builds the „Stand von …“ notice; the UI's `QueueBox.svelte` appends a second „Stand“. One of the two goes.
+- **Day headings:** a pure, unit-tested helper `dayHeading(date, today)` next to `dateText` (`ui/src/lib/library/format.ts`); `today` is passed in, so tests need no clock.
+- **Icons:** octicons as elsewhere (`download-16`, `alert-16`, `calendar-16`).
+- **Tests:** server tests in `crates/sofarr-server/src/overview_tests.rs` (AC-02 to AC-04); Playwright in `ui/e2e/overview-polish.spec.ts`; the e2e server of today runs without a client.
+
+## Edge cases
+
+| Scenario | Expected behavior |
+| -------- | ----------------- |
+| No client configured, but grabs from an earlier live run are active | The neutral line, then the grab rows without client progress |
+| Client unreachable, a last state known | Warning with that state's time once |
+| Client unreachable, no state known | Warning without a time |
+| An upcoming entry on today's date | Heading „Heute“ |
+| The overview stays open past midnight | The next refresh (every 15 s) recomputes „Heute“ and „Morgen“ |
+| Three problems | Problems figure in the danger tone (ui-overview-pages AC-03) with its icon |
+
+## Open questions
+
+## Evidence
+
+| AC    | Test | Status | Commit |
+| ----- | ---- | ------ | ------ |
+| AC-01 |      | open   |        |
+| AC-02 |      | open   |        |
+| AC-03 |      | open   |        |
+| AC-04 |      | open   |        |
+| AC-05 |      | open   |        |
+| AC-06 |      | open   |        |
+| AC-07 |      | open   |        |
+| AC-08 |      | open   |        |
+
+## Decisions
+
+- 2026-11-17: Running without a download client is a normal setup (shadow mode needs none, sofarr.md §5 step 3), so it is a muted line, not a warning, in either mode; whether sofarr may download at all is the System page's mode, not the queue's business. An unreachable configured client stays a warning in either mode.
+- 2026-11-17: `client_configured` is a new field rather than a check of the notice text, because the UI must not depend on a German sentence; the field is additive, so the API stays compatible.
