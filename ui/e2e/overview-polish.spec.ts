@@ -3,13 +3,17 @@
 // states with an icon.
 
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { OverviewAnswer } from '../src/lib/api/generated/OverviewAnswer';
 import type { QueueItem } from '../src/lib/api/generated/QueueItem';
 import { LIBRARY } from './library-helpers';
+import { octiconPath as octicon } from './octicons.mjs';
 import { PALETTES, storeTheme } from './theme-helpers';
 
 const NO_CLIENT = 'Kein Download-Client eingerichtet – sofarr lädt nichts herunter.';
+
+const iconOf = (scope: Locator): Promise<string | null> =>
+  scope.locator('svg path').first().getAttribute('d');
 
 const QUEUE_ITEM: QueueItem = {
   download_state: 'downloading',
@@ -87,6 +91,19 @@ test.describe('key figures (AC-01)', () => {
       expect(await number.evaluate((e) => getComputedStyle(e).fontVariantNumeric)).toContain(
         'tabular-nums',
       );
+    }
+    // Warteschlange: download, Probleme: alert, Nächste 7 Tage: calendar; the icon first.
+    for (const [i, name] of ['download', 'alert', 'calendar'].entries()) {
+      const figure = figures.nth(i);
+      expect(await iconOf(figure)).toBe(octicon(name));
+      const icon = await figure.locator('svg').boundingBox();
+      const label = await figure.locator('strong + span').evaluate((e) => {
+        const range = document.createRange();
+        const words = [...e.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
+        if (words !== undefined) range.selectNodeContents(words);
+        return range.getBoundingClientRect().x;
+      });
+      expect((icon?.x ?? 99) + (icon?.width ?? 0)).toBeLessThanOrEqual(label);
     }
     // The links keep their names of today (ui-overview-pages AC-02).
     await expect(figures.nth(0)).toHaveAccessibleName(/^\d+ Warteschlange$/);
@@ -184,17 +201,19 @@ test.describe('empty states (AC-06)', () => {
     }));
     await page.goto(`${LIBRARY}/`);
     const muted = await resolvedColour(page, 'var(--fgColor-muted)');
-    for (const [region, text] of [
-      ['Warteschlange', 'Nichts in der Warteschlange.'],
+    for (const [region, text, name] of [
+      ['Warteschlange', 'Nichts in der Warteschlange.', 'download'],
       [
         'Die nächsten 7 Tage',
         'Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen.',
+        'calendar',
       ],
-      ['Probleme der letzten 7 Tage', 'Keine Probleme in den letzten 7 Tagen.'],
-      ['Letzte Aktivität', 'Noch keine Grabs oder Importe.'],
+      ['Probleme der letzten 7 Tage', 'Keine Probleme in den letzten 7 Tagen.', 'check'],
+      ['Letzte Aktivität', 'Noch keine Grabs oder Importe.', 'history'],
     ] as const) {
       const empty = page.getByRole('region', { name: region }).locator('.empty');
       await expect(empty).toHaveText(text);
+      expect(await iconOf(empty)).toBe(octicon(name));
       const icon = empty.locator('svg');
       await expect(icon).toHaveCount(1);
       expect(await icon.evaluate((e) => e.closest('[aria-hidden="true"]') !== null)).toBe(true);

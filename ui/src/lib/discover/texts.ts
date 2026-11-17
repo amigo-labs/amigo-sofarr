@@ -51,7 +51,7 @@ export function ratingCompact(rating: Rating): { text: string; full: string } | 
   }
 }
 
-/** When an answer was fetched, e.g. "Stand: 12.11.2026, 10:00:00" (AC-13). */
+/** When an answer was fetched, e.g. "Stand: 12.11.2026, 10:00" (AC-13). */
 export function fetchedText(freshness: Freshness, timeZone?: string): string {
   return `Stand: ${dateTimeText(freshness.fetched_at, timeZone)}`;
 }

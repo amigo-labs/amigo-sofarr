@@ -74,18 +74,18 @@ Terms:
 
   | Group | Entry | Icon |
   | --- | --- | --- |
-  | Bibliothek | Übersicht | `home` |
+  | (no heading) | Übersicht | `home` |
+  | (no heading) | Entdecken | `telescope` |
   | Bibliothek | Filme | `video` |
   | Bibliothek | Serien | `device-desktop` |
   | Bibliothek | Kalender | `calendar` |
   | Bibliothek | Fehlend | `inbox` |
-  | Entdecken | Entdecken | `telescope` |
-  | Verwaltung | Blocklist | `circle-slash` |
+  | Verwaltung | Sperrliste | `circle-slash` |
   | Verwaltung | Untertitel | `comment` |
   | Verwaltung | Backups | `database` |
   | Verwaltung | System | `server` |
 
-  `ui/src/lib/nav.ts` gains the group and icon per page; the order of `PAGES` stays.
+  `ui/src/lib/nav.ts` gains the group and icon per page; `PAGES` follows the navigation order (revised 2026-11-17: Entdecken after Übersicht, the first group „Start“ has no heading).
 - **Sidebar size:** 240 px expanded and 56 px collapsed; the brand row shows the sofarr icon only when collapsed. When the entries do not fit the window height, they scroll inside the sidebar and the footer stays visible. Collapsed, the theme switch shows its three buttons as icons (`moon`, `sun`, `device-desktop`) stacked, each named Dunkel, Hell, System; expanded they show icon and label in a row.
 - **Content width:** the main content stays centred at most 80 rem wide within the width beside the sidebar, so the pages keep their layout until specs 2–4.
 - **Stored state:** the collapsed state goes under `sofarr-sidebar` (`collapsed`, or nothing). The first-paint script in `app.html`, which already applies the stored theme, also sets a `data-sidebar="collapsed"` attribute so AC-04 holds before the app renders.
@@ -128,7 +128,7 @@ Terms:
 
 > Completed: 2026-11-17
 
-- A left sidebar on wide windows (240 px, collapsible to 56 px icons with tooltips, state remembered under `sofarr-sidebar` and applied before the first paint), with the pages in three groups and an Octicon per entry.
+- A left sidebar on wide windows (240 px, collapsible to 56 px icons with tooltips, state remembered under `sofarr-sidebar` and applied before the first paint), with the pages in three groups and an Octicon per entry. Revised 2026-11-17 (AC-01): Übersicht and Entdecken first without a heading, then Bibliothek and Verwaltung; awaiting spec-check.
 - On narrow windows (below 1024 px) a top bar with menu button and brand; the navigation opens as a modal drawer from the left that keeps the focus and closes on Escape, a click outside or a page change.
 - The theme switch is a segmented control (Dunkel, Hell, System) in the sidebar footer next to the logout.
 - The shared component classes (`components.css`) are loaded; sofarr's buttons, boxes, fields, checkboxes and status labels take their look, and status labels are filled chips with a dot in four tones (accent new).
@@ -176,4 +176,4 @@ Terms:
 - 2026-11-16 (build): New public API: `Tone` gains `'accent'` (`ui/src/lib/system/format.ts`); `navGroups`, `NAV_GROUPS` and `NavPage.group`/`icon` (`ui/src/lib/nav.ts`); `ui/src/lib/sidebar.ts`.
 - 2026-11-17: AC-01 revised (owner): Übersicht and Entdecken stand first without a group heading, because a group „Entdecken“ with the single entry „Entdecken“ repeated itself and the two entry pages belong at the top; Bibliothek keeps Filme, Serien, Kalender and Fehlend. The navigation order of `web-ui-shell` AC-08 changes with it. Back to `status: todo` until spec-check accepts the revision.
 - 2026-11-17 (build): Red run of the revision against ff08f13: `bunx vitest run src/lib/nav.test.ts` failed 3 of 5 (order and groups). The first group is named „Start“ in the code and „Einstieg“ as the list's accessible name, without a visible heading.
-
+- 2026-11-17 (spec-check, round 1 of the revision: NOT READY): the group and icon table under Technical notes still showed the old groups; it now matches AC-01 (no heading for Übersicht and Entdecken, Sperrliste under Verwaltung).

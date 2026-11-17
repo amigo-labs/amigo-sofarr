@@ -24,6 +24,9 @@ async function resolved(page: Page, property: 'color' | 'background-color', valu
 }
 
 const colour = (l: Locator) => l.evaluate((e) => getComputedStyle(e).color);
+/** The transform of the chevron in a toggle (its icon's wrapper). */
+const turn = (l: Locator) =>
+  l.locator('svg').evaluate((e) => getComputedStyle(e.parentElement?.parentElement ?? e).transform);
 const decoration = (l: Locator) => l.evaluate((e) => getComputedStyle(e).textDecorationLine);
 
 async function openSeries(page: Page, title = 'Kleine Insel'): Promise<void> {
@@ -58,6 +61,29 @@ for (const palette of PALETTES) {
       expect(await colour(active)).toBe(accent);
     });
 
+    test('the monitor toggle keeps the accent while monitored, not while unmonitored', async ({
+      page,
+    }) => {
+      // S01E01 monitored, S01E02 not; served here, because other tests toggle them.
+      type Episode = { number: number; monitored: boolean };
+      await page.route('**/api/library/series/*', async (route) => {
+        const answer = await route.fetch();
+        const series = (await answer.json()) as { seasons: { episodes: Episode[] }[] };
+        for (const season of series.seasons) {
+          for (const episode of season.episodes) episode.monitored = episode.number === 1;
+        }
+        await route.fulfill({ response: answer, json: series });
+      });
+      await openSeries(page);
+      const accent = await resolved(page, 'color', 'var(--fgColor-accent)');
+      const on = page.locator('[data-episode="S01E01"] button[aria-pressed]');
+      const off = page.locator('[data-episode="S01E02"] button[aria-pressed]');
+      await expect(on).toHaveAttribute('aria-pressed', 'true');
+      await expect(off).toHaveAttribute('aria-pressed', 'false');
+      expect(await colour(on)).toBe(accent);
+      expect(await colour(off)).not.toBe(accent);
+    });
+
     test('an info notice has the neutral muted ground and the text colour', async ({ page }) => {
       await openSeries(page);
       const note = page.locator('.flash-info').filter({ hasText: 'Live-Modus' });
@@ -90,10 +116,23 @@ test.describe('episode disclosures (AC-11)', () => {
     const row = page.locator('li.episode').filter({ has: file });
     const rowBox = await row.boundingBox();
     await expect(file).toHaveAttribute('aria-expanded', 'false');
+    // The chevron points right while closed and down while open.
+    expect(await turn(file)).toBe('none');
+    // Hovered or focused, a toggle takes the accent.
+    const accent = await resolved(page, 'color', 'var(--fgColor-accent)');
+    await file.hover();
+    await expect.poll(() => colour(file)).toBe(accent);
+    await subs.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect.poll(() => colour(subs)).toBe(accent);
     await file.click();
     await subs.click();
     await expect(file).toHaveAttribute('aria-expanded', 'true');
     await expect(subs).toHaveAttribute('aria-expanded', 'true');
+    // matrix(0, 1, -1, 0, 0, 0) is a quarter turn.
+    await expect.poll(() => turn(file)).toMatch(/^matrix\(0, 1, -1, 0/);
+    await expect.poll(() => turn(subs)).toMatch(/^matrix\(0, 1, -1, 0/);
     const bodies = row.locator('.disclosure-body');
     await expect(bodies).toHaveCount(2);
     for (const body of await bodies.all()) {
