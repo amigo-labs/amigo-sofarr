@@ -105,7 +105,8 @@ async fn shelves_come_in_order_with_library_state_and_ratings_that_load() {
             "popular_series"
         ]
     );
-    assert_eq!(shelves[0]["title"], "Trending heute");
+    assert_eq!(shelves[0]["title"], "Heute beliebt");
+    assert_eq!(shelves[1]["title"], "Diese Woche beliebt");
     assert_eq!(shelves[5]["title"], "Neu als Stream oder Disc");
     assert_eq!(shelves[0]["items"].as_array().expect("items").len(), 20);
     assert_eq!(shelves[0]["has_more"], true);

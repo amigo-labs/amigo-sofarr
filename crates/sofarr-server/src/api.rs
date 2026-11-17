@@ -394,7 +394,7 @@ async fn unblock(
     } else {
         Err(ApiError::new(
             StatusCode::NOT_FOUND,
-            format!("Blocklist-Eintrag {id} nicht gefunden"),
+            format!("Sperrlisten-Eintrag {id} nicht gefunden"),
         ))
     }
 }
