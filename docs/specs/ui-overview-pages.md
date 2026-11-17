@@ -113,17 +113,22 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
+| AC-01 | `page header (AC-01)` › `/fehlend: the count sits in the heading's row, right after it`, `/blocklist: …`, `Backups: the main action at the end of the heading row; below it on 360 px` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-02 | `overview (AC-02 .. AC-04)` › `three key figures, counted from the boxes, each linking to its box` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-03 | `overview (AC-02 .. AC-04)` › `the problems figure is danger while there are problems, neutral without` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-04 | `overview (AC-02 .. AC-04)` › `two columns from 1200 px, one below` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-05 | `Fehlend (AC-05)` › `shared tabs with the accent underline; Filme/Episoden a segmented control` (`ui/e2e/pages-redesign.spec.ts`); `missing page (AC-08, AC-09)` (`ui/e2e/library-pages.spec.ts`) | built |  |
+| AC-06 | `list rows (AC-06)` › `actions at the end of the row, at least 32 px; rows take the hover ground` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-07 | `system and login (AC-07, AC-08)` › `the system overview is a compact facts panel in up to three columns` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
+| AC-08 | `system and login (AC-07, AC-08)` › `the login form is a centred card at most 400 px wide with the icon above` (`ui/e2e/pages-redesign.spec.ts`); `ui/e2e/auth.spec.ts` (unchanged) | built |  |
+| AC-09 | `axe, dark (AC-09)` and `axe, light (AC-09)` › `Übersicht / Fehlend / Blocklist / Backups / Untertitel / System / Anmelden at 1440 and 360 px` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
 | AC-10 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: The key figures come from the overview answer only, so the overview needs no new API data.
+- 2026-11-17 (build): Red run against 5d8f7e2: `bunx playwright test e2e/pages-redesign.spec.ts` failed 8 of 24 (one skipped: the problems test, which then got a fixed problem entry instead of depending on the seed). Green at once and kept as guards: the system facts (their `.facts` grid already shows three terms in one row with small terms) and the 14 axe scans.
+- 2026-11-17 (build): `PageHeader.svelte` takes `title` and the snippets `count`, `status`, `actions`; the counts of Fehlend and Blocklist moved into it with their test ids.
+- 2026-11-17 (build): List rows (`li.box-row`) take the hover ground and their UI link title in semibold globally; the overview's day groups carry `day-group` and are left out. `.btn.icon-only` makes square icon buttons.
+- 2026-11-17 (build): The login card kept its width (22 rem) and centring; it gained the brand icon above the heading.
+

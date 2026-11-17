@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '#lib/components/PageHeader.svelte';
   import searchIcon from '@primer/octicons/build/svg/search-16.svg?raw';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -106,9 +107,17 @@
   <title>Fehlend – sofarr</title>
 </svelte:head>
 
-<h1>Fehlend</h1>
+<PageHeader title="Fehlend">
+  {#snippet count()}
+    {#if answer !== null}
+      <span data-testid="wanted-total">
+        {itemCount(answer.total, media === 'movies' ? 'movie' : 'episode')}
+      </span>
+    {/if}
+  {/snippet}
+</PageHeader>
 
-<div class="tabs" role="tablist" aria-label="Liste">
+<div class="am-tabs" role="tablist" aria-label="Liste">
   <button
     type="button"
     role="tab"
@@ -128,18 +137,12 @@
 </div>
 
 <div class="toolbar" role="tabpanel">
-  <div class="group" role="group" aria-label="Art">
-    <button
-      type="button"
-      class="btn"
-      aria-pressed={media === 'movies'}
-      onclick={() => show({ art: 'movies' })}
-    >
+  <div class="am-seg" role="group" aria-label="Art">
+    <button type="button" aria-pressed={media === 'movies'} onclick={() => show({ art: 'movies' })}>
       Filme
     </button>
     <button
       type="button"
-      class="btn"
       aria-pressed={media === 'episodes'}
       onclick={() => show({ art: 'episodes' })}
     >
@@ -181,9 +184,6 @@
 {#if answer === null && failure === null}
   <Loading label="Liste wird geladen …" />
 {:else if answer !== null}
-  <p class="muted" data-testid="wanted-total">
-    {itemCount(answer.total, media === 'movies' ? 'movie' : 'episode')}
-  </p>
   {#if answer.items.length === 0}
     <p class="muted">Nichts in dieser Liste.</p>
   {:else}
@@ -208,7 +208,7 @@
           </div>
           <button
             type="button"
-            class="btn"
+            class="btn icon-only"
             aria-label={`„${item.label}“ suchen`}
             disabled={running !== null}
             onclick={() => void one(item)}
@@ -243,39 +243,12 @@
 {/if}
 
 <style>
-  .tabs {
-    display: flex;
-    gap: var(--base-size-4);
-    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
-  }
-
-  .tabs button {
-    padding: var(--base-size-8) var(--base-size-12);
-    border: 0;
-    border-bottom: 2px solid transparent;
-    background: none;
-    color: var(--fgColor-default);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .tabs button[aria-selected='true'] {
-    border-bottom-color: var(--underlineNav-borderColor-active);
-    font-weight: var(--base-text-weight-semibold);
-  }
-
   .toolbar,
-  .group,
   .pager {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--base-size-8);
-  }
-
-  .group button[aria-pressed='true'] {
-    border-color: var(--borderColor-accent-emphasis);
-    box-shadow: inset 0 0 0 1px var(--borderColor-accent-emphasis);
   }
 
   .rows {

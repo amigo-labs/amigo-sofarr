@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '#lib/components/PageHeader.svelte';
   import trashIcon from '@primer/octicons/build/svg/trash-16.svg?raw';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -71,7 +72,13 @@
   <title>Blocklist – sofarr</title>
 </svelte:head>
 
-<h1>Blocklist</h1>
+<PageHeader title="Blocklist">
+  {#snippet count()}
+    {#if answer !== null}
+      <span data-testid="blocklist-total">{itemCount(answer.total, 'item')}</span>
+    {/if}
+  {/snippet}
+</PageHeader>
 
 {#if failure !== null}
   <Flash tone="danger">
@@ -83,7 +90,6 @@
 {#if answer === null && failure === null}
   <Loading label="Blocklist wird geladen …" />
 {:else if answer !== null}
-  <p class="muted" data-testid="blocklist-total">{itemCount(answer.total, 'item')}</p>
   {#if answer.entries.length === 0}
     <p class="muted">Die Blocklist ist leer.</p>
   {:else}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Flash from '#lib/components/Flash.svelte';
+  import PageHeader from '#lib/components/PageHeader.svelte';
   import Loading from '#lib/components/Loading.svelte';
   import PageError from '#lib/components/PageError.svelte';
   import { getOverview } from '#lib/api/library.ts';
@@ -11,7 +12,8 @@
   import { createResource } from '#lib/resource.svelte.ts';
 
   // The overview (spec web-ui-library AC-01): queue, activity, problems, upcoming dates;
-  // refreshes every 15 seconds (spec web-ui-shell).
+  // refreshes every 15 seconds (spec web-ui-shell). Key figures on top and two columns from
+  // 1200 px (spec ui-overview-pages AC-02 .. AC-04).
   const overview = createResource(getOverview);
 
   onMount(() => overview.start());
@@ -29,12 +31,13 @@
   <title>Übersicht – sofarr</title>
 </svelte:head>
 
-<div class="head">
-  <h1>Übersicht</h1>
-  {#if overview.slow && overview.data !== null}
-    <span class="muted" role="status">Wird aktualisiert …</span>
-  {/if}
-</div>
+<PageHeader title="Übersicht">
+  {#snippet status()}
+    {#if overview.slow && overview.data !== null}
+      <span class="muted" role="status">Wird aktualisiert …</span>
+    {/if}
+  {/snippet}
+</PageHeader>
 
 {#if overview.data !== null}
   {#if overview.failure !== null}
@@ -47,41 +50,63 @@
       </button>
     </Flash>
   {/if}
+  {@const problems = overview.data.problems.length}
+  <ul class="figures" aria-label="Kennzahlen">
+    <li>
+      <a class="figure ui-link" href="#queue-title">
+        <strong>{overview.data.queue.items.length}</strong><span>Warteschlange</span>
+      </a>
+    </li>
+    <li>
+      <a class="figure ui-link" class:danger={problems > 0} href="#problems-title">
+        <strong>{problems}</strong><span>Probleme (7 Tage)</span>
+      </a>
+    </li>
+    <li>
+      <a class="figure ui-link" href="#upcoming-title">
+        <strong>{overview.data.upcoming.length}</strong><span>Nächste 7 Tage</span>
+      </a>
+    </li>
+  </ul>
   <div class="columns">
-    <QueueBox queue={overview.data.queue} onchanged={() => void overview.reload()} />
-    <section class="box" aria-labelledby="upcoming-title">
-      <h2 id="upcoming-title" class="box-header">Die nächsten 7 Tage</h2>
-      {#if upcomingDays.length === 0}
-        <p class="box-row muted">
-          Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen.
-        </p>
-      {:else}
-        <ul class="days">
-          {#each upcomingDays as [day, entries] (day)}
-            <li class="box-row">
-              <h3>{dateText(day)}</h3>
-              <ul class="entries">
-                {#each entries as entry, i (i)}
-                  <li><CalendarEntryLine {entry} /></li>
-                {/each}
-              </ul>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </section>
-    <ActivityBox
-      id="problems-title"
-      title="Probleme der letzten 7 Tage"
-      entries={overview.data.problems}
-      empty="Keine fehlgeschlagenen Grabs oder Importprobleme."
-    />
-    <ActivityBox
-      id="activity-title"
-      title="Letzte Aktivität"
-      entries={overview.data.activity}
-      empty="Noch keine Grabs oder Importe."
-    />
+    <div class="column">
+      <QueueBox queue={overview.data.queue} onchanged={() => void overview.reload()} />
+      <section class="box" aria-labelledby="upcoming-title">
+        <h2 id="upcoming-title" class="box-header">Die nächsten 7 Tage</h2>
+        {#if upcomingDays.length === 0}
+          <p class="box-row muted">
+            Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen.
+          </p>
+        {:else}
+          <ul class="days">
+            {#each upcomingDays as [day, entries] (day)}
+              <li class="box-row day-group">
+                <h3>{dateText(day)}</h3>
+                <ul class="entries">
+                  {#each entries as entry, i (i)}
+                    <li><CalendarEntryLine {entry} /></li>
+                  {/each}
+                </ul>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    </div>
+    <div class="column">
+      <ActivityBox
+        id="problems-title"
+        title="Probleme der letzten 7 Tage"
+        entries={overview.data.problems}
+        empty="Keine fehlgeschlagenen Grabs oder Importprobleme."
+      />
+      <ActivityBox
+        id="activity-title"
+        title="Letzte Aktivität"
+        entries={overview.data.activity}
+        empty="Noch keine Grabs oder Importe."
+      />
+    </div>
   </div>
 {:else if overview.failure !== null}
   <PageError
@@ -96,18 +121,66 @@
 {/if}
 
 <style>
-  .head {
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--base-size-12);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .figure {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--base-size-8) var(--base-size-16);
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--base-size-12) var(--base-size-16);
+    border: var(--borderWidth-thin) solid var(--borderColor-default);
+    border-radius: var(--borderRadius-large);
+    background: var(--bgColor-surface);
+    color: var(--fgColor-muted);
+    font-size: var(--text-body-size-small);
+  }
+
+  .figure strong {
+    color: var(--fgColor-default);
+    font-size: var(--text-title-size-large);
+    line-height: 1.2;
+  }
+
+  .figure.danger {
+    border-color: var(--borderColor-danger-muted);
+    background: var(--bgColor-danger-muted);
+    color: var(--fgColor-danger);
+  }
+
+  .figure.danger strong {
+    color: var(--fgColor-danger);
   }
 
   .columns {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
     gap: var(--base-size-16);
     align-items: start;
+  }
+
+  .column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--base-size-16);
+    min-width: 0;
+  }
+
+  @media (min-width: 1200px) {
+    .columns {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 543.98px) {
+    .figures {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .days,
