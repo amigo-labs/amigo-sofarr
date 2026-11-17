@@ -104,8 +104,8 @@ Terms:
 | AC-04 | `preview head (AC-04)` › `the backdrop blurred under at least 70 % of the page ground; compact facts`, `no backdrop when it fails to load` (`ui/e2e/discover-polish.spec.ts`) | built |  |
 | AC-05 | `narrow window (AC-05)` › `the search takes the full width, two filter columns, arrows visible` (`ui/e2e/discover-polish.spec.ts`) | built |  |
 | AC-06 | `axe: start page with panel and chips, preview with backdrop (AC-06, dark/light)` (`ui/e2e/discover-polish.spec.ts`); `ui/e2e/discover-a11y.spec.ts` | built |  |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
+| AC-07 | manual: the owner checked the regenerated screenshots in docs/site/screenshots (5ecdb4c) („Sichtcheck passt“), 2026-11-17 | built |  |
+| AC-08 | manual: the owner checked the discover start page and a preview page in both palettes at 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

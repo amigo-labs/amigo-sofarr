@@ -119,7 +119,7 @@ Terms:
 | AC-05 | `calendar (AC-07)` › `starts at the current week with one entry per date, marked by state`, `a movie with cinema, digital and disc dates appears three times in its month` (`ui/e2e/library-pages.spec.ts`) | built |  |
 | AC-06 | `toolbar (AC-06)` › `Woche and Monat are a segmented control; the range changes as before` (`ui/e2e/calendar.spec.ts`); `steps back and forth; an empty month shows a German note` (`ui/e2e/library-pages.spec.ts`) | built |  |
 | AC-07 | `axe, dark theme` and `axe, light theme` › `calendar: month grid, week columns and agenda (ui-calendar AC-07)`, `Kalender` (`ui/e2e/library-a11y.spec.ts`) | built |  |
-| AC-08 |      | open   |        |
+| AC-08 | manual: the owner checked week and month view in both palettes at 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 

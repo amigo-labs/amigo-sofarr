@@ -122,7 +122,7 @@ Terms:
 | AC-07 | `system and login (AC-07, AC-08)` › `the system overview is a compact facts panel in up to three columns` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
 | AC-08 | `system and login (AC-07, AC-08)` › `the login form is a centred card at most 400 px wide with the icon above` (`ui/e2e/pages-redesign.spec.ts`); `ui/e2e/auth.spec.ts` (unchanged) | built |  |
 | AC-09 | `axe, dark (AC-09)` and `axe, light (AC-09)` › `Übersicht / Fehlend / Blocklist / Backups / Untertitel / System / Anmelden at 1440 and 360 px` (`ui/e2e/pages-redesign.spec.ts`) | built |  |
-| AC-10 |      | open   |        |
+| AC-10 | manual: the owner checked the overview, Fehlend, Blocklist, Untertitel, Backups, System and the login page in both palettes at 1440 px and 360 px („Sichtcheck passt“), 2026-11-17 | built |  |
 
 ## Decisions
 
