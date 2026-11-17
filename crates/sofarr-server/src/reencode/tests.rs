@@ -245,7 +245,7 @@ async fn the_list_holds_the_too_large_files_largest_first() {
             dynamic_metadata: 1,
         }
     );
-    // The summary adds up to the library files: 8 movie files and 2 episode files.
+    // The summary adds up to the library files: 7 movie files (one movie has none) and 2 episode files.
     let excluded = list.excluded;
     let left_out = excluded.no_media_info
         + excluded.resolution_off
