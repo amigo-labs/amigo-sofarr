@@ -135,3 +135,42 @@ export function keeps(rating: Rating, minRating: number | null): boolean {
   if (rating.state === 'pending') return true;
   return rating.state === 'rated' && rating.rating !== null && rating.rating >= minRating;
 }
+
+/** One active discover filter as a chip (spec ui-discover-polish AC-01, AC-02). */
+export type DiscoverChip = {
+  readonly key: keyof DiscoverFilters;
+  readonly text: string;
+  readonly remove: (filters: DiscoverFilters) => DiscoverFilters;
+};
+
+/** The chips of the active filters, in the panel's order; the rating only while shown. */
+export function discoverChips(
+  filters: DiscoverFilters,
+  genres: readonly { readonly id: number; readonly name: string }[],
+  ratings: boolean,
+): readonly DiscoverChip[] {
+  const chips: DiscoverChip[] = [];
+  const add = (key: keyof DiscoverFilters, text: string): void => {
+    chips.push({ key, text, remove: (f) => ({ ...f, [key]: null }) });
+  };
+  if (filters.kind !== null) add('kind', `Art: ${filters.kind === 'movie' ? 'Filme' : 'Serien'}`);
+  if (filters.genre !== null) {
+    const genre = genres.find((g) => g.id === filters.genre);
+    add('genre', `Genre: ${genre?.name ?? String(filters.genre)}`);
+  }
+  if (filters.yearFrom !== null) add('yearFrom', `Jahr von: ${filters.yearFrom}`);
+  if (filters.yearTo !== null) add('yearTo', `Jahr bis: ${filters.yearTo}`);
+  if (filters.language !== null) {
+    const language = LANGUAGES.find((l) => l.code === filters.language);
+    add('language', `Originalsprache: ${language?.name ?? filters.language}`);
+  }
+  if (ratings && filters.minRating !== null) {
+    add('minRating', `IMDb-Bewertung: ab ${RATING_TEXT.format(filters.minRating)}`);
+  }
+  return chips;
+}
+
+const RATING_TEXT = new Intl.NumberFormat('de-DE', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});

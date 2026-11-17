@@ -58,6 +58,9 @@
 
   const current = $derived(preview === null ? null : states.of(preview));
   const label = $derived(current === null ? null : libraryLabel(current.library.status));
+
+  // The title's TMDB backdrop, blurred behind the head (spec ui-discover-polish AC-04).
+  let backdropFailed = $state(false);
 </script>
 
 <svelte:head>
@@ -68,6 +71,12 @@
   {#if preview !== null && current !== null}
     {@const p = preview}
     <section class="head" data-testid="preview">
+      {#if p.backdrop !== null && !backdropFailed}
+        <div class="backdrop" aria-hidden="true">
+          <img src={p.backdrop} alt="" decoding="async" onerror={() => (backdropFailed = true)} />
+          <div class="backdrop-veil"></div>
+        </div>
+      {/if}
       <div class="poster"><TmdbImage src={p.poster} name={p.title} lazy={false} /></div>
       <div class="text">
         <h1>{p.title}<span class="year">{p.year === null ? '' : ` (${p.year})`}</span></h1>
@@ -99,7 +108,7 @@
             >
           {/if}
         </div>
-        <dl class="facts">
+        <dl class="facts facts-compact">
           <div>
             <dt>{p.kind === 'movie' ? 'Erscheinungsdatum' : 'Erstausstrahlung'}</dt>
             <dd>{dateText(p.date)}</dd>
@@ -193,10 +202,45 @@
 
 <style>
   .head {
+    position: relative;
+    isolation: isolate;
     display: grid;
     grid-template-columns: minmax(6rem, 14rem) minmax(0, 1fr);
     gap: var(--base-size-24);
     align-items: start;
+    padding: var(--base-size-24);
+    margin: calc(-1 * var(--base-size-24)) calc(-1 * var(--base-size-16)) 0;
+    overflow: hidden;
+  }
+
+  .backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+
+  .backdrop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(20px) saturate(1.2);
+    transform: scale(1.1);
+  }
+
+  .backdrop-veil {
+    position: absolute;
+    inset: 0;
+    background: var(--am-bg);
+    opacity: 0.78;
+  }
+
+  .backdrop::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 35%;
+    background: linear-gradient(transparent, var(--am-bg));
   }
 
   .text,
@@ -241,6 +285,7 @@
   @media (max-width: 543.98px) {
     .head {
       grid-template-columns: minmax(0, 1fr);
+      padding: var(--base-size-16);
     }
 
     .poster {

@@ -98,15 +98,21 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
+| AC-01 | `search row and filter panel (AC-01, AC-02)` › `search, Suchen and the filter button in one row; the panel closed at load` (`ui/e2e/discover-polish.spec.ts`); `filters (AC-02)` (`ui/e2e/discover-pages.spec.ts`, through the open panel) | built |  |
+| AC-02 | `search row and filter panel (AC-01, AC-02)` › `chips name the filters; pressing one removes it and moves the focus` (`ui/e2e/discover-polish.spec.ts`); `discover chips` (`ui/src/lib/discover/discover-chips.test.ts`) | built |  |
+| AC-03 | `shelf arrows (AC-03)` › `back and forward scroll the shelf; disabled at its ends` (`ui/e2e/discover-polish.spec.ts`) | built |  |
+| AC-04 | `preview head (AC-04)` › `the backdrop blurred under at least 70 % of the page ground; compact facts`, `no backdrop when it fails to load` (`ui/e2e/discover-polish.spec.ts`) | built |  |
+| AC-05 | `narrow window (AC-05)` › `the search takes the full width, two filter columns, arrows visible` (`ui/e2e/discover-polish.spec.ts`) | built |  |
+| AC-06 | `axe: start page with panel and chips, preview with backdrop (AC-06, dark/light)` (`ui/e2e/discover-polish.spec.ts`); `ui/e2e/discover-a11y.spec.ts` | built |  |
 | AC-07 |      | open   |        |
 | AC-08 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: The preview page uses the title's real TMDB backdrop, because its API answer already carries one; the library pages keep the blurred poster (ui-detail-head).
+- 2026-11-17 (build): Red runs against 66b2ea7: `bunx vitest run src/lib/discover/discover-chips.test.ts` failed 4 of 4 (no `discoverChips`); `bunx playwright test e2e/discover-polish.spec.ts` failed 7 of 8. Green at once: „no backdrop when it fails to load“ (there was no backdrop); kept as a guard.
+- 2026-11-17 (build): The narrow-window test then found that the search field shared its row with „Suchen“ below 768 px; the search form now wraps there, with the field on its own line.
+- 2026-11-17 (build): The existing filter tests of `ui/e2e/discover-pages.spec.ts` open the panel first (`openDiscoverFilters` in `ui/e2e/discover-helpers.ts`) and look the fields up inside the form „Filter“, because the chips' names („Filter Art: Serien entfernen“) also contain the labels.
+- 2026-11-17 (build): A first full run failed the person page's rating sort and an a11y scan of discover too; both depend on the fake TMDB releasing a held-back rating, which the failing filter test had not done. With the filter tests fixed they pass (482 of 482).
+- 2026-11-17 (build): `ui/e2e/site/screenshots.mjs` gains the overview; the seven screenshots in `docs/site/screenshots/` were regenerated with `bun run screenshots` from this build.
+

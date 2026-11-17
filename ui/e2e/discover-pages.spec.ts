@@ -3,7 +3,7 @@
 // TMDB (`fake-tmdb.mjs`). Titles added by `discover-add.spec.ts` are not used here.
 
 import { expect, test } from '@playwright/test';
-import { DISCOVER, PLAIN, cards, release, settle } from './discover-helpers';
+import { DISCOVER, PLAIN, cards, openDiscoverFilters, release, settle } from './discover-helpers';
 import { expectAttribution } from './helpers';
 import { LIBRARY, movieId, seriesId } from './library-helpers';
 
@@ -130,9 +130,19 @@ test.describe('filters (AC-02)', () => {
   }) => {
     await page.goto(`${DISCOVER}/entdecken`);
     await expect(page.getByTestId('shelf')).toHaveCount(7);
-    await page.getByLabel('Art').selectOption({ label: 'Filme' });
-    await page.getByLabel('Genre').selectOption({ label: 'Dokumentarfilm' });
-    await page.getByLabel('IMDb-Bewertung').selectOption({ label: 'ab 7,0' });
+    await openDiscoverFilters(page);
+    await page
+      .getByRole('form', { name: 'Filter' })
+      .getByLabel('Art')
+      .selectOption({ label: 'Filme' });
+    await page
+      .getByRole('form', { name: 'Filter' })
+      .getByLabel('Genre')
+      .selectOption({ label: 'Dokumentarfilm' });
+    await page
+      .getByRole('form', { name: 'Filter' })
+      .getByLabel('IMDb-Bewertung')
+      .selectOption({ label: 'ab 7,0' });
     await expect(page).toHaveURL(/\?art=filme&genre=99&bewertung=7$/);
     await expect(page.getByTestId('shelf')).toHaveCount(0);
     const results = page.getByRole('list', { name: 'Ergebnisse' });
@@ -149,6 +159,7 @@ test.describe('filters (AC-02)', () => {
       expect(rating).toMatch(/^IMDb (7|8|9),\d|^IMDb …/);
     }
 
+    await openDiscoverFilters(page);
     await page.getByRole('button', { name: 'Filter zurücksetzen' }).click();
     await expect(page).toHaveURL(`${DISCOVER}/entdecken`);
     await expect(page.getByTestId('shelf')).toHaveCount(7);
@@ -172,7 +183,10 @@ test.describe('filters (AC-02)', () => {
 
   test('the page address holds the filters: "Serien" shows only series', async ({ page }) => {
     await page.goto(`${DISCOVER}/entdecken?art=serien`);
-    await expect(page.getByLabel('Art')).toHaveValue('series');
+    await openDiscoverFilters(page);
+    await expect(page.getByRole('form', { name: 'Filter' }).getByLabel('Art')).toHaveValue(
+      'series',
+    );
     const results = page.getByRole('list', { name: 'Ergebnisse' }).getByTestId('title-card');
     await expect(results.first()).toBeVisible();
     for (const key of await results.evaluateAll((els) => els.map((e) => e.dataset['key']))) {
@@ -183,8 +197,11 @@ test.describe('filters (AC-02)', () => {
   test('without ratings no rating filter, rating or attribution is offered', async ({ page }) => {
     await page.goto(`${PLAIN}/entdecken?bewertung=7`);
     await expect(page.getByTestId('shelf')).toHaveCount(7);
-    await expect(page.getByLabel('Genre')).toBeVisible();
-    await expect(page.getByLabel('IMDb-Bewertung')).toHaveCount(0);
+    await openDiscoverFilters(page);
+    await expect(page.getByRole('form', { name: 'Filter' }).getByLabel('Genre')).toBeVisible();
+    await expect(
+      page.getByRole('form', { name: 'Filter' }).getByLabel('IMDb-Bewertung'),
+    ).toHaveCount(0);
     await expect(page.getByTestId('rating')).toHaveCount(0);
     await expect(page.getByText(/Information courtesy of IMDb/)).toHaveCount(0);
   });
