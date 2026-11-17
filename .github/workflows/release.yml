@@ -150,7 +150,7 @@ jobs:
         run: |
           if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" -R "$GITHUB_REPOSITORY" --draft \
-              --title "amigo-sofarr ${TAG#v}" --generate-notes
+              --title "Sofarr ${TAG#v}" --generate-notes
           fi
           gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest \
-            --title "amigo-sofarr ${TAG#v}"
+            --title "Sofarr ${TAG#v}"
