@@ -80,7 +80,7 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 | AC-03 | `queue without and with a client (AC-02, AC-03)` › `an unreachable client with a known state names its time once`, `an unreachable client without a state shows no time` (`ui/e2e/overview-polish.spec.ts`); `queue_shows_progress_size_and_remaining_time` (`crates/sofarr-server/src/overview_tests.rs`) | built |  |
 | AC-04 | `queue_shows_progress_size_and_remaining_time`, `overview_shows_activity_problems_and_the_next_days` (`crates/sofarr-server/src/overview_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
 | AC-05 | `day headings (ui-overview-polish AC-05)` (`ui/src/lib/library/format.test.ts`); `day headings (AC-05)` › `„Heute“, „Morgen“, then weekday and date; the full date as tooltip` (`ui/e2e/overview-polish.spec.ts`) | built |  |
-| AC-06 | `empty states (AC-06)` › `empty boxes show their sentence after a decorative icon, muted` (`ui/e2e/overview-polish.spec.ts`) | built |  |
+| AC-06 | `empty states (AC-06)` › `empty boxes show their sentence after a decorative icon, muted` (all four boxes, the queue with a configured client; muted colour, icon before the sentence) (`ui/e2e/overview-polish.spec.ts`) | built |  |
 | AC-07 | `accessibility (AC-07), dark/light` › `empty boxes at 1440 px / 360 px`, `a queue item, a problem and upcoming entries at 1440 px / 360 px` (`ui/e2e/overview-polish.spec.ts`) | built |  |
 | AC-08 | manual: the owner checked the overview from the before/after screenshots of this branch and the regenerated `docs/site/screenshots/overview.png` („Visual check passt“), 2026-11-17 | built |  |
 
@@ -93,3 +93,4 @@ This spec builds on `ui-consistency` (date-times to the minute, neutral info not
 - 2026-11-17 (build): With a configured client the empty queue keeps „Nichts in der Warteschlange.“, now with the download icon like the other empty boxes (AC-06).
 - 2026-11-17 (build): „Heute“ is computed from the browser's clock at every refresh of the overview (every 15 s), so the headings move on after midnight without a reload.
 - 2026-11-17 (build): The regenerated overview screenshot showed the figure labels as status chips (dot and ground): their class `label` collided with the global chip class. The figure test now checks that the label has no dot and no ground (red against f558a6f), and the class is `figure-label`.
+- 2026-11-17 (spec-check, round 1: NOT READY): AC-06 lacked the empty queue with a configured client and the muted colour, AC-02 the muted colour. The tests now cover both; they were green at once, because the behaviour was already built (`EmptyLine` with the `muted` class).

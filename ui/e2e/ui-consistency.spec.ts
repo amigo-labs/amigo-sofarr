@@ -232,6 +232,26 @@ test.describe('wording and date-times (AC-07 to AC-10)', () => {
     );
   });
 
+  test('episode counts of 0 still read as two lines; an empty type reads „–“', async ({ page }) => {
+    await page.route('**/api/library/series/*', async (route) => {
+      const answer = await route.fetch();
+      const series = (await answer.json()) as Record<string, unknown>;
+      await route.fulfill({
+        response: answer,
+        json: { ...series, files: 0, episodes: 0, monitored_episodes: 0, series_type: '' },
+      });
+    });
+    await openSeries(page);
+    await expect(page.getByTestId('episode-counts').locator('> *')).toHaveText([
+      '0 von 0 mit Datei',
+      '0 überwacht',
+    ]);
+    const facts = page.locator('dl').filter({ hasText: 'Serientyp' }).first();
+    await expect(facts.locator('div').filter({ hasText: 'Serientyp' }).locator('dd')).toHaveText(
+      '–',
+    );
+  });
+
   test('the discover „Stand“ line is a caption to the minute', async ({ page }) => {
     await page.goto(`${DISCOVER}/entdecken`);
     await settle(page);

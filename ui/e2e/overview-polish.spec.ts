@@ -44,6 +44,18 @@ async function overviewWith(
 
 const queueBox = (page: Page) => page.getByRole('region', { name: 'Warteschlange' });
 
+/** The colour a CSS colour expression resolves to in the page. */
+async function resolvedColour(page: Page, value: string): Promise<string> {
+  return page.evaluate((v) => {
+    const probe = document.createElement('span');
+    probe.style.color = v;
+    document.body.append(probe);
+    const out = getComputedStyle(probe).color;
+    probe.remove();
+    return out;
+  }, value);
+}
+
 /** The browser's local date in `days` days as `YYYY-MM-DD`. */
 async function localDay(page: Page, days: number): Promise<string> {
   return page.evaluate((d) => {
@@ -86,6 +98,9 @@ test.describe('queue without and with a client (AC-02, AC-03)', () => {
     await page.goto(`${LIBRARY}/`);
     const queue = queueBox(page);
     await expect(queue.getByText(NO_CLIENT)).toBeVisible();
+    expect(await queue.getByText(NO_CLIENT).evaluate((e) => getComputedStyle(e).color)).toBe(
+      await resolvedColour(page, 'var(--fgColor-muted)'),
+    );
     await expect(queue.getByRole('status')).toHaveCount(0);
     await expect(queue.getByText('Nichts in der Warteschlange.')).toHaveCount(0);
     await expect(queue.getByText('Kein Download-Client konfiguriert')).toHaveCount(0);
@@ -160,9 +175,17 @@ test.describe('day headings (AC-05)', () => {
 
 test.describe('empty states (AC-06)', () => {
   test('empty boxes show their sentence after a decorative icon, muted', async ({ page }) => {
-    await overviewWith(page, (a) => ({ ...a, upcoming: [], problems: [], activity: [] }));
+    await overviewWith(page, (a) => ({
+      ...a,
+      queue: { items: [], notice: null, as_of: '2026-11-17T08:05:00Z', client_configured: true },
+      upcoming: [],
+      problems: [],
+      activity: [],
+    }));
     await page.goto(`${LIBRARY}/`);
+    const muted = await resolvedColour(page, 'var(--fgColor-muted)');
     for (const [region, text] of [
+      ['Warteschlange', 'Nichts in der Warteschlange.'],
       [
         'Die nächsten 7 Tage',
         'Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen.',
@@ -175,6 +198,17 @@ test.describe('empty states (AC-06)', () => {
       const icon = empty.locator('svg');
       await expect(icon).toHaveCount(1);
       expect(await icon.evaluate((e) => e.closest('[aria-hidden="true"]') !== null)).toBe(true);
+      expect(await empty.evaluate((e) => getComputedStyle(e).color)).toBe(muted);
+      // The icon comes before the sentence.
+      const iconBox = await icon.boundingBox();
+      const textStart = await empty.evaluate((e) => {
+        const range = document.createRange();
+        const sentence = [...e.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
+        if (sentence === undefined) return 0;
+        range.selectNodeContents(sentence);
+        return range.getBoundingClientRect().x;
+      });
+      expect((iconBox?.x ?? 99) + (iconBox?.width ?? 0)).toBeLessThanOrEqual(textStart);
     }
   });
 });

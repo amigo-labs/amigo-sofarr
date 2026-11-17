@@ -113,7 +113,7 @@ Terms:
 | -------- | ----------------- |
 | A title link inside a prose notice (e.g. the add dialog's „bereits in der Bibliothek“) | Stays a prose link: accent, underlined |
 | A pending rating on a discover tile | Shows „…“; its tooltip and accessible name read „IMDb-Bewertung folgt“ |
-| The monogram file is missing from the build | The UI build fails (it is imported, not fetched) |
+| The UI's copy of the monogram is missing or differs from the brand file | The UI unit tests fail (gate `ui unit tests`, also in CI) |
 | Resizing across 768 px while typing a discover search or with the filter panel open | The text and the panel state stay; only the layout changes |
 | A path without any separator, 300 characters | Breaks inside the name, never overflows |
 | An empty path | Shown empty, as today |
@@ -148,9 +148,9 @@ Terms:
 | AC-09 | `job texts` › `writes points in time as German date and time, to the minute (ui-consistency AC-09)` (`ui/src/lib/system/format.test.ts`); `wording and date-times (AC-07 to AC-10)` › `the discover „Stand“ line is a caption to the minute` (`ui/e2e/ui-consistency.spec.ts`); the date-time checks of `ui/e2e/system.spec.ts`, `ui/e2e/discover-pages.spec.ts`, `ui/e2e/library-pages.spec.ts` | built |  |
 | AC-10 | `movie_page_shows_everything_about_one_movie` (`crates/sofarr-server/src/library_api_tests.rs`); `wording and date-times (AC-07 to AC-10)` › `the series page: …` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-11 | `episode disclosures (AC-11)` › `„Datei“ and „Untertitel“ share one muted line; both open in the full row width` (`ui/e2e/ui-consistency.spec.ts`); the episode file test of `ui/e2e/library-detail.spec.ts` and the episode subtitles test of `ui/e2e/subtitles.spec.ts` | built |  |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
+| AC-12 | `paths (AC-12)` › `a folder path breaks after its separators; the tooltip has the full path`, `a Windows path breaks after „\\“; a name wider than the box breaks inside` (`ui/e2e/ui-consistency.spec.ts`); `path pieces (ui-consistency AC-12)` (`ui/src/lib/library/format.test.ts`); `file path (AC-03)` (`ui/e2e/library-detail-boxes.spec.ts`) | built |  |
+| AC-13 | `monogram (AC-13)` › `the brand shows sofarr's monogram at 1440 px; the tab icon too`, `… at 360 px …` (`ui/e2e/ui-consistency.spec.ts`); `monogram (ui-consistency AC-13)` (`ui/src/lib/brand.test.ts`) | built |  |
+| AC-14 | `accessibility (AC-14), dark/light` › the six pages at 1440 px and 360 px, `a hovered title link has at least 4.5:1 against the page ground` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-15 | manual: the owner checked the library lists, a series page, discover and the calendar from the before/after screenshots of this branch (green only for states, the active place and the main action) („Visual check passt“), 2026-11-17 | built |  |
 
 ## Decisions
@@ -169,5 +169,10 @@ Terms:
 - 2026-11-17 (build): The shelf names come from the server (`discover/shelves.rs`) and the UI (`discover/links.ts`); both changed. The slugs `trending-heute` and `trending-woche` stay, because they are addresses.
 - 2026-11-17 (build): The file actions note joins the server's reason and the UI's second sentence with a full stop the busy reasons lacked („… erst danach möglich Überwachung …“), through a small `sentence` helper.
 - 2026-11-17 (build): The season headers keep their counts of today („8 mit Datei / 8 überwacht / 8 gesamt“, ui-detail-boxes AC-04), because AC-08 names only the series page's episode fact.
-- 2026-11-17 (build): Times the server writes into its own German messages (e.g. the login lock „Nächster Versuch ab 10:23:45 Uhr“) keep their format, because AC-09 covers the date-times the UI formats itself.
+- 2026-11-17 (build): The login lock („Nächster Versuch ab 10:23:45 Uhr“) keeps its seconds, because it is a clock time without a date and counts down in seconds; AC-09 covers date-times.
 - 2026-11-17 (build): The first full gate run found 11 older e2e tests on the old look: the episode `<summary>` disclosures in `ui/e2e/extras-a11y.spec.ts`, times with seconds in `ui/e2e/subtitles.spec.ts` and `ui/e2e/trailers.spec.ts`, and the image test of discover AC-17, which now also sees sofarr's own `favicon.svg` (the monogram); it still allows only images from sofarr. Second full run: all gates green, 534 e2e tests passed.
+- 2026-11-17 (build): Red run of block D against eb1474c: the path tests failed (a break after „ “ inside a name, no tooltip on the folder) and the monogram tests found the server icon. The accessibility scans and the contrast check were green at once (the accent ink already meets 4.5:1 on both grounds); they stay as guards.
+- 2026-11-17 (build): A path is split into pieces that each end after a separator, each an inline block: lines break between pieces, and inside one only when it alone is wider than its box. `<wbr>` alone was not enough, because the spaces inside a name are break opportunities too.
+- 2026-11-17 (build): The monogram is a byte-identical copy of `assets/brand/monogram-small.svg` as `ui/static/favicon.svg` (sidebar and top bar show it as an image), because the UI stage of the Docker build only copies `ui/`. It is served as a static file, so the build does not notice a missing copy; `ui/src/lib/brand.test.ts` fails when it is missing or drifts from the generated file (edge case revised after spec-check).
+- 2026-11-17 (spec-check, round 1: NOT READY): the monogram edge case claimed a build failure the code does not give, and the Evidence of AC-12 to AC-14 had been lost with a refused commit. The edge case now names the unit test; the Evidence rows are written; the series page test covers „0 von 0 mit Datei“.
+
