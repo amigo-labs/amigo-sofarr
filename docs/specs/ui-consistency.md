@@ -137,8 +137,8 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
+| AC-01 | `title links and notices (AC-01, AC-02), dark/light` › `a title link rests in the text colour and turns to the accent on hover`, `the active navigation entry keeps the accent` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
+| AC-02 | `title links and notices (AC-01, AC-02), dark/light` › `an info notice has the neutral muted ground and the text colour` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
 | AC-03 |      | open   |        |
 | AC-04 |      | open   |        |
 | AC-05 |      | open   |        |
@@ -147,7 +147,7 @@ Terms:
 | AC-08 |      | open   |        |
 | AC-09 |      | open   |        |
 | AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
+| AC-11 | `episode disclosures (AC-11)` › `„Datei“ and „Untertitel“ share one muted line; both open in the full row width` (`ui/e2e/ui-consistency.spec.ts`); the episode file test of `ui/e2e/library-detail.spec.ts` and the episode subtitles test of `ui/e2e/subtitles.spec.ts` | built |  |
 | AC-12 |      | open   |        |
 | AC-13 |      | open   |        |
 | AC-14 |      | open   |        |
@@ -158,3 +158,5 @@ Terms:
 - 2026-11-17: Title links lose the accent at rest, because the green otherwise marks nearly every line and no longer tells states and the active place apart. The hover accent keeps them recognisable as links.
 - 2026-11-17: The user asked to do everything without further questions („Ja mach alles“); the wording choices (Sperrliste, Heute beliebt) and the date-time format were decided here and are recorded as assumptions.
 - 2026-11-17: The overview's dashboard look is split off into `ui-overview-polish`, because both together exceed one M block.
+- 2026-11-17 (build): Red run of block A against 9f58f78: `bunx playwright test e2e/ui-consistency.spec.ts` failed 5 of 7 (title links in the accent, the info notice on the accent ground, no episode toggle buttons); the two navigation tests were green at once (the active entry already had the accent) and stay as guards.
+- 2026-11-17 (build): The episode disclosures became two toggle buttons (`aria-expanded`) with their contents below, because two `<details>` cannot share one line and still open in the row's full width. On narrow windows they are 32 px high, because `ui-detail-boxes` AC-07 measures every button of a season.

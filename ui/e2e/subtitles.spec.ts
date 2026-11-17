@@ -203,8 +203,10 @@ test.describe('subtitles of a file (AC-12)', () => {
   test('an episode file shows its subtitles when opened', async ({ page, request }) => {
     await page.goto(`${EXTRAS}/serien/${await seriesId(request, EXTRAS, 'Untertitelserie')}`);
     const first = page.locator('[data-episode="S01E01"]');
-    await expect(page.locator('[data-episode="S01E02"] summary')).toHaveCount(0);
-    await first.locator('summary', { hasText: /^Untertitel/ }).click();
+    await expect(
+      page.locator('[data-episode="S01E02"]').getByRole('button', { name: /^Untertitel von/ }),
+    ).toHaveCount(0);
+    await first.getByRole('button', { name: /^Untertitel von/ }).click();
     await expect(first.getByTestId('subtitles-external')).toHaveText('keine');
     await expect(first.getByTestId('subtitles-needed').locator('li')).toHaveText([
       /Deutsch · normal/,

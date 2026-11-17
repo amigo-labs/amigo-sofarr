@@ -316,10 +316,7 @@ test.describe('series page (AC-06, AC-10)', () => {
     await expect(page.getByText('Kleine.Insel.S01E02.720p-ALT')).toBeVisible();
     await expect(page.getByText('Download fehlgeschlagen')).toBeVisible();
     const e1 = page.locator('[data-episode="S01E01"]');
-    await e1
-      .locator('summary')
-      .filter({ hasText: /^Datei/ })
-      .click();
+    await e1.getByRole('button', { name: /^Datei von/ }).click();
     await expect(e1.getByTestId('file-path')).toHaveText(/S01E01/);
     await expect(e1.getByText('Release-Gruppe')).toBeVisible();
     await expect(e1.getByRole('heading', { name: 'Media-Infos' })).toBeVisible();

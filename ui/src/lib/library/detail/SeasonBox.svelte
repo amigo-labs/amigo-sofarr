@@ -7,8 +7,7 @@
   import { dateText, episodeCode, missingText } from '../format';
   import Label from '../components/Label.svelte';
   import MonitorButton from '../components/MonitorButton.svelte';
-  import EpisodeSubtitles from '../../subtitles/EpisodeSubtitles.svelte';
-  import EpisodeFile from './EpisodeFile.svelte';
+  import EpisodeExtras from './EpisodeExtras.svelte';
   import type { ItemActions } from './detail.svelte';
 
   // One season with its episode counts and episodes (spec web-ui-library AC-06, AC-10), the
@@ -132,8 +131,7 @@
           </span>
         </div>
         {#if episode.has_file}
-          <EpisodeFile {seriesId} episodeId={episode.id} title={`${seriesTitle} ${code}`} />
-          <EpisodeSubtitles {seriesId} episodeId={episode.id} title={`${seriesTitle} ${code}`} />
+          <EpisodeExtras {seriesId} episodeId={episode.id} title={`${seriesTitle} ${code}`} />
         {/if}
       </li>
     {/each}
