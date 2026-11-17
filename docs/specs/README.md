@@ -39,7 +39,7 @@ because later specs build on earlier ones.
 | 21 | [reencode-rule](reencode-rule.md) | M | mediainfo | Re-encoding 1: duration in the media info, size-per-minute thresholds per resolution, candidate list by API and CLI, largest first (D31) | done |
 | 22 | [reencode-file](reencode-file.md) | M | reencode-rule, trailers | Re-encoding 2: one file on request by CLI and API: ffmpeg (libx265, MKV, low priority), checked result, swap with the original to the recycle bin, outcome of every attempt (D31) | `/spec-build reencode-file` |
 | 23 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | `/spec-build reencode-job` after reencode-file AC-17 |
-| 24 | ui-reencode | M | reencode-job | Re-encoding 4: page "Neu encodieren" with candidates, running encode, history and saved space; exclude a title, encode now (D31) | `/spec ui-reencode` |
+| 24 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | `/spec-build ui-reencode` |
 | 25 | reencode-audio | M | reencode-job | Re-encoding 5: lossless audio tracks without Atmos/DTS:X (TrueHD, DTS-HD MA, PCM, FLAC) to E-AC-3 640 kbit/s in the same encode (owner 2026-11-17) | `/spec reencode-audio` |
 
 Large specs (L) are split while being written when they need more than a few sessions
