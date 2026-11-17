@@ -138,12 +138,16 @@ async fn queue_shows_progress_size_and_remaining_time() {
     let (status, stale) = http.get("/api/queue").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(stale["items"][0]["progress"], 0.75);
-    assert!(
-        stale["notice"]
-            .as_str()
-            .is_some_and(|n| n.starts_with("Download-Client nicht erreichbar – Stand von")),
-        "{stale}"
-    );
+    // ui-overview-polish AC-03: the time of the last state once, to the minute.
+    let notice = stale["notice"].as_str().unwrap_or_default();
+    let time = notice
+        .strip_prefix("Download-Client nicht erreichbar – Stand von ")
+        .unwrap_or_default();
+    let shape: String = time
+        .chars()
+        .map(|c| if c.is_ascii_digit() { '9' } else { c })
+        .collect();
+    assert_eq!(shape, "99.99.9999 99:99", "{stale}");
     assert!(!stale.to_string().contains("http://"), "no URLs in answers");
 }
 
@@ -351,4 +355,16 @@ async fn calendar_shows_all_episodes_of_monitored_series() {
     let upcoming = overview["upcoming"].as_array().expect("upcoming");
     assert_eq!(upcoming.len(), 1, "{overview}");
     assert_eq!(upcoming[0]["episode"], 3);
+}
+
+#[tokio::test]
+async fn live_mode_without_a_client_says_no_client_is_configured() {
+    // ui-overview-polish AC-02, AC-04: the field, not the mode, tells the UI.
+    let app = app(Library::Movies, "[automation]\nmode = \"live\"\n").await;
+    let http = Http::start(app).await;
+    let (status, queue) = http.get("/api/queue").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(queue["client_configured"], false, "{queue}");
+    let (_, overview) = http.get("/api/overview").await;
+    assert_eq!(overview["queue"]["client_configured"], false, "{overview}");
 }

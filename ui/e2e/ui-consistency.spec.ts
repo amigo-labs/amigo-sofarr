@@ -53,6 +53,22 @@ for (const palette of PALETTES) {
       expect(await decoration(link)).toBe('underline');
     });
 
+    test('a keyboard-focused title link turns to the accent and is underlined', async ({
+      page,
+    }) => {
+      await page.goto(`${LIBRARY}/filme?suche=Film%200001`);
+      const link = page.getByRole('link', { name: 'Film 0001', exact: true }).first();
+      await expect(link).toBeVisible();
+      const accent = await resolved(page, 'color', 'var(--fgColor-accent)');
+      // Focus by keyboard, so `:focus-visible` applies.
+      await link.focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+      await expect(link).toBeFocused();
+      await expect.poll(() => colour(link)).toBe(accent);
+      expect(await decoration(link)).toBe('underline');
+    });
+
     test('the active navigation entry keeps the accent', async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto(`${LIBRARY}/filme`);
