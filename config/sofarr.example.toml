@@ -139,3 +139,10 @@ per_day = 20               # Trailer pro Tag im täglichen Lauf; 0 schaltet ihn 
 max_mb_per_minute_720p = 30     # bis 1280×720, auch SD
 max_mb_per_minute_1080p = 60    # bis 1920×1080
 max_mb_per_minute_2160p = 150   # darüber (4K)
+# Neu encodieren (amigo-sofarr reencode): HEVC per libx265 in MKV, alle anderen Spuren werden
+# kopiert. Das Original kommt in den Papierkorb (recycleBin), sonst wird es gelöscht.
+crf = 22                        # Qualität 0–51, kleiner ist besser und größer
+preset = "medium"               # ultrafast … placebo: langsamer ist kleiner bei gleicher Qualität
+threads = 0                     # 0 nutzt alle Kerne
+min_saving_percent = 20         # so viel kleiner (%) muss das Ergebnis sein, sonst bleibt das Original
+timeout_hours = 24              # längste Dauer eines Encodes
