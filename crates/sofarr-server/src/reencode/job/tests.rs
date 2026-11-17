@@ -346,7 +346,12 @@ mod job {
             serde_json::to_string(&running).expect("json"),
         )
         .expect("lock");
-        assert_eq!(next_wait(&env.app).await, SLOT_POLL);
+        let wait = next_wait(&env.app).await;
+        assert_eq!(wait, SLOT_POLL);
+        assert!(
+            wait <= Duration::from_secs(60),
+            "looks again within one minute"
+        );
         assert!(encoder.jobs.lock().expect("jobs").is_empty());
         assert_eq!(env.db().last_reencode().await.expect("read"), None);
         // Free again: the next look encodes at once and asks for the next round.
@@ -730,5 +735,84 @@ mod system_and_race {
         fs::remove_file(&env.app.reencode.lock).expect("unlock");
         let due = due_files(&env.app, Timestamp::now()).await.expect("due");
         assert_eq!(due.len(), 2);
+    }
+}
+
+mod stop_during_swap {
+    //! AC-06: a swap already under way is finished before sofarr stops.
+
+    use std::{
+        fs,
+        sync::{Arc, atomic::Ordering},
+        time::Duration,
+    };
+
+    use sofarr_db::ReencodeOutcome;
+    use sofarr_mediainfo::Container;
+
+    use crate::reencode::{
+        ffmpeg::Job as EncodeJob,
+        run::{
+            self, Tools,
+            tests::{Env, hevc, info, read_fake, write_fake},
+        },
+    };
+
+    #[tokio::test]
+    async fn a_swap_under_way_is_finished_first() {
+        let env = Env::new("stop-swap", "live").await;
+        let (id, video) = env
+            .movie("Film", "Film.mkv", &info(Container::Matroska, "h264"))
+            .await;
+        let (encoding, _) = env.tools(
+            Ok(()),
+            Box::new(|job: &EncodeJob| {
+                write_fake(&job.output, &hevc(), 4000);
+                Ok(())
+            }),
+        );
+        // The stop comes after the encoder ended, while the result is read for its check.
+        let stopping = Arc::clone(&env.app.reencode.stopping);
+        let tools = Arc::new(Tools {
+            encoder: encoding.encoder,
+            read: Arc::new(move |path: &std::path::Path| {
+                if path.to_string_lossy().ends_with(".reencode-partial") {
+                    stopping.store(true, Ordering::SeqCst);
+                    std::thread::sleep(Duration::from_millis(300));
+                }
+                read_fake(path)
+            }),
+        });
+        let prepared = run::prepare(
+            &env.app,
+            &tools,
+            run::Target::Movie(id),
+            run::Runner::Server,
+        )
+        .await
+        .expect("prepare")
+        .expect("started");
+        let app = Arc::clone(&env.app);
+        let task = tokio::spawn(async move { run::run(&app, &tools, prepared).await });
+        while !env.app.reencode.stopping.load(Ordering::SeqCst) {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        run::stop(&env.app, Duration::from_secs(10)).await;
+        // `stop` waited for the swap: the attempt is over when it returns.
+        assert_eq!(env.app.reencode.in_flight.load(Ordering::SeqCst), 0);
+        let last = env
+            .db()
+            .last_reencode()
+            .await
+            .expect("read")
+            .expect("attempt");
+        assert_eq!(last.outcome, Some(ReencodeOutcome::Replaced));
+        let report = task.await.expect("task").expect("run");
+        assert_eq!(report.outcome, ReencodeOutcome::Replaced);
+        assert_eq!(fs::metadata(&video).expect("video").len(), 4000);
+        assert_eq!(
+            env.files(),
+            ["filme/Film/Film.mkv", "papierkorb/Film/Film.mkv"]
+        );
     }
 }
