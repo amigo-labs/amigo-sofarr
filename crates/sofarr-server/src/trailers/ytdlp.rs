@@ -159,7 +159,7 @@ pub fn run_limited(
     watch: Option<&Path>,
     limits: Limits,
 ) -> Result<ExitStatus, String> {
-    crate::process::run(command, watch, limits).map_err(|stop| stop.to_string())
+    crate::process::run(command, watch, limits, None).map_err(|stop| stop.to_string())
 }
 
 /// yt-dlp's reason for a failure: its last `ERROR:` line, else its last line.

@@ -7,6 +7,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::{Arc, atomic::AtomicBool},
     time::Duration,
 };
 
@@ -16,7 +17,7 @@ use crate::process::{self, Limits, Stopped};
 const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// One encode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Job {
     /// The original (absolute path).
     pub input: PathBuf,
@@ -25,6 +26,8 @@ pub struct Job {
     /// The original is MP4/QuickTime: data tracks go, text subtitles become SRT.
     pub mp4: bool,
     pub limits: Limits,
+    /// Set when sofarr stops: the encoder is stopped (spec reencode-job AC-06).
+    pub cancel: Option<Arc<AtomicBool>>,
 }
 
 /// Why an encode gave no result.
@@ -34,6 +37,8 @@ pub enum EncodeError {
     TooLarge,
     /// The encoder failed or was stopped (German reason).
     Failed(String),
+    /// sofarr stops.
+    Cancelled,
 }
 
 /// The seam between the re-encode logic and ffmpeg. Both calls block.
@@ -82,7 +87,7 @@ pub fn nice_works() -> bool {
         timeout: CHECK_TIMEOUT,
         max_bytes: u64::MAX,
     };
-    process::run(command, None, limits).is_ok_and(|status| status.success())
+    process::run(command, None, limits, None).is_ok_and(|status| status.success())
 }
 
 impl Ffmpeg {
@@ -185,13 +190,19 @@ impl Encoder for Ffmpeg {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(log);
-        let result = process::run(command, Some(&job.output), job.limits);
+        let result = process::run(
+            command,
+            Some(&job.output),
+            job.limits,
+            job.cancel.as_deref(),
+        );
         let stderr = fs::read_to_string(&log_path).unwrap_or_default();
         let _ = fs::remove_file(&log_path);
         match result {
             Ok(status) if status.success() => Ok(()),
             Ok(_) => Err(EncodeError::Failed(reason(&stderr))),
             Err(Stopped::TooLarge(_)) => Err(EncodeError::TooLarge),
+            Err(Stopped::Cancelled) => Err(EncodeError::Cancelled),
             Err(stop) => Err(EncodeError::Failed(format!("ffmpeg: {stop}"))),
         }
     }
@@ -222,6 +233,7 @@ mod tests {
                 timeout: Duration::from_secs(3600),
                 max_bytes: 1000,
             },
+            cancel: None,
         }
     }
 

@@ -340,6 +340,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     imdb::spawn_schedule(&state);
     subtitles::spawn_schedule(&state);
     trailers::spawn_schedule(&state);
+    reencode::job::spawn_schedule(&state);
     for job in [Job::Rss, Job::Downloads, Job::ImportLists, Job::Refresh] {
         let Some(every) = job.interval(&state) else {
             continue;
@@ -370,6 +371,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
                         Job::Trailers => trailers::run(&app, jiff::Timestamp::now())
                             .await
                             .map(|_| ()),
+                        // Has its own schedule (spec reencode-job).
+                        Job::Reencode => Ok(()),
                     }
                 }
             },
@@ -381,6 +384,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         rss_minutes = interval,
         "starting"
     );
+    let running = Arc::clone(&state);
     let app = api::app_router(state);
     let listener = TcpListener::bind(bind)
         .await
@@ -393,6 +397,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     )
     .with_graceful_shutdown(shutdown_signal())
     .await?;
+    // Docker kills the container 10 s after the signal (spec reencode-job AC-06).
+    reencode::run::stop(&running, std::time::Duration::from_secs(9)).await;
     tracing::info!("shut down");
     Ok(())
 }

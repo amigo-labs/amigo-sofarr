@@ -62,6 +62,8 @@ pub struct ReencodeConfig {
     pub min_saving_percent: u8,
     /// Longest an encode may run, in hours (at least 1).
     pub timeout_hours: u32,
+    /// The background job works through the candidates (spec reencode-job).
+    pub enabled: bool,
 }
 
 /// x265's presets, fastest first.
@@ -90,6 +92,7 @@ impl Default for ReencodeConfig {
             threads: 0,
             min_saving_percent: 20,
             timeout_hours: 24,
+            enabled: false,
         }
     }
 }
@@ -957,6 +960,19 @@ url = \"http://127.0.0.1:9/tvdb\"
         assert_eq!(
             (example.min_saving_percent, example.timeout_hours),
             (20, 24)
+        );
+        // Spec reencode-job AC-07: the job is off unless switched on.
+        assert!(!r.enabled);
+        assert!(!example.enabled);
+        assert!(
+            include_str!("../../../config/sofarr.example.toml").contains("enabled = false   "),
+            "the example shows the switch"
+        );
+        assert!(
+            Config::parse("[reencode]\nenabled = true\n")
+                .expect("valid")
+                .reencode
+                .enabled
         );
         for key in [
             "crf",

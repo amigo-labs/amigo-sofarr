@@ -336,6 +336,7 @@ async fn a_switched_off_resolution_and_broken_media_info_are_counted() {
 fn the_cli_report_lists_sizes_and_reasons_in_german() {
     // AC-07.
     let candidate = |title: &str, size: u64, per_minute: f64| Candidate {
+        file: FileRef::Movie(1),
         kind: "movie",
         movie_id: Some(1),
         series_id: None,

@@ -36,6 +36,8 @@ pub struct SystemAnswer {
     pub connections: Vec<ConnectionAnswer>,
     /// Whether trailers are downloaded, or why not (spec trailers AC-12).
     pub trailers: crate::trailers::api::TrailerSupport,
+    /// Whether the re-encode job runs, or why not (spec reencode-job AC-08).
+    pub reencode: crate::reencode::job::ReencodeSupport,
     /// The configuration in effect (defaults filled in), secrets masked.
     #[cfg_attr(test, ts(type = "Record<string, unknown>"))]
     pub config: Value,
@@ -240,6 +242,7 @@ pub fn answer(app: &App, now: Timestamp) -> SystemAnswer {
         jobs: jobs(app, now),
         connections: connections(app),
         trailers: crate::trailers::api::support_answer(app),
+        reencode: crate::reencode::job::support_answer(app),
         config: shown_config(app),
     }
 }

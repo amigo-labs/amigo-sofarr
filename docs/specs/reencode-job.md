@@ -122,16 +122,16 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-01 | `reencode::job::tests::job::rounds_take_the_largest_due_file_and_skip_settled_ones` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-02 | `reencode::job::tests::a_settled_file_stays_settled_until_it_changes`, `due_keeps_the_order_of_the_candidate_list`, `job::rounds_take_the_largest_due_file_and_skip_settled_ones` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-03 | `reencode::job::tests::a_refused_file_rests_a_day_unless_the_slot_was_taken`, `job::a_refused_file_rests_and_the_round_goes_on` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-04 | `reencode::job::tests::job::a_held_slot_makes_the_job_wait_without_records` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-05 | `reencode::job::tests::job::the_start_repairs_interrupted_attempts_even_when_switched_off` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-06 | `reencode::job::tests::job::a_stopping_server_stops_the_encoder`, `interruptions_and_refusals_neither_count_nor_break_the_streak` (`crates/sofarr-server/src/reencode/job/tests.rs`); `process::tests::a_set_stop_flag_stops_a_running_program`, `reasons_read_in_german` (`crates/sofarr-server/src/process.rs`) | built |        |
+| AC-07 | `reencode::job::tests::job::missing_ffmpeg_waits_and_the_system_page_says_why`, `the_start_repairs_interrupted_attempts_even_when_switched_off` (`crates/sofarr-server/src/reencode/job/tests.rs`); `config::tests::reencode_encoder_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
+| AC-08 | `reencode::job::tests::job::the_system_page_names_the_running_encode`, `missing_ffmpeg_waits_and_the_system_page_says_why` (`crates/sofarr-server/src/reencode/job/tests.rs`); `re-encode job text (reencode-job AC-08)` (`ui/src/lib/reencode/reencode.test.ts`); `says whether files are re-encoded, which one, or why not` (`ui/e2e/reencode.spec.ts`) | built |        |
+| AC-09 | `reencode::job::tests::failures_rest_seven_days_and_three_rest_until_the_file_changes` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-10 | `reencode::job::tests::job::reencode_job_round_large_library` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
 
 ## Decisions
 
@@ -139,3 +139,7 @@ Terms used below:
 - 2026-11-17: Audio is re-encoded in a later spec `reencode-audio`: lossless tracks without Atmos/DTS:X become E-AC-3 (owner).
 - 2026-11-17: A refused file rests 24 hours and the round goes on, so a refusal never loops; failures caused by a stop or restart of sofarr do not count toward a file's rest.
 - 2026-11-17: A file stays settled once an attempt at its current size ended `replaced` or `no_gain`, whatever came after; a changed file starts a new failure streak.
+- 2026-11-17: The job checks the slot before every attempt of a round and reads `refused` reasons starting with "Es läuft bereits ein Encode" as a held slot (no rest); the lock file of spec `reencode-file` is the slot for server and CLI alike.
+- 2026-11-17: The process runner got a stop flag (`process::run(…, cancel)`); the server sets it after its HTTP shutdown and waits up to 9 s for running encodes to record their end, inside Docker's 10 s. Encodes started by the API stop the same way.
+- 2026-11-17: The system page shows "Neu encodieren" next to "Trailer" as "aktiv", "aktiv – encodiert {Titel}" or "aus – {Grund}"; the job list gets the job `reencode` ("Neu encodieren"). New API: `SystemAnswer.reencode` (`ReencodeSupport`), `Db::all_reencodes`.
+- 2026-11-17: The due rules are pure (`reencode::job::is_due`) and were red against a stub first; the round, start and stop tests were written with their code; five deliberate defects (settled ignored, rest window ignored, a refusal ending the round, no stop flag, the switch ignored) each turned a test red or (the switch) let the start test run into its time bound.

@@ -88,6 +88,12 @@ impl Tools {
 pub struct State {
     pub lock: PathBuf,
     pub tools: std::sync::Mutex<Option<Arc<Tools>>>,
+    /// Set when sofarr stops: running encoders stop (spec reencode-job AC-06).
+    pub stopping: Arc<AtomicBool>,
+    /// Encodes of this process that have not ended yet.
+    pub in_flight: Arc<std::sync::atomic::AtomicUsize>,
+    /// The result of the job's last check of ffmpeg (spec reencode-job AC-07, AC-08).
+    pub ffmpeg: std::sync::Mutex<Option<Result<(), String>>>,
 }
 
 impl State {
@@ -98,7 +104,37 @@ impl State {
                 .unwrap_or_else(|| Path::new("."))
                 .join("reencode.lock"),
             tools: std::sync::Mutex::new(None),
+            stopping: Arc::new(AtomicBool::new(false)),
+            in_flight: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            ffmpeg: std::sync::Mutex::new(None),
         }
+    }
+}
+
+/// Counts an encode of this process while it runs.
+struct InFlight(Arc<std::sync::atomic::AtomicUsize>);
+
+impl InFlight {
+    fn new(count: &Arc<std::sync::atomic::AtomicUsize>) -> Self {
+        count.fetch_add(1, Ordering::SeqCst);
+        Self(Arc::clone(count))
+    }
+}
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// sofarr stops: running encoders are stopped and their attempts recorded; waits up to
+/// `wait` for them (spec reencode-job AC-06).
+pub async fn stop(app: &App, wait: Duration) {
+    app.reencode.stopping.store(true, Ordering::SeqCst);
+    let deadline = std::time::Instant::now() + wait;
+    while app.reencode.in_flight.load(Ordering::SeqCst) > 0 && std::time::Instant::now() < deadline
+    {
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
 
@@ -478,6 +514,46 @@ async fn clean_up(db: &Db, subject: &Subject, held: Option<&Running>) -> anyhow:
     Ok(())
 }
 
+/// The library file of a record, as an attempt sees it.
+async fn subject_of(db: &Db, file: FileRef) -> anyhow::Result<Option<Subject>> {
+    match file {
+        FileRef::Movie(id) => resolve(db, Target::Movie(id)).await,
+        FileRef::Episode(file_id) => {
+            let episode = db
+                .episodes(None)
+                .await?
+                .into_iter()
+                .find(|e| e.file_id == Some(file_id));
+            match episode {
+                Some(episode) => resolve(db, Target::Episode(episode.id)).await,
+                None => Ok(None),
+            }
+        }
+    }
+}
+
+/// Repairs every interrupted attempt (spec reencode-job AC-05): what an attempt on its
+/// file does first (AC-12), for all of them at once.
+pub async fn repair_all(app: &App) -> anyhow::Result<usize> {
+    let held = running(&app.reencode.lock);
+    let open: Vec<_> = app
+        .db
+        .open_reencodes()
+        .await?
+        .into_iter()
+        .filter(|a| !held.as_ref().is_some_and(|r| r.attempt == Some(a.id)))
+        .collect();
+    for attempt in &open {
+        if let Some(file) = attempt.file
+            && let Some(subject) = subject_of(&app.db, file).await?
+        {
+            clean_up(&app.db, &subject, held.as_ref()).await?;
+        }
+    }
+    close_interrupted(&app.db, held.as_ref()).await?;
+    Ok(open.len())
+}
+
 /// Closes the recorded attempts no running encode holds as interrupted (AC-12).
 async fn close_interrupted(db: &Db, held: Option<&Running>) -> anyhow::Result<()> {
     for attempt in db.open_reencodes().await? {
@@ -675,6 +751,7 @@ pub async fn run(app: &App, tools: &Tools, prepared: Prepared) -> anyhow::Result
         original,
         limit,
     } = prepared;
+    let _in_flight = InFlight::new(&app.reencode.in_flight);
     let video = subject.video();
     let work = hidden(&video, WORK_SUFFIX);
     let mut report = Report {
@@ -715,6 +792,7 @@ pub async fn run(app: &App, tools: &Tools, prepared: Prepared) -> anyhow::Result
             timeout: Duration::from_secs(u64::from(app.config.reencode.timeout_hours) * 3600),
             max_bytes: limit,
         },
+        cancel: Some(Arc::clone(&app.reencode.stopping)),
     };
     let encoder = Arc::clone(&tools.encoder);
     let encoded = tokio::task::spawn_blocking(move || encoder.encode(&job)).await?;
@@ -735,6 +813,11 @@ pub async fn run(app: &App, tools: &Tools, prepared: Prepared) -> anyhow::Result
         Err(EncodeError::Failed(reason)) => {
             discard();
             report.reason = Some(reason);
+            return finish(report).await;
+        }
+        Err(EncodeError::Cancelled) => {
+            discard();
+            report.reason = Some("abgebrochen: sofarr wurde beendet".to_owned());
             return finish(report).await;
         }
     }

@@ -126,9 +126,14 @@ pub(crate) struct Env {
 
 impl Env {
     pub(crate) async fn new(name: &str, mode: &str) -> Self {
+        Self::with(name, mode, "").await
+    }
+
+    /// With more TOML after the `[automation]` section.
+    pub(crate) async fn with(name: &str, mode: &str, extra: &str) -> Self {
         let root = temp(name);
         let config = Config::parse(&format!(
-            "[database]\npath = '{}'\n[automation]\nmode = \"{mode}\"\n",
+            "[database]\npath = '{}'\n[automation]\nmode = \"{mode}\"\n{extra}",
             root.join("config").join("sofarr.db").display()
         ))
         .expect("config");
@@ -209,6 +214,54 @@ impl Env {
             .expect("file");
         let video = folder.join(file_name);
         write_fake(&video, info, SIZE);
+        (id, video)
+    }
+
+    /// A movie whose fake video has `size` bytes, with its media info stored like the
+    /// disk scan does.
+    pub(crate) async fn movie_sized(
+        &self,
+        tmdb_id: i64,
+        title: &str,
+        info: &MediaInfo,
+        size: u64,
+    ) -> (i64, PathBuf) {
+        let folder = self.root.join("filme").join(title);
+        let file_name = format!("{title}.mkv");
+        let id = self
+            .db()
+            .upsert_movie(
+                &NewMovie {
+                    tmdb_id,
+                    imdb_id: None,
+                    title: title.to_owned(),
+                    original_title: None,
+                    title_de: None,
+                    year: Some(2019),
+                    runtime_minutes: 100,
+                    original_language: None,
+                    monitored: true,
+                    quality_profile_id: 1,
+                    path: folder.to_string_lossy().into_owned(),
+                    radarr_id: None,
+                    alternative_titles: vec![],
+                    availability: sofarr_db::Availability::default(),
+                    tags: vec![],
+                },
+                Timestamp::now(),
+            )
+            .await
+            .expect("movie");
+        self.db()
+            .set_file(id, &library_file(&file_name), Timestamp::now())
+            .await
+            .expect("file");
+        let video = folder.join(&file_name);
+        write_fake(&video, info, size);
+        let read = read_fake(&video).expect("read");
+        media::store(self.db(), FileRef::Movie(id), &read)
+            .await
+            .expect("media info");
         (id, video)
     }
 

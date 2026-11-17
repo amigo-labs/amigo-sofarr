@@ -6,6 +6,7 @@ use std::{
     io::ErrorKind,
     path::Path,
     process::{Command, ExitStatus},
+    sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant},
 };
 
@@ -31,6 +32,8 @@ pub enum Stopped {
     Timeout(Duration),
     /// Its output grew beyond the size limit (in bytes).
     TooLarge(u64),
+    /// It was stopped from outside (sofarr stops).
+    Cancelled,
 }
 
 fn duration_text(d: Duration) -> String {
@@ -54,6 +57,7 @@ impl fmt::Display for Stopped {
             Self::TooLarge(bytes) => {
                 write!(f, "abgebrochen: größer als {} MB", bytes / (1024 * 1024))
             }
+            Self::Cancelled => f.write_str("abgebrochen: sofarr wurde beendet"),
         }
     }
 }
@@ -70,11 +74,12 @@ pub fn size_of(path: &Path) -> u64 {
 }
 
 /// Runs a command (no shell) and waits for it; stops it when it runs longer than the
-/// time limit or `watch` grows beyond the size limit.
+/// time limit, `watch` grows beyond the size limit, or `cancel` is set.
 pub fn run(
     mut command: Command,
     watch: Option<&Path>,
     limits: Limits,
+    cancel: Option<&AtomicBool>,
 ) -> Result<ExitStatus, Stopped> {
     let mut child = command.spawn().map_err(|e| {
         Stopped::Start(match e.kind() {
@@ -93,7 +98,9 @@ pub fn run(
                 return Err(Stopped::Wait(format!("Zustand nicht lesbar: {e}")));
             }
         }
-        let stop = if started.elapsed() >= limits.timeout {
+        let stop = if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
+            Some(Stopped::Cancelled)
+        } else if started.elapsed() >= limits.timeout {
             Some(Stopped::Timeout(limits.timeout))
         } else if watch.is_some_and(|path| size_of(path) > limits.max_bytes) {
             Some(Stopped::TooLarge(limits.max_bytes))
@@ -127,6 +134,41 @@ mod tests {
     }
 
     #[test]
+    fn a_set_stop_flag_stops_a_running_program() {
+        // Spec reencode-job AC-06: the trailers' fake program in its "hang" mode sleeps two
+        // minutes; the flag stops it at the next poll.
+        let mut command = Command::new(std::env::current_exe().expect("test binary"));
+        command
+            .args([
+                "--exact",
+                "trailers::ytdlp::tests::fake_program",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env("SOFARR_FAKE_PROGRAM", "hang")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        let cancel = std::sync::Arc::new(AtomicBool::new(false));
+        let flag = std::sync::Arc::clone(&cancel);
+        let setter = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            flag.store(true, Ordering::SeqCst);
+        });
+        let started = Instant::now();
+        let limits = Limits {
+            timeout: Duration::from_secs(120),
+            max_bytes: u64::MAX,
+        };
+        assert_eq!(
+            run(command, None, limits, Some(&cancel)),
+            Err(Stopped::Cancelled)
+        );
+        assert!(started.elapsed() < Duration::from_secs(10));
+        setter.join().expect("setter");
+    }
+
+    #[test]
     fn reasons_read_in_german() {
         assert_eq!(
             Stopped::Timeout(Duration::from_secs(24 * 3600)).to_string(),
@@ -139,6 +181,10 @@ mod tests {
         assert_eq!(
             Stopped::TooLarge(500 * 1024 * 1024).to_string(),
             "abgebrochen: größer als 500 MB"
+        );
+        assert_eq!(
+            Stopped::Cancelled.to_string(),
+            "abgebrochen: sofarr wurde beendet"
         );
     }
 }

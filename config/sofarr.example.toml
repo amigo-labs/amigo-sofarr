@@ -146,3 +146,6 @@ preset = "medium"               # ultrafast … placebo: langsamer ist kleiner b
 threads = 0                     # 0 nutzt alle Kerne
 min_saving_percent = 20         # so viel kleiner (%) muss das Ergebnis sein, sonst bleibt das Original
 timeout_hours = 24              # längste Dauer eines Encodes
+# Hintergrundjob: encodiert rund um die Uhr die größte fällige Datei, eine nach der anderen,
+# mit niedrigster CPU-Priorität. Erst einschalten, wenn einzelne Dateien gut aussahen.
+enabled = false                 # true schaltet den Job ein (nur im Live-Mode)

@@ -15,6 +15,7 @@ use crate::{api::ApiError, app::SharedApp};
 
 pub mod encode;
 pub mod ffmpeg;
+pub mod job;
 pub mod run;
 #[cfg(test)]
 mod tests;
@@ -22,6 +23,9 @@ mod tests;
 /// One too-large library file.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Candidate {
+    /// The library file (not in the API answer).
+    #[serde(skip)]
+    pub file: FileRef,
     /// `movie` or `episode`.
     pub kind: &'static str,
     pub movie_id: Option<i64>,
@@ -76,6 +80,7 @@ pub fn reason(exclusion: Exclusion) -> &'static str {
 
 /// A library file before it is judged.
 struct Entry {
+    file: FileRef,
     kind: &'static str,
     movie_id: Option<i64>,
     series_id: Option<i64>,
@@ -129,6 +134,7 @@ impl Candidates {
             }
         };
         self.candidates.push(Candidate {
+            file: entry.file,
             kind: entry.kind,
             movie_id: entry.movie_id,
             series_id: entry.series_id,
@@ -169,6 +175,7 @@ pub async fn candidates(db: &Db, thresholds: &Thresholds) -> anyhow::Result<Cand
         let Some(file) = &movie.file else { continue };
         let name = movie.title_de.as_ref().unwrap_or(&movie.title);
         let entry = Entry {
+            file: FileRef::Movie(movie.id),
             kind: "movie",
             movie_id: Some(movie.id),
             series_id: None,
@@ -219,6 +226,7 @@ pub async fn candidates(db: &Db, thresholds: &Thresholds) -> anyhow::Result<Cand
         }
         let episodes = u32::try_from(file.episode_ids.len()).unwrap_or(u32::MAX);
         let entry = Entry {
+            file: FileRef::Episode(file_id),
             kind: "episode",
             movie_id: None,
             series_id: Some(file.series_id),
