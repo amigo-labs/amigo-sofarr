@@ -42,21 +42,23 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): The discover start page shows the search field, its „Suchen“ button and a filter button in one row.
-  - The filter button reads „Filter“, or „Filter (n)“ while n discover filters are active.
+- [ ] AC-01 (state): While discover is available (a TMDB key is set, discover AC-15), the discover start page shows the search field, its „Suchen“ button and a filter button in one row.
+  - The filter button reads „Filter“, or „Filter (n)“ while n discover filters are active (each filter with a value from the address counts, also a genre id that is not offered).
   - It opens and closes a panel with the discover filters of today (labels, choices, „Filter zurücksetzen“), marked `aria-expanded`.
   - The panel is closed whenever the page loads.
 - [ ] AC-02 (state): While a discover filter is active, a chip names it and its value (e.g. „Art: Filme“, „Jahr von: 1990“, „Originalsprache: Dänisch“, „IMDb-Bewertung: ab 7,0“), with the panel open or closed.
   - Pressing a chip removes that filter as its field's empty choice would.
   - The address parameters stay as today (discover AC-02).
-- [ ] AC-03 (always): Every shelf has two arrow buttons beside its heading, named „Zurück in „{Regal}““ and „Weiter in „{Regal}““.
+  - After a chip is removed, the focus moves to the next chip, else the one before it, else the filter button (as ui-list-toolbar AC-06).
+  - Removing „Jahr von“ keeps „Jahr bis“ and the other way round.
+- [ ] AC-03 (always): Every shelf that shows titles has two arrow buttons beside its heading (an empty or failed shelf shows its text of today and no arrows), named „Zurück in „{Regal}““ and „Weiter in „{Regal}““.
   - Each scrolls the shelf by about its visible width.
   - The back button is disabled at the shelf's start and the forward button at its end.
   - The page itself never scrolls sideways.
-- [ ] AC-04 (state): While a preview's title has a backdrop image, the preview page's head shows it blurred behind the head under the page ground at an opacity of at least 70 %, as the library head does (ui-detail-head AC-01); without one, the head has the plain page ground. The facts of the preview head are the compact panel of ui-detail-head AC-03.
-- [ ] AC-05 (state): While the window is narrow (below 768 px), the search row wraps, the filter panel shows its fields in at most two columns, the arrow buttons stay reachable, and nothing scrolls sideways at 360 px.
+- [ ] AC-04 (state): While a preview's title has a backdrop image and it has loaded, the preview page's head shows it blurred behind the head under the page ground at an opacity of at least 70 %, fading into the page ground at its lower edge, as the library head does (ui-detail-head AC-01); without one, or when it fails to load, the head has the plain page ground. The facts of the preview head are the compact panel of ui-detail-head AC-03.
+- [ ] AC-05 (state): While the window is narrow (below 768 px), the search field takes the full width with „Suchen“ and the filter button on the next line, the filter panel shows its fields in at most two columns, the arrow buttons stay visible beside each shelf heading, and nothing scrolls sideways at 360 px.
 - [ ] AC-06 (always): The discover start page with the panel open and chips shown, and a preview page with a backdrop, meet WCAG 2.1 AA in both palettes at 1440 px and 360 px (new axe scans), and every control is reachable by keyboard with a visible focus.
-- [ ] AC-07 (always): The screenshots in `docs/site/screenshots/` show the redesigned UI: they are regenerated with `bun run screenshots` from this spec's build. The set:
+- [ ] AC-07 (always, manual: images): The screenshots in `docs/site/screenshots/` show the redesigned UI (sidebar, chips, the new heads and the month grid), taken from this spec's build; the discover shot shows the start page with its panel closed. The set:
   - discover
   - movie list
   - movie page
@@ -82,13 +84,13 @@ Terms:
 | A genre id from the address that is not offered | The chip shows the id |
 | Ratings off with `bewertung` in the address | No rating chip, not counted |
 | The preview backdrop fails to load | No backdrop, plain ground |
-| Discover without a TMDB key | The notice of discover AC-15 as today, no filter button |
+| Discover without a TMDB key | The notice of discover AC-15 as today; no search row, filter button or shelves |
 
 ## Assumptions
 
 | Assumption | Reason | Risk |
 | ---------- | ------ | ---- |
-| The overview is a worthwhile new screenshot | It shows the key figures and is the first page after login | Low |
+| The overview is a worthwhile new screenshot | It shows the key figures and the next dates, and is the first page after login; the demo has no queue or activity, so those boxes show their empty texts | Low |
 
 ## Open questions
 
