@@ -38,7 +38,7 @@ because later specs build on earlier ones.
 | 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | done |
 | 21 | [ui-consistency](ui-consistency.md) | M | ui-discover-polish | UI redesign 9: accent only for states and the main action, discover tiles and search like the library, German wording, date-times to the minute, calmer episode rows, paths break at slashes, sofarr's monogram (D30) | build |
 | 22 | [ui-overview-polish](ui-overview-polish.md) | S | ui-consistency | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) | build |
-| 23 | [ui-shell-redesign](ui-shell-redesign.md), [web-ui-shell](web-ui-shell.md) (revision) | S | ui-consistency | Übersicht and Entdecken first in the sidebar without a group heading; ui-shell-redesign AC-01 and web-ui-shell AC-08 revised | build |
+| 23 | [ui-shell-redesign](ui-shell-redesign.md), [web-ui-shell](web-ui-shell.md) (revision) | S | ui-consistency | Übersicht and Entdecken first in the sidebar without a group heading; ui-shell-redesign AC-01 and web-ui-shell AC-08 revised | done |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -59,7 +59,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [web-ui-library](web-ui-library.md) | 2026-11-13 | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) |
 | [parser-episode-gaps](parser-episode-gaps.md) | 2026-11-15 | Episode parser: year before ` - 06`, `E06` without a season, batches `(23-26)`, `[03]` after a dotted anime title |
 | [amigo-theme](amigo-theme.md) | 2026-11-15 | The shared amigo app theme from amigo-labs/website with sofarr's accent, dark by default, Inter (D29) |
-| [ui-shell-redesign](ui-shell-redesign.md) | 2026-11-17 | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes, filled status labels, UI links without underline (D30) |
+| [ui-shell-redesign](ui-shell-redesign.md) | 2026-11-17, AC-01 revised 2026-11-17 | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes, filled status labels, UI links without underline (D30) |
 | [ui-list-items](ui-list-items.md) | 2026-11-17 | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30) |
 | [ui-detail-head](ui-detail-head.md) | 2026-11-17 | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) |
 | [ui-detail-boxes](ui-detail-boxes.md) | 2026-11-17 | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) |

@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-16
 size: M
 design: [sofarr.md §3, sofarr.md §9 D16, sofarr.md §9 D23, sofarr.md §9 D29, sofarr.md §9 D30]
@@ -52,7 +52,7 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (state): While the window is wide and in the logged-in state, sofarr shows the navigation as a sidebar along the left edge of the window, next to the page content (also on the error and not-found pages): no menu button, the brand at the top, the entries in the navigation order — Übersicht and Entdecken first without a heading, then the others under the visible group headings Bibliothek and Verwaltung — and the theme switch and (where a logout exists) the logout action at the bottom.
+- [x] AC-01 (state): While the window is wide and in the logged-in state, sofarr shows the navigation as a sidebar along the left edge of the window, next to the page content (also on the error and not-found pages): no menu button, the brand at the top, the entries in the navigation order — Übersicht and Entdecken first without a heading, then the others under the visible group headings Bibliothek and Verwaltung — and the theme switch and (where a logout exists) the logout action at the bottom.
 - [x] AC-02 (always): sofarr shows every navigation entry with an icon and its German label, and marks the current page's entry (`aria-current="page"`) with the accent (`accent-ink` text on a `accent-subtle` ground).
 - [x] AC-03 (event): When the user presses the sidebar's collapse button on a wide window, then the sidebar shows only the icons (the group headings and the brand's name are hidden, a hairline separates the groups), the page content takes the freed width, each entry keeps its label as its accessible name and shows it as a visible tooltip next to the entry on hover and on keyboard focus, and the button's German name changes from "Seitenleiste einklappen" to "Seitenleiste ausklappen"; pressing it again restores the full sidebar.
 - [x] AC-04 (event): When the UI is opened or reloaded after the sidebar was collapsed or expanded, then it shows the sidebar in the last chosen state: at the moment the page's body first has content, the document already carries that state, so the content area never starts at the other width; with nothing stored the sidebar is expanded.
@@ -128,7 +128,7 @@ Terms:
 
 > Completed: 2026-11-17
 
-- A left sidebar on wide windows (240 px, collapsible to 56 px icons with tooltips, state remembered under `sofarr-sidebar` and applied before the first paint), with the pages in three groups and an Octicon per entry. Revised 2026-11-17 (AC-01): Übersicht and Entdecken first without a heading, then Bibliothek and Verwaltung; awaiting spec-check.
+- A left sidebar on wide windows (240 px, collapsible to 56 px icons with tooltips, state remembered under `sofarr-sidebar` and applied before the first paint), with the pages in three groups and an Octicon per entry. Revised 2026-11-17 (AC-01, accepted 2026-11-17): Übersicht and Entdecken first without a heading, then Bibliothek and Verwaltung.
 - On narrow windows (below 1024 px) a top bar with menu button and brand; the navigation opens as a modal drawer from the left that keeps the focus and closes on Escape, a click outside or a page change.
 - The theme switch is a segmented control (Dunkel, Hell, System) in the sidebar footer next to the logout.
 - The shared component classes (`components.css`) are loaded; sofarr's buttons, boxes, fields, checkboxes and status labels take their look, and status labels are filled chips with a dot in four tones (accent new).
@@ -140,7 +140,7 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `wide window` › `the sidebar sits at the left with groups, entries, theme switch and logout (AC-01)` (first group without heading: Übersicht, Entdecken; headings Bibliothek, Verwaltung), `the sidebar also shows on the page-not-found page (AC-01)` (`ui/e2e/shell.spec.ts`); `groups the pages without changing their order (ui-shell-redesign AC-01)` (`ui/src/lib/nav.test.ts`) | built |  |
+| AC-01 | `wide window` › `the sidebar sits at the left with groups, entries, theme switch and logout (AC-01)` (first group without heading: Übersicht, Entdecken; headings Bibliothek, Verwaltung), `the sidebar also shows on the page-not-found page (AC-01)` (`ui/e2e/shell.spec.ts`); `groups the pages without changing their order (ui-shell-redesign AC-01)` (`ui/src/lib/nav.test.ts`) | verified | 0de78c9 |
 | AC-02 | `wide window` › `every entry has an icon; the current one is the accent (AC-02, dark/light)` (`ui/e2e/shell.spec.ts`); `gives every page an icon` (`ui/src/lib/nav.test.ts`) | verified | c7ca8fb |
 | AC-03 | `wide window` › `collapses to icons with names and tooltips, and expands again (AC-03)` (`ui/e2e/shell.spec.ts`) | verified | c7ca8fb |
 | AC-04 | `wide window` › `the collapsed state is on the document before the app renders (AC-04)`, `an unknown stored value counts as expanded (AC-04)` (`ui/e2e/shell.spec.ts`); `sidebar state` (`ui/src/lib/sidebar.test.ts`) | verified | c7ca8fb |
@@ -177,3 +177,4 @@ Terms:
 - 2026-11-17: AC-01 revised (owner): Übersicht and Entdecken stand first without a group heading, because a group „Entdecken“ with the single entry „Entdecken“ repeated itself and the two entry pages belong at the top; Bibliothek keeps Filme, Serien, Kalender and Fehlend. The navigation order of `web-ui-shell` AC-08 changes with it. Back to `status: todo` until spec-check accepts the revision.
 - 2026-11-17 (build): Red run of the revision against ff08f13: `bunx vitest run src/lib/nav.test.ts` failed 3 of 5 (order and groups). The first group is named „Start“ in the code and „Einstieg“ as the list's accessible name, without a visible heading.
 - 2026-11-17 (spec-check, round 1 of the revision: NOT READY): the group and icon table under Technical notes still showed the old groups; it now matches AC-01 (no heading for Übersicht and Entdecken, Sperrliste under Verwaltung).
+- 2026-11-17 (spec-check, round 2 of the revision: READY (manual: 1)): full gate run green (552 e2e tests); the revised AC-01 is proven by `shell.spec.ts` and `nav.test.ts`.
