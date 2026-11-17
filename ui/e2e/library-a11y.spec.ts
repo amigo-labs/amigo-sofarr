@@ -5,7 +5,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { expectNoHorizontalScroll, json } from './helpers';
-import { LIBRARY, movieId, seriesId } from './library-helpers';
+import { LIBRARY, movieId, openFilters, seriesId } from './library-helpers';
 import { PALETTES, storeTheme } from './theme-helpers';
 
 type Target = { readonly name: string; readonly path: (page: Page) => Promise<string> };
@@ -93,6 +93,16 @@ for (const scheme of PALETTES) {
         .getByRole('button', { name: 'Überwachen', exact: true })
         .click();
       await expect(page.getByRole('dialog')).toBeVisible();
+      await expectNoViolations(page);
+    });
+
+    test('open filter panel and chips (ui-list-toolbar AC-11)', async ({ page }) => {
+      await page.goto(`${LIBRARY}/filme?ueberwacht=ja&tag=1&sortierung=jahr&richtung=ab`);
+      await settle(page);
+      await openFilters(page);
+      await expect(page.getByRole('list', { name: 'Aktive Filter' })).toBeVisible();
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
       await expectNoViolations(page);
     });
 

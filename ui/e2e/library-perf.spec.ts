@@ -2,7 +2,7 @@
 // `perf` after every other test, alone, against the `bench` server nobody changes.
 
 import { expect, test } from '@playwright/test';
-import { apiTotal, items } from './library-helpers';
+import { apiTotal, items, openFilters } from './library-helpers';
 import { SERVERS } from './servers';
 
 test.describe('large library (AC-04)', () => {
@@ -68,6 +68,7 @@ test.describe('large library (AC-04)', () => {
     await expect(items(page)).toHaveText([/Film 2490/]);
     await page.getByLabel('Suche').fill('');
     await expect(page.getByTestId('total')).toHaveText(`${all} Filme`);
+    await openFilters(page);
     const filter = await measure(async () => {
       await page.getByLabel('Überwacht', { exact: true }).selectOption({ label: 'Ja' });
     }, `${monitored} Filme`);

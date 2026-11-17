@@ -3,7 +3,7 @@
 
 import { expect, test } from '@playwright/test';
 import { expectNoHorizontalScroll } from './helpers';
-import { LIBRARY, apiTotal, expectTotal, items } from './library-helpers';
+import { apiTotal, expectTotal, items, LIBRARY, openFilters } from './library-helpers';
 
 test.describe('movie list (AC-02, AC-03)', () => {
   test('shows the movies as a list with poster, title, year, quality and labels', async ({
@@ -72,6 +72,7 @@ test.describe('movie list (AC-02, AC-03)', () => {
       '/api/library/movies?monitored=yes&missing=yes&has_file=no&tag=1&profile=4',
     );
     await page.goto(`${LIBRARY}/filme`);
+    await openFilters(page);
     await page.getByLabel('Überwacht', { exact: true }).selectOption({ label: 'Ja' });
     await page.getByLabel('Fehlt', { exact: true }).selectOption({ label: 'Ja' });
     await page.getByLabel('Mit Datei', { exact: true }).selectOption({ label: 'Nein' });
@@ -108,7 +109,7 @@ test.describe('movie list (AC-02, AC-03)', () => {
   test('sorts by year descending, kept in the address', async ({ page }) => {
     await page.goto(`${LIBRARY}/filme?suche=Film%20000`);
     await page.getByLabel('Sortierung', { exact: true }).selectOption({ label: 'Jahr' });
-    await page.getByLabel('Reihenfolge', { exact: true }).selectOption({ label: 'absteigend' });
+    await page.getByRole('button', { name: 'Absteigend sortieren' }).click();
     await expect(page).toHaveURL(/sortierung=jahr/);
     await expect(page).toHaveURL(/richtung=ab/);
     // Film 0001..0009: years 1951..1959, newest first.
@@ -127,6 +128,7 @@ test.describe('series list (AC-06)', () => {
     await expect(insel).toContainText('1 fehlen');
     await expect(insel).toContainText('1 unter Cutoff');
     const complete = await apiTotal(request, '/api/library/series?complete=yes');
+    await openFilters(page);
     await page.getByLabel('Komplett', { exact: true }).selectOption({ label: 'Ja' });
     await expect(page).toHaveURL(/komplett=ja/);
     await expectTotal(page, complete, complete === 1 ? 'Serie' : 'Serien');

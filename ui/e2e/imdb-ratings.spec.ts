@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectAttribution, expectNoHorizontalScroll } from './helpers';
 import { EXTRAS, RATINGS, waitForRatings } from './extras-helpers';
-import { expectTotal, items, movieId, seriesId } from './library-helpers';
+import { expectTotal, items, movieId, openFilters, seriesId } from './library-helpers';
 
 const titles = (page: Page) => items(page).locator('a.title').allTextContents();
 
@@ -100,7 +100,7 @@ test.describe('sorting and minimums (AC-06, AC-07)', () => {
       .toEqual(['Nischenfilm', 'Bestnote', 'Gutfilm', 'Mittelmaß']);
     expect((await titles(page)).slice(4).toSorted()).toEqual(['Ohne IMDb', 'Unbewertet']);
 
-    await page.getByLabel('Reihenfolge').selectOption({ label: 'absteigend' });
+    await page.getByRole('button', { name: 'Absteigend sortieren' }).click();
     await expect(page).toHaveURL(/richtung=ab/);
     await expect
       .poll(async () => (await titles(page)).slice(0, 4))
@@ -113,23 +113,25 @@ test.describe('sorting and minimums (AC-06, AC-07)', () => {
   }) => {
     await page.goto(`${RATINGS}/filme`);
     await expectTotal(page, 6, 'Filme');
-    await page.getByLabel('Mindestbewertung').selectOption({ label: 'ab 7,0' });
+    await openFilters(page);
+    await page.getByLabel('Mindestbewertung', { exact: true }).selectOption({ label: 'ab 7,0' });
     await expect(page).toHaveURL(/mindestbewertung=7(&|$)/);
     await expectTotal(page, 3, 'Filme');
     expect((await titles(page)).toSorted()).toEqual(['Bestnote', 'Gutfilm', 'Nischenfilm']);
 
-    await page.getByLabel('Mindeststimmen').selectOption({ label: 'ab 1.000' });
+    await page.getByLabel('Mindeststimmen', { exact: true }).selectOption({ label: 'ab 1.000' });
     await expect(page).toHaveURL(/mindeststimmen=1000/);
     await expectTotal(page, 2, 'Filme');
     expect((await titles(page)).toSorted()).toEqual(['Bestnote', 'Gutfilm']);
 
     await page.reload();
     await expectTotal(page, 2, 'Filme');
-    await expect(page.getByLabel('Mindestbewertung')).toHaveValue('7');
-    await expect(page.getByLabel('Mindeststimmen')).toHaveValue('1000');
+    await expect(page.getByLabel('Mindestbewertung', { exact: true })).toHaveValue('7');
+    await expect(page.getByLabel('Mindeststimmen', { exact: true })).toHaveValue('1000');
 
-    await page.getByLabel('Mindestbewertung').selectOption({ label: 'Alle' });
-    await page.getByLabel('Mindeststimmen').selectOption({ label: 'Alle' });
+    await openFilters(page);
+    await page.getByLabel('Mindestbewertung', { exact: true }).selectOption({ label: 'Alle' });
+    await page.getByLabel('Mindeststimmen', { exact: true }).selectOption({ label: 'Alle' });
     await expectTotal(page, 6, 'Filme');
   });
 
@@ -137,7 +139,7 @@ test.describe('sorting and minimums (AC-06, AC-07)', () => {
     await page.goto(`${RATINGS}/serien?mindestbewertung=8.5`);
     await expectTotal(page, 1, 'Serie');
     await expect(items(page)).toContainText(['Hochserie']);
-    await expect(page.getByLabel('Mindestbewertung')).toHaveValue('8.5');
+    await expect(page.getByLabel('Mindestbewertung', { exact: true })).toHaveValue('8.5');
   });
 });
 
@@ -153,8 +155,8 @@ test.describe('ratings switched off (AC-09)', () => {
       'Hinzugefügt',
       'Größe',
     ]);
-    await expect(page.getByLabel('Mindestbewertung')).toHaveCount(0);
-    await expect(page.getByLabel('Mindeststimmen')).toHaveCount(0);
+    await expect(page.getByLabel('Mindestbewertung', { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Mindeststimmen', { exact: true })).toHaveCount(0);
     await expect(page.getByTestId('rating')).toHaveCount(0);
     await expect(page.getByText('Information courtesy of IMDb')).toHaveCount(0);
 

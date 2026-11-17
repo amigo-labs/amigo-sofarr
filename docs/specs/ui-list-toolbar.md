@@ -125,21 +125,26 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-01 | `header and toolbar (AC-01)` › `heading and count in one row, the toolbar in one row, the list starts high` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
+| AC-02 | `sort direction (AC-02)` › `the button flips the direction like the dropdown did, kept in the address` (`ui/e2e/library-toolbar.spec.ts`); `sorts by year descending, kept in the address` (`ui/e2e/library-lists.spec.ts`); `sorting by rating puts the best first …` (`ui/e2e/imdb-ratings.spec.ts`) | built |  |
+| AC-03 | `filter button and panel (AC-03, AC-04)` › `reads Filter, then Filter (n); …`, `search text alone is no filter` (`ui/e2e/library-toolbar.spec.ts`); `filter chips` (`ui/src/lib/library/filter-chips.test.ts`) | built |  |
+| AC-04 | `filter button and panel (AC-03, AC-04)` › `reads Filter, then Filter (n); opens and closes the panel; closed at every load` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
+| AC-05 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)`, `series have the Komplett filter and its chip` (`ui/e2e/library-toolbar.spec.ts`); `filter chips` › `names every active filter and its value in the panel's order (AC-05)`, `shows the id of an unknown profile or tag`, `leaves out the rating filters while ratings are off` (`ui/src/lib/library/filter-chips.test.ts`) | built |  |
+| AC-06 | `chips (AC-05 .. AC-08)` › `a chip removes its filter; the focus moves on (AC-06)` (`ui/e2e/library-toolbar.spec.ts`); `removing a chip sets only that filter back to Alle (AC-06)` (`filter-chips.test.ts`) | built |  |
+| AC-07 | `chips (AC-05 .. AC-08)` › `"Alle Filter zurücksetzen" clears every filter, keeps search and sort (AC-07)` (`ui/e2e/library-toolbar.spec.ts`); `resetting clears every filter and keeps search and sort (AC-07)` (`filter-chips.test.ts`) | built |  |
+| AC-08 | `chips (AC-05 .. AC-08)` › `name the active filters in order, also with the panel closed (AC-05, AC-08)` (`ui/e2e/library-toolbar.spec.ts`); `filters combine with AND, are part of the address and survive a reload` (`ui/e2e/library-lists.spec.ts`); `minimum rating and votes combine, …`, `a minimum from the address that is not offered is kept and shown` (`ui/e2e/imdb-ratings.spec.ts`) | built |  |
+| AC-09 | `attribution (AC-09)` › `IMDb's attribution stands once, below the list` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
+| AC-10 | `narrow window (AC-10)` › `the toolbar wraps, the search takes the full width, nothing scrolls sideways` (`ui/e2e/library-toolbar.spec.ts`) | built |  |
+| AC-11 | `axe, dark theme` and `axe, light theme` › `open filter panel and chips (ui-list-toolbar AC-11)`, `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
+| AC-12 | `movie list speed (AC-04)` (`ui/e2e/library-perf.spec.ts`, the filter now set in the open panel); `transfer budget (shell AC-16)` › `Filme`, `Serien` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-13 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: The list redesign of the plan's spec 2 is split into this spec and `ui-list-items`, because together they exceed one M block.
 - 2026-11-17: The filter panel is closed at every load and its state is not remembered; active filters always show as chips (owner).
+- 2026-11-17 (build): Red run against e07a792 (UI of `ui-shell-redesign`): `bunx playwright test e2e/library-toolbar.spec.ts` failed 10 of 10 (no toolbar role, no direction button, no filter button or chips, attribution above the list). The unit tests of `filter-chips.ts` were written before the module, but their red run against the missing module was not recorded.
+- 2026-11-17 (build): The toolbar is `role="toolbar"` named „Liste“; the search and sort labels are visually hidden (the placeholder and the selected value show what they are), the filter dropdowns keep their visible labels in the panel.
+- 2026-11-17 (build): The chips are filled `am-chip am-chip--accent` buttons with an `x` icon; „Alle Filter zurücksetzen“ is a small ghost button. Their names („Filter … entfernen“) contain the filter labels, so tests that look a dropdown up by `getByLabel('Mindestbewertung')` now pass `exact: true`.
+- 2026-11-17 (build): Existing tests that set filters open the panel first (`openFilters` in `ui/e2e/library-helpers.ts`); the perf test opens it before the measured change, so the measurement still covers only the list update.
+

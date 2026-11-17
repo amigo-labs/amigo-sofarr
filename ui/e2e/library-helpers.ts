@@ -49,3 +49,10 @@ export const items = (page: Page) => page.getByTestId('library-items').locator('
 export async function expectTotal(page: Page, total: number, noun: string): Promise<void> {
   await expect(page.getByTestId('total')).toHaveText(`${total} ${noun}`);
 }
+
+/** Opens the filter panel of a list page (spec ui-list-toolbar AC-04) unless it is open. */
+export async function openFilters(page: Page): Promise<void> {
+  const button = page.getByRole('button', { name: /^Filter( \(\d+\))?$/ });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+}
