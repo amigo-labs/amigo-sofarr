@@ -26,7 +26,9 @@
       <dl class="facts">
         <div>
           <dt>Datei</dt>
-          <dd class="mono" data-testid="file-path">{file.relative_path}</dd>
+          <dd class="mono path" data-testid="file-path" title={file.relative_path}>
+            {file.relative_path}
+          </dd>
         </div>
         <div>
           <dt>Qualität</dt>
@@ -66,6 +68,11 @@
 </section>
 
 <style>
+  .path {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
   .body {
     display: flex;
     flex-direction: column;

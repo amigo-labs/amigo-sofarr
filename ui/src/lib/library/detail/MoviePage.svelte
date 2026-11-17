@@ -109,47 +109,51 @@
 
   <CastBox kind="movie" id={m.id} />
 
-  <div class="grid">
-    <FileBox file={m.file} cutoffReason={m.cutoff_reason} />
-    <SubtitlesBox movieId={m.id} title={m.title} hasFile={m.file !== null} />
-    <TrailerBox kind="movie" id={m.id} title={m.title} />
-    <SettingsBox
-      profiles={options.value?.movie_profiles ?? []}
-      profile={m.quality_profile}
-      availability={m.minimum_availability}
-      preview={(c) =>
-        previewMovieChange(m.id, {
-          quality_profile_id: c.profile,
-          minimum_availability: c.availability,
-        })}
-      save={async (c) => {
-        const r = await changeMovie(m.id, {
-          quality_profile_id: c.profile,
-          minimum_availability: c.availability,
-        });
-        if (r.ok) {
-          notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
-          await movie.reload();
-        } else if (r.failure.kind !== 'unauthorized') {
-          notify('danger', `Nicht gespeichert: ${r.failure.message}`);
-        }
-        return r.ok;
-      }}
-    />
-    <FilesBox
-      kind="movie"
-      id={m.id}
-      title={m.title}
-      folder={m.folder}
-      fileActions={m.file_actions}
-      onchanged={() => void movie.reload()}
-    />
-    <HistoryBox
-      kind="movie"
-      grabs={m.grabs}
-      blocklist={m.blocklist}
-      onchanged={() => void movie.reload()}
-    />
+  <div class="detail-columns">
+    <div class="detail-main">
+      <FileBox file={m.file} cutoffReason={m.cutoff_reason} />
+      <SubtitlesBox movieId={m.id} title={m.title} hasFile={m.file !== null} />
+      <HistoryBox
+        kind="movie"
+        grabs={m.grabs}
+        blocklist={m.blocklist}
+        onchanged={() => void movie.reload()}
+      />
+    </div>
+    <div class="detail-side">
+      <SettingsBox
+        profiles={options.value?.movie_profiles ?? []}
+        profile={m.quality_profile}
+        availability={m.minimum_availability}
+        preview={(c) =>
+          previewMovieChange(m.id, {
+            quality_profile_id: c.profile,
+            minimum_availability: c.availability,
+          })}
+        save={async (c) => {
+          const r = await changeMovie(m.id, {
+            quality_profile_id: c.profile,
+            minimum_availability: c.availability,
+          });
+          if (r.ok) {
+            notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
+            await movie.reload();
+          } else if (r.failure.kind !== 'unauthorized') {
+            notify('danger', `Nicht gespeichert: ${r.failure.message}`);
+          }
+          return r.ok;
+        }}
+      />
+      <FilesBox
+        kind="movie"
+        id={m.id}
+        title={m.title}
+        folder={m.folder}
+        fileActions={m.file_actions}
+        onchanged={() => void movie.reload()}
+      />
+      <TrailerBox kind="movie" id={m.id} title={m.title} />
+    </div>
   </div>
   <ImdbAttribution info={imdb.info} />
 {:else if movie.failure !== null}
@@ -162,12 +166,3 @@
 {:else}
   <Loading label="Film wird geladen …" />
 {/if}
-
-<style>
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    gap: var(--base-size-16);
-    align-items: start;
-  }
-</style>

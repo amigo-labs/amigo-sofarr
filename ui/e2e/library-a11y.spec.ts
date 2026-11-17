@@ -121,6 +121,19 @@ for (const scheme of PALETTES) {
       }
     });
 
+    test('series page with seasons open and closed, wide and narrow (ui-detail-boxes AC-08)', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`${LIBRARY}/serien/${await seriesId(page.request, LIBRARY, 'Kleine Insel')}`);
+      await settle(page);
+      await expectNoViolations(page);
+      await page.locator('details.season > summary .season-name').first().click();
+      await expectNoViolations(page);
+      await page.setViewportSize({ width: 360, height: 740 });
+      await expectNoViolations(page);
+    });
+
     test('open filter panel and chips (ui-list-toolbar AC-11)', async ({ page }) => {
       await page.goto(`${LIBRARY}/filme?ueberwacht=ja&tag=1&sortierung=jahr&richtung=ab`);
       await settle(page);

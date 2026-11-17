@@ -111,16 +111,22 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
+| AC-01 | `two columns (AC-01)` › `from 1200 px: main boxes left, side boxes right, each in its order`, `below 1200 px: one column, main boxes first`, `a series page: seasons in the main column, settings at the side` (`ui/e2e/library-detail-boxes.spec.ts`) | built |  |
+| AC-02 | `box headers (AC-02)` › `16 px semibold heading on the box ground, a hairline below` (`ui/e2e/library-detail-boxes.spec.ts`); `grounds, text and hairlines are the tokens (AC-02)` (`ui/e2e/theme.spec.ts`) | built |  |
+| AC-03 | `file path (AC-03)` › `monospace, the full path as tooltip, wraps inside its box` (`ui/e2e/library-detail-boxes.spec.ts`); `ui/e2e/library-files.spec.ts` (unchanged) | built |  |
+| AC-04 | `seasons (AC-04, AC-05)` › `a season header: name, progress with numbers, labels, icon buttons at its end` (`ui/e2e/library-detail-boxes.spec.ts`); the season tests of `ui/e2e/library-detail.spec.ts` | built |  |
+| AC-05 | `seasons (AC-04, AC-05)` › `the header opens and closes the season; its buttons do not; a chevron shows it` (`ui/e2e/library-detail-boxes.spec.ts`) | built |  |
+| AC-06 | `episode rows (AC-06)` › `one line: code, title, date, status chip, labels and icon buttons` (`ui/e2e/library-detail-boxes.spec.ts`); episode tests of `ui/e2e/library-detail.spec.ts` and `ui/e2e/subtitles.spec.ts` | built |  |
+| AC-07 | `narrow window (AC-07)` › `boxes, seasons and episodes fit; icon buttons are 32 px` (`ui/e2e/library-detail-boxes.spec.ts`) | built |  |
+| AC-08 | `axe, dark theme` and `axe, light theme` › `series page with seasons open and closed, wide and narrow (ui-detail-boxes AC-08)`, `Film`, `Serie`, `remove dialog and settings preview` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-09 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: Fixed two columns (main and side) instead of the auto-fit grid, so the order of reading no longer depends on the window width.
+- 2026-11-17 (build): Red run against aa26a2c: `bunx playwright test e2e/library-detail-boxes.spec.ts` failed 7 of 9. Green at once: the narrow-window check (the old buttons were already 32 px and nothing scrolled) and a first, too weak version of „seasons in the main column“, which was then tightened to require the settings beside the seasons.
+- 2026-11-17 (build): The season's actions sit in a container next to the `summary`, absolutely placed over the end of its first line, so a click on them never opens or closes the season; the summary reserves room for them on the right.
+- 2026-11-17 (build): The progress is a `role="progressbar"` with `aria-valuenow`/`aria-valuemax` (episodes with file, all episodes) and the text „x von y“ beside it; the counts of today stay as smaller text (`season-counts`).
+- 2026-11-17 (build): An episode's status chip: its quality (accent) with a file, „fehlt“ (danger) while missing, otherwise „keine Datei“ (neutral); today's separate „fehlt“ label and the „· quality“ text went.
+- 2026-11-17 (build): A first `box-row` right after a `box-header` loses its top hairline (`.box-header + .box-row`), and a `p.box-row` its margin; before, the empty Grabs and Blocklist boxes showed a double line.
+

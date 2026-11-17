@@ -345,9 +345,42 @@ code,
 }
 
 .box-header {
+  margin: 0;
   padding: var(--base-size-12) var(--base-size-16);
   border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
   border-radius: var(--borderRadius-large) var(--borderRadius-large) 0 0;
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  line-height: 22px;
+}
+
+.box-header :is(h2, h3) {
+  margin: 0;
+  font-size: var(--text-title-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  line-height: 22px;
+}
+
+/* The boxes of a detail page: the title's content left, settings and actions right
+   (spec ui-detail-boxes AC-01). */
+.detail-columns {
+  display: grid;
+  gap: var(--base-size-16);
+  align-items: start;
+}
+
+.detail-main,
+.detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base-size-16);
+  min-width: 0;
+}
+
+@media (min-width: 1200px) {
+  .detail-columns {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
 }
 
 .box-row {
@@ -355,8 +388,13 @@ code,
   border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
 }
 
-.box-row:first-child {
+.box-row:first-child,
+.box-header + .box-row {
   border-top: 0;
+}
+
+p.box-row {
+  margin: 0;
 }
 
 /* Status labels: filled chips with a dot (`am-chip`, spec ui-shell-redesign AC-11). */

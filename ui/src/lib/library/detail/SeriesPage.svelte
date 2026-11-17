@@ -96,45 +96,48 @@
 
   <CastBox kind="series" id={s.id} />
 
-  <section class="seasons" aria-labelledby="seasons-title">
-    <h2 id="seasons-title">Staffeln</h2>
-    {#each s.seasons as season (season.number)}
-      <SeasonBox seriesId={s.id} seriesTitle={s.title} {season} {actions} />
-    {/each}
-  </section>
-
-  <div class="grid">
-    <TrailerBox kind="series" id={s.id} title={s.title} />
-    <SettingsBox
-      profiles={options.value?.series_profiles ?? []}
-      profile={s.quality_profile}
-      availability={null}
-      preview={(c) => previewSeriesChange(s.id, { quality_profile_id: c.profile })}
-      save={async (c) => {
-        const r = await changeSeries(s.id, { quality_profile_id: c.profile });
-        if (r.ok) {
-          notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
-          await series.reload();
-        } else if (r.failure.kind !== 'unauthorized') {
-          notify('danger', `Nicht gespeichert: ${r.failure.message}`);
-        }
-        return r.ok;
-      }}
-    />
-    <FilesBox
-      kind="series"
-      id={s.id}
-      title={s.title}
-      folder={s.folder}
-      fileActions={s.file_actions}
-      onchanged={() => void series.reload()}
-    />
-    <HistoryBox
-      kind="series"
-      grabs={s.grabs}
-      blocklist={s.blocklist}
-      onchanged={() => void series.reload()}
-    />
+  <div class="detail-columns">
+    <div class="detail-main">
+      <section class="seasons" aria-labelledby="seasons-title">
+        <h2 id="seasons-title">Staffeln</h2>
+        {#each s.seasons as season (season.number)}
+          <SeasonBox seriesId={s.id} seriesTitle={s.title} {season} {actions} />
+        {/each}
+      </section>
+      <HistoryBox
+        kind="series"
+        grabs={s.grabs}
+        blocklist={s.blocklist}
+        onchanged={() => void series.reload()}
+      />
+    </div>
+    <div class="detail-side">
+      <SettingsBox
+        profiles={options.value?.series_profiles ?? []}
+        profile={s.quality_profile}
+        availability={null}
+        preview={(c) => previewSeriesChange(s.id, { quality_profile_id: c.profile })}
+        save={async (c) => {
+          const r = await changeSeries(s.id, { quality_profile_id: c.profile });
+          if (r.ok) {
+            notify('info', 'Einstellungen gespeichert; sie gelten ab der nächsten Entscheidung.');
+            await series.reload();
+          } else if (r.failure.kind !== 'unauthorized') {
+            notify('danger', `Nicht gespeichert: ${r.failure.message}`);
+          }
+          return r.ok;
+        }}
+      />
+      <FilesBox
+        kind="series"
+        id={s.id}
+        title={s.title}
+        folder={s.folder}
+        fileActions={s.file_actions}
+        onchanged={() => void series.reload()}
+      />
+      <TrailerBox kind="series" id={s.id} title={s.title} />
+    </div>
   </div>
   <ImdbAttribution info={imdb.info} />
 {:else if series.failure !== null}
@@ -155,10 +158,7 @@
     gap: var(--base-size-12);
   }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    gap: var(--base-size-16);
-    align-items: start;
+  .seasons h2 {
+    font-size: var(--text-title-size-small);
   }
 </style>
