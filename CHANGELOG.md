@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.1.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.0.1...v1.1.0) (2026-11-17)
+
+
+### Features
+
+* **parser:** episode forms without season and anime numbers (AC-01, AC-02, AC-03, AC-04, AC-05) ([150b012](https://github.com/amigo-labs/amigo-sofarr/commit/150b012106ef38abfbc4967193e5f291721660e9))
+* **parser:** episode gaps from the episode oracle (spec parser-episode-gaps) ([9716e1b](https://github.com/amigo-labs/amigo-sofarr/commit/9716e1b329833c2bcb28423b2e397b4cfd97f41e))
+* **ui:** add the shared amigo theme files and check them in CI (AC-01) ([964c3e6](https://github.com/amigo-labs/amigo-sofarr/commit/964c3e65d37b150af26c78a70dc4fde96bd19ddd))
+* **ui:** calendar month grid, week columns and agenda (AC-01 .. AC-07) ([550c976](https://github.com/amigo-labs/amigo-sofarr/commit/550c9768a7fea11ceac7bc35ebe0dbcc0bdcdbb8))
+* **ui:** dark by default; the switch offers Dunkel, Hell and System (AC-04, AC-05, AC-06, AC-07, AC-08) ([54fef01](https://github.com/amigo-labs/amigo-sofarr/commit/54fef01e117a699b9ea09c76911ce0cd7fdeb4a8))
+* **ui:** detail page head with poster backdrop, compact facts and cast strip (AC-01 .. AC-07) ([aa26a2c](https://github.com/amigo-labs/amigo-sofarr/commit/aa26a2cadc1994c44ffab8fd7c783f904fbc46cd))
+* **ui:** discover filter panel with chips, shelf arrows, preview backdrop (AC-01 .. AC-06) ([d8b58e6](https://github.com/amigo-labs/amigo-sofarr/commit/d8b58e626585f9012e5132732f24041094b374e4))
+* **ui:** draw the UI in the shared theme's tokens and in Inter (AC-02, AC-03, AC-09, AC-10, AC-11, AC-12) ([d0e8fd2](https://github.com/amigo-labs/amigo-sofarr/commit/d0e8fd25258cbdd5bcda0fd340a426de681ed68e))
+* **ui:** list toolbar, filter panel and filter chips (AC-01 .. AC-12) ([30680b4](https://github.com/amigo-labs/amigo-sofarr/commit/30680b45be0523e9d70dd927078f27552dfb2ee2))
+* **ui:** page header, overview key figures and columns, calm rows (AC-01 .. AC-09) ([d2736ef](https://github.com/amigo-labs/amigo-sofarr/commit/d2736ef836a492de4a514a7f441c6f0af83aada0))
+* **ui:** quieter list cards and rows with status chips and compact rating (AC-01 .. AC-10) ([f0fc20d](https://github.com/amigo-labs/amigo-sofarr/commit/f0fc20da6cab6ac623d204b4ebccdc4bb0680285))
+* **ui:** shared look for buttons, fields, checkboxes, labels and links (AC-10, AC-11, AC-12, AC-13, AC-14) ([b9abc06](https://github.com/amigo-labs/amigo-sofarr/commit/b9abc06aa80de2a13eecb434b3c9fafa687b26e0))
+* **ui:** sidebar navigation, drawer and segmented theme switch (AC-01, AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09) ([c7ca8fb](https://github.com/amigo-labs/amigo-sofarr/commit/c7ca8fbcb2c5dfd5d1c413d2e99f5c7a29d2e3e9))
+* **ui:** the shared amigo theme, dark by default ([bbb09bb](https://github.com/amigo-labs/amigo-sofarr/commit/bbb09bbfeec7751fdc7e1d65ebd6023807e54d29))
+* **ui:** two-column detail boxes, quiet headers, compact seasons (AC-01 .. AC-08) ([a7bca22](https://github.com/amigo-labs/amigo-sofarr/commit/a7bca22435f67813d50267c6ab5809c0511db412))
+
+
+### Bug Fixes
+
+* **ui:** at most two filter columns on narrow windows (ui-list-toolbar AC-10) ([4dbc607](https://github.com/amigo-labs/amigo-sofarr/commit/4dbc607f35c6eb9d453af2aa549e6ea5b971a5f3))
+* **ui:** dim outside calendar days by colour so they keep AA contrast (ui-calendar AC-01, AC-07) ([bde35d5](https://github.com/amigo-labs/amigo-sofarr/commit/bde35d553534d75d7d2f98d58d676d577d1eff47))
+* **ui:** keep the page header above a failed first load on System and Untertitel (ui-overview-pages AC-01) ([126a11b](https://github.com/amigo-labs/amigo-sofarr/commit/126a11bc3b120972a7d268861ed469c2465086c6))
+* **ui:** keep the theme switch's labels on one line in the sidebar (AC-09) ([edc3b6b](https://github.com/amigo-labs/amigo-sofarr/commit/edc3b6b88ca3a52c5c9ee6e3b5bf5db802a0af0e))
+* **ui:** queue rows keep their action at the end of the row (ui-overview-pages AC-02, AC-06) ([b7b74cd](https://github.com/amigo-labs/amigo-sofarr/commit/b7b74cdf389feca5bed69ccd9dd8ceb75cd60972))
+
 ## [1.0.1](https://github.com/amigo-labs/amigo-sofarr/compare/v1.0.0...v1.0.1) (2026-11-13)
 
 
