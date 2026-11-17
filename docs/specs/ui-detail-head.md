@@ -107,16 +107,21 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-01 | `backdrop (AC-01)` › `the blurred poster under at least 70 % of the page ground (dark/light)`, `no backdrop without a poster, or when the poster fails to load` (`ui/e2e/library-detail-head.spec.ts`); `detail heads with and without poster, wide and narrow (ui-detail-head AC-07)` (`ui/e2e/library-a11y.spec.ts`) | built |  |
+| AC-02 | `head (AC-02, AC-03)` › `poster left; titles, chips, rating, overview, actions and facts in this order`, `the overview sits between rating and actions` (`ui/e2e/library-detail-head.spec.ts`); `ui/e2e/library-detail.spec.ts`, `ui/e2e/imdb-ratings.spec.ts` (unchanged) | built |  |
+| AC-03 | `head (AC-02, AC-03)` › `the facts are a compact surface panel with up to four per row` (`ui/e2e/library-detail-head.spec.ts`); the `fact()` look-ups of `ui/e2e/library-detail.spec.ts` | built |  |
+| AC-04 | `attribution (AC-04)` › `IMDb's attribution stands once at the end of the page` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
+| AC-05 | `cast strip (AC-05)` › `one scrolling row of round portraits; focus scrolls a link into view` (`ui/e2e/library-detail-head.spec.ts`); `cast on the library pages (AC-06)` (`ui/e2e/discover-pages.spec.ts`) | built |  |
+| AC-06 | `narrow window (AC-06)` › `the head stacks: the poster at most 9 rem above the text, nothing scrolls sideways`, `a series page fits as well` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
+| AC-07 | `axe, dark theme` and `axe, light theme` › `detail heads with and without poster, wide and narrow (ui-detail-head AC-07)`, `Film`, `Serie` (`ui/e2e/library-a11y.spec.ts`) | built |  |
 | AC-08 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-17: The detail redesign of the plan's spec 3 is split into this spec and `ui-detail-boxes`, because together they exceed one M block.
 - 2026-11-17: The backdrop is the title's own poster, blurred, because library titles carry no backdrop image and adding one needs API and cache work.
+- 2026-11-17 (build): Red run against 83445f0: `bunx playwright test e2e/library-detail-head.spec.ts` failed 8 of 10. Green at once: „no backdrop without a poster …“ (there was no backdrop at all) and „a series page fits as well“ (web-ui-library AC-22 already held); both stay as guards.
+- 2026-11-17 (build): The head reaches out to the edges of `main` (negative margin of its padding), so the backdrop fills the width above the page instead of sitting in a box. The veil is `bg` at 78 % with a gradient to `bg` at the lower edge; axe checks the text on it.
+- 2026-11-17 (build): `DetailHead` takes the snippets `chips`, `rating` and `facts`; `RatingLine` takes `attribution={false}` on the detail pages, which render `ImdbAttribution` once after their boxes.
+- 2026-11-17 (build): `PeopleList` gets a `strip` variant (CastBox only); the discover preview and person pages keep the grid until `ui-pages-redesign`.
+

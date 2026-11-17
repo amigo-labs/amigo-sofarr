@@ -11,6 +11,8 @@
   import Label from '../components/Label.svelte';
   import CastBox from '../../discover/CastBox.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
+  import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
+  import { imdb } from '../../imdb/info.svelte';
   import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
   import FilesBox from './FilesBox.svelte';
@@ -56,14 +58,16 @@
       void actions.setMonitored('monitor', !s.monitored, [{ kind: 'series', id: s.id }])}
     onsearch={() => void actions.search('search', s.title, searchBody({ series_id: s.id }))}
   >
+    {#snippet chips()}
+      {#if s.missing > 0}<Label text={`${s.missing} fehlen`} tone="danger" />{/if}
+      {#if s.cutoff_unmet > 0}<Label text={`${s.cutoff_unmet} unter Cutoff`} />{/if}
+      {#if s.complete}<Label text="komplett" tone="success" />{/if}
+    {/snippet}
+    {#snippet rating()}
+      <RatingLine rating={s.imdb_rating} votes={s.imdb_votes} attribution={false} />
+    {/snippet}
     {#snippet facts()}
-      <RatingLine rating={s.imdb_rating} votes={s.imdb_votes} />
-      <div class="labels">
-        {#if s.missing > 0}<Label text={`${s.missing} fehlen`} tone="danger" />{/if}
-        {#if s.cutoff_unmet > 0}<Label text={`${s.cutoff_unmet} unter Cutoff`} />{/if}
-        {#if s.complete}<Label text="komplett" tone="success" />{/if}
-      </div>
-      <dl class="facts">
+      <dl class="facts facts-compact">
         <div>
           <dt>Episoden</dt>
           <dd data-testid="episode-counts">
@@ -132,6 +136,7 @@
       onchanged={() => void series.reload()}
     />
   </div>
+  <ImdbAttribution info={imdb.info} />
 {:else if series.failure !== null}
   <PageError
     title={series.failure.status === 404 ? 'Serie nicht gefunden' : 'Die Serie ist nicht verfügbar'}
@@ -144,12 +149,6 @@
 {/if}
 
 <style>
-  .labels {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--base-size-4);
-  }
-
   .seasons {
     display: flex;
     flex-direction: column;

@@ -5,9 +5,10 @@
   import { ratingText, votesText } from './imdb';
 
   // The IMDb rating of a movie or series page with IMDb's attribution, nothing while
-  // ratings are off (spec imdb-ratings AC-04, AC-08, AC-09).
-  type Props = { rating: number | null; votes: number | null };
-  let { rating, votes }: Props = $props();
+  // ratings are off (spec imdb-ratings AC-04, AC-08, AC-09). Without `attribution` the page
+  // shows the attribution elsewhere (spec ui-detail-head AC-04).
+  type Props = { rating: number | null; votes: number | null; attribution?: boolean };
+  let { rating, votes, attribution = true }: Props = $props();
 
   onMount(() => {
     void loadImdb();
@@ -21,7 +22,7 @@
       <strong>{ratingText(rating)}</strong>
       {#if rating !== null && votes !== null}<span>({votesText(votes)})</span>{/if}
     </p>
-    <ImdbAttribution info={imdb.info} />
+    {#if attribution}<ImdbAttribution info={imdb.info} />{/if}
   </div>
 {/if}
 

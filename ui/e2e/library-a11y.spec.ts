@@ -108,6 +108,19 @@ for (const scheme of PALETTES) {
       await expectNoViolations(page);
     });
 
+    test('detail heads with and without poster, wide and narrow (ui-detail-head AC-07)', async ({
+      page,
+    }) => {
+      for (const title of ['Das Boot', 'Film 0001']) {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto(`${LIBRARY}/filme/${await movieId(page.request, LIBRARY, title)}`);
+        await settle(page);
+        await expectNoViolations(page);
+        await page.setViewportSize({ width: 360, height: 740 });
+        await expectNoViolations(page);
+      }
+    });
+
     test('open filter panel and chips (ui-list-toolbar AC-11)', async ({ page }) => {
       await page.goto(`${LIBRARY}/filme?ueberwacht=ja&tag=1&sortierung=jahr&richtung=ab`);
       await settle(page);

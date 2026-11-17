@@ -8,6 +8,8 @@
   import Label from '../components/Label.svelte';
   import CastBox from '../../discover/CastBox.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
+  import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
+  import { imdb } from '../../imdb/info.svelte';
   import SubtitlesBox from '../../subtitles/SubtitlesBox.svelte';
   import TrailerBox from '../../trailers/TrailerBox.svelte';
   import DetailHead from './DetailHead.svelte';
@@ -56,17 +58,19 @@
       void actions.setMonitored('monitor', !m.monitored, [{ kind: 'movie', id: m.id }])}
     onsearch={() => void actions.search('search', m.title, searchBody({ movie_id: m.id }))}
   >
+    {#snippet chips()}
+      {#if m.missing}<Label text="fehlt" tone="danger" />{/if}
+      {#if m.cutoff_unmet}<Label text="Cutoff nicht erreicht" />{/if}
+      <Label
+        text={m.available ? 'verfügbar' : 'noch nicht verfügbar'}
+        tone={m.available ? 'success' : 'neutral'}
+      />
+    {/snippet}
+    {#snippet rating()}
+      <RatingLine rating={m.imdb_rating} votes={m.imdb_votes} attribution={false} />
+    {/snippet}
     {#snippet facts()}
-      <RatingLine rating={m.imdb_rating} votes={m.imdb_votes} />
-      <div class="labels">
-        {#if m.missing}<Label text="fehlt" tone="danger" />{/if}
-        {#if m.cutoff_unmet}<Label text="Cutoff nicht erreicht" />{/if}
-        <Label
-          text={m.available ? 'verfügbar' : 'noch nicht verfügbar'}
-          tone={m.available ? 'success' : 'neutral'}
-        />
-      </div>
-      <dl class="facts">
+      <dl class="facts facts-compact">
         <div>
           <dt>Status</dt>
           <dd data-testid="stage">{STAGE_TEXT[m.stage]}</dd>
@@ -147,6 +151,7 @@
       onchanged={() => void movie.reload()}
     />
   </div>
+  <ImdbAttribution info={imdb.info} />
 {:else if movie.failure !== null}
   <PageError
     title={movie.failure.status === 404 ? 'Film nicht gefunden' : 'Der Film ist nicht verfügbar'}
@@ -159,12 +164,6 @@
 {/if}
 
 <style>
-  .labels {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--base-size-4);
-  }
-
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));

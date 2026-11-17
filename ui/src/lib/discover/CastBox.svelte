@@ -32,6 +32,7 @@
     <h2 id="cast-title" class="box-header">Besetzung</h2>
     <div class="body">
       <PeopleList
+        strip
         label="Besetzung"
         people={answer.cast.map((c) => ({
           id: c.person_id,

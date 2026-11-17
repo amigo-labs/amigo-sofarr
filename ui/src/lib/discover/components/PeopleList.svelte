@@ -14,11 +14,12 @@
   // People with photo and role, each linking to their person page (spec discover AC-04,
   // AC-06); without TMDB no links are offered (AC-15).
 
-  type Props = { people: readonly Person[]; links?: boolean; label: string };
-  let { people, links = true, label }: Props = $props();
+  // `strip` shows them as one scrolling row of round portraits (spec ui-detail-head AC-05).
+  type Props = { people: readonly Person[]; links?: boolean; label: string; strip?: boolean };
+  let { people, links = true, label, strip = false }: Props = $props();
 </script>
 
-<ul class="people" aria-label={label}>
+<ul class="people" class:strip aria-label={label}>
   {#each people as person, i (`${person.id}-${i}`)}
     <li class="person">
       <TmdbImage src={person.photo} name={person.name} shape="photo" />
@@ -62,8 +63,29 @@
     font-size: var(--text-body-size-small);
   }
 
+  .strip {
+    display: flex;
+    gap: var(--base-size-16);
+    overflow-x: auto;
+    padding-bottom: var(--base-size-8);
+    scroll-padding-inline: var(--base-size-8);
+  }
+
+  .strip .person {
+    flex: none;
+    width: 6.5rem;
+    align-items: center;
+    text-align: center;
+  }
+
+  .strip .person :global(.image) {
+    width: 80px;
+    aspect-ratio: 1;
+    border-radius: var(--borderRadius-full);
+  }
+
   @media (max-width: 543.98px) {
-    .people {
+    .people:not(.strip) {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
