@@ -82,6 +82,8 @@ pub struct QueueAnswer {
     pub notice: Option<String>,
     /// When the client's state shown was read.
     pub as_of: Option<String>,
+    /// Whether a download client is configured at all (ui-overview-polish AC-04).
+    pub client_configured: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -223,6 +225,7 @@ impl App {
             items,
             notice,
             as_of: seen.map(|s| s.at.to_string()),
+            client_configured: self.nzbget.is_some(),
         })
     }
 }

@@ -130,6 +130,8 @@ async fn queue_shows_progress_size_and_remaining_time() {
         "paused: no time"
     );
     assert_eq!(queue["notice"], Value::Null);
+    // ui-overview-polish AC-04: a configured client.
+    assert_eq!(queue["client_configured"], true);
 
     // The client goes away: the last known state stays, with a German notice.
     s.lock().nzbget_down = true;
@@ -241,6 +243,8 @@ async fn overview_shows_activity_problems_and_the_next_days() {
         overview["queue"]["notice"], "Kein Download-Client konfiguriert",
         "{overview}"
     );
+    // ui-overview-polish AC-04: no client, said by a field and not only by the notice.
+    assert_eq!(overview["queue"]["client_configured"], false, "{overview}");
     let (_, five) = http.get("/api/activity?limit=5").await;
     assert_eq!(five.as_array().map(Vec::len), Some(5));
     let (status, _) = http.get("/api/activity?limit=0").await;
