@@ -112,7 +112,7 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `month grid (AC-01)` › `seven columns headed Mo .. So, one row per week, every day of the month`, `outside days are dimmed and empty; today is marked and named` (`ui/e2e/calendar.spec.ts`); `month grid (ui-calendar AC-01)` (`ui/src/lib/library/calendar.test.ts`) | built |  |
+| AC-01 | `month grid (AC-01)` › `seven columns headed Mo .. So, one row per week, every day of the month`, `outside days are dimmed and empty; today is marked and named` (dimmed by the muted text colour) (`ui/e2e/calendar.spec.ts`); `month grid (ui-calendar AC-01)` (`ui/src/lib/library/calendar.test.ts`) | built |  |
 | AC-02 | `week columns (AC-02)` › `seven days side by side, headed with weekday and date, empty days say Nichts.` (`ui/e2e/calendar.spec.ts`) | built |  |
 | AC-03 | `agenda (AC-03)` › `the week stacks all seven days; the month only days with entries`, `an empty month shows only the note` (`ui/e2e/calendar.spec.ts`) | built |  |
 | AC-04 | `entries (AC-04)` › `title, detail and a state dot named by its German text`; `month grid (AC-01)` › `entries in a month cell are cut to one line with the full text as tooltip` (`ui/e2e/calendar.spec.ts`) | built |  |
@@ -128,4 +128,4 @@ Terms:
 - 2026-11-17 (build): A month cell's heading shows only the day number on wide windows and the full „Mo, 16.11.“ in the agenda; its `aria-label` always names weekday and date (and „· heute“). Today's number sits in an accent circle.
 - 2026-11-17 (build): `CalendarEntryLine` takes `dot` (state as a named dot, detail below the title) and `cut` (one line each, full text as tooltip); the overview keeps the label form.
 - 2026-11-17 (build): The month grid is shown also for an empty month (with the note above), so the month keeps its shape; on narrow windows the empty cells hide and only the note remains.
-
+- 2026-11-17 (fix): The outside days were dimmed with `opacity: 0.45`, which let axe report their numbers' contrast below AA once the cells rendered (seen as an intermittent failure of the calendar scan in a full run, reproduced 3 of 16 with `--repeat-each`). They now take the muted text colour (`text-muted`) on the page ground; the scan passed 16 of 16 repeats.

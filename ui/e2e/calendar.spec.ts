@@ -4,6 +4,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { dayTitle, monthGrid, today } from '../src/lib/library/calendar';
 import { LIBRARY } from './library-helpers';
+import { token } from './theme-helpers';
 
 const STATES = ['vorhanden', 'noch nicht erschienen', 'fehlt', 'neutral'];
 
@@ -51,7 +52,10 @@ test.describe('month grid (AC-01)', () => {
     const outside = page.locator('li[data-day="2026-10-26"]');
     await expect(outside).toHaveAttribute('data-outside', '');
     await expect(outside.getByTestId('calendar-entry')).toHaveCount(0);
-    expect(Number(await outside.evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(1);
+    // Dimmed by colour, not by opacity, so the number keeps AA contrast.
+    expect(await outside.locator('.number').evaluate((el) => getComputedStyle(el).color)).toBe(
+      token('dark', 'text-muted'),
+    );
     await expect(page.locator('li[data-day="2026-11-16"] h3')).toHaveAccessibleName(
       dayTitle('2026-11-16') + (today() === '2026-11-16' ? ' · heute' : ''),
     );

@@ -272,8 +272,14 @@
     border-right: 0;
   }
 
+  /* Outside days: their numbers in the muted text colour, which keeps AA contrast. */
   .cell[data-outside] {
-    opacity: 0.45;
+    background: var(--bgColor-default);
+    color: var(--fgColor-caption);
+  }
+
+  .cell[data-outside] h3 {
+    font-weight: var(--base-text-weight-normal);
   }
 
   .cell .full {
