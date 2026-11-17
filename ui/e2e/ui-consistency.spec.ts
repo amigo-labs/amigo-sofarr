@@ -2,9 +2,10 @@
 // like the library; German wording and date-times to the minute; calmer episode rows; paths
 // that break at their separators; sofarr's monogram.
 
+import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { DISCOVER, cards, settle } from './discover-helpers';
-import { LIBRARY, seriesId } from './library-helpers';
+import { DISCOVER, cards, openDiscoverFilters, settle } from './discover-helpers';
+import { LIBRARY, movieId, seriesId } from './library-helpers';
 import { PALETTES, storeTheme } from './theme-helpers';
 
 /** The computed colour of a CSS colour expression in the page, e.g. `var(--fgColor-accent)`. */
@@ -248,3 +249,196 @@ test.describe('wording and date-times (AC-07 to AC-10)', () => {
     expect(await fetched.evaluate((e) => getComputedStyle(e).fontSize)).toBe(size);
   });
 });
+
+/** The characters after which the text of `el` wraps onto a new line (runs in the page). */
+function lineEnds(el: Element): string[] {
+  const ends: string[] = [];
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let previous: { char: string; top: number } | null = null;
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const text = node.textContent ?? '';
+    for (let i = 0; i < text.length; i += 1) {
+      const range = document.createRange();
+      range.setStart(node, i);
+      range.setEnd(node, i + 1);
+      const rect = range.getClientRects()[0];
+      if (rect === undefined) continue;
+      if (previous !== null && rect.top > previous.top + 2) ends.push(previous.char);
+      previous = { char: text[i] ?? '', top: rect.top };
+    }
+  }
+  return ends;
+}
+
+test.describe('paths (AC-12)', () => {
+  test('a folder path breaks after its separators; the tooltip has the full path', async ({
+    page,
+  }) => {
+    // Every name fits a line at 360 px, the whole path does not.
+    const folder =
+      '/data/medien/serien/Eine Serie (2020)/Staffel 01/Extras und mehr/Noch ein Ordner';
+    await page.route('**/api/library/series/*', async (route) => {
+      const answer = await route.fetch();
+      const series = (await answer.json()) as { folder: { current: string } };
+      series.folder.current = folder;
+      await route.fulfill({ response: answer, json: series });
+    });
+    await page.setViewportSize({ width: 360, height: 800 });
+    await openSeries(page);
+    const path = page.getByTestId('folder');
+    await expect(path).toHaveText(folder);
+    await expect(path).toHaveAttribute('title', folder);
+    const ends = await path.evaluate(lineEnds);
+    expect(ends.length).toBeGreaterThan(0);
+    for (const end of ends) expect(end).toBe('/');
+  });
+
+  test('a Windows path breaks after „\\“; a name wider than the box breaks inside', async ({
+    page,
+  }) => {
+    const name = 'Ein-sehr-langer-Dateiname-ohne-Pausen'.repeat(3);
+    const file = `D:\\Filme\\Eine Sammlung\\${name}.mkv`;
+    await page.route('**/api/library/movies/*', async (route) => {
+      const answer = await route.fetch();
+      const movie = (await answer.json()) as { file: { relative_path: string } | null };
+      if (movie.file !== null) movie.file.relative_path = file;
+      await route.fulfill({ response: answer, json: movie });
+    });
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto(`${LIBRARY}/filme/${await movieId(page.request, LIBRARY, 'Das Boot')}`);
+    const path = page.getByTestId('file-path');
+    await expect(path).toHaveText(file);
+    const ends = await path.evaluate(lineEnds);
+    // The first line ends at a separator; only the name wider than the box breaks inside.
+    expect(ends[0]).toBe('\\');
+    expect(ends.length).toBeGreaterThan(1);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  });
+});
+
+test.describe('monogram (AC-13)', () => {
+  for (const width of [1440, 360]) {
+    test(`the brand shows sofarr's monogram at ${width} px; the tab icon too`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${LIBRARY}/`);
+      const brand = page.getByRole('link', { name: 'sofarr', exact: true }).first();
+      await expect(brand).toBeVisible();
+      const img = brand.locator('img, svg').first();
+      await expect(img).toBeVisible();
+      const source = await img.evaluate((e) =>
+        e instanceof HTMLImageElement ? e.src : e.outerHTML,
+      );
+      const body = source.startsWith('http')
+        ? await (await page.request.get(source)).text()
+        : source;
+      expect(body).toContain('<title>Sofarr</title>');
+      const icon = await page.locator('link[rel="icon"]').getAttribute('href');
+      const iconBody = await (await page.request.get(new URL(icon ?? '', page.url()).href)).text();
+      expect(iconBody).toContain('<title>Sofarr</title>');
+    });
+  }
+});
+
+function luminance(rgb: string): number {
+  const [r = 0, g = 0, b = 0] = (rgb.match(/\d+/g) ?? []).map((n) => {
+    const c = Number(n) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: string, b: string): number {
+  const hi = Math.max(luminance(a), luminance(b));
+  const lo = Math.min(luminance(a), luminance(b));
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+async function expectNoViolations(page: Page): Promise<void> {
+  const result = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze();
+  expect(
+    result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`),
+  ).toEqual([]);
+}
+
+const PAGES: readonly { name: string; open: (page: Page) => Promise<void> }[] = [
+  {
+    name: 'movie list',
+    open: async (page) => {
+      await page.goto(`${LIBRARY}/filme`);
+      await expect(page.getByTestId('rating').first()).toBeVisible();
+    },
+  },
+  {
+    name: 'series page with a file opened',
+    open: async (page) => {
+      await openSeries(page);
+      await page
+        .getByRole('button', { name: /^Datei von Kleine Insel/ })
+        .first()
+        .click();
+      await page
+        .getByRole('button', { name: /^Untertitel von Kleine Insel/ })
+        .first()
+        .click();
+      await expect(page.getByText(/wird geladen/i)).toHaveCount(0);
+    },
+  },
+  {
+    name: 'discover start page',
+    open: async (page) => {
+      await page.goto(`${DISCOVER}/entdecken`);
+      await settle(page);
+      await openDiscoverFilters(page);
+    },
+  },
+  {
+    name: 'preview page',
+    open: async (page) => {
+      await page.goto(`${DISCOVER}/entdecken/filme/502`);
+      await settle(page);
+    },
+  },
+  {
+    name: 'Sperrliste',
+    open: async (page) => {
+      await page.goto(`${LIBRARY}/blocklist`);
+      await settle(page);
+    },
+  },
+  {
+    name: 'System',
+    open: async (page) => {
+      await page.goto(`${LIBRARY}/system`);
+      await settle(page);
+    },
+  },
+];
+
+for (const palette of PALETTES) {
+  test.describe(`accessibility (AC-14), ${palette}`, () => {
+    test.beforeEach(async ({ page }) => storeTheme(page, palette));
+
+    for (const target of PAGES) {
+      for (const width of [1440, 360]) {
+        test(`${target.name} at ${width} px`, async ({ page }) => {
+          await page.setViewportSize({ width, height: 900 });
+          await target.open(page);
+          await expectNoViolations(page);
+        });
+      }
+    }
+
+    test('a hovered title link has at least 4.5:1 against the page ground', async ({ page }) => {
+      await page.goto(`${LIBRARY}/filme`);
+      const accent = await resolved(page, 'color', 'var(--fgColor-accent)');
+      const ground = await resolved(page, 'background-color', 'var(--bgColor-default)');
+      const surface = await resolved(page, 'background-color', 'var(--bgColor-surface)');
+      expect(contrast(accent, ground)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(accent, surface)).toBeGreaterThanOrEqual(4.5);
+    });
+  });
+}

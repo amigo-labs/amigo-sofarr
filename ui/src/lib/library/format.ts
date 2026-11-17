@@ -198,3 +198,11 @@ export function sentence(text: string): string {
   const trimmed = text.trim();
   return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
+
+/**
+ * A path in pieces that each end after a separator („/“ or „\\“), so it can break there
+ * first (ui-consistency AC-12): `/a/b c/d.mkv` → `/`, `a/`, `b c/`, `d.mkv`.
+ */
+export function pathPieces(path: string): string[] {
+  return path.match(/[^/\\]*(?:[/\\]|$)/g)?.filter((piece) => piece !== '') ?? [];
+}

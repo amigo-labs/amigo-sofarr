@@ -7,6 +7,7 @@ import {
   durationText,
   episodeCode,
   itemCount,
+  pathPieces,
   percentText,
   removeText,
   searchText,
@@ -92,5 +93,17 @@ describe('sentence', () => {
   it('ends a text with a full stop once', () => {
     expect(sentence('Erst danach möglich')).toBe('Erst danach möglich.');
     expect(sentence('Gibt es nur im Live-Modus.')).toBe('Gibt es nur im Live-Modus.');
+  });
+});
+
+describe('path pieces (ui-consistency AC-12)', () => {
+  it('ends each piece after a separator and keeps every character', () => {
+    expect(pathPieces('/a/b c/d.mkv')).toEqual(['/', 'a/', 'b c/', 'd.mkv']);
+    expect(pathPieces('D:\\Filme\\X')).toEqual(['D:\\', 'Filme\\', 'X']);
+    expect(pathPieces('a/b\\c')).toEqual(['a/', 'b\\', 'c']);
+    expect(pathPieces('ohne-trenner')).toEqual(['ohne-trenner']);
+    expect(pathPieces('')).toEqual([]);
+    const long = '/data/x/'.repeat(5);
+    expect(pathPieces(long).join('')).toBe(long);
   });
 });

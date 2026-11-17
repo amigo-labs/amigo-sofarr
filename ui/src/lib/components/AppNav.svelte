@@ -1,6 +1,6 @@
 <script lang="ts">
+  import { asset } from '$app/paths';
   import { onMount } from 'svelte';
-  import brandIcon from '@primer/octicons/build/svg/server-24.svg?raw';
   import menuIcon from '@primer/octicons/build/svg/three-bars-16.svg?raw';
   import closeIcon from '@primer/octicons/build/svg/x-16.svg?raw';
   import signOutIcon from '@primer/octicons/build/svg/sign-out-16.svg?raw';
@@ -114,7 +114,9 @@
 
 {#snippet brand()}
   <a class="brand" href="/">
-    <Icon svg={brandIcon} />
+    <!-- sofarr's monogram from the amigo brand (ui-consistency AC-13); decorative, the
+         link is named by its text. -->
+    <img class="monogram" src={asset('favicon.svg')} alt="" width="24" height="24" />
     <span class="brand-name">sofarr</span>
   </a>
 {/snippet}
@@ -272,6 +274,13 @@
     font-size: var(--text-title-size-small);
     font-weight: var(--base-text-weight-semibold);
     text-decoration: none;
+  }
+
+  .monogram {
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    image-rendering: pixelated;
   }
 
   .group + .group {
