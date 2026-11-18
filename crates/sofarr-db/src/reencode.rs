@@ -188,6 +188,17 @@ impl Db {
         Ok(rows.iter().map(attempt_from_row).collect())
     }
 
+    /// How many attempts ended `replaced`, and the bytes they saved in total.
+    pub async fn reencode_savings(&self) -> Result<(u64, u64)> {
+        let (count, saved): (i64, i64) = sqlx::query_as(
+            "SELECT COUNT(*), COALESCE(SUM(size_before - COALESCE(size_after, size_before)), 0)
+             FROM reencode_attempts WHERE outcome = 'replaced'",
+        )
+        .fetch_one(self.pool())
+        .await?;
+        Ok((size(count), size(saved)))
+    }
+
     /// Keeps a library file out of the background job (spec ui-reencode).
     pub async fn exclude_from_reencode(&self, file: FileRef, now: Timestamp) -> Result<()> {
         let (movie_id, episode_file_id) = ids(file);
@@ -457,7 +468,29 @@ mod tests {
                 .await
                 .expect("start");
         }
+        let ids: Vec<i64> = db
+            .recent_reencodes(5)
+            .await
+            .expect("recent")
+            .iter()
+            .map(|a| a.id)
+            .collect();
+        db.finish_reencode(ids[0], ReencodeOutcome::Replaced, None, Some(400), now())
+            .await
+            .expect("finish");
+        db.finish_reencode(ids[1], ReencodeOutcome::Replaced, None, Some(100), now())
+            .await
+            .expect("finish");
+        db.finish_reencode(ids[2], ReencodeOutcome::NoGain, None, Some(900), now())
+            .await
+            .expect("finish");
+        assert_eq!(db.reencode_savings().await.expect("saved"), (2, 1500));
         db.delete_movie(id).await.expect("remove");
+        assert_eq!(
+            db.reencode_savings().await.expect("saved"),
+            (2, 1500),
+            "stays with the file gone"
+        );
         let recent = db.recent_reencodes(3).await.expect("recent");
         assert_eq!(
             recent.iter().map(|a| a.title.as_str()).collect::<Vec<_>>(),
