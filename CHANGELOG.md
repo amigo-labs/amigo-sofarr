@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.2.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.1.0...v1.2.0) (2026-11-18)
+
+
+### Features
+
+* **core:** rule for library files too large for their resolution (AC-03, AC-04, AC-05) ([0f7d0c7](https://github.com/amigo-labs/amigo-sofarr/commit/0f7d0c7cdb561f6aa5970f876d2bc46669b81329))
+* **db:** all re-encode attempts of library files, newest first (AC-02, AC-10) ([a8aa276](https://github.com/amigo-labs/amigo-sofarr/commit/a8aa2769f95358a09ecfc0098759b1fc3759674b))
+* **db:** re-encode attempts and the update of a replaced video (AC-06, AC-15) ([5201085](https://github.com/amigo-labs/amigo-sofarr/commit/520108564d35d1ed87c12517784f5a9adacd188b))
+* **db:** re-encode exclusions and the latest attempts (AC-05, AC-06) ([2bcbfae](https://github.com/amigo-labs/amigo-sofarr/commit/2bcbfaefd2db3562ac281a7f35b5bc5601ba3a71))
+* **db:** read the stored media info of every file in one query (AC-06) ([495f950](https://github.com/amigo-labs/amigo-sofarr/commit/495f950751396d2ffeff4c215e3d9e83f3fa2a1f))
+* **db:** space saved by re-encoding (AC-02) ([a93361c](https://github.com/amigo-labs/amigo-sofarr/commit/a93361c7157244fa286cd3640893d7611a9652b3))
+* re-encode oversized library files (rule, one file, job, page, audio) ([1c1e3ed](https://github.com/amigo-labs/amigo-sofarr/commit/1c1e3ed34be2c0d4b21b7d452069685b7fcebbaa))
+* **server:** [reencode] convert_lossless_audio and audio_bitrate_kbps (AC-03, AC-04) ([424862d](https://github.com/amigo-labs/amigo-sofarr/commit/424862d7f447b67615587846616b1bf421d1ac8f))
+* **server:** [reencode] encoder settings crf, preset, threads, gain and time limit (AC-16) ([240249c](https://github.com/amigo-labs/amigo-sofarr/commit/240249c8ce6b41d7b4276afbb17d7ea6cd2cd4c3))
+* **server:** API of the re-encode page and exclusions from the job (AC-02, AC-03, AC-05, AC-06, AC-08, AC-10) ([5b0e5af](https://github.com/amigo-labs/amigo-sofarr/commit/5b0e5afffd57ea37f24938ac92cfe7eb64efefe4))
+* **server:** background re-encode job, largest due file first (AC-01, AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09, AC-10) ([872720d](https://github.com/amigo-labs/amigo-sofarr/commit/872720dea04269a8c61a476acb22627724f0f3af))
+* **server:** German shelf names, „Sperrliste“, file actions note without config syntax (AC-07, AC-10) ([54b79f4](https://github.com/amigo-labs/amigo-sofarr/commit/54b79f4410d1306866e63ed30b0f78ab21f5b947))
+* **server:** list library files too large for their resolution by API and CLI (AC-02, AC-06, AC-07, AC-08, AC-09, AC-10, AC-11, AC-12) ([b9a9be5](https://github.com/amigo-labs/amigo-sofarr/commit/b9a9be56edcc6f507c35f117e82fee02933537a4))
+* **server:** lossless audio without Atmos to E-AC-3, HEVC video copied (AC-01, AC-02, AC-05, AC-06, AC-07) ([75ec357](https://github.com/amigo-labs/amigo-sofarr/commit/75ec3570b739e707ca80ee804325788513f11d76))
+* **server:** media info carries the duration from Matroska and MP4 headers (AC-01) ([39f7000](https://github.com/amigo-labs/amigo-sofarr/commit/39f70004b1aae51b876aee6b4445365b3d30b9d8))
+* **server:** queue answer says whether a download client is configured (AC-04) ([bf5b0dd](https://github.com/amigo-labs/amigo-sofarr/commit/bf5b0dd36e9d554b530ad9bcb0aa07e3205a2b7a))
+* **server:** re-encode one library file by CLI and API (AC-01, AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15) ([6241251](https://github.com/amigo-labs/amigo-sofarr/commit/6241251a6bf4d36aec9092ceacd4bfdb7d6bd613))
+* **ui:** „Sperrliste“, „Heute beliebt“, German series types, date-times to the minute (AC-07, AC-08, AC-09, AC-10) ([eb1474c](https://github.com/amigo-labs/amigo-sofarr/commit/eb1474cc51306fe307946bb39dbb3276c892a1ee))
+* **ui:** accent only for states; neutral info notices; one line of episode toggles (AC-01, AC-02, AC-11) ([e399146](https://github.com/amigo-labs/amigo-sofarr/commit/e3991462bce9473e7aa2b6c3535dceaefd3f5929))
+* **ui:** discover tiles and search like the library (AC-03, AC-04, AC-05, AC-06) ([7840a2a](https://github.com/amigo-labs/amigo-sofarr/commit/7840a2a0d17a7b17b1ae8c95d841816811c27247))
+* **ui:** overview figures with icons, a muted line without client, „Heute“ and „Morgen“ (AC-01, AC-02, AC-03, AC-05, AC-06, AC-07) ([f558a6f](https://github.com/amigo-labs/amigo-sofarr/commit/f558a6f560bb382409a0aa1f655d68f3aab41fc4))
+* **ui:** page "Neu encodieren" with job, candidates, history and exclusions (AC-01, AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09) ([6cc44e9](https://github.com/amigo-labs/amigo-sofarr/commit/6cc44e940cd2c82f2bce3fb9216691e7cbbecec8))
+* **ui:** paths break at separators; sofarr's monogram in the sidebar and tab (AC-12, AC-13, AC-14) ([2b11fc5](https://github.com/amigo-labs/amigo-sofarr/commit/2b11fc580d800492c91d79431a8d00f947345205))
+* **ui:** system page says whether files are re-encoded (AC-08) ([36ab14b](https://github.com/amigo-labs/amigo-sofarr/commit/36ab14b511edbf37376ca2dfae206262aa7e282e))
+* **ui:** Übersicht and Entdecken first in the sidebar without a group heading (ui-shell-redesign AC-01, web-ui-shell AC-08) ([0de78c9](https://github.com/amigo-labs/amigo-sofarr/commit/0de78c93e334ad0f577d8c251258bebea5e78933))
+
+
+### Bug Fixes
+
+* **server:** job states follow the spec's order; episode exclusions tested (AC-03, AC-05) ([9426111](https://github.com/amigo-labs/amigo-sofarr/commit/94261110a0412c6c5917f28c921c0f9b709f6d8c))
+* **server:** re-encode job shows its next look and stops through the real shutdown path (AC-03, AC-06, AC-08) ([41991c6](https://github.com/amigo-labs/amigo-sofarr/commit/41991c6883b0145bfe64a9882a511531eab52904))
+* **ui:** overview figure labels no longer take the status chip look (AC-01) ([3d2442e](https://github.com/amigo-labs/amigo-sofarr/commit/3d2442e8b99aab38a4e8a9523f381429f395d01c))
+* **ui:** say "1 fehlt" instead of "1 fehlen" for one missing episode ([03cd9f6](https://github.com/amigo-labs/amigo-sofarr/commit/03cd9f6d8c7375fe3e90cc41c44a70d1b100bd19))
+
 ## [1.1.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.0.1...v1.1.0) (2026-11-17)
 
 
