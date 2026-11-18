@@ -101,13 +101,13 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-01 | `reencode::audio::tests::only_lossless_tracks_without_object_audio_are_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | built |        |
+| AC-02 | `reencode::audio::tests::only_lossless_tracks_without_object_audio_are_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-03 | `reencode::audio::tests::the_switch_and_the_rate_apply` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::switched_off_every_track_is_copied` (`crates/sofarr-server/src/reencode/run/tests.rs`); `config::tests::reencode_audio_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
+| AC-04 | `reencode::audio::tests::the_switch_and_the_rate_apply` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `config::tests::reencode_audio_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
+| AC-05 | `reencode::run::tests::audio::a_track_not_converted_as_planned_fails_the_result`, `lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
+| AC-06 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | built |        |
+| AC-07 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
 | AC-08 |      | open   |        |
 
 ## Decisions
@@ -116,3 +116,6 @@ Terms used below:
 - 2026-11-17: DTS-HD MA stays untouched, because the reader cannot rule out DTS:X and the owner wants to keep it.
 - 2026-11-17: An HEVC video is copied when audio is converted, so an efficient video does not lose quality a second time.
 - 2026-11-17: Spec `reencode-file` is revised alongside: its AC-03 and its out-of-scope line on audio make room for this spec.
+- 2026-11-18: The plan per audio track is pure (`reencode::audio::plan`, `copies_video`) and was red against stubs first; the encoder asks per converted track for `-c:a:<n> eac3 -b:a:<n> <rate>k` (and `-ac:a:<n> 6` above 6 channels) and leaves out every libx265 option when it copies the video. The result check compares every audio track with its plan: copied tracks keep codec and channels, converted ones are E-AC-3 with at most 6 channels and the same language.
+- 2026-11-18: A track with an unknown channel count gets the configured rate and no mix-down (the spec's edge case); stereo and mono get 256 kbit/s.
+- 2026-11-18: Checked by hand with ffmpeg 6.1 of the development container through `amigo-sofarr reencode`: an H.264 file with PCM 7.1 (de) and FLAC 5.1 (en) became HEVC with two E-AC-3 5.1 tracks at 640 kbit/s with their languages, 76 % smaller; an HEVC file with FLAC 5.1 got its video copied and ended `no_gain` (its FLAC of a test tone was already small). This is not AC-08, which needs the owner's library and Jellyfin.

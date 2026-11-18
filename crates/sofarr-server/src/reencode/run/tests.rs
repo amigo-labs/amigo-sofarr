@@ -677,7 +677,7 @@ async fn a_failed_or_bad_result_keeps_the_original() {
     // A duration within one second is good.
     let mut close = hdr.clone();
     close.duration_ms = Some(6_001_000);
-    assert_eq!(check_result(&original, &close), Ok(()));
+    assert_eq!(check_result(&original, &close, &[]), Ok(()));
 
     let (tools, _) = env.tools(
         Ok(()),
@@ -1196,4 +1196,177 @@ async fn the_slot_shows_the_running_encode() {
     assert_eq!(seen.runner, "cli");
     assert!(seen.attempt.is_some());
     assert_eq!(running(&env.app.reencode.lock), None);
+}
+
+mod audio {
+    //! Spec reencode-audio against the fake encoder: the plan reaches the encoder, the
+    //! result is checked track by track, an HEVC video is copied when audio is converted.
+
+    use super::*;
+    use crate::reencode::audio::AudioPlan;
+
+    fn track(codec: &str, channels: u8, object_audio: bool, language: &str) -> Audio {
+        Audio {
+            codec: codec.to_owned(),
+            channels: Some(channels),
+            object_audio,
+            language: language.to_owned(),
+        }
+    }
+
+    fn with_audio(codec: &str, audio: Vec<Audio>) -> MediaInfo {
+        let mut info = info(Container::Matroska, codec);
+        info.audio = audio;
+        info
+    }
+
+    /// A remux: TrueHD 7.1 (German), TrueHD Atmos (English), AC-3 commentary.
+    fn remux_audio() -> Vec<Audio> {
+        vec![
+            track("truehd", 8, false, "ger"),
+            track("truehd", 8, true, "eng"),
+            track("ac3", 2, false, "eng"),
+        ]
+    }
+
+    fn converted_audio() -> Vec<Audio> {
+        vec![
+            track("eac3", 6, false, "ger"),
+            track("truehd", 8, true, "eng"),
+            track("ac3", 2, false, "eng"),
+        ]
+    }
+
+    #[tokio::test]
+    async fn lossless_tracks_without_atmos_become_eac3() {
+        // AC-01, AC-02, AC-05.
+        let env = Env::new("audio", "live").await;
+        let (id, _) = env
+            .movie("Film", "Film.mkv", &with_audio("h264", remux_audio()))
+            .await;
+        let (tools, encoder) =
+            env.tools(Ok(()), writes(with_audio("h265", converted_audio()), 4000));
+        let report = env
+            .attempt(&tools, Target::Movie(id))
+            .await
+            .expect("started");
+        assert_eq!(
+            report.outcome,
+            ReencodeOutcome::Replaced,
+            "{:?}",
+            report.reason
+        );
+        let jobs = encoder.jobs.lock().expect("jobs").clone();
+        assert_eq!(
+            jobs[0].audio,
+            [
+                AudioPlan::Convert {
+                    kbps: 640,
+                    downmix: true
+                },
+                AudioPlan::Copy,
+                AudioPlan::Copy
+            ]
+        );
+        assert!(!jobs[0].copy_video);
+    }
+
+    #[tokio::test]
+    async fn a_track_not_converted_as_planned_fails_the_result() {
+        // AC-05.
+        let env = Env::new("audio-bad", "live").await;
+        let (id, _) = env
+            .movie("Film", "Film.mkv", &with_audio("h264", remux_audio()))
+            .await;
+        let mut kept = converted_audio();
+        kept[0] = track("truehd", 8, false, "ger");
+        let mut wide = converted_audio();
+        wide[0] = track("eac3", 8, false, "ger");
+        let mut renamed = converted_audio();
+        renamed[0] = track("eac3", 6, false, "eng");
+        let mut changed = converted_audio();
+        changed[2] = track("aac", 2, false, "eng");
+        for (audio, reason) in [
+            (kept, "Tonspur 1 nicht wie geplant"),
+            (wide, "Tonspur 1 nicht wie geplant"),
+            (renamed, "Tonspur 1 nicht wie geplant"),
+            (changed, "Tonspur 3 nicht wie geplant"),
+        ] {
+            let (tools, _) = env.tools(Ok(()), writes(with_audio("h265", audio), 4000));
+            let report = env
+                .attempt(&tools, Target::Movie(id))
+                .await
+                .expect("started");
+            assert_eq!(report.outcome, ReencodeOutcome::Failed);
+            assert_eq!(
+                report.reason.as_deref(),
+                Some(format!("Ergebnis unbrauchbar: {reason}").as_str())
+            );
+            assert_eq!(env.files(), ["filme/Film/Film.mkv"]);
+        }
+    }
+
+    #[tokio::test]
+    async fn an_hevc_video_is_copied_when_audio_is_converted() {
+        // AC-06, AC-07.
+        let env = Env::new("audio-hevc", "live").await;
+        let flac = vec![track("flac", 6, false, "ger")];
+        let (id, _) = env
+            .movie("Film", "Film.mkv", &with_audio("h265", flac))
+            .await;
+        let result = with_audio("h265", vec![track("eac3", 6, false, "ger")]);
+        let (tools, encoder) = env.tools(Ok(()), writes(result, 4000));
+        let report = env
+            .attempt(&tools, Target::Movie(id))
+            .await
+            .expect("started");
+        assert_eq!(
+            report.outcome,
+            ReencodeOutcome::Replaced,
+            "{:?}",
+            report.reason
+        );
+        assert!(encoder.jobs.lock().expect("jobs")[0].copy_video);
+        // Without convertible audio, the HEVC video is encoded again.
+        let eac3 = vec![track("eac3", 6, false, "ger")];
+        let (other, _) = env
+            .movie("Clip", "Clip.mkv", &with_audio("h265", eac3.clone()))
+            .await;
+        let (tools, encoder) = env.tools(Ok(()), writes(with_audio("h265", eac3), 4000));
+        env.attempt(&tools, Target::Movie(other))
+            .await
+            .expect("started");
+        let job = encoder.jobs.lock().expect("jobs")[0].clone();
+        assert!(!job.copy_video);
+        assert_eq!(job.audio, [AudioPlan::Copy]);
+    }
+
+    #[tokio::test]
+    async fn switched_off_every_track_is_copied() {
+        // AC-03.
+        let env = Env::with(
+            "audio-off",
+            "live",
+            "[reencode]\nconvert_lossless_audio = false\n",
+        )
+        .await;
+        let flac = vec![track("flac", 6, false, "ger")];
+        let (id, _) = env
+            .movie("Film", "Film.mkv", &with_audio("h265", flac.clone()))
+            .await;
+        let (tools, encoder) = env.tools(Ok(()), writes(with_audio("h265", flac), 4000));
+        let report = env
+            .attempt(&tools, Target::Movie(id))
+            .await
+            .expect("started");
+        assert_eq!(
+            report.outcome,
+            ReencodeOutcome::Replaced,
+            "{:?}",
+            report.reason
+        );
+        let job = encoder.jobs.lock().expect("jobs")[0].clone();
+        assert_eq!(job.audio, [AudioPlan::Copy]);
+        assert!(!job.copy_video);
+    }
 }

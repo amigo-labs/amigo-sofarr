@@ -709,7 +709,11 @@ pub async fn prepare(
 }
 
 /// Whether a finished result is good apart from its size; `Err` is the German reason.
-pub fn check_result(original: &MediaInfo, result: &MediaInfo) -> Result<(), String> {
+pub fn check_result(
+    original: &MediaInfo,
+    result: &MediaInfo,
+    audio: &[super::audio::AudioPlan],
+) -> Result<(), String> {
     let bad = |what: &str| Err(format!("Ergebnis unbrauchbar: {what}"));
     if result.status != ReadStatus::Complete {
         return bad("nicht vollständig lesbar");
@@ -725,6 +729,28 @@ pub fn check_result(original: &MediaInfo, result: &MediaInfo) -> Result<(), Stri
     }
     if original.audio.len() != result.audio.len() {
         return bad("andere Zahl an Tonspuren");
+    }
+    // Each audio track as planned (spec reencode-audio AC-05).
+    for (n, (before, after)) in original.audio.iter().zip(&result.audio).enumerate() {
+        let plan = audio
+            .get(n)
+            .copied()
+            .unwrap_or(super::audio::AudioPlan::Copy);
+        let fits = match plan {
+            super::audio::AudioPlan::Copy => {
+                after.codec == before.codec && after.channels == before.channels
+            }
+            super::audio::AudioPlan::Convert { .. } => {
+                after.codec == "eac3"
+                    && after
+                        .channels
+                        .is_none_or(|c| c <= super::audio::MAX_CHANNELS)
+                    && after.language == before.language
+            }
+        };
+        if !fits {
+            return bad(&format!("Tonspur {} nicht wie geplant", n + 1));
+        }
     }
     if original.subtitles.len() != result.subtitles.len() {
         return bad("andere Zahl an Untertitelspuren");
@@ -782,6 +808,14 @@ pub async fn run(app: &App, tools: &Tools, prepared: Prepared) -> anyhow::Result
         anyhow::Ok(report)
     };
 
+    let audio = super::audio::plan(
+        &original.info,
+        super::audio::AudioSettings {
+            convert: app.config.reencode.convert_lossless_audio,
+            bitrate_kbps: app.config.reencode.audio_bitrate_kbps,
+        },
+    );
+    let copy_video = super::audio::copies_video(&original.info, &audio);
     let job = Job {
         input: video.clone(),
         output: work.clone(),
@@ -789,6 +823,8 @@ pub async fn run(app: &App, tools: &Tools, prepared: Prepared) -> anyhow::Result
             original.info.container,
             Some(Container::Mp4 | Container::QuickTime)
         ),
+        audio: audio.clone(),
+        copy_video,
         limits: Limits {
             timeout: Duration::from_secs(u64::from(app.config.reencode.timeout_hours) * 3600),
             max_bytes: limit,
@@ -840,7 +876,7 @@ pub async fn run(app: &App, tools: &Tools, prepared: Prepared) -> anyhow::Result
         ));
         return finish(report).await;
     }
-    if let Err(reason) = check_result(&original.info, &result.info) {
+    if let Err(reason) = check_result(&original.info, &result.info, &audio) {
         discard();
         report.reason = Some(reason);
         return finish(report).await;

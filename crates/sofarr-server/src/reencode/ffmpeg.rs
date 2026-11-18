@@ -11,6 +11,7 @@ use std::{
     time::Duration,
 };
 
+use super::audio::AudioPlan;
 use crate::process::{self, Limits, Stopped};
 
 /// How long a check of the tools may take.
@@ -25,6 +26,10 @@ pub struct Job {
     pub output: PathBuf,
     /// The original is MP4/QuickTime: data tracks go, text subtitles become SRT.
     pub mp4: bool,
+    /// What happens to each audio track, in order (spec reencode-audio); missing: copied.
+    pub audio: Vec<AudioPlan>,
+    /// The video is HEVC already and audio is converted: the video is copied.
+    pub copy_video: bool,
     pub limits: Limits,
     /// Set when sofarr stops: the encoder is stopped (spec reencode-job AC-06).
     pub cancel: Option<Arc<AtomicBool>>,
@@ -116,18 +121,32 @@ impl Ffmpeg {
         if job.mp4 {
             args.extend(["-c:s", "srt"].map(OsString::from));
         }
-        args.extend(["-c:v:0", "libx265", "-preset"].map(OsString::from));
-        args.push(self.settings.preset.clone().into());
-        args.push("-crf".into());
-        args.push(self.settings.crf.to_string().into());
-        args.extend(["-pix_fmt", "yuv420p10le"].map(OsString::from));
-        // x265 logs to stderr by itself; only its errors may end up as the reason.
-        let mut x265 = "log-level=error".to_owned();
-        if self.settings.threads > 0 {
-            x265.push_str(&format!(":pools={}", self.settings.threads));
+        for (n, plan) in job.audio.iter().enumerate() {
+            if let AudioPlan::Convert { kbps, downmix } = plan {
+                args.push(format!("-c:a:{n}").into());
+                args.push("eac3".into());
+                args.push(format!("-b:a:{n}").into());
+                args.push(format!("{kbps}k").into());
+                if *downmix {
+                    args.push(format!("-ac:a:{n}").into());
+                    args.push("6".into());
+                }
+            }
         }
-        args.push("-x265-params".into());
-        args.push(x265.into());
+        if !job.copy_video {
+            args.extend(["-c:v:0", "libx265", "-preset"].map(OsString::from));
+            args.push(self.settings.preset.clone().into());
+            args.push("-crf".into());
+            args.push(self.settings.crf.to_string().into());
+            args.extend(["-pix_fmt", "yuv420p10le"].map(OsString::from));
+            // x265 logs to stderr by itself; only its errors may end up as the reason.
+            let mut x265 = "log-level=error".to_owned();
+            if self.settings.threads > 0 {
+                x265.push_str(&format!(":pools={}", self.settings.threads));
+            }
+            args.push("-x265-params".into());
+            args.push(x265.into());
+        }
         args.extend(["-f", "matroska"].map(OsString::from));
         args.push(file_url(&job.output));
         args
@@ -229,6 +248,8 @@ mod tests {
             input: PathBuf::from(input),
             output: PathBuf::from(output),
             mp4,
+            audio: Vec::new(),
+            copy_video: false,
             limits: Limits {
                 timeout: Duration::from_secs(3600),
                 max_bytes: 1000,
@@ -289,6 +310,41 @@ mod tests {
         assert_eq!(args[at("-c:s") + 1], "srt");
         assert_eq!(args[at("-x265-params") + 1], "log-level=error:pools=4");
         assert_eq!(args.last().map(String::as_str), Some("file:/a/.F.mp4.p"));
+    }
+
+    #[test]
+    fn converted_audio_and_a_copied_video_are_asked_for() {
+        // Spec reencode-audio AC-01, AC-04, AC-06.
+        let mut audio = job("/a/F.mkv", "/a/.F.mkv.p", false);
+        audio.audio = vec![
+            AudioPlan::Copy,
+            AudioPlan::Convert {
+                kbps: 640,
+                downmix: true,
+            },
+            AudioPlan::Convert {
+                kbps: 256,
+                downmix: false,
+            },
+        ];
+        let args = strings(ffmpeg(0, false).arguments(&audio));
+        let joined = args.join(" ");
+        assert!(
+            joined.contains(
+                "-c copy -c:a:1 eac3 -b:a:1 640k -ac:a:1 6 -c:a:2 eac3 -b:a:2 256k -c:v:0 libx265"
+            ),
+            "{joined}"
+        );
+        assert!(!joined.contains("-c:a:0"));
+        audio.copy_video = true;
+        let args = strings(ffmpeg(0, false).arguments(&audio));
+        assert!(
+            !args
+                .iter()
+                .any(|a| a == "libx265" || a == "-crf" || a == "-x265-params")
+        );
+        assert!(args.join(" ").contains("-b:a:1 640k"));
+        assert_eq!(args.last().map(String::as_str), Some("file:/a/.F.mkv.p"));
     }
 
     #[test]

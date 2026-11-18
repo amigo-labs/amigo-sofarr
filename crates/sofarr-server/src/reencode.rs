@@ -13,6 +13,7 @@ use sofarr_db::{Db, FileRef, StoredMediaInfo};
 
 use crate::{api::ApiError, app::SharedApp};
 
+pub mod audio;
 pub mod encode;
 pub mod ffmpeg;
 pub mod job;
