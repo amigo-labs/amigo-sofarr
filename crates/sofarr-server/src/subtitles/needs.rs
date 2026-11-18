@@ -156,6 +156,7 @@ mod tests {
                     hearing_impaired: false,
                 })
                 .collect(),
+            duration_ms: None,
         }
     }
 

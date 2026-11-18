@@ -170,6 +170,7 @@ pub(crate) fn empty(status: ReadStatus, container: Option<Container>) -> MediaIn
         video: None,
         audio: Vec::new(),
         subtitles: Vec::new(),
+        duration_ms: None,
     }
 }
 

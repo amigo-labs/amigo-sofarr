@@ -13,6 +13,7 @@ pub mod naming;
 pub mod pattern;
 pub mod profile;
 pub mod quality;
+pub mod reencode;
 pub mod series;
 pub mod settings;
 mod upgrade;

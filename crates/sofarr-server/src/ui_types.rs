@@ -150,6 +150,12 @@ fn generated() -> BTreeMap<String, String> {
     one::<crate::trailers::api::TrailerInfo>(&cfg, &mut out);
     one::<crate::trailers::api::TrailerStatus>(&cfg, &mut out);
     one::<crate::trailers::api::TrailerSupport>(&cfg, &mut out);
+    one::<crate::reencode::job::ReencodeSupport>(&cfg, &mut out);
+    one::<crate::reencode::page::ReencodePage>(&cfg, &mut out);
+    one::<crate::reencode::page::PageCandidate>(&cfg, &mut out);
+    one::<crate::reencode::page::HistoryEntry>(&cfg, &mut out);
+    one::<crate::reencode::page::RuleExclusions>(&cfg, &mut out);
+    one::<crate::reencode::run::Running>(&cfg, &mut out);
     one::<crate::discover::cache::Freshness>(&cfg, &mut out);
     one::<discover::cards::TitleKind>(&cfg, &mut out);
     one::<discover::cards::LibraryStatus>(&cfg, &mut out);

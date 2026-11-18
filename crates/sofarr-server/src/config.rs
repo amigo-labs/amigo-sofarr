@@ -37,6 +37,121 @@ pub struct Config {
     pub opensubtitles: Option<OpenSubtitlesConfig>,
     /// `[trailers]` (spec trailers).
     pub trailers: TrailersConfig,
+    /// `[reencode]` (spec reencode-rule).
+    pub reencode: ReencodeConfig,
+}
+
+/// `[reencode]`: which library files count as too large for their resolution (spec
+/// reencode-rule). Sizes per minute are binary megabytes; 0 switches a resolution off.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ReencodeConfig {
+    /// Largest size per minute up to 1280×720 (SD included).
+    pub max_mb_per_minute_720p: f64,
+    /// Largest size per minute up to 1920×1080.
+    pub max_mb_per_minute_1080p: f64,
+    /// Largest size per minute above 1920×1080.
+    pub max_mb_per_minute_2160p: f64,
+    /// libx265 constant rate factor, 0–51 (spec reencode-file).
+    pub crf: u8,
+    /// One of x265's presets.
+    pub preset: String,
+    /// Encoder threads; 0 uses every core.
+    pub threads: u32,
+    /// How much smaller (percent) a result must be, 1–99.
+    pub min_saving_percent: u8,
+    /// Longest an encode may run, in hours (at least 1).
+    pub timeout_hours: u32,
+    /// The background job works through the candidates (spec reencode-job).
+    pub enabled: bool,
+    /// Lossless audio without object audio becomes E-AC-3 (spec reencode-audio).
+    pub convert_lossless_audio: bool,
+    /// E-AC-3 rate of converted tracks with 3 and more channels, in kbit/s.
+    pub audio_bitrate_kbps: u32,
+}
+
+/// The E-AC-3 rates `audio_bitrate_kbps` allows.
+pub const AUDIO_BITRATES: [u32; 5] = [384, 448, 640, 768, 1024];
+
+/// x265's presets, fastest first.
+pub const X265_PRESETS: [&str; 10] = [
+    "ultrafast",
+    "superfast",
+    "veryfast",
+    "faster",
+    "fast",
+    "medium",
+    "slow",
+    "slower",
+    "veryslow",
+    "placebo",
+];
+
+impl Default for ReencodeConfig {
+    fn default() -> Self {
+        let defaults = sofarr_core::reencode::Thresholds::default();
+        Self {
+            max_mb_per_minute_720p: defaults.p720,
+            max_mb_per_minute_1080p: defaults.p1080,
+            max_mb_per_minute_2160p: defaults.p2160,
+            crf: 22,
+            preset: "medium".to_owned(),
+            threads: 0,
+            min_saving_percent: 20,
+            timeout_hours: 24,
+            enabled: false,
+            convert_lossless_audio: true,
+            audio_bitrate_kbps: 640,
+        }
+    }
+}
+
+impl ReencodeConfig {
+    /// The thresholds for the rule.
+    pub fn thresholds(&self) -> sofarr_core::reencode::Thresholds {
+        sofarr_core::reencode::Thresholds {
+            p720: self.max_mb_per_minute_720p,
+            p1080: self.max_mb_per_minute_1080p,
+            p2160: self.max_mb_per_minute_2160p,
+        }
+    }
+
+    /// Every threshold is a number of at least 0 (German messages naming the key).
+    fn check(&self) -> anyhow::Result<()> {
+        for (key, value) in [
+            ("max_mb_per_minute_720p", self.max_mb_per_minute_720p),
+            ("max_mb_per_minute_1080p", self.max_mb_per_minute_1080p),
+            ("max_mb_per_minute_2160p", self.max_mb_per_minute_2160p),
+        ] {
+            anyhow::ensure!(
+                value.is_finite() && value >= 0.0,
+                "[reencode] {key} muss eine Zahl ab 0 sein (0 schaltet die Auflösung aus)"
+            );
+        }
+        anyhow::ensure!(
+            self.crf <= 51,
+            "[reencode] crf muss zwischen 0 und 51 liegen"
+        );
+        anyhow::ensure!(
+            X265_PRESETS.contains(&self.preset.as_str()),
+            "[reencode] preset muss eines von {} sein",
+            X265_PRESETS.join(", ")
+        );
+        anyhow::ensure!(
+            (1..=99).contains(&self.min_saving_percent),
+            "[reencode] min_saving_percent muss zwischen 1 und 99 liegen"
+        );
+        anyhow::ensure!(
+            self.timeout_hours >= 1,
+            "[reencode] timeout_hours muss mindestens 1 sein"
+        );
+        anyhow::ensure!(
+            AUDIO_BITRATES.contains(&self.audio_bitrate_kbps),
+            "[reencode] audio_bitrate_kbps muss eine von {} sein",
+            AUDIO_BITRATES.map(|r| r.to_string()).join(", ")
+        );
+        Ok(())
+    }
 }
 
 /// `[subtitles]`: which subtitles sofarr fetches and how often it searches (spec subtitles).
@@ -620,6 +735,7 @@ impl Config {
         config.auth.check()?;
         config.subtitles.check()?;
         config.trailers.check()?;
+        config.reencode.check()?;
         Ok(config)
     }
 }
@@ -788,6 +904,161 @@ url = \"http://127.0.0.1:9/tvdb\"
         .expect("valid");
         assert_eq!(config.tmdb.expect("tmdb").url, "http://127.0.0.1:9/3");
         assert_eq!(config.tvdb.expect("tvdb").url, "http://127.0.0.1:9/tvdb");
+    }
+
+    #[test]
+    fn reencode_thresholds_have_defaults_and_are_checked() {
+        // Spec reencode-rule AC-09, AC-10.
+        let config = Config::parse("").expect("defaults");
+        let thresholds = config.reencode.thresholds();
+        assert_eq!(
+            (thresholds.p720, thresholds.p1080, thresholds.p2160),
+            (30.0, 60.0, 150.0)
+        );
+        let example = Config::parse(include_str!("../../../config/sofarr.example.toml"))
+            .expect("example config");
+        assert_eq!(example.reencode.thresholds(), thresholds);
+        assert!(
+            include_str!("../../../config/sofarr.example.toml").contains("[reencode]"),
+            "the example shows the section"
+        );
+        let config = Config::parse(
+            "[reencode]\nmax_mb_per_minute_720p = 12.5\nmax_mb_per_minute_1080p = 45\n\
+             max_mb_per_minute_2160p = 0\n",
+        )
+        .expect("valid");
+        let thresholds = config.reencode.thresholds();
+        assert_eq!(
+            (thresholds.p720, thresholds.p1080, thresholds.p2160),
+            (12.5, 45.0, 0.0)
+        );
+        for key in [
+            "max_mb_per_minute_720p",
+            "max_mb_per_minute_1080p",
+            "max_mb_per_minute_2160p",
+        ] {
+            for value in ["-1", "-0.5", "nan", "inf", "\"viel\"", "true"] {
+                let raw = format!("[reencode]\n{key} = {value}\n");
+                let error = Config::parse(&raw)
+                    .err()
+                    .unwrap_or_else(|| panic!("{key} = {value} must be rejected"));
+                let message = format!("{error:#}");
+                assert!(message.contains(key), "{key} = {value}: {message}");
+            }
+        }
+        let error = Config::parse("[reencode]\nmax_mb_per_minute = 3\n").expect_err("unknown key");
+        assert!(format!("{error:#}").contains("max_mb_per_minute"));
+    }
+
+    #[test]
+    fn reencode_encoder_settings_have_defaults_and_are_checked() {
+        // Spec reencode-file AC-16.
+        let r = Config::parse("").expect("defaults").reencode;
+        assert_eq!(
+            (
+                r.crf,
+                r.preset.as_str(),
+                r.threads,
+                r.min_saving_percent,
+                r.timeout_hours
+            ),
+            (22, "medium", 0, 20, 24)
+        );
+        let example = Config::parse(include_str!("../../../config/sofarr.example.toml"))
+            .expect("example config")
+            .reencode;
+        assert_eq!(
+            (example.crf, example.preset.as_str(), example.threads),
+            (22, "medium", 0)
+        );
+        assert_eq!(
+            (example.min_saving_percent, example.timeout_hours),
+            (20, 24)
+        );
+        // Spec reencode-job AC-07: the job is off unless switched on.
+        assert!(!r.enabled);
+        assert!(!example.enabled);
+        assert!(
+            include_str!("../../../config/sofarr.example.toml").contains("enabled = false   "),
+            "the example shows the switch"
+        );
+        assert!(
+            Config::parse("[reencode]\nenabled = true\n")
+                .expect("valid")
+                .reencode
+                .enabled
+        );
+        for key in [
+            "crf",
+            "preset",
+            "threads",
+            "min_saving_percent",
+            "timeout_hours",
+        ] {
+            assert!(
+                include_str!("../../../config/sofarr.example.toml").contains(&format!("{key} =")),
+                "the example shows {key}"
+            );
+        }
+        let r = Config::parse(
+            "[reencode]\ncrf = 0\npreset = \"placebo\"\nthreads = 4\nmin_saving_percent = 99\n\
+             timeout_hours = 1\n",
+        )
+        .expect("valid")
+        .reencode;
+        assert_eq!((r.crf, r.preset.as_str(), r.threads), (0, "placebo", 4));
+        assert_eq!((r.min_saving_percent, r.timeout_hours), (99, 1));
+        for (raw, key) in [
+            ("crf = 52", "crf"),
+            ("crf = -1", "crf"),
+            ("preset = \"schnell\"", "preset"),
+            ("preset = \"Medium\"", "preset"),
+            ("threads = -2", "threads"),
+            ("min_saving_percent = 0", "min_saving_percent"),
+            ("min_saving_percent = 100", "min_saving_percent"),
+            ("timeout_hours = 0", "timeout_hours"),
+        ] {
+            let error = Config::parse(&format!("[reencode]\n{raw}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{raw} must be rejected"));
+            let message = format!("{error:#}");
+            assert!(message.contains(key), "{raw}: {message}");
+        }
+    }
+
+    #[test]
+    fn reencode_audio_settings_have_defaults_and_are_checked() {
+        // Spec reencode-audio AC-01, AC-03, AC-04.
+        let r = Config::parse("").expect("defaults").reencode;
+        assert!(r.convert_lossless_audio);
+        assert_eq!(r.audio_bitrate_kbps, 640);
+        let example = Config::parse(include_str!("../../../config/sofarr.example.toml"))
+            .expect("example config")
+            .reencode;
+        assert!(example.convert_lossless_audio);
+        assert_eq!(example.audio_bitrate_kbps, 640);
+        for key in ["convert_lossless_audio =", "audio_bitrate_kbps ="] {
+            assert!(
+                include_str!("../../../config/sofarr.example.toml").contains(key),
+                "{key}"
+            );
+        }
+        let r = Config::parse(
+            "[reencode]\nconvert_lossless_audio = false\naudio_bitrate_kbps = 1024\n",
+        )
+        .expect("valid")
+        .reencode;
+        assert!(!r.convert_lossless_audio);
+        assert_eq!(r.audio_bitrate_kbps, 1024);
+        for value in ["0", "500", "6144", "-1"] {
+            let error = Config::parse(&format!("[reencode]\naudio_bitrate_kbps = {value}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{value} must be rejected"));
+            assert!(
+                format!("{error:#}").contains("audio_bitrate_kbps"),
+                "{value}"
+            );
+        }
     }
 
     #[test]

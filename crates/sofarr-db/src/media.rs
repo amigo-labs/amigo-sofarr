@@ -21,6 +21,9 @@ pub struct StoredMediaInfo {
     pub modified: String,
 }
 
+/// `movie_id`, `episode_file_id`, `info`, `size`, `modified`.
+type MediaInfoRow = (Option<i64>, Option<i64>, String, i64, String);
+
 fn ids(file: FileRef) -> (Option<i64>, Option<i64>) {
     match file {
         FileRef::Movie(id) => (Some(id), None),
@@ -73,6 +76,31 @@ impl Db {
             size: u64::try_from(size).unwrap_or(0),
             modified,
         }))
+    }
+
+    /// The stored media info of every file, in one query (spec reencode-rule).
+    pub async fn all_media_info(&self) -> Result<Vec<(FileRef, StoredMediaInfo)>> {
+        let rows: Vec<MediaInfoRow> = sqlx::query_as(
+            "SELECT movie_id, episode_file_id, info, size, modified FROM media_info",
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(movie_id, episode_file_id, info, size, modified)| {
+                let file = match (movie_id, episode_file_id) {
+                    (Some(id), _) => FileRef::Movie(id),
+                    (None, Some(id)) => FileRef::Episode(id),
+                    (None, None) => return None,
+                };
+                let stored = StoredMediaInfo {
+                    info,
+                    size: u64::try_from(size).unwrap_or(0),
+                    modified,
+                };
+                Some((file, stored))
+            })
+            .collect())
     }
 }
 
@@ -136,6 +164,10 @@ mod tests {
         assert_eq!(
             db.media_info(FileRef::Movie(movie)).await.expect("read"),
             Some(stored.clone())
+        );
+        assert_eq!(
+            db.all_media_info().await.expect("all"),
+            vec![(FileRef::Movie(movie), stored.clone())]
         );
         // Gone with the file record.
         db.remove_file(movie).await.expect("remove");

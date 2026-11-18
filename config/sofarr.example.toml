@@ -131,3 +131,25 @@ languages = ["de", "en"]   # bevorzugte Sprachen in dieser Reihenfolge, danach o
 max_height = 1080          # höchste Auflösung (Zeilen)
 per_day = 20               # Trailer pro Tag im täglichen Lauf; 0 schaltet ihn ab
 # yt_dlp = "yt-dlp"        # Programm (ohne Ordner: über PATH)
+
+[reencode]
+# Zu große Dateien: Größe pro Laufzeitminute in MB (1 MB = 1.048.576 Bytes), über der eine
+# Datei ihrer Auflösung als zu groß gilt. "amigo-sofarr reencode-candidates" zeigt, welche
+# Dateien das sind, die größten zuerst. 0 lässt eine Auflösung unangetastet.
+max_mb_per_minute_720p = 30     # bis 1280×720, auch SD
+max_mb_per_minute_1080p = 60    # bis 1920×1080
+max_mb_per_minute_2160p = 150   # darüber (4K)
+# Neu encodieren (amigo-sofarr reencode): HEVC per libx265 in MKV, alle anderen Spuren werden
+# kopiert. Das Original kommt in den Papierkorb (recycleBin), sonst wird es gelöscht.
+crf = 22                        # Qualität 0–51, kleiner ist besser und größer
+preset = "medium"               # ultrafast … placebo: langsamer ist kleiner bei gleicher Qualität
+threads = 0                     # 0 nutzt alle Kerne
+min_saving_percent = 20         # so viel kleiner (%) muss das Ergebnis sein, sonst bleibt das Original
+timeout_hours = 24              # längste Dauer eines Encodes
+# Hintergrundjob: encodiert rund um die Uhr die größte fällige Datei, eine nach der anderen,
+# mit niedrigster CPU-Priorität. Erst einschalten, wenn einzelne Dateien gut aussahen.
+enabled = false                 # true schaltet den Job ein (nur im Live-Mode)
+# Verlustfreie Tonspuren ohne Atmos (TrueHD, PCM, FLAC) werden E-AC-3; DTS (auch DTS-HD MA,
+# wegen DTS:X) und Atmos bleiben, wie sie sind. Ein HEVC-Video wird dann nur kopiert.
+convert_lossless_audio = true
+audio_bitrate_kbps = 640        # 384, 448, 640, 768 oder 1024; Stereo bekommt 256

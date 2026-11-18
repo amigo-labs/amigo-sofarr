@@ -32,6 +32,7 @@ test.describe('navigation (AC-08)', () => {
       'Fehlend',
       'Sperrliste',
       'Untertitel',
+      'Neu encodieren',
       'Backups',
       'System',
     ]);

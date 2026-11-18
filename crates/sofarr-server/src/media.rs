@@ -21,7 +21,8 @@ pub struct FileMedia {
     pub modified: String,
 }
 
-fn modified(meta: &fs::Metadata) -> String {
+/// A file's modification time as media info stores it.
+pub fn modified(meta: &fs::Metadata) -> String {
     meta.modified()
         .ok()
         .and_then(|t| Timestamp::try_from(t).ok())

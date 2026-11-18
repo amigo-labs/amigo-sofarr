@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { SystemAnswer } from '../api/generated/SystemAnswer';
+  import { jobText } from '../reencode/reencode';
   import { supportText } from '../trailers/trailers';
   import ConfigBox from './ConfigBox.svelte';
   import ConnectionsBox from './ConnectionsBox.svelte';
@@ -7,7 +8,7 @@
   import { modeText } from './format';
 
   // The system page's content (spec web-ui-shell AC-12), with whether trailers are
-  // downloaded (spec trailers AC-12).
+  // downloaded (spec trailers AC-12) and whether files are re-encoded (spec reencode-job AC-08).
   type Props = { system: SystemAnswer };
   let { system }: Props = $props();
 
@@ -28,6 +29,10 @@
     <div>
       <dt>Trailer</dt>
       <dd data-testid="trailers">{supportText(system.trailers)}</dd>
+    </div>
+    <div>
+      <dt>Neu encodieren</dt>
+      <dd data-testid="reencode">{jobText(system.reencode)}</dd>
     </div>
   </dl>
 </section>

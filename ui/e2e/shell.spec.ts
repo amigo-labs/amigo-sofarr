@@ -15,6 +15,7 @@ const ENTRIES = [
   'Fehlend',
   'Sperrliste',
   'Untertitel',
+  'Neu encodieren',
   'Backups',
   'System',
 ];

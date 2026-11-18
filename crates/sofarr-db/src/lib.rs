@@ -6,6 +6,7 @@ mod files;
 mod imdb;
 mod library;
 mod media;
+mod reencode;
 mod series;
 mod sessions;
 mod subtitles;
@@ -21,6 +22,7 @@ pub use files::{
 pub use imdb::{ImdbRating, RatingRow, RatingsLoad};
 pub use library::{Activity, MonitorTarget, Presentation};
 pub use media::{FileRef, StoredMediaInfo};
+pub use reencode::{NewReencode, ReencodeAttempt, ReencodeOutcome};
 pub use series::{Episode, NewEpisode, NewSeries, Series, SeriesGrab};
 pub use sessions::Session;
 pub use subtitles::{NewOwnSubtitle, OwnSubtitle, SearchOutcome, SubtitleKind, SubtitleNeed};

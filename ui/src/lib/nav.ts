@@ -13,6 +13,7 @@ import blockedIcon from '@primer/octicons/build/svg/circle-slash-16.svg?raw';
 import commentIcon from '@primer/octicons/build/svg/comment-16.svg?raw';
 import databaseIcon from '@primer/octicons/build/svg/database-16.svg?raw';
 import serverIcon from '@primer/octicons/build/svg/server-16.svg?raw';
+import zapIcon from '@primer/octicons/build/svg/zap-16.svg?raw';
 
 export const NAV_GROUPS = ['Start', 'Bibliothek', 'Verwaltung'] as const;
 export type NavGroup = (typeof NAV_GROUPS)[number];
@@ -35,6 +36,13 @@ export const PAGES: readonly NavPage[] = [
   { label: 'Fehlend', href: '/fehlend', built: true, group: 'Bibliothek', icon: inboxIcon },
   { label: 'Sperrliste', href: '/blocklist', built: true, group: 'Verwaltung', icon: blockedIcon },
   { label: 'Untertitel', href: '/untertitel', built: true, group: 'Verwaltung', icon: commentIcon },
+  {
+    label: 'Neu encodieren',
+    href: '/neu-encodieren',
+    built: true,
+    group: 'Verwaltung',
+    icon: zapIcon,
+  },
   { label: 'Backups', href: '/backups', built: true, group: 'Verwaltung', icon: databaseIcon },
   { label: 'System', href: '/system', built: true, group: 'Verwaltung', icon: serverIcon },
 ];

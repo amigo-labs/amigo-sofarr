@@ -115,6 +115,7 @@ mod tests {
             video,
             audio,
             subtitles: Vec::new(),
+            duration_ms: None,
         }
     }
 

@@ -20,10 +20,11 @@ pub enum Job {
     Imdb,
     Subtitles,
     Trailers,
+    Reencode,
 }
 
 impl Job {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Rss,
         Self::Downloads,
         Self::ImportLists,
@@ -32,6 +33,7 @@ impl Job {
         Self::Imdb,
         Self::Subtitles,
         Self::Trailers,
+        Self::Reencode,
     ];
 
     /// The name in the log and the API.
@@ -45,6 +47,7 @@ impl Job {
             Self::Imdb => "imdb",
             Self::Subtitles => "subtitles",
             Self::Trailers => "trailers",
+            Self::Reencode => "reencode",
         }
     }
 
@@ -59,6 +62,7 @@ impl Job {
             Self::Imdb => "IMDb-Bewertungen",
             Self::Subtitles => "Untertitel",
             Self::Trailers => "Trailer",
+            Self::Reencode => "Neu encodieren",
         }
     }
 
@@ -100,6 +104,8 @@ impl Job {
             {
                 hours(24)
             }
+            // Rounds follow each other; the hourly look is the fallback (spec reencode-job).
+            Self::Reencode if live && config.reencode.enabled => hours(1),
             _ => None,
         }
     }
@@ -146,6 +152,13 @@ impl Status {
     pub fn job_waits(&self, job: Job, now: Timestamp, wait: Duration) {
         if let Ok(mut jobs) = self.jobs.lock() {
             jobs.entry(job).or_default().next_run = add(now, wait);
+        }
+    }
+
+    /// The job runs now: it has no next run until it waits again.
+    pub fn job_busy(&self, job: Job) {
+        if let Ok(mut jobs) = self.jobs.lock() {
+            jobs.entry(job).or_default().next_run = None;
         }
     }
 

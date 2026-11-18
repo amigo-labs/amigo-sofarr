@@ -250,6 +250,7 @@ Radarrs manuellen Import (Spec §5).
 | CF-Score vorhandener Dateien | aus `customFormatScore` der Radarr-Antwort, sonst aus Szene- bzw. Dateiname berechnet. |
 | Import | Die größte Videodatei ohne `sample` im Namen wird verschoben (gleiches Dateisystem: `rename`, sonst kopieren und löschen); Extras bleiben liegen. |
 | Alte Datei bei Upgrade | in den Papierkorb (`recycleBin`), falls gesetzt, sonst gelöscht. |
+| Zu große Dateien (nur sofarr, D31) | Radarr/Sonarr kennen kein Neu-Encodieren. Zu groß ist eine Datei, deren Größe pro Laufzeitminute über der Schwelle ihrer Auflösungsklasse liegt (`[reencode] max_mb_per_minute_720p/1080p/2160p`, Standard 30/60/150 MiB); Laufzeit aus dem Dateikopf, sonst aus den Metadaten. Dolby Vision und HDR10+ bleiben unangetastet (Spec `reencode-rule`). |
 | `{Movie CleanTitle}` (auch Serie und Episode) | Buchstaben ohne Diakritika (`ö` → `o`, `ß` → `ss`, `æ` → `ae`), Ziffern, Leerzeichen, `-` im Wort, `.` (Punktfolgen als ein Punkt), `!`, `–`, `…`, `#`, `·` und `‘` bleiben; ein freistehender `-` und Apostrophe entfallen; `&` wird `and`, übrige Satzzeichen entfallen. Abgeleitet aus dem Abgleich vom 12.11.2026 (siehe „Stand Dateinamen“); Ligaturen und andere Diakritika ohne Beleg. |
 | `{Movie TitleFirstCharacter}` | erster Buchstabe/Ziffer des Titels ohne führenden Artikel (The/A/An/Der/Die/Das), groß. |
 | Unerlaubte Zeichen | `/` und `\\` werden `+`, `? * " < > \|` entfallen; keine Ordnerebene endet auf Punkt, Leerzeichen, `-` oder `_` (Windows lehnt Punkt und Leerzeichen am Ende ab). |

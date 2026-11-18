@@ -215,6 +215,7 @@ pub fn media(audio: &[&str], subtitles: &[(&str, bool)]) -> MediaInfo {
                 hearing_impaired: false,
             })
             .collect(),
+        duration_ms: None,
     }
 }
 

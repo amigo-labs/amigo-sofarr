@@ -33,7 +33,9 @@ mod media;
 mod metadata;
 mod overview;
 mod password_input;
+mod process;
 mod radarr;
+mod reencode;
 mod rescan;
 mod rss;
 mod search;
@@ -92,6 +94,8 @@ mod rename_media_tests;
 mod search_tests;
 #[cfg(test)]
 mod series_search_tests;
+#[cfg(test)]
+mod serve_tests;
 #[cfg(test)]
 mod test_secret;
 #[cfg(test)]
@@ -158,6 +162,24 @@ enum Command {
     RefreshMetadata,
     /// Gleicht Filme und Serien mit den Dateien auf der Festplatte ab
     Rescan,
+    /// Listet die Dateien, die für ihre Auflösung zu groß sind, die größten zuerst
+    /// (Schwellen: [reencode] in der Konfiguration)
+    ReencodeCandidates,
+    /// Encodiert die Datei eines Films oder einer Episode neu (HEVC, MKV); das Original
+    /// kommt in den Papierkorb
+    Reencode {
+        /// sofarr-ID des Films
+        movie_id: Option<i64>,
+        /// sofarr-ID der Serie
+        #[arg(long)]
+        series: Option<i64>,
+        /// Staffel der Episode (nur mit --series)
+        #[arg(long)]
+        season: Option<u16>,
+        /// Nummer der Episode (nur mit --season)
+        #[arg(long)]
+        episode: Option<u16>,
+    },
     /// Übernimmt Einstellungen, Serien und Episoden aus Sonarr
     ImportSonarr {
         /// Verzeichnis eines Exports (…/config/sonarr) – enthält keine Episoden; ohne
@@ -320,6 +342,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     imdb::spawn_schedule(&state);
     subtitles::spawn_schedule(&state);
     trailers::spawn_schedule(&state);
+    reencode::job::spawn_schedule(&state);
     for job in [Job::Rss, Job::Downloads, Job::ImportLists, Job::Refresh] {
         let Some(every) = job.interval(&state) else {
             continue;
@@ -350,6 +373,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
                         Job::Trailers => trailers::run(&app, jiff::Timestamp::now())
                             .await
                             .map(|_| ()),
+                        // Has its own schedule (spec reencode-job).
+                        Job::Reencode => Ok(()),
                     }
                 }
             },
@@ -361,19 +386,33 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         rss_minutes = interval,
         "starting"
     );
-    let app = api::app_router(state);
     let listener = TcpListener::bind(bind)
         .await
         .with_context(|| format!("Port {bind} nicht verfügbar"))?;
 
     tracing::info!(addr = %bind, version = env!("CARGO_PKG_VERSION"), "listening");
+    serve_until(state, listener, shutdown_signal()).await?;
+    tracing::info!("shut down");
+    Ok(())
+}
+
+/// Serves the API until `shutdown` resolves, then stops running encodes and waits for
+/// them to record their end: Docker kills the container 10 s after the signal (spec
+/// reencode-job AC-06).
+async fn serve_until(
+    state: Arc<App>,
+    listener: TcpListener,
+    shutdown: impl std::future::Future<Output = ()> + Send + 'static,
+) -> anyhow::Result<()> {
+    let running = Arc::clone(&state);
+    let app = api::app_router(state);
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown_signal())
+    .with_graceful_shutdown(shutdown)
     .await?;
-    tracing::info!("shut down");
+    reencode::run::stop(&running, std::time::Duration::from_secs(9)).await;
     Ok(())
 }
 
@@ -463,6 +502,21 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
             let report = app.refresh(true, false, true).await?;
             println!("Metadaten aktualisiert: {} Filme", report.movies);
             print_scan("Filme", report.movie_scan.as_ref());
+        }
+        Command::Reencode {
+            movie_id,
+            series,
+            season,
+            episode,
+        } => {
+            let target =
+                reencode::encode::cli_target(&app.db, movie_id, series, season, episode).await?;
+            reencode::encode::cli(&app, target, &mut |line| println!("{line}")).await?;
+        }
+        Command::ReencodeCandidates => {
+            let thresholds = app.config.reencode.thresholds();
+            let list = reencode::candidates(&app.db, &thresholds).await?;
+            print!("{}", reencode::report(&list));
         }
         Command::Rescan => {
             let (movies, shows) = app.rescan().await?;

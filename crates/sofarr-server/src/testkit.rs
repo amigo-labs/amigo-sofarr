@@ -263,7 +263,11 @@ pub struct Http {
 
 impl Http {
     pub async fn start(app: App) -> Self {
-        let app = Arc::new(app);
+        Self::start_shared(Arc::new(app)).await
+    }
+
+    /// Serves an app the test keeps a handle on.
+    pub async fn start_shared(app: Arc<App>) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .expect("bind");

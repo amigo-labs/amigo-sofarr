@@ -97,6 +97,16 @@ pub fn routes(app: SharedApp) -> Router {
             "/api/series/{id}/episodes/{episode_id}/file",
             get(episode_file),
         )
+        .route("/api/reencode", get(crate::reencode::page::get))
+        .route(
+            "/api/reencode/exclusions",
+            post(crate::reencode::page::exclude).delete(crate::reencode::page::include),
+        )
+        .route("/api/reencode/candidates", get(crate::reencode::api))
+        .route(
+            "/api/reencode/encode",
+            get(crate::reencode::encode::state).post(crate::reencode::encode::start),
+        )
         .route("/api/subtitles", get(crate::subtitles::overview))
         .route(
             "/api/movies/{id}/subtitles",

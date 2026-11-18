@@ -22,6 +22,8 @@ const SEEK: u32 = 0x4DBB;
 const SEEK_ID: u32 = 0x53AB;
 const SEEK_POSITION: u32 = 0x53AC;
 const INFO: u32 = 0x1549_A966;
+const TIMESTAMP_SCALE: u32 = 0x002A_D7B1;
+const DURATION: u32 = 0x4489;
 const TRACKS: u32 = 0x1654_AE6B;
 const TAGS: u32 = 0x1254_C367;
 const TAG: u32 = 0x7373;
@@ -38,6 +40,9 @@ const CRC32: u32 = 0xBF;
 const MAX_EBML_HEADER: u64 = 64 * 1024;
 const MAX_SEEK_HEAD: u64 = 1024 * 1024;
 const MAX_TAGS: u64 = 4 * 1024 * 1024;
+const MAX_INFO: u64 = 1024 * 1024;
+/// Nanoseconds per tick when `Info` names no `TimestampScale` (RFC 9559).
+const DEFAULT_TIMESTAMP_SCALE: u64 = 1_000_000;
 /// Elements tolerated between the EBML header and the `Segment`.
 const MAX_LEADING_ELEMENTS: usize = 16;
 const MAX_SEEK_HEADS: usize = 4;
@@ -58,6 +63,9 @@ struct Walk {
     /// The input ended inside `Tracks`: only its complete `TrackEntry`s were read.
     tracks_cut: bool,
     tags_read: bool,
+    info_read: bool,
+    duration_ms: Option<u64>,
+    seek_info: Option<u64>,
     tag_encoder: Option<&'static str>,
     seek_tracks: Option<u64>,
     seek_tags: Option<u64>,
@@ -96,7 +104,9 @@ pub(crate) fn read<R: Read + Seek>(src: &mut Source<'_, R>) -> MediaInfo {
     } else {
         ReadStatus::Complete
     };
-    track::finish(status, Some(container), drafts, walk.tag_encoder)
+    let mut info = track::finish(status, Some(container), drafts, walk.tag_encoder);
+    info.duration_ms = walk.duration_ms;
+    info
 }
 
 /// The container named by the DocType of the EBML header; `None` for another document type.
@@ -166,6 +176,14 @@ fn segment<R: Read + Seek>(src: &mut Source<'_, R>, walk: &mut Walk) -> Res<()> 
             return walked.and(followed);
         }
     }
+    if !walk.info_read
+        && let Some(pos) = walk.seek_info
+    {
+        // The duration is an extra; a missing or damaged `Info` leaves the tracks complete.
+        if let Ok(header) = header_at(src, pos) {
+            read_info(src, walk, &header);
+        }
+    }
     if !walk.tags_read
         && let Some(pos) = walk.seek_tags
     {
@@ -193,6 +211,7 @@ fn walk_level1<R: Read + Seek>(src: &mut Source<'_, R>, walk: &mut Walk) -> Res<
                     parse_seek_head(&data, walk);
                 }
             }
+            INFO => read_info(src, walk, &header),
             TRACKS if walk.tracks.is_none() => read_tracks(src, walk, &header)?,
             TAGS => read_tags(src, walk, &header)?,
             CLUSTER => {
@@ -300,6 +319,9 @@ fn parse_seek_head(data: &[u8], walk: &mut Walk) {
             Ok(TAGS) => {
                 walk.seek_tags.get_or_insert(pos);
             }
+            Ok(INFO) => {
+                walk.seek_info.get_or_insert(pos);
+            }
             Ok(CLUSTER) => {
                 let first = walk.seek_cluster.map_or(pos, |known| known.min(pos));
                 walk.seek_cluster = Some(first);
@@ -308,6 +330,46 @@ fn parse_seek_head(data: &[u8], walk: &mut Walk) {
             _ => {}
         }
     }
+}
+
+/// Reads the duration from `Info`; an oversized, cut-off or damaged `Info` has none.
+fn read_info<R: Read + Seek>(src: &mut Source<'_, R>, walk: &mut Walk, header: &Header) {
+    if header.id != INFO {
+        return;
+    }
+    walk.info_read = true;
+    let Ok(data) = payload(src, header, MAX_INFO) else {
+        return;
+    };
+    let mut scale = DEFAULT_TIMESTAMP_SCALE;
+    let mut ticks = None;
+    for child in Children::new(&data).flatten() {
+        match child {
+            (TIMESTAMP_SCALE, value) => scale = ebml::uint(value).unwrap_or(0),
+            (DURATION, value) => ticks = float(value),
+            _ => {}
+        }
+    }
+    walk.duration_ms = ticks.and_then(|ticks| milliseconds(ticks, scale));
+}
+
+/// An EBML float: 4 or 8 bytes, big-endian.
+fn float(data: &[u8]) -> Option<f64> {
+    if let Ok(bytes) = <[u8; 4]>::try_from(data) {
+        Some(f64::from(f32::from_be_bytes(bytes)))
+    } else {
+        <[u8; 8]>::try_from(data).ok().map(f64::from_be_bytes)
+    }
+}
+
+/// `ticks` of `scale` nanoseconds as whole milliseconds; `None` unless that is a positive number.
+fn milliseconds(ticks: f64, scale: u64) -> Option<u64> {
+    let ms = (ticks * scale as f64 / 1_000_000.0).round();
+    if !ms.is_finite() || ms < 1.0 {
+        return None;
+    }
+    // Finite and positive; a float-to-integer cast saturates.
+    Some(ms as u64)
 }
 
 /// Reads `Tags` for an `ENCODER` tag that names x264 or x265; oversized or damaged tags are

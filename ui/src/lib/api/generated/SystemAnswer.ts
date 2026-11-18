@@ -2,6 +2,7 @@
 import type { ConnectionAnswer } from "./ConnectionAnswer";
 import type { JobAnswer } from "./JobAnswer";
 import type { Mode } from "./Mode";
+import type { ReencodeSupport } from "./ReencodeSupport";
 import type { TrailerSupport } from "./TrailerSupport";
 
 export type SystemAnswer = { version: string, mode: Mode, jobs: Array<JobAnswer>, connections: Array<ConnectionAnswer>, 
@@ -9,6 +10,10 @@ export type SystemAnswer = { version: string, mode: Mode, jobs: Array<JobAnswer>
  * Whether trailers are downloaded, or why not (spec trailers AC-12).
  */
 trailers: TrailerSupport, 
+/**
+ * Whether the re-encode job runs, or why not (spec reencode-job AC-08).
+ */
+reencode: ReencodeSupport, 
 /**
  * The configuration in effect (defaults filled in), secrets masked.
  */
