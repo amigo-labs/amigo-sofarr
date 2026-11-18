@@ -53,17 +53,22 @@ pub enum FileState {
 /// Where a candidate of this size with these attempts (newest first) stands now.
 pub fn state_of(size: u64, attempts: &[ReencodeAttempt], now: Timestamp) -> FileState {
     let ended = |a: &ReencodeAttempt| a.finished_at.unwrap_or(a.started_at);
-    // Settled: an attempt at the size the file has now ended replaced or without gain.
-    for attempt in attempts {
-        match attempt.outcome {
-            Some(ReencodeOutcome::Replaced) if attempt.size_after == Some(size) => {
-                return FileState::Done;
-            }
-            Some(ReencodeOutcome::NoGain) if attempt.size_before == size => {
-                return FileState::NoGain;
-            }
-            _ => {}
-        }
+    // Settled: an attempt at the size the file has now ended replaced or without gain;
+    // "erledigt" comes before "kein Gewinn" (spec ui-reencode, "Job state").
+    let settled = |outcome: ReencodeOutcome| {
+        attempts.iter().any(|a| {
+            a.outcome == Some(outcome)
+                && match outcome {
+                    ReencodeOutcome::Replaced => a.size_after == Some(size),
+                    _ => a.size_before == size,
+                }
+        })
+    };
+    if settled(ReencodeOutcome::Replaced) {
+        return FileState::Done;
+    }
+    if settled(ReencodeOutcome::NoGain) {
+        return FileState::NoGain;
     }
     // A refusal rests a day, unless another encode only held the slot.
     let refusal_rest = attempts
@@ -98,13 +103,16 @@ pub fn state_of(size: u64, attempts: &[ReencodeAttempt], now: Timestamp) -> File
     }
     let failure_rest = match (streak, last_failure) {
         (1 | 2, Some(at)) => Some(at + REST_AFTER_FAILURE).filter(|until| *until > now),
-        (0, _) | (_, None) => None,
-        _ => return FileState::RestsUntilChange,
+        _ => None,
     };
-    // Where both apply, the later one counts.
-    match refusal_rest.max(failure_rest) {
-        Some(until) => FileState::RestsUntil(until),
-        None => FileState::Due,
+    // "ruht bis …" (the later one where both apply) comes before "ruht, bis sich die Datei
+    // ändert" (spec ui-reencode, "Job state").
+    if let Some(until) = refusal_rest.max(failure_rest) {
+        FileState::RestsUntil(until)
+    } else if streak >= 3 {
+        FileState::RestsUntilChange
+    } else {
+        FileState::Due
     }
 }
 

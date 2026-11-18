@@ -86,9 +86,18 @@ fn the_state_names_why_a_file_is_not_due() {
         FileState::RestsUntil(ago(48) + REST_AFTER_FAILURE)
     );
     assert_eq!(
-        state(&[refused, failed(7 * 24 - 1)]),
+        state(&[refused.clone(), failed(7 * 24 - 1)]),
         FileState::RestsUntil(ago(2) + REST_AFTER_REFUSAL)
     );
+    // The spec's order: "ruht bis …" before "ruht, bis sich die Datei ändert" …
+    assert_eq!(
+        state(&[refused, failed(10), failed(20), failed(30)]),
+        FileState::RestsUntil(ago(2) + REST_AFTER_REFUSAL)
+    );
+    // … and "erledigt" before "kein Gewinn".
+    let replaced = attempt(ReencodeOutcome::Replaced, None, 90_000, Some(SIZE), 100);
+    let later_no_gain = attempt(ReencodeOutcome::NoGain, None, SIZE, Some(49_000), 50);
+    assert_eq!(state(&[later_no_gain, replaced]), FileState::Done);
 }
 
 #[test]

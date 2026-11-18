@@ -196,6 +196,19 @@ test.describe('page "Neu encodieren" (ui-reencode)', () => {
     );
   });
 
+  test('a failed exclusion shows its German message (AC-05)', async ({ page }) => {
+    await page.route('**/api/reencode/exclusions', (route) =>
+      json(route, { error: 'Kein Film und keine Episode mit Datei unter dieser ID' }, 404),
+    );
+    await open(page, PAGE);
+    await row(page, 'Heat (1995)')
+      .getByRole('button', { name: /Ausschließen/ })
+      .click();
+    await expect(page.getByRole('alert').first()).toContainText(
+      'Kein Film und keine Episode mit Datei unter dieser ID',
+    );
+  });
+
   test('is read-only in shadow mode (AC-08)', async ({ page }) => {
     await open(page, { ...PAGE, shadow: true });
     const heat = row(page, 'Heat (1995)');

@@ -328,3 +328,95 @@ async fn reencode_page_large_library() {
     let limit = if cfg!(debug_assertions) { 20 } else { 2 };
     assert!(took.as_secs() < limit, "took {took:?}");
 }
+
+#[tokio::test]
+async fn an_episode_id_names_its_file_and_an_unknown_one_is_not_found() {
+    // AC-05, the episode side.
+    let env = Env::with("page-episodes", "live", LIVE).await;
+    let db = env.db();
+    let series = db
+        .upsert_series(
+            &sofarr_db::NewSeries {
+                tvdb_id: 1,
+                imdb_id: None,
+                title: "Insel".to_owned(),
+                title_de: None,
+                year: None,
+                runtime_minutes: 45,
+                original_language: None,
+                series_type: "standard".to_owned(),
+                monitored: true,
+                season_folder: true,
+                quality_profile_id: 1,
+                path: "/serien/Insel".to_owned(),
+                sonarr_id: None,
+                alternative_titles: vec![],
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("series");
+    let mut episodes = Vec::new();
+    for number in [2, 3, 4] {
+        let episode = sofarr_db::NewEpisode {
+            tvdb_id: None,
+            season: 1,
+            number,
+            absolute: None,
+            title: None,
+            title_de: None,
+            air_date: None,
+            monitored: true,
+        };
+        episodes.push(db.upsert_episode(series, &episode).await.expect("episode"));
+    }
+    // A double episode with one file; episode 4 has no file.
+    let file = sofarr_db::MovieFile {
+        relative_path: "Season 01/S01E02.mkv".to_owned(),
+        size: 1,
+        quality: "WEBDL-1080p".to_owned(),
+        revision_version: 1,
+        revision_real: 0,
+        release_group: None,
+        scene_name: None,
+        custom_format_score: 0,
+    };
+    let file_id = db
+        .set_episode_file(series, &episodes[..2], &file, Timestamp::now())
+        .await
+        .expect("file");
+    let http = Http::start_shared(Arc::clone(&env.app)).await;
+    // The second episode of the double episode excludes its file …
+    let (status, _) = http
+        .post(
+            "/api/reencode/exclusions",
+            json!({ "episode_id": episodes[1] }),
+        )
+        .await;
+    assert_eq!(status, 204);
+    assert_eq!(
+        db.reencode_exclusions().await.expect("read"),
+        [FileRef::Episode(file_id)]
+    );
+    // … and the first takes it back.
+    let (status, _) = http
+        .send(
+            reqwest::Method::DELETE,
+            "/api/reencode/exclusions",
+            Some(json!({ "episode_id": episodes[0] })),
+        )
+        .await;
+    assert_eq!(status, 204);
+    assert!(db.reencode_exclusions().await.expect("read").is_empty());
+    // An episode without a file and an unknown one are not found.
+    for id in [episodes[2], 999_999] {
+        let (status, body) = http
+            .post("/api/reencode/exclusions", json!({ "episode_id": id }))
+            .await;
+        assert_eq!(status, 404, "{id}");
+        assert_eq!(
+            body["error"],
+            "Kein Film und keine Episode mit Datei unter dieser ID"
+        );
+    }
+}

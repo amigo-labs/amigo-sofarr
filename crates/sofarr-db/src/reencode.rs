@@ -450,6 +450,23 @@ mod tests {
         // A removed file takes its exclusion with it.
         db.remove_file(id).await.expect("remove");
         assert!(db.reencode_exclusions().await.expect("read").is_empty());
+        // A new episode file is a new record: the old one and its exclusion go.
+        let (file_id, episodes) = double_episode(&db).await;
+        db.exclude_from_reencode(FileRef::Episode(file_id), now())
+            .await
+            .expect("exclude");
+        let series = db.episodes(None).await.expect("episodes")[0].series_id;
+        let new_id = db
+            .set_episode_file(
+                series,
+                &episodes,
+                &file("Season 01/S01E02.Upgrade.mkv"),
+                now(),
+            )
+            .await
+            .expect("upgrade");
+        assert_ne!(new_id, file_id);
+        assert!(db.reencode_exclusions().await.expect("read").is_empty());
     }
 
     #[tokio::test]
