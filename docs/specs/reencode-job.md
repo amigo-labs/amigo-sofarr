@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §5, sofarr.md §7, sofarr.md §9 D31]
@@ -8,6 +8,16 @@ oracle: none
 ---
 
 # Re-encode job
+
+## Summary
+
+> Completed: 2026-11-18
+
+- A background job (`[reencode] enabled`, off by default, live mode only) re-encodes the largest due candidate one round after the other, around the clock at the lowest CPU priority.
+- Due rules from the database alone (`reencode::job::is_due`): settled files (`replaced`/`no_gain` at the current size) are skipped, refusals rest 24 hours, failure streaks rest 7 days and stop after three; interruptions count for nothing.
+- The job waits a minute while the encode slot is held and an hour when nothing is due or ffmpeg is missing; it repairs every interrupted attempt at a live start.
+- The process runner got a stop flag; the server's shutdown path (`serve_until`) stops running encodes within Docker's 10 s and finishes a swap under way.
+- The system page lists the job "Neu encodieren" with its last run and next look and says "aktiv", "aktiv – encodiert {Titel}" or "aus – {Grund}".
 
 ## Context
 
@@ -67,16 +77,16 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (state): While `[reencode] enabled = true` is set, sofarr runs in live mode and ffmpeg with libx265 can be run, the job runs rounds one after the other, each re-encoding a due file (spec `reencode-file`, runner `server`), the largest due file first.
-- [ ] AC-02 (always): sofarr never starts an attempt in a round on a file that is not a candidate, that is settled, or that is resting.
-- [ ] AC-03 (event): When an attempt of a round is refused (spec `reencode-file` AC-10, e.g. too little free space or Dolby Vision found), then that file rests for 24 hours and the job goes on in the same round with the next due file; a refusal because the encode slot was taken meanwhile ends the round without a rest, and the job waits as in AC-04.
-- [ ] AC-04 (state): While no file is due, the job starts nothing and looks again after 60 minutes; while the encode slot is held (by the CLI or an API start), it starts no attempt, and looks again within one minute after the slot is free.
-- [ ] AC-05 (event): When the server starts in live mode, then before any round it repairs every interrupted attempt (what spec `reencode-file` AC-12 does for one file: hidden originals back or to the recycle bin, work files removed, the record closed as `failed` "abgebrochen"), whether the job is switched on or not.
-- [ ] AC-06 (event): When the server stops (signal) during an encode it runs (by the job or an API start), then the encoder is stopped within 10 seconds (Docker's default before it kills the container), its work file is removed, the original stays untouched, and the attempt is recorded as `failed` "abgebrochen: sofarr wurde beendet"; a swap already under way is finished first.
-- [ ] AC-07 (option): Where `[reencode] enabled` is not set or `false` (the default), or sofarr runs in shadow mode, or ffmpeg with libx265 cannot be run, the job starts no attempt; requests by CLI and API (spec `reencode-file`) do not depend on `enabled`. Like every key, `enabled` is read when sofarr starts; whether ffmpeg with libx265 can be run is checked when sofarr starts and again before each round and each hourly look, so an installed ffmpeg is used without a restart.
-- [ ] AC-08 (event): When the user opens the system page, then the job list shows the job "Neu encodieren" with its last run and, while it waits, its next look, and the page says "Neu encodieren: aktiv" with the file it encodes, or "Neu encodieren: aus – {reason}" with one of the reasons "in der Konfiguration ausgeschaltet", "im Shadow-Mode", "ffmpeg mit libx265 nicht gefunden".
-- [ ] AC-09 (state): While a file rests after the first or second failure of its streak, it is not taken; 7 days after that failure it is due again and is taken when it is the first due file of a round; after the third failure it rests until it changes.
-- [ ] AC-10 (always): A round decides which file is due from the database alone, in under 2 s for a library of 2,500 movies and 20,000 episode files with 10,000 recorded attempts (`cargo test -p sofarr-server --release reencode_job_round_large_library`, measured duration in the test output).
+- [x] AC-01 (state): While `[reencode] enabled = true` is set, sofarr runs in live mode and ffmpeg with libx265 can be run, the job runs rounds one after the other, each re-encoding a due file (spec `reencode-file`, runner `server`), the largest due file first.
+- [x] AC-02 (always): sofarr never starts an attempt in a round on a file that is not a candidate, that is settled, or that is resting.
+- [x] AC-03 (event): When an attempt of a round is refused (spec `reencode-file` AC-10, e.g. too little free space or Dolby Vision found), then that file rests for 24 hours and the job goes on in the same round with the next due file; a refusal because the encode slot was taken meanwhile ends the round without a rest, and the job waits as in AC-04.
+- [x] AC-04 (state): While no file is due, the job starts nothing and looks again after 60 minutes; while the encode slot is held (by the CLI or an API start), it starts no attempt, and looks again within one minute after the slot is free.
+- [x] AC-05 (event): When the server starts in live mode, then before any round it repairs every interrupted attempt (what spec `reencode-file` AC-12 does for one file: hidden originals back or to the recycle bin, work files removed, the record closed as `failed` "abgebrochen"), whether the job is switched on or not.
+- [x] AC-06 (event): When the server stops (signal) during an encode it runs (by the job or an API start), then the encoder is stopped within 10 seconds (Docker's default before it kills the container), its work file is removed, the original stays untouched, and the attempt is recorded as `failed` "abgebrochen: sofarr wurde beendet"; a swap already under way is finished first.
+- [x] AC-07 (option): Where `[reencode] enabled` is not set or `false` (the default), or sofarr runs in shadow mode, or ffmpeg with libx265 cannot be run, the job starts no attempt; requests by CLI and API (spec `reencode-file`) do not depend on `enabled`. Like every key, `enabled` is read when sofarr starts; whether ffmpeg with libx265 can be run is checked when sofarr starts and again before each round and each hourly look, so an installed ffmpeg is used without a restart.
+- [x] AC-08 (event): When the user opens the system page, then the job list shows the job "Neu encodieren" with its last run and, while it waits, its next look, and the page says "Neu encodieren: aktiv" with the file it encodes, or "Neu encodieren: aus – {reason}" with one of the reasons "in der Konfiguration ausgeschaltet", "im Shadow-Mode", "ffmpeg mit libx265 nicht gefunden".
+- [x] AC-09 (state): While a file rests after the first or second failure of its streak, it is not taken; 7 days after that failure it is due again and is taken when it is the first due file of a round; after the third failure it rests until it changes.
+- [x] AC-10 (always): A round decides which file is due from the database alone, in under 2 s for a library of 2,500 movies and 20,000 episode files with 10,000 recorded attempts (`cargo test -p sofarr-server --release reencode_job_round_large_library`, measured duration in the test output).
 
 ## Technical notes
 
@@ -122,16 +132,16 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `reencode::job::tests::job::rounds_take_the_largest_due_file_and_skip_settled_ones` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-02 | `reencode::job::tests::a_settled_file_stays_settled_until_it_changes`, `due_keeps_the_order_of_the_candidate_list`, `job::rounds_take_the_largest_due_file_and_skip_settled_ones` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-03 | `reencode::job::tests::a_refused_file_rests_a_day_unless_the_slot_was_taken`, `job::a_refused_file_rests_and_the_round_goes_on` (`crates/sofarr-server/src/reencode/job/tests.rs`); `reencode::job::tests::system_and_race::a_slot_taken_during_a_round_ends_it_without_a_rest` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-04 | `reencode::job::tests::job::a_held_slot_makes_the_job_wait_without_records` (`crates/sofarr-server/src/reencode/job/tests.rs`); the wait is asserted to be at most 60 s in `job::a_held_slot_makes_the_job_wait_without_records` | built |        |
-| AC-05 | `reencode::job::tests::job::the_start_repairs_interrupted_attempts_even_when_switched_off` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-06 | `reencode::job::tests::job::a_stopping_server_stops_the_encoder`, `interruptions_and_refusals_neither_count_nor_break_the_streak` (`crates/sofarr-server/src/reencode/job/tests.rs`); `process::tests::a_set_stop_flag_stops_a_running_program`, `reasons_read_in_german` (`crates/sofarr-server/src/process.rs`); `serve_tests::shutting_the_server_down_stops_a_running_encode` (`crates/sofarr-server/src/serve_tests.rs`: the server's own shutdown path, an encode started through its API); `reencode::job::tests::stop_during_swap::a_swap_under_way_is_finished_first` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-07 | `reencode::job::tests::job::missing_ffmpeg_waits_and_the_system_page_says_why`, `the_start_repairs_interrupted_attempts_even_when_switched_off` (`crates/sofarr-server/src/reencode/job/tests.rs`); `config::tests::reencode_encoder_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`); `serve_tests::shutting_the_server_down_stops_a_running_encode` (an API start without `enabled`) | built |        |
-| AC-08 | `reencode::job::tests::job::the_system_page_names_the_running_encode`, `missing_ffmpeg_waits_and_the_system_page_says_why` (`crates/sofarr-server/src/reencode/job/tests.rs`); `re-encode job text (reencode-job AC-08)` (`ui/src/lib/reencode/reencode.test.ts`); `says whether files are re-encoded, which one, or why not` (`ui/e2e/reencode.spec.ts`); `reencode::job::tests::system_and_race::the_system_page_shows_the_last_run_and_the_next_look` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-09 | `reencode::job::tests::failures_rest_seven_days_and_three_rest_until_the_file_changes` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
-| AC-10 | `reencode::job::tests::job::reencode_job_round_large_library` (`crates/sofarr-server/src/reencode/job/tests.rs`) | built |        |
+| AC-01 | `reencode::job::tests::job::rounds_take_the_largest_due_file_and_skip_settled_ones` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | 872720d |
+| AC-02 | `reencode::job::tests::a_settled_file_stays_settled_until_it_changes`, `due_keeps_the_order_of_the_candidate_list`, `job::rounds_take_the_largest_due_file_and_skip_settled_ones` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | a8aa276 |
+| AC-03 | `reencode::job::tests::a_refused_file_rests_a_day_unless_the_slot_was_taken`, `job::a_refused_file_rests_and_the_round_goes_on` (`crates/sofarr-server/src/reencode/job/tests.rs`); `reencode::job::tests::system_and_race::a_slot_taken_during_a_round_ends_it_without_a_rest` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | 872720d |
+| AC-04 | `reencode::job::tests::job::a_held_slot_makes_the_job_wait_without_records` (`crates/sofarr-server/src/reencode/job/tests.rs`); the wait is asserted to be at most 60 s in `job::a_held_slot_makes_the_job_wait_without_records` | verified | 872720d |
+| AC-05 | `reencode::job::tests::job::the_start_repairs_interrupted_attempts_even_when_switched_off` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | 872720d |
+| AC-06 | `reencode::job::tests::job::a_stopping_server_stops_the_encoder`, `interruptions_and_refusals_neither_count_nor_break_the_streak` (`crates/sofarr-server/src/reencode/job/tests.rs`); `process::tests::a_set_stop_flag_stops_a_running_program`, `reasons_read_in_german` (`crates/sofarr-server/src/process.rs`); `serve_tests::shutting_the_server_down_stops_a_running_encode` (`crates/sofarr-server/src/serve_tests.rs`: the server's own shutdown path, an encode started through its API); `reencode::job::tests::stop_during_swap::a_swap_under_way_is_finished_first` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | 872720d |
+| AC-07 | `reencode::job::tests::job::missing_ffmpeg_waits_and_the_system_page_says_why`, `the_start_repairs_interrupted_attempts_even_when_switched_off` (`crates/sofarr-server/src/reencode/job/tests.rs`); `config::tests::reencode_encoder_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`); `serve_tests::shutting_the_server_down_stops_a_running_encode` (an API start without `enabled`) | verified | 872720d |
+| AC-08 | `reencode::job::tests::job::the_system_page_names_the_running_encode`, `missing_ffmpeg_waits_and_the_system_page_says_why` (`crates/sofarr-server/src/reencode/job/tests.rs`); `re-encode job text (reencode-job AC-08)` (`ui/src/lib/reencode/reencode.test.ts`); `says whether files are re-encoded, which one, or why not` (`ui/e2e/reencode.spec.ts`); `reencode::job::tests::system_and_race::the_system_page_shows_the_last_run_and_the_next_look` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | 36ab14b |
+| AC-09 | `reencode::job::tests::failures_rest_seven_days_and_three_rest_until_the_file_changes` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | 872720d |
+| AC-10 | `reencode::job::tests::job::reencode_job_round_large_library` (`crates/sofarr-server/src/reencode/job/tests.rs`) | verified | a8aa276 |
 
 ## Decisions
 
