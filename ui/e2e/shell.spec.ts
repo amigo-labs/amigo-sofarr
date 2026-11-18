@@ -15,6 +15,7 @@ const ENTRIES = [
   'Entdecken',
   'Blocklist',
   'Untertitel',
+  'Neu encodieren',
   'Backups',
   'System',
 ];

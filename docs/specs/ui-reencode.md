@@ -124,3 +124,4 @@ Terms used below:
 - 2026-11-18: The page reloads through the shared `createResource` (every 15 s, the last state stays on a failure); it remembers when it last loaded and shows "Stand von {Zeit} – sofarr ist nicht erreichbar". The navigation entry uses Octicon `zap`.
 - 2026-11-18: New API: `GET /api/reencode` (`ReencodePage`), `POST`/`DELETE /api/reencode/exclusions` (204; 404 unknown; 400 wrong body; 409 "Ausschluss nicht geändert: im Shadow-Mode"), `Db::recent_reencodes`, `reencode_savings`, `exclude_from_reencode`, `include_in_reencode`, `reencode_exclusions`.
 - 2026-11-18: The DB functions were red against stubs first; the page API, the page and its tests were written together.
+- 2026-11-18: The navigation lists of the shell tests (`ui/e2e/shell.spec.ts`, `ui/e2e/layout.spec.ts`) name the new entry; they check the order of every built page.
