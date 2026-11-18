@@ -177,6 +177,57 @@ impl Db {
         Ok(rows.iter().map(attempt_from_row).collect())
     }
 
+    /// The latest `limit` attempts, newest first, also of files that are gone.
+    pub async fn recent_reencodes(&self, limit: u32) -> Result<Vec<ReencodeAttempt>> {
+        let rows = sqlx::query(
+            "SELECT * FROM reencode_attempts ORDER BY started_at DESC, id DESC LIMIT ?",
+        )
+        .bind(limit)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows.iter().map(attempt_from_row).collect())
+    }
+
+    /// Keeps a library file out of the background job (spec ui-reencode).
+    pub async fn exclude_from_reencode(&self, file: FileRef, now: Timestamp) -> Result<()> {
+        let (movie_id, episode_file_id) = ids(file);
+        sqlx::query(
+            "INSERT INTO reencode_exclusions (movie_id, episode_file_id, excluded_at)
+             VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+        )
+        .bind(movie_id)
+        .bind(episode_file_id)
+        .bind(now.to_string())
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    /// Takes a library file back into the background job.
+    pub async fn include_in_reencode(&self, file: FileRef) -> Result<()> {
+        let (movie_id, episode_file_id) = ids(file);
+        sqlx::query("DELETE FROM reencode_exclusions WHERE movie_id IS ? AND episode_file_id IS ?")
+            .bind(movie_id)
+            .bind(episode_file_id)
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    /// The library files kept out of the background job.
+    pub async fn reencode_exclusions(&self) -> Result<Vec<FileRef>> {
+        let rows: Vec<(Option<i64>, Option<i64>)> =
+            sqlx::query_as("SELECT movie_id, episode_file_id FROM reencode_exclusions")
+                .fetch_all(self.pool())
+                .await?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(movie, episode)| {
+                movie.map(FileRef::Movie).or(episode.map(FileRef::Episode))
+            })
+            .collect())
+    }
+
     /// The attempts on one library file, newest first.
     pub async fn reencodes_of(&self, file: FileRef) -> Result<Vec<ReencodeAttempt>> {
         let (movie_id, episode_file_id) = ids(file);
@@ -347,6 +398,72 @@ mod tests {
             assert_eq!(stored.quality, "Remux-2160p");
             assert_eq!(stored.custom_format_score, 150);
         }
+    }
+
+    #[tokio::test]
+    async fn exclusions_follow_their_file() {
+        // Spec ui-reencode AC-05.
+        let db = Db::in_memory().await.expect("db");
+        let id = movie(&db).await;
+        let (file_id, _) = double_episode(&db).await;
+        assert!(db.reencode_exclusions().await.expect("read").is_empty());
+        db.exclude_from_reencode(FileRef::Movie(id), now())
+            .await
+            .expect("exclude");
+        db.exclude_from_reencode(FileRef::Movie(id), now())
+            .await
+            .expect("twice is fine");
+        db.exclude_from_reencode(FileRef::Episode(file_id), now())
+            .await
+            .expect("exclude");
+        let mut excluded = db.reencode_exclusions().await.expect("read");
+        excluded.sort_by_key(|f| format!("{f:?}"));
+        assert_eq!(excluded, [FileRef::Episode(file_id), FileRef::Movie(id)]);
+        // A movie's upgrade keeps the file record and the exclusion.
+        db.set_file(id, &file("Film.Upgrade.mkv"), now())
+            .await
+            .expect("upgrade");
+        assert!(
+            db.reencode_exclusions()
+                .await
+                .expect("read")
+                .contains(&FileRef::Movie(id))
+        );
+        db.include_in_reencode(FileRef::Episode(file_id))
+            .await
+            .expect("include");
+        assert_eq!(
+            db.reencode_exclusions().await.expect("read"),
+            [FileRef::Movie(id)]
+        );
+        // A removed file takes its exclusion with it.
+        db.remove_file(id).await.expect("remove");
+        assert!(db.reencode_exclusions().await.expect("read").is_empty());
+    }
+
+    #[tokio::test]
+    async fn recent_attempts_are_limited_and_keep_files_that_are_gone() {
+        let db = Db::in_memory().await.expect("db");
+        let id = movie(&db).await;
+        for n in 0..5 {
+            let new = NewReencode {
+                file: FileRef::Movie(id),
+                title: format!("Film {n}"),
+                path: "/filme/Film/Film.mp4".to_owned(),
+                runner: "server".to_owned(),
+                size_before: 1000,
+            };
+            db.start_reencode(&new, now() + jiff::SignedDuration::from_secs(n))
+                .await
+                .expect("start");
+        }
+        db.delete_movie(id).await.expect("remove");
+        let recent = db.recent_reencodes(3).await.expect("recent");
+        assert_eq!(
+            recent.iter().map(|a| a.title.as_str()).collect::<Vec<_>>(),
+            ["Film 4", "Film 3", "Film 2"]
+        );
+        assert!(recent.iter().all(|a| a.file.is_none()));
     }
 
     #[tokio::test]
