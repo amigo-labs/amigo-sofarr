@@ -1,7 +1,11 @@
 //! The re-encode job (spec reencode-job): rounds around the clock through the candidate
 //! list, the largest due file first.
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 
 use jiff::{SignedDuration, Timestamp};
 use serde::Serialize;
@@ -32,29 +36,48 @@ pub const SLOT_TAKEN: &str = "Es läuft bereits ein Encode";
 /// about the file.
 const INTERRUPTED: &str = "abgebrochen";
 
-/// Whether a candidate of this size with these attempts (newest first) is due now.
-pub fn is_due(size: u64, attempts: &[ReencodeAttempt], now: Timestamp) -> bool {
+/// Where a library file stands for the job, from its attempts alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileState {
+    /// Settled after `replaced`.
+    Done,
+    /// Settled after `no_gain`.
+    NoGain,
+    /// Resting after a failure or a refusal until this time.
+    RestsUntil(Timestamp),
+    /// Resting after the third failure in a row until the file changes.
+    RestsUntilChange,
+    Due,
+}
+
+/// Where a candidate of this size with these attempts (newest first) stands now.
+pub fn state_of(size: u64, attempts: &[ReencodeAttempt], now: Timestamp) -> FileState {
     let ended = |a: &ReencodeAttempt| a.finished_at.unwrap_or(a.started_at);
     // Settled: an attempt at the size the file has now ended replaced or without gain.
-    let settled = attempts.iter().any(|a| match a.outcome {
-        Some(ReencodeOutcome::Replaced) => a.size_after == Some(size),
-        Some(ReencodeOutcome::NoGain) => a.size_before == size,
-        _ => false,
-    });
-    if settled {
-        return false;
+    for attempt in attempts {
+        match attempt.outcome {
+            Some(ReencodeOutcome::Replaced) if attempt.size_after == Some(size) => {
+                return FileState::Done;
+            }
+            Some(ReencodeOutcome::NoGain) if attempt.size_before == size => {
+                return FileState::NoGain;
+            }
+            _ => {}
+        }
     }
     // A refusal rests a day, unless another encode only held the slot.
-    if let Some(latest) = attempts.iter().find(|a| a.outcome.is_some())
-        && latest.outcome == Some(ReencodeOutcome::Refused)
-        && !latest
-            .reason
-            .as_deref()
-            .is_some_and(|r| r.starts_with(SLOT_TAKEN))
-        && ended(latest) > now - REST_AFTER_REFUSAL
-    {
-        return false;
-    }
+    let refusal_rest = attempts
+        .iter()
+        .find(|a| a.outcome.is_some())
+        .filter(|latest| {
+            latest.outcome == Some(ReencodeOutcome::Refused)
+                && !latest
+                    .reason
+                    .as_deref()
+                    .is_some_and(|r| r.starts_with(SLOT_TAKEN))
+        })
+        .map(|latest| ended(latest) + REST_AFTER_REFUSAL)
+        .filter(|until| *until > now);
     // The failure streak at this size, newest first; interruptions and refusals do not count.
     let mut streak = 0;
     let mut last_failure = None;
@@ -73,27 +96,45 @@ pub fn is_due(size: u64, attempts: &[ReencodeAttempt], now: Timestamp) -> bool {
             _ => {}
         }
     }
-    match (streak, last_failure) {
-        (0, _) => true,
-        (1 | 2, Some(at)) => at <= now - REST_AFTER_FAILURE,
-        _ => false,
+    let failure_rest = match (streak, last_failure) {
+        (1 | 2, Some(at)) => Some(at + REST_AFTER_FAILURE).filter(|until| *until > now),
+        (0, _) | (_, None) => None,
+        _ => return FileState::RestsUntilChange,
+    };
+    // Where both apply, the later one counts.
+    match refusal_rest.max(failure_rest) {
+        Some(until) => FileState::RestsUntil(until),
+        None => FileState::Due,
     }
 }
 
-/// The due candidates in the order of the candidate list.
-pub fn due<'a>(
-    candidates: &'a [Candidate],
-    attempts: &[ReencodeAttempt],
-    now: Timestamp,
-) -> Vec<&'a Candidate> {
+/// Whether a candidate of this size with these attempts (newest first) is due now.
+pub fn is_due(size: u64, attempts: &[ReencodeAttempt], now: Timestamp) -> bool {
+    state_of(size, attempts, now) == FileState::Due
+}
+
+/// The attempts per library file, newest first.
+pub fn by_file(attempts: &[ReencodeAttempt]) -> HashMap<FileRef, Vec<ReencodeAttempt>> {
     let mut by_file: HashMap<FileRef, Vec<ReencodeAttempt>> = HashMap::new();
     for attempt in attempts {
         if let Some(file) = attempt.file {
             by_file.entry(file).or_default().push(attempt.clone());
         }
     }
+    by_file
+}
+
+/// The due candidates in the order of the candidate list; excluded files never are.
+pub fn due<'a>(
+    candidates: &'a [Candidate],
+    attempts: &[ReencodeAttempt],
+    excluded: &HashSet<FileRef>,
+    now: Timestamp,
+) -> Vec<&'a Candidate> {
+    let by_file = by_file(attempts);
     candidates
         .iter()
+        .filter(|c| !excluded.contains(&c.file))
         .filter(|c| is_due(c.size, by_file.get(&c.file).map_or(&[], Vec::as_slice), now))
         .collect()
 }
@@ -114,7 +155,8 @@ pub async fn due_files(app: &App, now: Timestamp) -> anyhow::Result<Vec<Candidat
     let thresholds = app.config.reencode.thresholds();
     let list = super::candidates(&app.db, &thresholds).await?;
     let attempts = app.db.all_reencodes().await?;
-    Ok(due(&list.candidates, &attempts, now)
+    let excluded: HashSet<FileRef> = app.db.reencode_exclusions().await?.into_iter().collect();
+    Ok(due(&list.candidates, &attempts, &excluded, now)
         .into_iter()
         .cloned()
         .collect())

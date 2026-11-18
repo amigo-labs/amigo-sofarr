@@ -16,6 +16,7 @@ use crate::{api::ApiError, app::SharedApp};
 pub mod encode;
 pub mod ffmpeg;
 pub mod job;
+pub mod page;
 pub mod run;
 #[cfg(test)]
 mod tests;

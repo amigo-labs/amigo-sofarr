@@ -286,6 +286,7 @@ impl Refusal {
 
 /// The running encode as its lock says.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct Running {
     pub title: String,
     /// The original's absolute path.

@@ -53,6 +53,70 @@ fn due_now(attempts: &[ReencodeAttempt]) -> bool {
 }
 
 #[test]
+fn the_state_names_why_a_file_is_not_due() {
+    // Spec ui-reencode: the job state of a candidate.
+    let state = |attempts: &[ReencodeAttempt]| state_of(SIZE, attempts, now());
+    assert_eq!(state(&[]), FileState::Due);
+    let replaced = attempt(ReencodeOutcome::Replaced, None, 90_000, Some(SIZE), 100);
+    assert_eq!(state(&[replaced]), FileState::Done);
+    let no_gain = attempt(ReencodeOutcome::NoGain, None, SIZE, Some(45_000), 100);
+    assert_eq!(state(&[no_gain]), FileState::NoGain);
+    assert_eq!(
+        state(&[failed(24)]),
+        FileState::RestsUntil(ago(24) + REST_AFTER_FAILURE)
+    );
+    assert_eq!(
+        state(&[failed(1), failed(2), failed(3)]),
+        FileState::RestsUntilChange
+    );
+    let refused = attempt(
+        ReencodeOutcome::Refused,
+        Some("zu wenig Speicherplatz"),
+        SIZE,
+        None,
+        2,
+    );
+    assert_eq!(
+        state(std::slice::from_ref(&refused)),
+        FileState::RestsUntil(ago(2) + REST_AFTER_REFUSAL)
+    );
+    // Both a failure rest and a refusal rest: the later one counts.
+    assert_eq!(
+        state(&[refused.clone(), failed(48)]),
+        FileState::RestsUntil(ago(48) + REST_AFTER_FAILURE)
+    );
+    assert_eq!(
+        state(&[refused, failed(7 * 24 - 1)]),
+        FileState::RestsUntil(ago(2) + REST_AFTER_REFUSAL)
+    );
+}
+
+#[test]
+fn excluded_files_are_never_due() {
+    use crate::reencode::Candidate;
+    let candidate = Candidate {
+        file: FileRef::Movie(1),
+        kind: "movie",
+        movie_id: Some(1),
+        series_id: None,
+        episode_ids: Vec::new(),
+        title: "Film".to_owned(),
+        path: "/filme/1.mkv".to_owned(),
+        size: SIZE,
+        duration_seconds: 6000.0,
+        duration_source: "file",
+        resolution: "1080p",
+        video_codec: "h264".to_owned(),
+        mb_per_minute: 100.0,
+        threshold: 60.0,
+    };
+    let list = [candidate];
+    assert_eq!(due(&list, &[], &Default::default(), now()).len(), 1);
+    let excluded = [FileRef::Movie(1)].into_iter().collect();
+    assert!(due(&list, &[], &excluded, now()).is_empty());
+}
+
+#[test]
 fn a_file_without_attempts_is_due() {
     assert!(due_now(&[]));
 }
@@ -193,7 +257,12 @@ fn due_keeps_the_order_of_the_candidate_list() {
     resting.file = Some(FileRef::Movie(2));
     let mut gone = failed(1);
     gone.file = None;
-    let due = due(&list, &[resting, gone], now());
+    let due = due(
+        &list,
+        &[resting.clone(), gone.clone()],
+        &Default::default(),
+        now(),
+    );
     assert_eq!(
         due.iter().map(|c| c.file).collect::<Vec<_>>(),
         [FileRef::Movie(1), FileRef::Movie(3)]
