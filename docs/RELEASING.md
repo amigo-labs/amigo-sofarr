@@ -9,7 +9,7 @@ and `linux/arm64`, pushes it and publishes the draft release.
 - **Write Conventional Commits** (`feat(server): …`, `fix(core): …`, AGENTS.md). `feat` /
   `fix` / `perf` / `revert` end up in the changelog and make a release; `docs`, `ci`, `chore`,
   `refactor`, `test`, `build` don't.
-- **Every push to `main` opens or refreshes the release PR** ("chore: release amigo-sofarr
+- **Every push to `main` opens or refreshes the release PR** ("chore: release Sofarr
   X.Y.Z"): the version in `Cargo.toml` and `Cargo.lock`, plus the new `CHANGELOG.md` entry.
 - **Merge the release PR to release.** release-please tags `vX.Y.Z` and creates the release as
   a draft with the changelog; `release.yml` builds and pushes the image, then publishes the

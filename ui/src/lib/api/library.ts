@@ -148,7 +148,7 @@ export const getBlocklist = (page: number): Promise<ApiResult<BlocklistPage>> =>
   api.read(`/api/blocklist${queryString({ page, page_size: 50 })}`);
 
 export const unblock = (id: number): Promise<ApiResult<null>> =>
-  api.write('Blocklist-Eintrag entfernen', 'DELETE', `/api/blocklist/${id}`);
+  api.write('Sperrlisten-Eintrag entfernen', 'DELETE', `/api/blocklist/${id}`);
 
 export const getBackups = (): Promise<ApiResult<BackupList>> => api.read('/api/backups');
 

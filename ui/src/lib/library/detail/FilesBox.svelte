@@ -5,9 +5,10 @@
   import type { FolderState } from '../../api/generated/FolderState';
   import type { RenameEntry } from '../../api/generated/RenameEntry';
   import { libraryKind, moveFolder, remove, rename, renamePreview } from '../../api/library';
-  import { itemCount, removeText } from '../format';
+  import { itemCount, removeText, sentence } from '../format';
   import { notify } from '../notices.svelte';
   import Dialog from '../components/Dialog.svelte';
+  import PathText from '../components/PathText.svelte';
 
   // Folder and file actions of a movie or series: rename preview, moving the folder to its
   // current name, removing (spec web-ui-library AC-12, AC-13, AC-15 to AC-17, AC-24).
@@ -103,21 +104,21 @@
     <dl class="facts">
       <div>
         <dt>Ordner</dt>
-        <dd class="mono" data-testid="folder">{folder.current}</dd>
+        <dd><PathText path={folder.current} testid="folder" /></dd>
       </div>
     </dl>
     {#if folder.differs && folder.expected !== null}
       <div class="differs" data-testid="folder-differs">
         <p><strong>Der Ordner weicht vom aktuellen Ordnernamen ab.</strong></p>
-        <p>Bisher: <span class="mono">{folder.current}</span></p>
-        <p>Neu: <span class="mono">{folder.expected}</span></p>
+        <p>Bisher: <PathText path={folder.current} /></p>
+        <p>Neu: <PathText path={folder.expected} /></p>
       </div>
     {/if}
     {#if !fileActions.available}
       <Flash tone="info">
         <p>
-          {fileActions.reason ?? 'Dateiaktionen sind gerade nicht möglich.'} Überwachung, Profil und Entfernen
-          ohne Dateien funktionieren trotzdem.
+          {sentence(fileActions.reason ?? 'Dateiaktionen sind gerade nicht möglich')} Überwachung, Profil
+          und Entfernen ohne Dateien funktionieren trotzdem.
         </p>
       </Flash>
     {/if}
@@ -156,8 +157,8 @@
     <ul class="renames" data-testid="rename-preview">
       {#each renames as entry (entry.old_path)}
         <li>
-          <span class="old mono">{entry.old_path}</span>
-          <span class="new mono">→ {entry.new_path}</span>
+          <span class="old"><PathText path={entry.old_path} /></span>
+          <span class="new"><PathText path={entry.new_path} prefix="→ " /></span>
         </li>
       {/each}
     </ul>
@@ -176,8 +177,8 @@
 
 <Dialog open={moving} title="Ordner verschieben" onclose={() => (moving = false)}>
   <p>Der Ordner und alles darin werden umbenannt:</p>
-  <p class="mono">{folder.current}</p>
-  <p class="mono">→ {folder.expected}</p>
+  <p><PathText path={folder.current} /></p>
+  <p><PathText path={folder.expected ?? ''} prefix="→ " /></p>
   {#snippet actions()}
     <button type="button" class="btn" onclick={() => (moving = false)}>Abbrechen</button>
     <button type="button" class="btn btn-primary" disabled={busy} onclick={() => void doMove()}>

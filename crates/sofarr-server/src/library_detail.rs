@@ -33,7 +33,7 @@ pub struct FileActions {
 }
 
 pub const NEEDS_LIVE: &str = "Dateiaktionen (Umbenennen, Ordner verschieben, Dateien löschen) \
-     gibt es nur im Live-Modus ([automation] mode = \"live\")";
+     gibt es nur im Live-Modus.";
 
 pub const MOVIE_BUSY: &str =
     "Für diesen Film läuft ein Download oder Import – Dateiaktionen sind erst danach möglich";

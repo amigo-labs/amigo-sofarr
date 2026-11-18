@@ -7,6 +7,7 @@ import {
   fetchedText,
   jobText,
   libraryLabel,
+  ratingCompact,
   ratingLine,
   runtimeText,
   seasonText,
@@ -41,7 +42,7 @@ describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
 
   it('dates cached answers; a stale page wins', () => {
     const freshness = { fetched_at: '2026-11-12T09:00:00Z', stale: false, notice: null };
-    expect(fetchedText(freshness, 'Europe/Berlin')).toBe('Stand: 12.11.2026, 10:00:00');
+    expect(fetchedText(freshness, 'Europe/Berlin')).toBe('Stand: 12.11.2026, 10:00');
     const stale = { ...freshness, stale: true, notice: 'alt' };
     expect(fresher(freshness, stale)).toBe(stale);
     expect(fresher(stale, freshness)).toBe(stale);
@@ -66,5 +67,23 @@ describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
     ]);
     const refs = Array.from({ length: 1001 }, (_, i) => ({ kind: 'movie' as const, tmdb_id: i }));
     expect(batches(refs).map((b) => b.length)).toEqual([500, 500, 1]);
+  });
+});
+
+describe('compact tile rating (ui-consistency AC-03)', () => {
+  it('shows the star and keeps the full text for tooltip and name', () => {
+    expect(ratingCompact({ state: 'rated', rating: 7.8, votes: 12345 })).toEqual({
+      text: '★ 7,8',
+      full: 'IMDb 7,8 (12.345 Stimmen)',
+    });
+    expect(ratingCompact({ state: 'none', rating: null, votes: null })).toEqual({
+      text: '–',
+      full: 'IMDb –',
+    });
+    expect(ratingCompact({ state: 'pending', rating: null, votes: null })).toEqual({
+      text: '…',
+      full: 'IMDb-Bewertung folgt',
+    });
+    expect(ratingCompact({ state: 'off', rating: null, votes: null })).toBeNull();
   });
 });

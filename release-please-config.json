@@ -8,7 +8,7 @@
   "draft": true,
   "force-tag-creation": true,
   "bootstrap-sha": "2485665b05f04f9cdfd796448f08be1a1cdb952c",
-  "pull-request-title-pattern": "chore: release amigo-sofarr ${version}",
+  "pull-request-title-pattern": "chore: release Sofarr ${version}",
   "pull-request-header": "Automated release proposed by release-please. Merging this PR tags the version and builds and publishes the release (container image ghcr.io/amigo-labs/amigo-sofarr for linux/amd64 and linux/arm64).",
   "changelog-sections": [
     {"type": "feat", "section": "Features"},

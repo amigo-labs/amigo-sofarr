@@ -4,12 +4,16 @@ import {
   bulkSearchText,
   bytesText,
   dateText,
+  dayHeading,
   durationText,
   episodeCode,
   itemCount,
+  pathPieces,
   percentText,
   removeText,
   searchText,
+  sentence,
+  seriesTypeText,
   statusText,
 } from './format';
 
@@ -72,5 +76,53 @@ describe('library texts', () => {
     expect(removeText('Weg', { files_removed: 2, recycle_bin: true, downloads_removed: 1 })).toBe(
       '„Weg“ wurde aus der Bibliothek entfernt. 2 Dateien in den Papierkorb verschoben. 1 Download beim Download-Client entfernt.',
     );
+  });
+});
+
+describe('series type (ui-consistency AC-08)', () => {
+  it('names the known types in German and keeps any other', () => {
+    expect(seriesTypeText('standard')).toBe('Standard');
+    expect(seriesTypeText('anime')).toBe('Anime');
+    expect(seriesTypeText('daily')).toBe('Täglich');
+    expect(seriesTypeText('miniserie')).toBe('miniserie');
+    expect(seriesTypeText('')).toBe('–');
+    expect(seriesTypeText(null)).toBe('–');
+  });
+});
+
+describe('sentence', () => {
+  it('ends a text with a full stop once', () => {
+    expect(sentence('Erst danach möglich')).toBe('Erst danach möglich.');
+    expect(sentence('Gibt es nur im Live-Modus.')).toBe('Gibt es nur im Live-Modus.');
+  });
+});
+
+describe('path pieces (ui-consistency AC-12)', () => {
+  it('ends each piece after a separator and keeps every character', () => {
+    expect(pathPieces('/a/b c/d.mkv')).toEqual(['/', 'a/', 'b c/', 'd.mkv']);
+    expect(pathPieces('D:\\Filme\\X')).toEqual(['D:\\', 'Filme\\', 'X']);
+    expect(pathPieces('a/b\\c')).toEqual(['a/', 'b\\', 'c']);
+    expect(pathPieces('ohne-trenner')).toEqual(['ohne-trenner']);
+    expect(pathPieces('')).toEqual([]);
+    const long = '/data/x/'.repeat(5);
+    expect(pathPieces(long).join('')).toBe(long);
+  });
+});
+
+describe('day headings (ui-overview-polish AC-05)', () => {
+  const today = '2026-11-17';
+  it('says „Heute“ and „Morgen“, otherwise weekday and date without year', () => {
+    expect(dayHeading('2026-11-17', today)).toBe('Heute');
+    expect(dayHeading('2026-11-18', today)).toBe('Morgen');
+    expect(dayHeading('2026-11-19', today)).toBe('Donnerstag, 19.11.');
+    expect(dayHeading('2026-11-23', today)).toBe('Montag, 23.11.');
+    // Across a month and a year.
+    expect(dayHeading('2026-12-01', '2026-11-30')).toBe('Morgen');
+    expect(dayHeading('2027-01-01', '2026-12-31')).toBe('Morgen');
+    expect(dayHeading('2027-01-02', '2026-12-31')).toBe('Samstag, 02.01.');
+  });
+
+  it('shows a date it cannot read as it came', () => {
+    expect(dayHeading('bald', today)).toBe('bald');
   });
 });

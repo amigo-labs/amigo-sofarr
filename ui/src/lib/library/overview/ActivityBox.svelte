@@ -4,16 +4,24 @@
   import { mediaHref } from '../actions';
   import { bytesText, statusText, statusTone } from '../format';
   import Label from '../components/Label.svelte';
+  import EmptyLine from './EmptyLine.svelte';
 
-  // Grabs and imports, newest first (AC-01): the last activities or the problems.
-  type Props = { id: string; title: string; entries: readonly ActivityEntry[]; empty: string };
-  let { id, title, entries, empty }: Props = $props();
+  // Grabs and imports, newest first (AC-01): the last activities or the problems. Empty, its
+  // sentence after a decorative icon (ui-overview-polish AC-06).
+  type Props = {
+    id: string;
+    title: string;
+    entries: readonly ActivityEntry[];
+    empty: string;
+    emptyIcon: string;
+  };
+  let { id, title, entries, empty, emptyIcon }: Props = $props();
 </script>
 
 <section class="box" aria-labelledby={id}>
   <h2 {id} class="box-header">{title}</h2>
   {#if entries.length === 0}
-    <p class="box-row muted">{empty}</p>
+    <EmptyLine icon={emptyIcon} text={empty} />
   {:else}
     <ul class="rows">
       {#each entries as entry (entry.kind + entry.grab_id)}

@@ -26,7 +26,7 @@ const TARGETS: readonly Target[] = [
   },
   { name: 'Kalender', path: fixed('/kalender') },
   { name: 'Fehlend', path: fixed('/fehlend') },
-  { name: 'Blocklist', path: fixed('/blocklist') },
+  { name: 'Sperrliste', path: fixed('/blocklist') },
   { name: 'Backups', path: fixed('/backups') },
 ];
 

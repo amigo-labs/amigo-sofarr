@@ -10,7 +10,7 @@ Two kinds of spec live here (`AGENTS.md`, "Spec-driven workflow"):
 
 ## Order
 
-Phase 6 "operations and comfort" (decisions D13–D26). All specs are written and committed;
+Phase 6 "operations and comfort" (decisions D13–D30). All specs are written and committed;
 the next step for each is `/spec-build <name>`, then `/spec-check <name>`. The order is binding
 because later specs build on earlier ones.
 
@@ -36,11 +36,14 @@ because later specs build on earlier ones.
 | 18 | [ui-calendar](ui-calendar.md) | M | ui-detail-boxes | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) | done |
 | 19 | [ui-overview-pages](ui-overview-pages.md) | M | ui-calendar | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) | done |
 | 20 | [ui-discover-polish](ui-discover-polish.md) | M | ui-overview-pages | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) | done |
-| 21 | [reencode-rule](reencode-rule.md) | M | mediainfo | Re-encoding 1: duration in the media info, size-per-minute thresholds per resolution, candidate list by API and CLI, largest first (D31) | done |
-| 22 | [reencode-file](reencode-file.md) | M | reencode-rule, trailers | Re-encoding 2: one file on request by CLI and API: ffmpeg (libx265, MKV, low priority), checked result, swap with the original to the recycle bin, outcome of every attempt (D31) | done |
-| 23 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | done |
-| 24 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | done |
-| 25 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | done |
+| 21 | [ui-consistency](ui-consistency.md) | M | ui-discover-polish | UI redesign 9: accent only for states and the main action, discover tiles and search like the library, German wording, date-times to the minute, calmer episode rows, paths break at slashes, sofarr's monogram (D30) | done |
+| 22 | [ui-overview-polish](ui-overview-polish.md) | S | ui-consistency | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) | done |
+| 23 | [ui-shell-redesign](ui-shell-redesign.md), [web-ui-shell](web-ui-shell.md) (revision) | S | ui-consistency | Übersicht and Entdecken first in the sidebar without a group heading; ui-shell-redesign AC-01 and web-ui-shell AC-08 revised | done |
+| 24 | [reencode-rule](reencode-rule.md) | M | mediainfo | Re-encoding 1: duration in the media info, size-per-minute thresholds per resolution, candidate list by API and CLI, largest first (D31) | done |
+| 25 | [reencode-file](reencode-file.md) | M | reencode-rule, trailers | Re-encoding 2: one file on request by CLI and API: ffmpeg (libx265, MKV, low priority), checked result, swap with the original to the recycle bin, outcome of every attempt (D31) | done |
+| 26 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | done |
+| 27 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | done |
+| 28 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | done |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -52,16 +55,16 @@ Large specs (L) are split while being written when they need more than a few ses
 | [fail-handling](fail-handling.md) | 2026-11-12 | Blocklist, re-search after failures, vanished downloads, series search, manual search (D13, D21) |
 | [backups](backups.md) | 2026-11-12 | Scheduled, manual and pre-migration backups, restore at the next start or by CLI (D14) |
 | [auth](auth.md) | 2026-11-12 | Switchable login, sessions, API key, trusted networks and proxies, generic error messages (D15) |
-| [web-ui-shell](web-ui-shell.md) | 2026-11-12, AC-10 revised 2026-11-15 | SvelteKit static UI in the binary, login, navigation, shared amigo theme, system page (D16, D23, D29) |
+| [web-ui-shell](web-ui-shell.md) | 2026-11-12, AC-10 revised 2026-11-15, AC-08 revised 2026-11-17 | SvelteKit static UI in the binary, login, navigation, shared amigo theme, system page (D16, D23, D29) |
 | [trailers](trailers.md) | 2026-11-12 | TMDB trailers via yt-dlp into `trailers/` within a daily budget, Alpine runtime image (D18) |
-| [imdb-ratings](imdb-ratings.md) | 2026-11-12, AC-04 revised 2026-11-17 | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) |
+| [imdb-ratings](imdb-ratings.md) | 2026-11-12, AC-04 revised 2026-11-17 (ui-list-items, ui-consistency) | IMDb ratings from the IMDb datasets in every list, sortable and filterable; TMDB ids for series (D20, D26) |
 | [subtitles](subtitles.md) | 2026-11-12 | Needed subtitles (de, en, forced) from OpenSubtitles.com, stored by Jellyfin's naming rules (D17, D25) |
 | [discover](discover.md) | 2026-11-12 | Discover/trending, search, title previews, people pages with filmography, adding movies and series, person import lists (D19) |
 | [mediainfo](mediainfo.md) | 2026-11-13 | Own MKV/MP4 reader, media info for every file, real `{MediaInfo…}` tokens, `compare-mediainfo` (D22) |
 | [web-ui-library](web-ui-library.md) | 2026-11-13 | Overview, movies, series, calendar, missing, blocklist, backups; monitor, profile, remove, rename, move folder; poster cache (D24) |
 | [parser-episode-gaps](parser-episode-gaps.md) | 2026-11-15 | Episode parser: year before ` - 06`, `E06` without a season, batches `(23-26)`, `[03]` after a dotted anime title |
 | [amigo-theme](amigo-theme.md) | 2026-11-15 | The shared amigo app theme from amigo-labs/website with sofarr's accent, dark by default, Inter (D29) |
-| [ui-shell-redesign](ui-shell-redesign.md) | 2026-11-17 | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes, filled status labels, UI links without underline (D30) |
+| [ui-shell-redesign](ui-shell-redesign.md) | 2026-11-17, AC-01 revised 2026-11-17 | UI redesign 1: sidebar navigation (collapsible, drawer on narrow windows), segmented theme switch, shared component classes, filled status labels, UI links without underline (D30) |
 | [ui-list-items](ui-list-items.md) | 2026-11-17 | UI redesign 3: quieter cards and rows, status chips, compact rating, monitor icon on the poster, checkbox on hover (D30) |
 | [ui-detail-head](ui-detail-head.md) | 2026-11-17 | UI redesign 4: head of the movie and series pages with blurred poster backdrop, compact facts, cast strip, attribution at the end (D30) |
 | [ui-detail-boxes](ui-detail-boxes.md) | 2026-11-17 | UI redesign 5: two-column boxes, quiet box headers, readable file paths, compact seasons and episodes (D30) |
@@ -69,6 +72,8 @@ Large specs (L) are split while being written when they need more than a few ses
 | [ui-calendar](ui-calendar.md) | 2026-11-17 | UI redesign 6: calendar as a month grid with weekday headings, week columns, agenda on narrow windows, compact entries with state dots (D30) |
 | [ui-overview-pages](ui-overview-pages.md) | 2026-11-17 | UI redesign 7: one page header, key figures and two columns on the overview, shared tabs on Fehlend, calm list rows, compact system facts, centred login card (D30) |
 | [ui-discover-polish](ui-discover-polish.md) | 2026-11-17 | UI redesign 8: discover filters in a panel with chips, shelf arrows, preview head with backdrop, new website screenshots (D30) |
+| [ui-consistency](ui-consistency.md) | 2026-11-17 | UI redesign 9: accent only for states and the main action, discover tiles and search like the library, German wording, date-times to the minute, calmer episode rows, paths break at slashes, sofarr's monogram (D30) |
+| [ui-overview-polish](ui-overview-polish.md) | 2026-11-17 | UI redesign 10: key figures with icons, a neutral line without download client, the queue's „Stand“ once, „Heute“/„Morgen“ day headings, empty states (D30) |
 | [reencode-rule](reencode-rule.md) | 2026-11-17 | Re-encoding 1: duration from Matroska and MP4 headers, size-per-minute thresholds per resolution (`[reencode]`), candidate list by `GET /api/reencode/candidates` and `amigo-sofarr reencode-candidates`, largest first, read-only in both modes (D31) |
 | [reencode-file](reencode-file.md) | 2026-11-18 | Re-encoding 2: one file on request by `amigo-sofarr reencode` and `POST /api/reencode/encode`: ffmpeg (libx265, 10-bit, MKV, niceness 19), one encode slot, checked result, swap with the original to the recycle bin, every attempt recorded, `[reencode] crf/preset/threads/min_saving_percent/timeout_hours` (D31) |
 | [reencode-job](reencode-job.md) | 2026-11-18 | Re-encoding 3: background job `[reencode] enabled` (off by default, live mode), largest due file first, settled and resting files skipped, interrupted attempts repaired at start, encodes stopped with the server, "Neu encodieren" on the system page (D31) |

@@ -39,7 +39,7 @@ describe('IMDb texts (imdb-ratings AC-04, AC-08)', () => {
   });
 
   it('dates the ratings data, and says nothing before the first load', () => {
-    expect(dataDateText(info, 'Europe/Berlin')).toBe('Stand der Bewertungen: 12.11.2026, 04:00:00');
+    expect(dataDateText(info, 'Europe/Berlin')).toBe('Stand der Bewertungen: 12.11.2026, 04:00');
     expect(dataDateText({ ...info, loaded_at: null })).toBeNull();
   });
 });

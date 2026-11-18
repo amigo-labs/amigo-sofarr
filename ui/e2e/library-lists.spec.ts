@@ -125,7 +125,7 @@ test.describe('series list (AC-06)', () => {
     await expectTotal(page, await apiTotal(request, '/api/library/series'), 'Serien');
     const insel = items(page).filter({ hasText: 'Kleine Insel' });
     await expect(insel).toContainText('1 von 5 Dateien');
-    await expect(insel).toContainText('1 fehlen');
+    await expect(insel).toContainText('1 fehlt');
     await expect(insel).toContainText('1 unter Cutoff');
     const complete = await apiTotal(request, '/api/library/series?complete=yes');
     await openFilters(page);

@@ -34,7 +34,7 @@ export async function expectAttribution(page: Page): Promise<void> {
   const link = page.getByRole('link', { name: /Information courtesy of IMDb/ });
   await expect(link).toHaveAttribute('href', 'https://www.imdb.com');
   await expect(page.locator('.imdb-attribution')).toContainText(
-    /Stand der Bewertungen: \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2}/,
+    /Stand der Bewertungen: \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}/,
   );
 }
 

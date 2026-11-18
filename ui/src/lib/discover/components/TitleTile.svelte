@@ -34,9 +34,11 @@
     >{KIND_TEXT[card.kind]}{#if card.year !== null}&nbsp;· {card.year}{/if}</span
   >
   {#if note !== null && note !== ''}<span class="meta note">{note}</span>{/if}
-  <RatingText rating={state.rating} />
+  <RatingText rating={state.rating} compact />
   {#if label !== null}
-    <span data-testid="library-state"><Label text={label.text} tone={label.tone} /></span>
+    <span class="state" data-testid="library-state"
+      ><Label text={label.text} tone={label.tone} /></span
+    >
   {/if}
   {#if canAdd && state.library.status !== 'in_library'}
     <button type="button" class="btn add" onclick={() => onadd(card, state)}>
@@ -71,8 +73,27 @@
     overflow-wrap: anywhere;
   }
 
+  /* Chip and add button end a tile at the same height (ui-consistency AC-04). */
+  .state {
+    display: flex;
+    margin-top: auto;
+  }
+
+  .state :global(.label),
+  .add {
+    box-sizing: border-box;
+    height: 1.75rem;
+    min-height: 1.75rem;
+  }
+
+  .state :global(.label) {
+    display: inline-flex;
+    align-items: center;
+  }
+
   .add {
     align-self: flex-start;
     margin-top: auto;
+    padding-block: 0;
   }
 </style>

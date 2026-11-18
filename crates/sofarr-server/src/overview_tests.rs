@@ -130,18 +130,24 @@ async fn queue_shows_progress_size_and_remaining_time() {
         "paused: no time"
     );
     assert_eq!(queue["notice"], Value::Null);
+    // ui-overview-polish AC-04: a configured client.
+    assert_eq!(queue["client_configured"], true);
 
     // The client goes away: the last known state stays, with a German notice.
     s.lock().nzbget_down = true;
     let (status, stale) = http.get("/api/queue").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(stale["items"][0]["progress"], 0.75);
-    assert!(
-        stale["notice"]
-            .as_str()
-            .is_some_and(|n| n.starts_with("Download-Client nicht erreichbar – Stand von")),
-        "{stale}"
-    );
+    // ui-overview-polish AC-03: the time of the last state once, to the minute.
+    let notice = stale["notice"].as_str().unwrap_or_default();
+    let time = notice
+        .strip_prefix("Download-Client nicht erreichbar – Stand von ")
+        .unwrap_or_default();
+    let shape: String = time
+        .chars()
+        .map(|c| if c.is_ascii_digit() { '9' } else { c })
+        .collect();
+    assert_eq!(shape, "99.99.9999 99:99", "{stale}");
     assert!(!stale.to_string().contains("http://"), "no URLs in answers");
 }
 
@@ -241,6 +247,8 @@ async fn overview_shows_activity_problems_and_the_next_days() {
         overview["queue"]["notice"], "Kein Download-Client konfiguriert",
         "{overview}"
     );
+    // ui-overview-polish AC-04: no client, said by a field and not only by the notice.
+    assert_eq!(overview["queue"]["client_configured"], false, "{overview}");
     let (_, five) = http.get("/api/activity?limit=5").await;
     assert_eq!(five.as_array().map(Vec::len), Some(5));
     let (status, _) = http.get("/api/activity?limit=0").await;
@@ -347,4 +355,66 @@ async fn calendar_shows_all_episodes_of_monitored_series() {
     let upcoming = overview["upcoming"].as_array().expect("upcoming");
     assert_eq!(upcoming.len(), 1, "{overview}");
     assert_eq!(upcoming[0]["episode"], 3);
+}
+
+#[tokio::test]
+async fn live_mode_without_a_client_says_no_client_is_configured() {
+    // ui-overview-polish AC-02, AC-04: the field, not the mode, tells the UI.
+    let app = app(Library::Movies, "[automation]\nmode = \"live\"\n").await;
+    let http = Http::start(app).await;
+    let (status, queue) = http.get("/api/queue").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(queue["client_configured"], false, "{queue}");
+    let (_, overview) = http.get("/api/overview").await;
+    assert_eq!(overview["queue"]["client_configured"], false, "{overview}");
+}
+
+#[tokio::test]
+async fn an_unreachable_client_without_a_known_state_names_no_time() {
+    // ui-overview-polish AC-03: down from the first request, so no state is known.
+    let s = Services::start().await;
+    s.lock().nzbget_down = true;
+    let toml = format!("[automation]\nmode = \"live\"\n{}", s.nzbget_toml());
+    let app = app(Library::Movies, &toml).await;
+    let http = Http::start(app).await;
+    let (status, queue) = http.get("/api/queue").await;
+    assert_eq!(status, StatusCode::OK, "{queue}");
+    assert_eq!(
+        queue["notice"], "Download-Client nicht erreichbar",
+        "{queue}"
+    );
+    assert_eq!(queue["as_of"], Value::Null, "{queue}");
+    assert_eq!(queue["client_configured"], true, "{queue}");
+}
+
+#[tokio::test]
+async fn without_a_client_active_grabs_still_show_in_the_queue() {
+    // ui-overview-polish AC-02: grabs active in the database stay listed without a client.
+    let app = app(Library::Movies, "").await;
+    let first = movie_id(&app, 101).await;
+    app.db
+        .add_grab(
+            &grab(
+                first,
+                "Erster.Film.2001.1080p-A",
+                GrabStatus::Queued,
+                Some("9"),
+            ),
+            Timestamp::now(),
+        )
+        .await
+        .expect("grab");
+    let http = Http::start(app).await;
+    let (_, queue) = http.get("/api/queue").await;
+    assert_eq!(queue["client_configured"], false, "{queue}");
+    let items = queue["items"].as_array().expect("items");
+    assert_eq!(items.len(), 1, "{queue}");
+    assert_eq!(items[0]["release_title"], "Erster.Film.2001.1080p-A");
+    assert_eq!(
+        items[0]["download_state"],
+        Value::Null,
+        "no client progress"
+    );
+    let (_, overview) = http.get("/api/overview").await;
+    assert_eq!(overview["queue"]["items"], queue["items"], "{overview}");
 }

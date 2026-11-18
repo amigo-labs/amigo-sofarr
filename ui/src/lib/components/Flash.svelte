@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  // A notice: its words in the status' ink on the status' subtle fill (amigo-theme AC-03).
+  // A notice: its words in the status' ink on the status' subtle fill (amigo-theme AC-03);
+  // an info notice is neutral (ui-consistency AC-02).
   // Errors are announced at once (role alert).
   type Props = { tone: 'danger' | 'warning' | 'info'; children: Snippet };
   let { tone, children }: Props = $props();
@@ -39,9 +40,10 @@
     border-color: var(--borderColor-attention-muted);
   }
 
+  /* Neutral, so a restriction does not look like a success (spec ui-consistency AC-02). */
   .flash-info {
-    background: var(--bgColor-accent-muted);
-    color: var(--fgColor-accent);
-    border-color: var(--borderColor-accent-muted);
+    background: var(--bgColor-muted);
+    color: var(--fgColor-default);
+    border-color: var(--borderColor-default);
   }
 </style>

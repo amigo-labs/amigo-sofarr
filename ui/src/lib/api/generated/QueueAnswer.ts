@@ -9,4 +9,8 @@ notice: string | null,
 /**
  * When the client's state shown was read.
  */
-as_of: string | null, };
+as_of: string | null, 
+/**
+ * Whether a download client is configured at all (ui-overview-polish AC-04).
+ */
+client_configured: boolean, };
