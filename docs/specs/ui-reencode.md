@@ -106,17 +106,21 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-01 | `is in the navigation and shows the empty states (AC-01, AC-07)` (`ui/e2e/reencode-page.spec.ts`); `ui/src/lib/nav.test.ts` | built |        |
+| AC-02 | `reencode::page::tests::the_page_shows_job_candidates_states_saved_space_and_history` (`crates/sofarr-server/src/reencode/page/tests.rs`); `reencode::tests::recent_attempts_are_limited_and_keep_files_that_are_gone` (`crates/sofarr-db/src/reencode.rs`); `shows job, saved space, candidates with their state, and the history (AC-02, AC-03, AC-06)` (`ui/e2e/reencode-page.spec.ts`); `name sizes and the saved space in German` (`ui/src/lib/reencode/reencode.test.ts`) | built |        |
+| AC-03 | `reencode::page::tests::the_page_shows_job_candidates_states_saved_space_and_history` (`crates/sofarr-server/src/reencode/page/tests.rs`); `reencode::job::tests::the_state_names_why_a_file_is_not_due` (`crates/sofarr-server/src/reencode/job/tests.rs`); `shows job, saved space, …` (`ui/e2e/reencode-page.spec.ts`); `name every job state`, `list the reasons of left-out files that have any` (`ui/src/lib/reencode/reencode.test.ts`) | built |        |
+| AC-04 | `starts an encode and keeps a file out of the job (AC-04, AC-05)`, `shows job, saved space, …` (disabled while another encode runs) (`ui/e2e/reencode-page.spec.ts`); `reencode::page::tests::exclusions_keep_files_out_of_the_job_and_can_be_undone` (an excluded file encoded on request) (`crates/sofarr-server/src/reencode/page/tests.rs`); `say why "Jetzt encodieren" is not available` (`ui/src/lib/reencode/reencode.test.ts`) | built |        |
+| AC-05 | `reencode::page::tests::exclusions_keep_files_out_of_the_job_and_can_be_undone` (`crates/sofarr-server/src/reencode/page/tests.rs`); `reencode::job::tests::excluded_files_are_never_due` (`crates/sofarr-server/src/reencode/job/tests.rs`); `reencode::tests::exclusions_follow_their_file` (`crates/sofarr-db/src/reencode.rs`); `starts an encode and keeps a file out of the job (AC-04, AC-05)` (`ui/e2e/reencode-page.spec.ts`) | built |        |
+| AC-06 | `reencode::page::tests::the_page_shows_job_candidates_states_saved_space_and_history` (`crates/sofarr-server/src/reencode/page/tests.rs`); `shows job, saved space, …` (`ui/e2e/reencode-page.spec.ts`); `name outcomes, runners and sizes of the history` (`ui/src/lib/reencode/reencode.test.ts`) | built |        |
+| AC-07 | `is in the navigation and shows the empty states (AC-01, AC-07)` (`ui/e2e/reencode-page.spec.ts`) | built |        |
+| AC-08 | `reencode::page::tests::shadow_mode_changes_nothing` (`crates/sofarr-server/src/reencode/page/tests.rs`); `is read-only in shadow mode (AC-08)` (`ui/e2e/reencode-page.spec.ts`) | built |        |
+| AC-09 | `follows the state without a reload and says when sofarr is gone (AC-09)` (`ui/e2e/reencode-page.spec.ts`) | built |        |
+| AC-10 | `reencode::page::tests::reencode_page_large_library` (`crates/sofarr-server/src/reencode/page/tests.rs`) | built |        |
 
 ## Decisions
 
 - 2026-11-17: Excluding works per library file, not per series; "Jetzt encodieren" ignores the exclusion, because a request on the page is the owner's decision (like spec `reencode-file` AC-13).
+- 2026-11-18: The job state of a file comes from one pure function (`reencode::job::state_of`), which the job's due check now uses as well; the page adds "läuft" (the slot's path) and "ausgeschlossen". Exclusions live in `reencode_exclusions` (migration 0014), keyed on the movie's file record (`movie_files.movie_id`) and the episode file, both `ON DELETE CASCADE`.
+- 2026-11-18: The page reloads through the shared `createResource` (every 15 s, the last state stays on a failure); it remembers when it last loaded and shows "Stand von {Zeit} – sofarr ist nicht erreichbar". The navigation entry uses Octicon `zap`.
+- 2026-11-18: New API: `GET /api/reencode` (`ReencodePage`), `POST`/`DELETE /api/reencode/exclusions` (204; 404 unknown; 400 wrong body; 409 "Ausschluss nicht geändert: im Shadow-Mode"), `Db::recent_reencodes`, `reencode_savings`, `exclude_from_reencode`, `include_in_reencode`, `reencode_exclusions`.
+- 2026-11-18: The DB functions were red against stubs first; the page API, the page and its tests were written together.

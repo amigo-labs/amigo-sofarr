@@ -12,6 +12,7 @@ describe('navigation', () => {
       'Entdecken',
       'Blocklist',
       'Untertitel',
+      'Neu encodieren',
       'Backups',
       'System',
     ]);
@@ -27,6 +28,7 @@ describe('navigation', () => {
       'Entdecken',
       'Blocklist',
       'Untertitel',
+      'Neu encodieren',
       'Backups',
       'System',
     ]);
@@ -39,6 +41,7 @@ describe('navigation', () => {
       'Entdecken',
       'Blocklist',
       'Untertitel',
+      'Neu encodieren',
       'Backups',
       'System',
     ]);
@@ -56,7 +59,7 @@ describe('navigation', () => {
     expect(navGroups().map((g) => [g.label, g.pages.map((p) => p.label)])).toEqual([
       ['Bibliothek', ['Übersicht', 'Filme', 'Serien', 'Kalender', 'Fehlend']],
       ['Entdecken', ['Entdecken']],
-      ['Verwaltung', ['Blocklist', 'Untertitel', 'Backups', 'System']],
+      ['Verwaltung', ['Blocklist', 'Untertitel', 'Neu encodieren', 'Backups', 'System']],
     ]);
   });
 
