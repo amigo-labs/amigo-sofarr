@@ -149,3 +149,7 @@ timeout_hours = 24              # längste Dauer eines Encodes
 # Hintergrundjob: encodiert rund um die Uhr die größte fällige Datei, eine nach der anderen,
 # mit niedrigster CPU-Priorität. Erst einschalten, wenn einzelne Dateien gut aussahen.
 enabled = false                 # true schaltet den Job ein (nur im Live-Mode)
+# Verlustfreie Tonspuren ohne Atmos (TrueHD, PCM, FLAC) werden E-AC-3; DTS (auch DTS-HD MA,
+# wegen DTS:X) und Atmos bleiben, wie sie sind. Ein HEVC-Video wird dann nur kopiert.
+convert_lossless_audio = true
+audio_bitrate_kbps = 640        # 384, 448, 640, 768 oder 1024; Stereo bekommt 256

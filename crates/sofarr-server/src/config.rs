@@ -64,7 +64,14 @@ pub struct ReencodeConfig {
     pub timeout_hours: u32,
     /// The background job works through the candidates (spec reencode-job).
     pub enabled: bool,
+    /// Lossless audio without object audio becomes E-AC-3 (spec reencode-audio).
+    pub convert_lossless_audio: bool,
+    /// E-AC-3 rate of converted tracks with 3 and more channels, in kbit/s.
+    pub audio_bitrate_kbps: u32,
 }
+
+/// The E-AC-3 rates `audio_bitrate_kbps` allows.
+pub const AUDIO_BITRATES: [u32; 5] = [384, 448, 640, 768, 1024];
 
 /// x265's presets, fastest first.
 pub const X265_PRESETS: [&str; 10] = [
@@ -93,6 +100,8 @@ impl Default for ReencodeConfig {
             min_saving_percent: 20,
             timeout_hours: 24,
             enabled: false,
+            convert_lossless_audio: true,
+            audio_bitrate_kbps: 640,
         }
     }
 }
@@ -135,6 +144,11 @@ impl ReencodeConfig {
         anyhow::ensure!(
             self.timeout_hours >= 1,
             "[reencode] timeout_hours muss mindestens 1 sein"
+        );
+        anyhow::ensure!(
+            AUDIO_BITRATES.contains(&self.audio_bitrate_kbps),
+            "[reencode] audio_bitrate_kbps muss eine von {} sein",
+            AUDIO_BITRATES.map(|r| r.to_string()).join(", ")
         );
         Ok(())
     }
@@ -1009,6 +1023,41 @@ url = \"http://127.0.0.1:9/tvdb\"
                 .unwrap_or_else(|| panic!("{raw} must be rejected"));
             let message = format!("{error:#}");
             assert!(message.contains(key), "{raw}: {message}");
+        }
+    }
+
+    #[test]
+    fn reencode_audio_settings_have_defaults_and_are_checked() {
+        // Spec reencode-audio AC-01, AC-03, AC-04.
+        let r = Config::parse("").expect("defaults").reencode;
+        assert!(r.convert_lossless_audio);
+        assert_eq!(r.audio_bitrate_kbps, 640);
+        let example = Config::parse(include_str!("../../../config/sofarr.example.toml"))
+            .expect("example config")
+            .reencode;
+        assert!(example.convert_lossless_audio);
+        assert_eq!(example.audio_bitrate_kbps, 640);
+        for key in ["convert_lossless_audio =", "audio_bitrate_kbps ="] {
+            assert!(
+                include_str!("../../../config/sofarr.example.toml").contains(key),
+                "{key}"
+            );
+        }
+        let r = Config::parse(
+            "[reencode]\nconvert_lossless_audio = false\naudio_bitrate_kbps = 1024\n",
+        )
+        .expect("valid")
+        .reencode;
+        assert!(!r.convert_lossless_audio);
+        assert_eq!(r.audio_bitrate_kbps, 1024);
+        for value in ["0", "500", "6144", "-1"] {
+            let error = Config::parse(&format!("[reencode]\naudio_bitrate_kbps = {value}\n"))
+                .err()
+                .unwrap_or_else(|| panic!("{value} must be rejected"));
+            assert!(
+                format!("{error:#}").contains("audio_bitrate_kbps"),
+                "{value}"
+            );
         }
     }
 
