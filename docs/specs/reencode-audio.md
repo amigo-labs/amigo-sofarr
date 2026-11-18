@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-17
 size: M
 design: [sofarr.md §9 D22, sofarr.md §9 D31]
@@ -8,6 +8,15 @@ oracle: none
 ---
 
 # Re-encode lossless audio
+
+## Summary
+
+> Completed: 2026-11-18
+
+- Lossless audio tracks without object audio (TrueHD without Atmos, PCM, FLAC) become E-AC-3 in the same encode: 640 kbit/s by default for 3 and more channels (mixed down to 5.1 above 6), 256 kbit/s for mono and stereo; TrueHD Atmos, every DTS track and every lossy track are copied
+- `[reencode] convert_lossless_audio` (default `true`) and `audio_bitrate_kbps` (384, 448, 640, 768 or 1024; another value stops sofarr with a German message)
+- An HEVC original with a convertible track keeps its video (copied) and only its audio is converted; without one it is encoded again as before
+- The result check compares every audio track with its plan: copied tracks keep codec and channels, converted ones are E-AC-3 with at most 6 channels and the original's language
 
 ## Context
 
@@ -53,14 +62,14 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): Where `[reencode] convert_lossless_audio` is `true` (the default), sofarr writes every convertible track of the original as a converted track and copies every other audio track unchanged, in the original's order.
-- [ ] AC-02 (always): sofarr never converts an audio track that is not convertible: TrueHD with Atmos, every DTS track (DTS-HD MA, DTS-HD HRA, DTS-ES, DTS) and every lossy track stay unchanged.
-- [ ] AC-03 (option): Where `[reencode] convert_lossless_audio = false` is set, every audio track is copied unchanged, as before this spec.
-- [ ] AC-04 (option): Where `[reencode] audio_bitrate_kbps` is set (one of 384, 448, 640, 768, 1024 – common E-AC-3 rates for 5.1 and 7.1-to-5.1; default 640), the encoder is asked for that bit rate for converted tracks with 3 and more channels (and 256 kbit/s for 1 or 2); any other value stops sofarr at the start with a German message naming the key.
-- [ ] AC-05 (always): A result is good only when, besides the checks of spec `reencode-file`, each converted track is E-AC-3 with at most 6 channels and the original track's language, and each copied audio track has the original's codec and channel count; otherwise the result is discarded and the attempt is `failed` with the reason.
-- [ ] AC-06 (event): Where `convert_lossless_audio` is `true`, when the original's video is efficient and it has at least one convertible track, then sofarr copies the video unchanged and only converts the audio; the result must still be at most the size limit, or the attempt is `no_gain`.
-- [ ] AC-07 (event): When the original's video is efficient and it has no convertible track (or `convert_lossless_audio` is `false`), then sofarr encodes the video again, as before this spec (spec `reencode-file`).
-- [ ] AC-08 (event, manual: real ffmpeg in the container): When the owner re-encodes a file of the own library with a TrueHD 7.1 track without Atmos and a TrueHD Atmos track, then the first plays as E-AC-3 5.1 and the second still as Atmos in Jellyfin.
+- [x] AC-01 (always): Where `[reencode] convert_lossless_audio` is `true` (the default), sofarr writes every convertible track of the original as a converted track and copies every other audio track unchanged, in the original's order.
+- [x] AC-02 (always): sofarr never converts an audio track that is not convertible: TrueHD with Atmos, every DTS track (DTS-HD MA, DTS-HD HRA, DTS-ES, DTS) and every lossy track stay unchanged.
+- [x] AC-03 (option): Where `[reencode] convert_lossless_audio = false` is set, every audio track is copied unchanged, as before this spec.
+- [x] AC-04 (option): Where `[reencode] audio_bitrate_kbps` is set (one of 384, 448, 640, 768, 1024 – common E-AC-3 rates for 5.1 and 7.1-to-5.1; default 640), the encoder is asked for that bit rate for converted tracks with 3 and more channels (and 256 kbit/s for 1 or 2); any other value stops sofarr at the start with a German message naming the key.
+- [x] AC-05 (always): A result is good only when, besides the checks of spec `reencode-file`, each converted track is E-AC-3 with at most 6 channels and the original track's language, and each copied audio track has the original's codec and channel count; otherwise the result is discarded and the attempt is `failed` with the reason.
+- [x] AC-06 (event): Where `convert_lossless_audio` is `true`, when the original's video is efficient and it has at least one convertible track, then sofarr copies the video unchanged and only converts the audio; the result must still be at most the size limit, or the attempt is `no_gain`.
+- [x] AC-07 (event): When the original's video is efficient and it has no convertible track (or `convert_lossless_audio` is `false`), then sofarr encodes the video again, as before this spec (spec `reencode-file`).
+- [x] AC-08 (event, manual: real ffmpeg in the container): When the owner re-encodes a file of the own library with a TrueHD 7.1 track without Atmos and a TrueHD Atmos track, then the first plays as E-AC-3 5.1 and the second still as Atmos in Jellyfin.
 
 ## Technical notes
 
@@ -101,14 +110,14 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `reencode::audio::tests::only_lossless_tracks_without_object_audio_are_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | built |        |
-| AC-02 | `reencode::audio::tests::only_lossless_tracks_without_object_audio_are_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
-| AC-03 | `reencode::audio::tests::the_switch_and_the_rate_apply` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::switched_off_every_track_is_copied` (`crates/sofarr-server/src/reencode/run/tests.rs`); `config::tests::reencode_audio_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
-| AC-04 | `reencode::audio::tests::the_switch_and_the_rate_apply` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `config::tests::reencode_audio_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
-| AC-05 | `reencode::run::tests::audio::a_track_not_converted_as_planned_fails_the_result`, `lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
-| AC-06 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | built |        |
-| AC-07 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
-| AC-08 | manual: Daniel Rück checked a film with TrueHD 7.1 without Atmos and TrueHD Atmos in the container; the first played as E-AC-3 5.1, the second still as Atmos in Jellyfin, 2026-11-18 | built |        |
+| AC-01 | `reencode::audio::tests::only_lossless_tracks_without_object_audio_are_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | verified | 75ec357 |
+| AC-02 | `reencode::audio::tests::only_lossless_tracks_without_object_audio_are_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | verified | 75ec357 |
+| AC-03 | `reencode::audio::tests::the_switch_and_the_rate_apply` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::switched_off_every_track_is_copied` (`crates/sofarr-server/src/reencode/run/tests.rs`); `config::tests::reencode_audio_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | verified | 424862d |
+| AC-04 | `reencode::audio::tests::the_switch_and_the_rate_apply` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`); `config::tests::reencode_audio_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | verified | 424862d |
+| AC-05 | `reencode::run::tests::audio::a_track_not_converted_as_planned_fails_the_result`, `lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | verified | 75ec357 |
+| AC-06 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted`, `a_result_above_the_size_limit_is_no_gain` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | verified | 75ec357 |
+| AC-07 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`) | verified | 75ec357 |
+| AC-08 | manual: Daniel Rück checked a film with TrueHD 7.1 without Atmos and TrueHD Atmos in the container; the first played as E-AC-3 5.1, the second still as Atmos in Jellyfin, 2026-11-18 | verified | 0025cd1 |
 
 ## Decisions
 

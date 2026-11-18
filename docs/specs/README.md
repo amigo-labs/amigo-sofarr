@@ -40,7 +40,7 @@ because later specs build on earlier ones.
 | 22 | [reencode-file](reencode-file.md) | M | reencode-rule, trailers | Re-encoding 2: one file on request by CLI and API: ffmpeg (libx265, MKV, low priority), checked result, swap with the original to the recycle bin, outcome of every attempt (D31) | done |
 | 23 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | done |
 | 24 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | done |
-| 25 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | built; owner's manual check AC-08, then `/spec-check reencode-audio` |
+| 25 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | done |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -73,6 +73,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [reencode-file](reencode-file.md) | 2026-11-18 | Re-encoding 2: one file on request by `amigo-sofarr reencode` and `POST /api/reencode/encode`: ffmpeg (libx265, 10-bit, MKV, niceness 19), one encode slot, checked result, swap with the original to the recycle bin, every attempt recorded, `[reencode] crf/preset/threads/min_saving_percent/timeout_hours` (D31) |
 | [reencode-job](reencode-job.md) | 2026-11-18 | Re-encoding 3: background job `[reencode] enabled` (off by default, live mode), largest due file first, settled and resting files skipped, interrupted attempts repaired at start, encodes stopped with the server, "Neu encodieren" on the system page (D31) |
 | [ui-reencode](ui-reencode.md) | 2026-11-18 | Re-encoding 4: page "Neu encodieren" (`GET /api/reencode`) with the job state, the running encode, saved space, candidates with their job state and the latest 50 attempts; encode now, keep a library file out of the job (`/api/reencode/exclusions`), read-only in shadow mode (D31) |
+| [reencode-audio](reencode-audio.md) | 2026-11-18 | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC) to E-AC-3 in the same encode (`[reencode] convert_lossless_audio`, `audio_bitrate_kbps`, default 640, stereo 256), TrueHD Atmos and every DTS track copied, an HEVC video copied when audio is converted, every audio track checked against its plan (D31) |
 
 ## Existing behavior without a feature spec
 
