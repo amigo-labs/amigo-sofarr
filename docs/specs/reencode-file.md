@@ -177,7 +177,7 @@ Terms used below:
 | AC-14 | `reencode::run::tests::an_mp4_original_becomes_mkv_and_its_subtitles_stay`, `a_double_episode_keeps_both_episodes` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
 | AC-15 | `reencode::tests::attempts_are_recorded_and_outlive_their_file` (`crates/sofarr-db/src/reencode.rs`); `reencode::run::tests::a_good_result_replaces_the_original_which_goes_to_the_recycle_bin`, `requests_are_refused_and_recorded` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
 | AC-16 | `config::tests::reencode_encoder_settings_have_defaults_and_are_checked` (`crates/sofarr-server/src/config.rs`) | built |        |
-| AC-17 |      | open   |        |
+| AC-17 | manual: Daniel Rück checked an SDR MKV, an HDR10 film and an MP4 with subtitles of the own library with `amigo-sofarr reencode` in the container; all played in Jellyfin with every audio and subtitle track, the HDR10 film in HDR, 2026-11-18 | built |        |
 
 ## Decisions
 

@@ -108,7 +108,7 @@ Terms used below:
 | AC-05 | `reencode::run::tests::audio::a_track_not_converted_as_planned_fails_the_result`, `lossless_tracks_without_atmos_become_eac3` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
 | AC-06 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`); `reencode::ffmpeg::tests::converted_audio_and_a_copied_video_are_asked_for` (`crates/sofarr-server/src/reencode/ffmpeg.rs`) | built |        |
 | AC-07 | `reencode::audio::tests::an_hevc_video_is_copied_only_when_audio_is_converted` (`crates/sofarr-server/src/reencode/audio.rs`); `reencode::run::tests::audio::an_hevc_video_is_copied_when_audio_is_converted` (`crates/sofarr-server/src/reencode/run/tests.rs`) | built |        |
-| AC-08 |      | open   |        |
+| AC-08 | manual: Daniel Rück checked a film with TrueHD 7.1 without Atmos and TrueHD Atmos in the container; the first played as E-AC-3 5.1, the second still as Atmos in Jellyfin, 2026-11-18 | built |        |
 
 ## Decisions
 
