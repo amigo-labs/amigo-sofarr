@@ -112,7 +112,7 @@ describes what the code does today. What happens when grabbing fails is spec `fa
 | AC-07 | `rss_tests::the_best_release_wins_by_quality_score_revision_and_size` (`crates/sofarr-server/src/rss_tests.rs`); `rss::tests::picks_best_release_per_movie` (`crates/sofarr-server/src/rss.rs`) | built | 0db7cad |
 | AC-08 | `rss_tests::series_releases_go_to_monitored_series_by_title_alias_or_year` (`crates/sofarr-server/src/rss_tests.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | built | 0db7cad |
 | AC-09 | `rss_tests::an_open_grab_counts_as_the_file`, `rss_tests::an_open_series_grab_counts_as_the_episode_file` (`crates/sofarr-server/src/rss_tests.rs`) | built | fc4baeb |
-| AC-10 | `rss_tests::a_release_named_like_an_imported_one_is_not_taken_again` (`crates/sofarr-server/src/rss_tests.rs`) | built | 0db7cad |
+| AC-10 | `rss_tests::a_release_named_like_an_imported_one_is_not_taken_again`, `rss_tests::a_series_release_named_like_an_imported_one_is_not_taken_again` (`crates/sofarr-server/src/rss_tests.rs`) | built | 0db7cad, 8987674 |
 | AC-11 | `rss_tests::a_tagged_indexer_serves_only_movies_with_its_tag`, `rss_tests::a_tagged_indexer_serves_only_series_with_its_tag` (`crates/sofarr-server/src/rss_tests.rs`); `app::tests::indexer_tags_restrict_indexers` (`crates/sofarr-server/src/app/tests.rs`) | built | 0db7cad, a7886fb |
 | AC-12 | `rss_tests::shadow_mode_records_without_touching_the_client` (`crates/sofarr-server/src/rss_tests.rs`) | built | 0db7cad |
 | AC-13 | `rss_tests::live_grabs_go_to_the_client_in_the_category_of_their_kind` (`crates/sofarr-server/src/rss_tests.rs`); `app::tests::live_pipeline_grabs_and_imports` (`crates/sofarr-server/src/app/tests.rs`) | built | 0db7cad |
