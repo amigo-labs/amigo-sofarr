@@ -122,7 +122,7 @@ Terms used below:
 - The imported settings live in the `settings` table: `config_downloadclient` (Radarr) and
   `sonarr_config_downloadclient` (Sonarr), field `autoRedownloadFailed`.
 - nzbget history states (prefix of `Status`): release failures are `FAILURE/HEALTH`, `FAILURE/PAR`,
-  `FAILURE/UNPACK`, `DELETED/HEALTH`, `DELETED/MANUAL`; everything else that is not `SUCCESS`
+  `FAILURE/UNPACK`, `FAILURE/BAD` (marked bad), `DELETED/HEALTH`, `DELETED/MANUAL`; everything else that is not `SUCCESS`
   (e.g. `DELETED/DUPE`, `FAILURE/MOVE`, `WARNING/SPACE`, `WARNING/SCRIPT`) is a local failure.
 - Broken NZB from Newznab: error code 300 ("No such item").
 - Newznab TV search: `t=tvsearch` with `tvdbid`, `season`, `ep` where the indexer's caps announce
@@ -222,3 +222,4 @@ Terms used below:
 - 2026-11-12: A download folder counts as the download's own when it is named exactly like the download or like nzbget's intermediate folder `<name>.#<id>`.
 - 2026-11-12: The series cases of AC-08, AC-21 and AC-23 got their own tests after the third verification round; green at once, and red when failed series grabs keep holding their episodes or series grabs ignore shadow mode.
 - 2026-11-12: The download check and the import moved from `app.rs` into `downloads.rs`, and the test modules of `app.rs` and `series.rs` into `app/tests.rs` and `series/tests.rs`, to keep the files below 800 lines.
+- 2026-11-19: `FAILURE/BAD` counts as a release failure (Technical notes), because NZBGet marks a release bad with it and Krake reports a release without media that way (spec `krake-download-client` AC-07); no AC changes.

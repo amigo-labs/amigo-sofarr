@@ -23,7 +23,7 @@ gaps that made it unusable for sofarr (the NZB of `append` was dropped, categori
 history had no `Name`, all NZBs shared one folder); they are fixed in Krake itself
 (amigo-labs/amigo-krake#134). This spec proves that sofarr's whole download path works against Krake's answers,
 which differ from nzbget's in details (version text, fields always present but zero, failures
-failure kinds limited to health, par and unpack, ids derived from Krake's own download ids).
+failure kinds limited to health, par, unpack and no media, ids derived from Krake's own download ids).
 
 Terms:
 
@@ -64,7 +64,7 @@ Terms:
 - [ ] AC-06 (error): If Krake rejects the credentials (HTTP 401) or answers an RPC error, then the
   grab fails with the German error message of the download client and no grab is recorded as
   sent.
-- [ ] AC-07 (event): When Krake reports the download as failed because of the release (`FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`), then sofarr marks the grab as failed and puts the release on the blocklist, as for the same states from nzbget.
+- [ ] AC-07 (event): When Krake reports the download as failed because of the release (`FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`, or `FAILURE/BAD` for a release that unpacks but holds no media), then sofarr marks the grab as failed and puts the release on the blocklist, as for the same states from nzbget.
 
 ## Technical notes
 
@@ -73,7 +73,7 @@ Terms:
 - Krake's answers (after the fix): `append` → positive integer; `listgroups` entries with
   `NZBID`, `NZBName`, `Category`, `Status` (`QUEUED`/`DOWNLOADING`/`PAUSED`), `FileSizeMB`,
   `RemainingSizeMB`, `DestDir`; `history` entries with `NZBID`, `Name`, `NZBName`, `Category`,
-  `Status` (`SUCCESS/ALL`, `FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`, or `FAILURE/NONE` for local errors), `ParStatus`, `UnpackStatus`, `Health`, `CriticalHealth`, `FileSizeMB`, `DestDir`, `FinalDir`; `version` →
+  `Status` (`SUCCESS/ALL`, `FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`, `FAILURE/BAD`, or `FAILURE/NONE` for local errors), `ParStatus`, `UnpackStatus`, `Health`, `CriticalHealth`, `FileSizeMB`, `DestDir`, `FinalDir`; `version` →
   `"krake-<version>"`.
 
 ## Edge cases
@@ -100,6 +100,8 @@ Terms:
 | AC-07 |      | open   |        |
 
 ## Decisions
+
+- 2026-11-19 (build): AC-07 extended by `FAILURE/BAD`: amigo-krake#134 fails a release that unpacks but holds no media with NZBGet's status for a release marked bad; sofarr counts it as a release failure, as NZBGet's own bad marks.
 
 - 2026-11-19 (check): AC-02 revised to the behavior shared with nzbget: a queued or paused download keeps the grab as sent, only a running one shows it as downloading; the acceptance check found the wording contradicting code and test.
 
