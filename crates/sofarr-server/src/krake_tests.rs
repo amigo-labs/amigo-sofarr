@@ -40,7 +40,7 @@ type Shared = Arc<Mutex<Krake>>;
 /// credentials (made at runtime: no password is written into the code).
 fn authorized(headers: &HeaderMap) -> bool {
     let expected = reqwest::Client::new()
-        .get("http://krake.invalid")
+        .get("https://krake.invalid")
         .basic_auth("u", Some(crate::test_secret::password()))
         .build()
         .expect("request");
