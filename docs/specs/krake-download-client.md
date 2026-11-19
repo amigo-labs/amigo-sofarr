@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: M
 design: [sofarr.md §3, sofarr.md §8, sofarr.md §9 D6, D32]
@@ -48,23 +48,23 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When sofarr grabs a release in live mode and `[nzbget] url` points at Krake,
+- [x] AC-01 (event): When sofarr grabs a release in live mode and `[nzbget] url` points at Krake,
   then sofarr sends the NZB with the category of the movie or series to Krake and records the
   download id Krake returns.
-- [ ] AC-02 (state): While Krake lists the download in its queue, sofarr keeps the grab as sent
+- [x] AC-02 (state): While Krake lists the download in its queue, sofarr keeps the grab as sent
   while it is queued or paused and shows it as downloading while Krake downloads it, and reads
   Krake's size and remaining size for it.
-- [ ] AC-03 (event): When Krake reports the download as successful in its history, then sofarr
+- [x] AC-03 (event): When Krake reports the download as successful in its history, then sofarr
   imports the files from the folder Krake names into the library, and afterwards removes the
   entry from Krake without asking Krake to delete files.
-- [ ] AC-04 (event): When Krake reports the download as failed (`FAILURE/NONE`), then sofarr marks
+- [x] AC-04 (event): When Krake reports the download as failed (`FAILURE/NONE`), then sofarr marks
   the grab as failed for a local reason, as for the same state from nzbget.
-- [ ] AC-05 (state): While Krake also holds downloads of other categories, sofarr neither imports
+- [x] AC-05 (state): While Krake also holds downloads of other categories, sofarr neither imports
   nor removes them.
-- [ ] AC-06 (error): If Krake rejects the credentials (HTTP 401) or answers an RPC error, then the
+- [x] AC-06 (error): If Krake rejects the credentials (HTTP 401) or answers an RPC error, then the
   grab fails with the German error message of the download client and no grab is recorded as
   sent.
-- [ ] AC-07 (event): When Krake reports the download as failed because of the release (`FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`, or `FAILURE/BAD` for a release that unpacks but holds no media), then sofarr marks the grab as failed and puts the release on the blocklist, as for the same states from nzbget.
+- [x] AC-07 (event): When Krake reports the download as failed because of the release (`FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`, or `FAILURE/BAD` for a release that unpacks but holds no media), then sofarr marks the grab as failed and puts the release on the blocklist, as for the same states from nzbget.
 
 ## Technical notes
 
@@ -87,17 +87,26 @@ Terms:
 
 ## Open questions
 
+## Summary
+
+> Completed: 2026-11-19
+
+- sofarr uses Krake through its NZBGet-compatible JSON-RPC API with the existing nzbget client and `[nzbget]` configuration (D32); no second `DownloadClient`.
+- A Krake fake in `crates/sofarr-server/src/krake_tests.rs` proves grab, queue, import, removal without deleting files, local failure and refused credentials or RPC errors for movies and episodes in live mode.
+- `FAILURE/BAD` counts as a release failure (`sofarr-download`), so Krake's health, par, unpack and no-media failures put the release on the blocklist, as NZBGet's do.
+- `config/sofarr.example.toml` names Krake as a download client.
+
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-01 | `krake_tests::grab_sends_the_nzb_with_category_and_records_the_id` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 1323f77 |
+| AC-02 | `krake_tests::queue_entries_keep_the_grab_downloading_with_krakes_sizes` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 1323f77 |
+| AC-03 | `krake_tests::success_imports_from_krakes_folder_and_removes_without_deleting` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 1323f77 |
+| AC-04 | `krake_tests::failure_marks_the_grab_failed_without_blocklist` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 1323f77 |
+| AC-05 | `krake_tests::success_imports_from_krakes_folder_and_removes_without_deleting` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 1323f77 |
+| AC-06 | `krake_tests::refused_credentials_and_rpc_errors_fail_the_grab` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 1323f77 |
+| AC-07 | `krake_tests::a_broken_release_is_blocklisted` (`crates/sofarr-server/src/krake_tests.rs`) | verified | 46c29fa, 9647b5c |
 
 ## Decisions
 
