@@ -56,6 +56,8 @@ const RELEASE_FAILURES: &[&str] = &[
     "FAILURE/UNPACK",
     "DELETED/HEALTH",
     "DELETED/MANUAL",
+    // Marked bad: NZBGet's fake detection, Krake's release without media (D32).
+    "FAILURE/BAD",
 ];
 
 /// One download as the client reports it.
@@ -311,6 +313,8 @@ mod tests {
             "FAILURE/UNPACK",
             "DELETED/HEALTH",
             "DELETED/MANUAL",
+            // Marked bad (NZBGet's fake detection; Krake: unpacked, but no media).
+            "FAILURE/BAD",
         ] {
             assert_eq!(
                 state(status),
