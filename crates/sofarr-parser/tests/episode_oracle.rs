@@ -248,6 +248,68 @@ fn episode_gap_titles_match_oracle() {
     assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }
 
+/// parser-season-in-title AC-05: form 1 matches Sonarr on every field; form 2 on series
+/// title and season (episodes and full season are a deliberate deviation).
+const SEASON_IN_TITLE: [(&str, &[&str]); 6] = [
+    (
+        "[Erai-raws].Kikansha.no.Mahou.wa.Tokubetsu.desu.2nd.Season.-.06.[1080p.CR.WEB-DL.AVC.AAC][MultiSub][B49B1654]",
+        &FIELDS,
+    ),
+    (
+        "[Erai-raws].Kikansha.no.Mahou.wa.Tokubetsu.desu.2nd.Season.-.06.[1080p.CR.WEBRip.HEVC.AAC][MultiSub][BFA1EA3B]",
+        &FIELDS,
+    ),
+    (
+        "[Erai-raws].Kikansha.no.Mahou.wa.Tokubetsu.desu.2nd.Season.-.06.[480p.CR.WEB-DL.AVC.AAC][MultiSub][504C1099]",
+        &FIELDS,
+    ),
+    (
+        "[Erai-raws].Kikansha.no.Mahou.wa.Tokubetsu.desu.2nd.Season.-.06.[720p.CR.WEB-DL.AVC.AAC][MultiSub][9D4839E6]",
+        &FIELDS,
+    ),
+    (
+        "[Nekomoe.kissaten][Sasaki.to.Pii-chan.S2][05][1080p][JPSC]",
+        &["series_title", "season"],
+    ),
+    (
+        "[Nekomoe.kissaten][Sasaki.to.Pii-chan.S2][05][1080p][JPTC]",
+        &["series_title", "season"],
+    ),
+];
+
+#[test]
+fn season_in_title_matches_oracle() {
+    let fixtures: BTreeMap<String, Value> =
+        lines(&root().join("fixtures/public/sonarr-parse.jsonl"))
+            .into_iter()
+            .filter_map(|f| {
+                Some((
+                    f["title"].as_str()?.to_owned(),
+                    f["response"]["parsedEpisodeInfo"].clone(),
+                ))
+            })
+            .collect();
+    if fixtures.is_empty() {
+        println!("no Sonarr fixtures yet – skipping");
+        return;
+    }
+    let mut mismatches = Vec::new();
+    for (title, fields) in SEASON_IN_TITLE {
+        let info = fixtures
+            .get(title)
+            .unwrap_or_else(|| panic!("{title} fehlt in den Fixtures"));
+        for field in fields {
+            let (want, got) = (expected(field, info), actual(field, title));
+            if want != got {
+                mismatches.push(format!(
+                    "{title} {field}: erwartet {want:?}, erhalten {got:?}"
+                ));
+            }
+        }
+    }
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
+}
+
 #[test]
 fn sonarr_oracle_ratchet() {
     let path = root().join("fixtures/public/sonarr-parse.jsonl");
