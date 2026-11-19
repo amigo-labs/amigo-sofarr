@@ -870,6 +870,16 @@ mod tests {
         }
     }
 
+    /// Spec disk-scan: a media kind without any title in the library is not scanned
+    /// and reports nothing; the other kind is scanned.
+    #[tokio::test]
+    async fn an_empty_library_is_not_scanned() {
+        let app = crate::testkit::app(crate::testkit::Library::Series, "").await;
+        let (movies, shows) = app.rescan().await.expect("scan");
+        assert!(movies.is_none());
+        assert_eq!(shows.expect("series").skipped, 1, "/tv is missing");
+    }
+
     /// Spec disk-scan: a metadata refresh is followed by a disk scan as
     /// `rescanAfterRefresh` says — always (also without the setting), only after a
     /// refresh started by hand, or never — separately for movies and series.
