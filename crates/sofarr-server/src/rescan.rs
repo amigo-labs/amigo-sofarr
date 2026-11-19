@@ -681,4 +681,231 @@ mod tests {
         assert!(!show.join("Extras").exists() && show.join("Staffel 01").exists());
         let _ = fs::remove_dir_all(&root);
     }
+
+    /// Imports the movie library of `documents()` and the series library of
+    /// `sonarr_documents()` with their folders below `root` (Vierter Film's root folder
+    /// is missing).
+    async fn library_below(root: &Path) -> Db {
+        let db = Db::in_memory().await.expect("db");
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        let mut docs = documents();
+        let raw = docs["movie"]
+            .to_string()
+            .replace("/data/media/movies", &format!("{}/movies", json_path(root)))
+            .replace("\"/x\"", &format!("\"{}/missing/x\"", json_path(root)));
+        docs.insert(
+            "movie".to_owned(),
+            serde_json::from_str(&raw).expect("json"),
+        );
+        import_documents(&db, &docs, now).await.expect("import");
+        let (mut docs, eps) = series::tests::sonarr_documents();
+        let raw = docs["series"]
+            .to_string()
+            .replace("/tv", &format!("{}/tv", json_path(root)));
+        docs.insert(
+            "series".to_owned(),
+            serde_json::from_str(&raw).expect("json"),
+        );
+        series::import_documents(&db, &docs, &eps, now)
+            .await
+            .expect("import");
+        db
+    }
+
+    /// Spec disk-scan: without `autoUnmonitorPreviouslyDownloaded…` a missing file is
+    /// forgotten, but the movie or episode stays monitored; without
+    /// `deleteEmptyFolders` the empty folder stays.
+    #[tokio::test]
+    async fn without_auto_unmonitor_missing_files_keep_monitoring() {
+        let root = temp("keep-monitoring");
+        let db = library_below(&root).await;
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        fs::create_dir_all(root.join("movies/Zweiter Film (2002)")).expect("dir");
+        fs::create_dir_all(root.join("tv/Kleine Insel/Staffel 01")).expect("dir");
+        let settings = ScanSettings::default();
+
+        let rules = load_rules(&db).await.expect("rules");
+        let report = movies(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!(
+            (report.missing, report.unmonitored, report.removed_folders),
+            (2, 0, 0),
+            "Zweiter and Dritter Film are gone"
+        );
+        let all = db.movies().await.expect("movies");
+        let second = all
+            .iter()
+            .find(|m| m.title == "Zweiter Film")
+            .expect("movie");
+        assert!(second.file.is_none() && second.monitored);
+        assert!(root.join("movies/Zweiter Film (2002)").exists());
+
+        let rules = series::load_rules(&db).await.expect("rules");
+        let report = all_series(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!((report.missing, report.unmonitored), (1, 0));
+        let eps = db.episodes(None).await.expect("episodes");
+        assert!(eps[0].file.is_none() && eps[0].data.monitored);
+        assert!(root.join("tv/Kleine Insel/Staffel 01").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Spec disk-scan: `createEmptyMovieFolders` keeps an empty movie folder; without
+    /// `createEmptySeriesFolders` an empty series folder goes with its empty sub folders.
+    #[tokio::test]
+    async fn empty_folders_go_unless_empty_folders_are_kept() {
+        let root = temp("empty-roots");
+        let db = library_below(&root).await;
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        fs::create_dir_all(root.join("movies/Zweiter Film (2002)/Subs")).expect("dir");
+        fs::create_dir_all(root.join("tv/Kleine Insel/Staffel 01")).expect("dir");
+
+        let rules = load_rules(&db).await.expect("rules");
+        let keep = ScanSettings {
+            auto_unmonitor: false,
+            delete_empty_folders: true,
+            keep_empty_root: true,
+        };
+        let report = movies(&db, &rules, keep, now).await.expect("scan");
+        assert_eq!(report.removed_folders, 0);
+        assert!(root.join("movies/Zweiter Film (2002)/Subs").exists());
+
+        let rules = series::load_rules(&db).await.expect("rules");
+        let remove = ScanSettings {
+            keep_empty_root: false,
+            ..keep
+        };
+        let report = all_series(&db, &rules, remove, now).await.expect("scan");
+        assert_eq!(
+            report.removed_folders, 2,
+            "Staffel 01 and the series folder"
+        );
+        assert!(!root.join("tv/Kleine Insel").exists());
+        assert!(root.join("tv").exists(), "the root folder stays");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Spec disk-scan: an episode whose file is gone but replaced by another file for it
+    /// stays monitored; a multi-episode file is recorded for each of its episodes; a
+    /// video that names no episode of the series is left alone.
+    #[tokio::test]
+    async fn replaced_and_multi_episode_files_are_taken_up() {
+        let root = temp("episodes");
+        let db = library_below(&root).await;
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        let season = root.join("tv/Kleine Insel/Staffel 01");
+        fs::create_dir_all(&season).expect("dir");
+        for name in [
+            "Kleine.Insel.S01E01.1080p.BluRay.x264-NEU.mkv",
+            "Kleine.Insel.S01E02E03.1080p.WEB-DL.h264-GRP.mkv",
+            "Kleine.Insel.S04E01.1080p.WEB-DL.h264-GRP.mkv",
+            "Urlaubsvideo.mkv",
+        ] {
+            fs::write(season.join(name), b"v").expect("video");
+        }
+        let rules = series::load_rules(&db).await.expect("rules");
+        let settings = ScanSettings {
+            auto_unmonitor: true,
+            delete_empty_folders: false,
+            keep_empty_root: false,
+        };
+        let report = all_series(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!(
+            (report.missing, report.found, report.unmonitored),
+            (1, 2, 0)
+        );
+        let eps = db.episodes(None).await.expect("episodes");
+        let file = |i: usize| {
+            eps[i]
+                .file
+                .as_ref()
+                .map(|f| f.relative_path.clone())
+                .unwrap_or_default()
+        };
+        assert_eq!(
+            file(0),
+            "Staffel 01/Kleine.Insel.S01E01.1080p.BluRay.x264-NEU.mkv"
+        );
+        assert!(eps[0].data.monitored);
+        assert_eq!(
+            eps[0].file.as_ref().map(|f| f.quality.as_str()),
+            Some("Bluray-1080p")
+        );
+        assert_eq!(
+            file(1),
+            "Staffel 01/Kleine.Insel.S01E02E03.1080p.WEB-DL.h264-GRP.mkv"
+        );
+        assert_eq!(file(1), file(2));
+        assert_eq!(eps[1].file_id, eps[2].file_id);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Spec disk-scan: in shadow mode the scan deletes no folder, even with
+    /// `deleteEmptyFolders`; in live mode it does.
+    #[tokio::test]
+    async fn shadow_mode_deletes_no_folder() {
+        for (mode, removed) in [("shadow", false), ("live", true)] {
+            let root = temp(&format!("mode-{mode}"));
+            let db = library_below(&root).await;
+            db.put_setting(
+                "config_mediamanagement",
+                &serde_json::json!({"deleteEmptyFolders": true}),
+            )
+            .await
+            .expect("setting");
+            fs::create_dir_all(root.join("movies/Zweiter Film (2002)")).expect("dir");
+            let third = root.join("movies/Dritter Film (2003)");
+            fs::create_dir_all(&third).expect("dir");
+            fs::write(third.join("Dritter Film (2003).mkv"), b"v").expect("video");
+            let config =
+                crate::config::Config::parse(&format!("[automation]\nmode = \"{mode}\"\n"))
+                    .expect("config");
+            let app = crate::app::App::with_db(config, db).expect("app");
+            let (scan, _) = app.rescan().await.expect("scan");
+            assert_eq!(scan.expect("movies").missing, 1, "{mode}");
+            assert_eq!(
+                !root.join("movies/Zweiter Film (2002)").exists(),
+                removed,
+                "{mode}"
+            );
+            let _ = fs::remove_dir_all(&root);
+        }
+    }
+
+    /// Spec disk-scan: a metadata refresh is followed by a disk scan as
+    /// `rescanAfterRefresh` says — always (also without the setting), only after a
+    /// refresh started by hand, or never — separately for movies and series.
+    #[tokio::test]
+    async fn refresh_scans_as_rescan_after_refresh_says() {
+        let root = temp("after-refresh");
+        let db = library_below(&root).await;
+        let app = crate::app::App::with_db(crate::config::Config::parse("").expect("config"), db)
+            .expect("app");
+        let scanned = |manual: bool| {
+            let app = &app;
+            async move {
+                let r = app.refresh(true, true, manual).await.expect("refresh");
+                (r.movie_scan.is_some(), r.series_scan.is_some())
+            }
+        };
+        assert_eq!(scanned(false).await, (true, true), "default: always");
+        let set = |key: String, value: &'static str| {
+            let db = &app.db;
+            async move {
+                db.put_setting(&key, &serde_json::json!({"rescanAfterRefresh": value}))
+                    .await
+                    .expect("setting");
+            }
+        };
+        set("config_mediamanagement".to_owned(), "afterManual").await;
+        set(format!("{}config_mediamanagement", series::PREFIX), "never").await;
+        assert_eq!(scanned(false).await, (false, false));
+        assert_eq!(scanned(true).await, (true, false));
+        set("config_mediamanagement".to_owned(), "never").await;
+        set(
+            format!("{}config_mediamanagement", series::PREFIX),
+            "always",
+        )
+        .await;
+        assert_eq!(scanned(true).await, (false, true));
+        let _ = fs::remove_dir_all(&root);
+    }
 }
