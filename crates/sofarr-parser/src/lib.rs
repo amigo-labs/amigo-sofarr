@@ -834,6 +834,24 @@ mod tests {
     }
 
     #[test]
+    fn separators_and_case_do_not_matter() {
+        // Dots, spaces and underscores separate words alike; keywords match in any case.
+        for input in [
+            "Quiet.Orchard.2011.1080p.BluRay.x264-HAIN",
+            "Quiet Orchard 2011 1080p BluRay x264-HAIN",
+            "Quiet_Orchard_2011_1080p_BluRay_x264-HAIN",
+            "Quiet.Orchard.2011.1080P.bluray.X264-HAIN",
+        ] {
+            let r = parse(input);
+            assert_eq!(r.title(), Some("Quiet Orchard"), "{input}");
+            assert_eq!(r.year, Some(2011), "{input}");
+            assert_eq!(r.quality.source, Source::BluRay, "{input}");
+            assert_eq!(r.quality.resolution, Resolution::R1080, "{input}");
+            assert_eq!(r.release_group.as_deref(), Some("HAIN"), "{input}");
+        }
+    }
+
+    #[test]
     fn title_without_metadata() {
         let r = parse("Simple Title");
         assert_eq!(r.title(), Some("Simple Title"));
