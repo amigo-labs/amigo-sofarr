@@ -82,6 +82,18 @@ impl<'a> Radarr<'a> {
         }
     }
 
+    /// Names of the film's releases that were grabbed and imported: the `sourceTitle` of
+    /// each `grabbed` entry of `/api/v3/history/movie?movieId=…` whose `downloadId` also
+    /// has a `downloadFolderImported` entry. Sorted, without duplicates.
+    pub fn imported_releases(&self, movie_id: u64) -> anyhow::Result<Vec<String>> {
+        let id = movie_id.to_string();
+        let Value::Array(entries) = self.get_json("api/v3/history/movie", &[("movieId", &id)])?
+        else {
+            anyhow::bail!("Radarr: history/movie liefert keine Liste");
+        };
+        Ok(imported_names(&entries))
+    }
+
     /// All `sourceTitle`s of the grab/import history, newest first, without duplicates.
     pub fn history_titles(&self) -> anyhow::Result<Vec<String>> {
         let page_size = HISTORY_PAGE_SIZE.to_string();
@@ -118,4 +130,27 @@ impl<'a> Radarr<'a> {
         }
         Ok(titles)
     }
+}
+
+/// The grabbed release names whose download was imported (see `Radarr::imported_releases`).
+pub fn imported_names(entries: &[Value]) -> Vec<String> {
+    let event = |e: &Value, kind: &str| e["eventType"].as_str() == Some(kind);
+    fn download(e: &Value) -> Option<&str> {
+        e["downloadId"].as_str().filter(|d| !d.is_empty())
+    }
+    let imported: std::collections::HashSet<&str> = entries
+        .iter()
+        .filter(|e| event(e, "downloadFolderImported"))
+        .filter_map(download)
+        .collect();
+    let names: std::collections::BTreeSet<String> = entries
+        .iter()
+        .filter(|e| event(e, "grabbed"))
+        .filter(|e| download(e).is_some_and(|d| imported.contains(d)))
+        .filter_map(|e| e["sourceTitle"].as_str())
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .map(str::to_owned)
+        .collect();
+    names.into_iter().collect()
 }
