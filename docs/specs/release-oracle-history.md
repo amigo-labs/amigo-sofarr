@@ -101,7 +101,7 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
+| AC-01 | `decision::tests::imported_release_name_is_rejected`, `decision::tests::year_rule_comes_before_already_imported` (`crates/sofarr-core/src/decision.rs`) | built | 0cd1688 |
 | AC-02 |      | open   |        |
 | AC-03 |      | open   |        |
 | AC-04 |      | open   |        |
