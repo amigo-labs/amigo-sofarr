@@ -101,11 +101,13 @@ pub fn exclusions(settings: Option<&Value>) -> BTreeSet<i64> {
         .collect()
 }
 
-/// The movies of a person that the list selects.
+/// The movies of a person that the list selects, each once.
 pub fn select<'a>(list: &PersonList, credits: &'a [CreditedMovie]) -> Vec<&'a CreditedMovie> {
+    let mut seen = BTreeSet::new();
     credits
         .iter()
         .filter(|c| (list.cast && c.role == "cast") || list.departments.contains(&c.role.as_str()))
+        .filter(|c| seen.insert(c.tmdb_id))
         .collect()
 }
 
@@ -158,6 +160,31 @@ mod tests {
                 .map(|c| c.tmdb_id)
                 .collect::<Vec<_>>(),
             [2]
+        );
+        // A movie the person acted in and directed counts for both; selected once.
+        let both = vec![
+            CreditedMovie {
+                tmdb_id: 3,
+                title: "C".to_owned(),
+                year: None,
+                role: "cast".to_owned(),
+            },
+            CreditedMovie {
+                tmdb_id: 3,
+                title: "C".to_owned(),
+                year: None,
+                role: "Directing".to_owned(),
+            },
+        ];
+        let ids =
+            |selected: Vec<&CreditedMovie>| selected.iter().map(|c| c.tmdb_id).collect::<Vec<_>>();
+        assert_eq!(ids(select(list, &both)), [3], "crew-only list");
+        let mut with_cast = list.clone();
+        with_cast.cast = true;
+        assert_eq!(
+            ids(select(&with_cast, &both)),
+            [3],
+            "once with cast and crew"
         );
         assert_eq!(
             exclusions(Some(&json!([{"tmdbId": 5, "movieTitle": "x"}]))),
