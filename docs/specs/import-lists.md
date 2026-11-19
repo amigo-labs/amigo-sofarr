@@ -72,6 +72,7 @@ Terms used below:
 - [ ] AC-08 (error): If TMDB cannot give a list's credits (unknown person, TMDB unreachable), then the sync ends with an error; movies that earlier lists added in the same run stay in the library.
 - [ ] AC-09 (option): Where `[import_lists] interval_hours` is set, the sync runs on its own every that many hours (default 24); 0 switches the schedule off, and the schedule runs only in live mode with `[tmdb]` configured.
 - [ ] AC-10 (event): When the user runs `amigo-sofarr sync-import-lists`, then sofarr runs the sync once, in shadow mode too, and prints the number of added movies (`Hinzugefügt: <n>`).
+- [ ] AC-11 (event): When the person both acted in and worked in a chosen crew department on a movie, then a list selects it through either credit, and adds it once.
 
 ## Technical notes
 
@@ -84,7 +85,7 @@ Terms used below:
   root folder.
 - Exclusions: the `exclusions` setting, entries with `tmdbId`.
 - Credits: `Tmdb::person_movies` (`person/{id}/movie_credits`); cast entries get the role `cast`,
-  crew entries their `department`; a movie appears once (first entry wins, cast before crew).
+  crew entries their `department`; a movie appears once per role (cast, and once per department).
 - The sync runs under the jobs lock (RSS sync, download check and disk scans wait) and returns
   the titles it added; the CLI prints them one per line after the count.
 - Scheduler: `status::Job::ImportLists` (`import-lists`, label „Import-Listen“), first run right
@@ -101,7 +102,8 @@ Terms used below:
 | Scenario | Expected behavior |
 | -------- | ----------------- |
 | `personId` given as a string (`"1234"`) | Read as the number 1234 |
-| A movie the person both acted in and directed, list with Directing only | Not selected: the credit counts as cast (see Assumptions) |
+| A movie the person both acted in and directed, list with Directing only | Selected (AC-11) |
+| The same movie, list with cast and Directing | Selected and added once (AC-11) |
 | A selected movie is announced (not available yet) on a list with search on add | Added, not searched; the RSS sync takes it once available |
 | A selected movie is on the exclusion list | Never added, also not by a later sync |
 | A movie in the library that the list selects | Left unchanged (monitoring, profile and tags are not touched) |
@@ -112,7 +114,6 @@ Terms used below:
 
 | Assumption | Reason | Risk |
 | ---------- | ------ | ---- |
-| A movie in the person's cast and crew counts as a cast credit only | TMDB's credits are merged per movie, the first (cast) entry wins | A list with cast off but a crew department on misses movies the person also acted in; Radarr's behavior here is not observed |
 | A movie already in the library is never changed by a list | Radarr's lists do not re-apply their settings to existing movies in the owner's setup | A list's profile change does not reach movies it added earlier |
 | The sync stops at the first list whose credits fail | Silent partial syncs would hide a broken list | One broken list delays the lists after it until it is fixed |
 
@@ -134,8 +135,10 @@ Terms used below:
 | AC-08 | `import_list_tests::unreadable_credits_end_the_sync_with_an_error` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
 | AC-09 | `import_list_tests::the_sync_is_scheduled_only_live_with_tmdb` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
 | AC-10 | `sync_import_lists_prints_the_added_count` (`crates/sofarr-server/tests/cli_import_lists.rs`) | built | 06136ba |
+| AC-11 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-19: Reverse-engineered from the phase-4 code (`spec-extract`); the ACs describe the
   behavior as built. Uncertain points are recorded under Assumptions instead of being asked.
+- 2026-11-19 (spec-fix): TMDB credits are kept once per movie and role, and a list selects each movie once, because merging per movie (cast first) made a crew-only list miss movies the person also acted in (found while extracting).
