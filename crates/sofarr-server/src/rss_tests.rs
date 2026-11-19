@@ -179,6 +179,39 @@ async fn an_open_grab_counts_as_the_file() {
 }
 
 #[tokio::test]
+async fn an_open_series_grab_counts_as_the_episode_file() {
+    let s = Services::start().await;
+    s.feed(
+        "idx",
+        &[s.item(
+            "Kleine.Insel.S01E02.1080p.WEB-DL.h264-A",
+            "w1",
+            2_000_000_000,
+        )],
+    );
+    let app = app(Library::Series, &s.indexer_toml("idx", &[])).await;
+    assert_eq!(app.rss_sync().await.expect("first").series_grabs, 1);
+    s.feed(
+        "idx",
+        &[s.item(
+            "Kleine.Insel.S01E02.1080p.WEB-DL.h264-B",
+            "w2",
+            2_000_000_000,
+        )],
+    );
+    assert_eq!(app.rss_sync().await.expect("same quality").series_grabs, 0);
+    s.feed(
+        "idx",
+        &[s.item(
+            "Kleine.Insel.S01E02.1080p.BluRay.x264-C",
+            "b1",
+            2_000_000_000,
+        )],
+    );
+    assert_eq!(app.rss_sync().await.expect("better").series_grabs, 1);
+}
+
+#[tokio::test]
 async fn shadow_mode_records_without_touching_the_client() {
     let s = Services::start().await;
     s.feed(
