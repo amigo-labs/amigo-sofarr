@@ -66,6 +66,7 @@ Terms used below:
   export — because that is the server's config import; the release oracle exercises it but
   this spec does not specify its fields.
 - The blocklist and failed downloads — because spec `fail-handling` owns them.
+- Rejecting a release named like an imported one — because spec `release-oracle-history` owns it.
 - Rejection kinds the owner's configuration does not use (e.g. Radarr's raw-disc rejection,
   custom format conditions other than language, release group and release title) — because the
   parity target is the owner's setup (sofarr.md §2).
@@ -98,10 +99,11 @@ Terms used below:
 - `Decision { parsed, quality, custom_formats, score, rejections }`; `approved()` is "no
   rejections". `Rejection::key()` is the stable identifier used by the oracle diff and in logs;
   `Display` gives the German text shown to the user.
-- Rejection order in a decision: quality, burnt-in subtitles, language, size, minimum score,
-  upgrade rules, indexer limits.
+- Rejection order in a decision: already imported, quality, burnt-in subtitles, language, size,
+  minimum score, upgrade rules, indexer limits. `already_imported` (a release named like an
+  imported one) is owned by spec `release-oracle-history`.
 - Pass rates today (‰, `fixtures/decision-baseline.toml`, 1,703 releases from 20 movies):
-  approved 1000, custom_formats 998, quality 998, rejections 992, score 998. The remaining
+  approved 1000, custom_formats 998, quality 998, rejections 993, score 998. The remaining
   mismatches are listed by `cargo test -p sofarr-parity --test release_oracle -- --nocapture`
   (e.g. Radarr's raw-disc rejection, which sofarr does not have).
 
