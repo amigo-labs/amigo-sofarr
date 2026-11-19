@@ -38,7 +38,7 @@ Terms:
 
 - Grab, queue, completion, import, failure and removal of a download against Krake's answers, for
   movies and episodes, in live mode.
-- Telling sofarr's downloads apart from other downloads in Krake by category.
+- Leaving Krake's other downloads alone (sofarr knows its own by their download ids; it sends them in their category).
 - Documentation: Krake as the download client in the configuration example.
 
 ### Out of scope
