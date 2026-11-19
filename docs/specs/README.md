@@ -10,7 +10,7 @@ Two kinds of spec live here (`AGENTS.md`, "Spec-driven workflow"):
 
 ## Order
 
-Phase 6 "operations and comfort" (decisions D13–D30). All specs are written and committed;
+Phase 6 "operations and comfort" and after (decisions D13–D33). All specs are written and committed;
 the next step for each is `/spec-build <name>`, then `/spec-check <name>`. The order is binding
 because later specs build on earlier ones.
 
@@ -44,6 +44,9 @@ because later specs build on earlier ones.
 | 26 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | done |
 | 27 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | done |
 | 28 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | done |
+| 29 | [parser-season-in-title](parser-season-in-title.md) | S | parser-episode-gaps | Episode parser: a season word before ` - 06` belongs to the anime title; `[Grp][Title.S2][05]` is S02E05 (deliberate deviation from Sonarr) | `/spec-check` |
+| 30 | [release-oracle-history](release-oracle-history.md) | S | – | Release oracle: `already_imported` in the decision engine, imported release names in the release fixtures; "Raw Bluray/DVD release" as deliberate deviation | `/spec-check` |
+| 31 | [krake-download-client](krake-download-client.md) | M | – | Krake (formerly amigo-downloader) as download client through its NZBGet-compatible API (D32) | `/spec-check` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -80,27 +83,32 @@ Large specs (L) are split while being written when they need more than a few ses
 | [ui-reencode](ui-reencode.md) | 2026-11-18 | Re-encoding 4: page "Neu encodieren" (`GET /api/reencode`) with the job state, the running encode, saved space, candidates with their job state and the latest 50 attempts; encode now, keep a library file out of the job (`/api/reencode/exclusions`), read-only in shadow mode (D31) |
 | [reencode-audio](reencode-audio.md) | 2026-11-18 | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC) to E-AC-3 in the same encode (`[reencode] convert_lossless_audio`, `audio_bitrate_kbps`, default 640, stereo 256), TrueHD Atmos and every DTS track copied, an HEVC video copied when audio is converted, every audio track checked against its plan (D31) |
 
-## Existing behavior without a feature spec
+## Phase 1–5 behavior
 
-Phases 1–5 (before this workflow) built what `sofarr.md` §2 lists for v1 and v2: the parser for
-movies and episodes, the decision engine, the release oracle, the SQLite library, TMDB and TVDB,
-Newznab RSS, shadow and live mode, nzbget, import and naming, import lists, the disk scan,
-availability, tags and the `compare-*` oracle comparisons. The state per feature is in
-[`../parity.md`](../parity.md). This behavior is proven by tests and the oracle ratchets but not
-recorded as acceptance criteria; `/spec-extract <area>` does that (see Backlog).
+Phases 1–5 (before this workflow) built what `sofarr.md` §2 lists for v1 and v2. These specs
+record that behavior after the fact (`/spec-extract`, 2026-11-19); the state per feature against
+the oracles stays in [`../parity.md`](../parity.md).
+
+| Spec | Size | Content | Next |
+| ---- | ---- | ------- | ---- |
+| [parser](parser.md) | L | Release-name parser: title/AKA, year, group, source, resolution, remux/full disc/DVD/regional, revision, edition, languages, burnt-in subs, season/episode/pack/daily/anime episodes, movie-oracle ratchet | `/spec-check` |
+| [decision-engine](decision-engine.md) | L | Named quality, profile ranks, custom formats and score, year/unparsable rule, size, language, burnt-in subs, indexer limits, upgrades and cutoff, propers/repacks, best-release order, availability, series episode rules, release-oracle ratchet | `/spec-check` |
+| [naming](naming.md) | M | File and folder naming: token syntax and case, colon/illegal characters, folder levels, clean titles, movie/series/episode tokens, Quality Full, multi-episode styles, `config_naming` defaults, movie and episode import naming | `/spec-check` |
+| [library-import](library-import.md) | M | Takeover of settings and library from Radarr/Sonarr (API or export folder): movies by TMDB id, series/episodes/files by TVDB id, German CLI summary and errors | `/spec-check` |
+| [rss-sync](rss-sync.md) | M | Scheduled RSS sync over all Newznab indexers: matching to movies and series, best release per movie/episode set, open grabs count as the file, indexer tags, shadow grabs vs. hand-over by category | `/spec-check` |
+| [download-import](download-import.md) | M | Download check: queue/history states, moving and renaming finished downloads, recycle bin on upgrade, waiting for episode titles, retry after a failed import, free-space check, remove completed | `/spec-check` |
+| [import-lists](import-lists.md) | M | TMDb person import list sync: cast/crew selection, exclusions, adding with the list's settings, search on add, TMDB errors, schedule, CLI `sync-import-lists` | `/spec-check` |
+| [disk-scan](disk-scan.md) | M | Disk scan of movies and series: forget missing files (auto-unmonitor), take up found videos, skip unmounted root folders, delete empty folders (not in shadow mode), `rescanAfterRefresh`, scan report | `/spec-check` |
+| [series](series.md) | L | Series: Sonarr import, TVDB refresh (German title, aliases, episodes, D28), refresh schedule, release-to-series matching, covered/wanted episodes, season packs, grabs in flight, episode import | `/spec-check` |
 
 ## Backlog
 
 Gaps not yet written as specs. Not commitments.
 
-| Gap | Note |
-| --- | ---- |
-| Feature specs for the behavior of phases 1–5 | `/spec-extract` per area: parser, decision-engine, library-import, rss-sync, download-import, naming, import-lists, disk-scan, series |
-| Parser: `…2nd.Season.-.06` read as a season pack | Episode oracle: 4 cases; out of scope of [parser-episode-gaps](parser-episode-gaps.md) |
-| Parser: `[Grp][Title.S2][05]` | Episode oracle: Sonarr answers full season 2 together with an episode number |
-| Release oracle: "Raw Bluray/DVD release", "same release name as imported" | `parity.md`, "Noch nicht abgedeckt" |
-| amigo-downloader as a second download client | `sofarr.md` §8, open question §10 |
-| v3 API shim for Jellyseerr/Prowlarr/Bazarr | `sofarr.md` §8, only if needed (D8) |
+None at the moment. Closed on 2026-11-19: the parser gaps (`parser-season-in-title`), the
+release-oracle gaps (`release-oracle-history`; raw disc releases a deliberate deviation in
+`parity.md`), amigo-downloader (now Krake, `krake-download-client`, D32), the v3 API shim (not
+planned, D33), and the feature specs for phases 1–5 (table above).
 
 ## Open items outside the code
 
