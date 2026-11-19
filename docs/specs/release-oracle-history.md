@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: S
 design: [sofarr.md §5, sofarr.md §6]
@@ -55,28 +55,28 @@ Terms:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When the decision for a film gets its imported release names and the
+- [x] AC-01 (event): When the decision for a film gets its imported release names and the
   release title equals one of them ignoring case, then sofarr rejects the release with the
   rejection `already_imported`, in addition to every other rule's rejection — for every release
   that passes the year rule (spec `decision-engine` AC-04); a release that fails it keeps only
   `unparsable` or `unknown_movie`.
-- [ ] AC-02 (state): While a film has no imported release names, or none equals the release
+- [x] AC-02 (state): While a film has no imported release names, or none equals the release
   title, sofarr gives no `already_imported` rejection.
-- [ ] AC-03 (event): When `sofarr-parity collect --source releases` records the releases of a
+- [x] AC-03 (event): When `sofarr-parity collect --source releases` records the releases of a
   film, then the private fixture's film carries all imported release names of the film
   (`importedReleases`, from Radarr's movie history), and the public fixture's film carries
   `importedReleases` with only the release's own title when it is one of them, else an empty
   list; `rebuild-public` derives the same public list from the private file.
-- [ ] AC-04 (event): When the release diff evaluates a fixture whose film has
+- [x] AC-04 (event): When the release diff evaluates a fixture whose film has
   `importedReleases`, then the decision gets these names and `already_imported` is compared like
   every other rejection.
-- [ ] AC-05 (state): While a fixture's film has no `importedReleases` (collected before this
+- [x] AC-05 (state): While a fixture's film has no `importedReleases` (collected before this
   spec), the release diff leaves `already_imported` out of the expected rejections, and the
   report states how many fixtures were compared without history.
-- [ ] AC-06 (error): If Radarr's movie history cannot be read during collection, then the
+- [x] AC-06 (error): If Radarr's movie history cannot be read during collection, then the
   collection of that film fails with a German error message naming the film id, and no partial
   lines of that film are written.
-- [ ] AC-07 (always): The release-oracle ratchet over the public fixtures does not fall below its
+- [x] AC-07 (always): The release-oracle ratchet over the public fixtures does not fall below its
   baseline, which is rewritten to the new rates.
 
 ## Edge cases
@@ -101,13 +101,23 @@ Terms:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `decision::tests::imported_release_name_is_rejected`, `decision::tests::year_rule_comes_before_already_imported` (`crates/sofarr-core/src/decision.rs`) | built | 0cd1688 |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
+| AC-01 | `decision::tests::imported_release_name_is_rejected`, `decision::tests::year_rule_comes_before_already_imported` (`crates/sofarr-core/src/decision.rs`) | verified | 0cd1688 |
+| AC-02 | `decision::tests::other_names_are_no_imported_release` (`crates/sofarr-core/src/decision.rs`) | verified | 6bef5bb |
+| AC-03 | `releases_record_the_imported_release_names` (`crates/sofarr-parity/tests/collect.rs`) | verified | f6984d2 |
+| AC-04 | `diff::tests::imported_releases_reach_the_decision` (`crates/sofarr-parity/src/diff.rs`) | verified | f6984d2 |
+| AC-05 | `diff::tests::fixtures_without_history_leave_already_imported_out` (`crates/sofarr-parity/src/diff.rs`) | verified | f6984d2 |
+| AC-06 | `unreadable_history_fails_the_film_without_lines` (`crates/sofarr-parity/tests/collect.rs`) | verified | f6984d2 |
+| AC-07 | `release_oracle` (`crates/sofarr-parity/tests/release_oracle.rs`); baseline `fixtures/decision-baseline.toml` | verified | d9ecd99 |
+
+## Summary
+
+> Completed: 2026-11-19
+
+- The decision engine rejects a release named like an imported release of the film (`already_imported`, ignoring case and surrounding spaces), after the year rule.
+- `sofarr-parity collect --source releases` records the film's imported release names from Radarr's movie history (grab with a matching import); the public fixture keeps only the release's own title, and `rebuild-public` derives the same list.
+- The release diff passes the names to the decision and leaves `already_imported` out for fixtures collected without history, counting them in the report.
+- An unreadable movie history fails that film with a German message before any line is written; the decision baseline was raised to the new rejection rate.
+- "Raw Bluray/DVD release" is recorded as a deliberate deviation in `docs/parity.md`.
 
 ## Decisions
 
