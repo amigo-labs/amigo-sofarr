@@ -95,19 +95,19 @@ describes what the code does today.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `library_import_tests::fetches_settings_and_movies_from_radarr` (`crates/sofarr-server/src/library_import_tests.rs`) | built | a93a7ca |
-| AC-02 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | built | a93a7ca |
-| AC-03 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | built | a93a7ca |
-| AC-04 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | built | a93a7ca |
-| AC-05 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `image_tests::imports_and_refreshes_store_poster_paths` (`crates/sofarr-server/src/image_tests.rs`) | built | a93a7ca |
-| AC-06 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | built | a93a7ca |
-| AC-07 | `library_import_tests::fetches_series_episodes_and_files_from_sonarr` (`crates/sofarr-server/src/library_import_tests.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | built | a93a7ca |
-| AC-08 | `library_import_tests::movie_and_series_settings_stay_apart` (`crates/sofarr-server/src/library_import_tests.rs`) | built | a93a7ca |
-| AC-09 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest` (`crates/sofarr-server/src/library_import_tests.rs`) | built | a93a7ca |
-| AC-10 | `library_import_tests::a_rejected_key_or_an_unreachable_app_stops_the_import` (`crates/sofarr-server/src/library_import_tests.rs`) | built | a93a7ca |
-| AC-11 | `imports_fail_on_bad_exports_and_missing_connections` (`crates/sofarr-server/tests/cli_import.rs`) | built | a93a7ca |
+| AC-01 | `library_import_tests::fetches_settings_and_movies_from_radarr` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
+| AC-02 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | built | 0db7cad |
+| AC-03 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | built | 0db7cad |
+| AC-04 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | built | 0db7cad |
+| AC-05 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `image_tests::imports_and_refreshes_store_poster_paths` (`crates/sofarr-server/src/image_tests.rs`) | built | 0db7cad |
+| AC-06 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | built | 0db7cad |
+| AC-07 | `library_import_tests::fetches_series_episodes_and_files_from_sonarr` (`crates/sofarr-server/src/library_import_tests.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | built | 0db7cad |
+| AC-08 | `library_import_tests::movie_and_series_settings_stay_apart` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
+| AC-09 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
+| AC-10 | `library_import_tests::a_rejected_key_or_an_unreachable_app_stops_the_import` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
+| AC-11 | `imports_fail_on_bad_exports_and_missing_connections` (`crates/sofarr-server/tests/cli_import.rs`) | built | 0db7cad |
 
 ## Decisions
 
-- 2026-11-19: Extracted from the existing code (phases 3 and 5) with `spec-extract`; tests for ACs without one were added in a93a7ca.
+- 2026-11-19: Extracted from the existing code (phases 3 and 5) with `spec-extract`; tests for ACs without one were added in 0db7cad.
 - 2026-11-19 (spec-fix): A repeated movie import keeps the German title from TMDB (it cleared it before, unlike series), and an empty export folder names the app of the command (`import-sonarr` said "Radarr-Export"); both found while extracting.

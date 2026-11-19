@@ -137,21 +137,21 @@ the release-name guess itself. `web-ui-library` owns the rename preview, renamin
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `naming::tests::formats_file_names_with_prefixes`, `naming::tests::empty_tokens_drop_their_prefix`, `naming::tests::token_name_case_and_separator_shape_the_value` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-02 | `naming::tests::token_name_case_and_separator_shape_the_value` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-03 | `naming::tests::unknown_tokens_stay_visible` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-04 | `naming::tests::every_folder_level_is_a_valid_windows_name`, `naming::tests::empty_tokens_drop_their_prefix`, `naming::tests::folders_and_first_character` (`crates/sofarr-core/src/naming.rs`) | built | |
-| AC-05 | `naming::tests::colon_modes_and_illegal_characters`, `naming::tests::colon_default_and_kept_illegal_characters`, `naming::tests::formats_episodes` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-06 | `naming::tests::colon_modes_and_illegal_characters`, `naming::tests::colon_default_and_kept_illegal_characters` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-07 | `naming::clean::tests::diacritics_are_removed_and_sharp_s_becomes_ss`, `naming::clean::tests::hyphens_dots_and_dashes_remain_other_marks_go`, `naming::clean::tests::a_hyphen_standing_alone_is_dropped_one_inside_a_word_stays`, `naming::clean::tests::exclamation_marks_and_typographic_marks_stay_dot_runs_become_one_dot` (`crates/sofarr-core/src/naming/clean.rs`) | built | |
-| AC-08 | `naming::tests::formats_file_names_with_prefixes`, `naming::tests::folders_and_first_character`, `naming::tests::other_movie_tokens` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-09 | `naming::tests::revisions_in_quality_full`, `naming::tests::numbered_revision_in_quality_full` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-10 | `naming::tests::formats_episodes`, `naming::tests::formats_series_folders_and_daily` (`crates/sofarr-core/src/naming.rs`) | built | |
+| AC-01 | `naming::tests::formats_file_names_with_prefixes`, `naming::tests::empty_tokens_drop_their_prefix`, `naming::tests::token_name_case_and_separator_shape_the_value` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-02 | `naming::tests::token_name_case_and_separator_shape_the_value` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-03 | `naming::tests::unknown_tokens_stay_visible` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-04 | `naming::tests::levels_collapse_spaces_and_trim_their_ends` (`crates/sofarr-core/src/naming.rs`), `naming::tests::every_folder_level_is_a_valid_windows_name`, `naming::tests::empty_tokens_drop_their_prefix`, `naming::tests::folders_and_first_character` (`crates/sofarr-core/src/naming.rs`) | built | |
+| AC-05 | `naming::tests::smart_colon_without_a_space` (`crates/sofarr-core/src/naming.rs`), `naming::tests::colon_modes_and_illegal_characters`, `naming::tests::colon_default_and_kept_illegal_characters`, `naming::tests::formats_episodes` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-06 | `naming::tests::colon_modes_and_illegal_characters`, `naming::tests::colon_default_and_kept_illegal_characters` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-07 | `naming::tests::clean_titles_spell_out_ligatures_and_drop_backslashes` (`crates/sofarr-core/src/naming.rs`), `naming::clean::tests::diacritics_are_removed_and_sharp_s_becomes_ss`, `naming::clean::tests::hyphens_dots_and_dashes_remain_other_marks_go`, `naming::clean::tests::a_hyphen_standing_alone_is_dropped_one_inside_a_word_stays`, `naming::clean::tests::exclamation_marks_and_typographic_marks_stay_dot_runs_become_one_dot` (`crates/sofarr-core/src/naming/clean.rs`) | built | |
+| AC-08 | `naming::tests::formats_file_names_with_prefixes`, `naming::tests::folders_and_first_character`, `naming::tests::other_movie_tokens` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-09 | `naming::tests::revisions_in_quality_full`, `naming::tests::numbered_revision_in_quality_full` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-10 | `naming::tests::series_clean_titles_and_german_episode_title_fallback` (`crates/sofarr-core/src/naming.rs`), `naming::tests::formats_episodes`, `naming::tests::formats_series_folders_and_daily` (`crates/sofarr-core/src/naming.rs`) | built | |
 | AC-11 | `naming::tests::formats_episodes`, `naming::tests::numeric_settings` (`crates/sofarr-core/src/naming.rs`); `episode::tests::multi_episode_forms` (`crates/sofarr-parser/src/episode.rs`) | built | |
-| AC-12 | `naming::tests::reads_naming_config`, `naming::tests::numeric_settings`, `naming::tests::missing_naming_settings_take_their_defaults` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-13 | `naming::tests::media_info_guess`, `naming::tests::release_name_guess_vocabulary`, `naming::tests::formats_series_folders_and_daily`, `naming::tests::media_info_parts_come_from_the_file_where_known` (`crates/sofarr-core/src/naming.rs`) | built | 56dcd9f |
-| AC-14 | `importer::tests::imports_and_replaces_old_file`, `importer::tests::rename_setting_and_extension_case`, `importer::tests::folder_for_new_movies` (`crates/sofarr-server/src/importer.rs`) | built | f161857 |
-| AC-15 | `series::tests::names_episodes`, `series::tests::episode_format_by_series_type_and_season_folders` (`crates/sofarr-server/src/series/tests.rs`) | built | f161857 |
+| AC-12 | `naming::tests::reads_naming_config`, `naming::tests::numeric_settings`, `naming::tests::missing_naming_settings_take_their_defaults` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-13 | `naming::tests::media_info_guess`, `naming::tests::release_name_guess_vocabulary`, `naming::tests::formats_series_folders_and_daily`, `naming::tests::media_info_parts_come_from_the_file_where_known` (`crates/sofarr-core/src/naming.rs`) | built | 8a646d0 |
+| AC-14 | `importer::tests::imports_and_replaces_old_file`, `importer::tests::rename_setting_and_extension_case`, `importer::tests::folder_for_new_movies` (`crates/sofarr-server/src/importer.rs`) | built | 7e19452 |
+| AC-15 | `series::tests::names_episodes`, `series::tests::episode_format_by_series_type_and_season_folders` (`crates/sofarr-server/src/series/tests.rs`) | built | 7e19452 |
 
 ## Decisions
 

@@ -134,7 +134,7 @@ release name for file names.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `tests::dotted_title_with_year`, `tests::spaced_title_with_bracket_year`, `tests::year_inside_title`, `tests::title_made_of_numbers`, `tests::first_year_of_a_double_feature`, `tests::separators_and_case_do_not_matter` (`crates/sofarr-parser/src/lib.rs`) | built | e43ba00 |
+| AC-01 | `tests::dotted_title_with_year`, `tests::spaced_title_with_bracket_year`, `tests::year_inside_title`, `tests::title_made_of_numbers`, `tests::first_year_of_a_double_feature`, `tests::separators_and_case_do_not_matter` (`crates/sofarr-parser/src/lib.rs`) | built | acaddf0 |
 | AC-02 | `tests::aka_gives_two_titles`, `tests::bracketed_alternative_title_stays`, `tests::leading_parenthesis_is_part_of_title`, `tests::language_word_inside_title_stays`, `tests::ambiguous_keyword_inside_title` (`crates/sofarr-parser/src/lib.rs`) | built | |
 | AC-03 | `tests::group_is_last_dash_segment`, `tests::bracketed_and_numeric_groups`, `tests::leading_bracket_group`, `tests::hyphenated_title_is_not_a_group`, `tests::missing_group`, `tests::group_rules`, `tests::file_extension_is_ignored` (`crates/sofarr-parser/src/lib.rs`) | built | |
 | AC-04 | `tests::sources`, `tests::dashed_web_is_no_source`, `tests::only_avc_encoder_implies_tv` (`crates/sofarr-parser/src/lib.rs`) | built | |
