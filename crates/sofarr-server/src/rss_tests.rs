@@ -312,6 +312,48 @@ async fn a_release_named_like_an_imported_one_is_not_taken_again() {
     assert_eq!(app.db.grabs(None, 10).await.expect("grabs").len(), 1);
 }
 
+/// Spec rss-sync AC-10 (series): a release named like an imported series grab (letter
+/// case aside) is not taken for that series again.
+#[tokio::test]
+async fn a_series_release_named_like_an_imported_one_is_not_taken_again() {
+    let s = Services::start().await;
+    s.feed("idx", &[s.item(S1, "new-guid", 2_000_000_000)]);
+    let app = app(Library::Series, &s.indexer_toml("idx", &[])).await;
+    let show = app.db.all_series().await.expect("series")[0].clone();
+    let e02 = app
+        .db
+        .episodes(Some(show.id))
+        .await
+        .expect("episodes")
+        .into_iter()
+        .find(|e| e.data.season == 1 && e.data.number == 2)
+        .expect("E02");
+    assert!(e02.file.is_none(), "E02 is wanted");
+    app.db
+        .add_series_grab(
+            show.id,
+            &[e02.id],
+            &NewGrab {
+                movie_id: 0,
+                title: S1.to_lowercase(),
+                guid: "old-guid".to_owned(),
+                indexer: "other".to_owned(),
+                download_url: None,
+                quality: "WEBDL-1080p".to_owned(),
+                custom_format_score: 0,
+                size: 2_000_000_000,
+                status: GrabStatus::Imported,
+                download_id: None,
+            },
+            Timestamp::now(),
+        )
+        .await
+        .expect("grab");
+    let report = app.rss_sync().await.expect("rss");
+    assert_eq!(report.series_grabs, 0, "{report:?}");
+    assert_eq!(app.db.series_grabs(None).await.expect("grabs").len(), 1);
+}
+
 #[tokio::test]
 async fn a_tagged_indexer_serves_only_movies_with_its_tag() {
     let s = Services::start().await;

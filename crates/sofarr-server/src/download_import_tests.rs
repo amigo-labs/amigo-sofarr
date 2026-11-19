@@ -467,3 +467,106 @@ async fn the_minimum_free_space_refuses_an_import_unless_the_check_is_skipped() 
         let _ = std::fs::remove_dir_all(&root);
     }
 }
+
+/// Spec download-import AC-07 (series): an episode upgrade moves the replaced file into
+/// Sonarr's recycle bin (`sonarr_config_mediamanagement`), not into Radarr's.
+#[tokio::test]
+async fn an_episode_upgrade_recycles_the_old_file() {
+    const UPGRADE: &str = "Kleine.Insel.S01E01.1080p.BluRay.x264-NEU";
+    let s = Services::start().await;
+    s.feed("idx", &[s.item(UPGRADE, "u1", 2_000_000_000)]);
+    let root = root("episode-bin");
+    download(&root, UPGRADE, &[("kleine.insel.s01e01.mkv", 2048)]);
+    let (app, folder, _) = series_app(&s, &root).await;
+    let bin = root.join("recycle-series");
+    let movie_bin = root.join("recycle-movies");
+    app.db
+        .put_setting(
+            &format!("{}config_mediamanagement", series::PREFIX),
+            &json!({"recycleBin": bin.to_string_lossy()}),
+        )
+        .await
+        .expect("series media management");
+    app.db
+        .put_setting(
+            "config_mediamanagement",
+            &json!({"recycleBin": movie_bin.to_string_lossy()}),
+        )
+        .await
+        .expect("movie media management");
+    let report = app.rss_sync().await.expect("rss");
+    assert_eq!(report.series_grabs, 1, "{report:?}");
+    s.finish(77, UPGRADE, "SUCCESS/ALL", &format!("/remote/{UPGRADE}"));
+    assert_eq!(app.check_downloads().await.expect("check"), 1);
+
+    let season = folder.join("Staffel 01");
+    assert!(
+        season
+            .join("Kleine Insel - S01E01 - Ankunft Bluray-1080p.mkv")
+            .is_file()
+    );
+    assert!(!season.join("Kleine Insel - S01E01.mkv").exists());
+    let recycled = bin.join("Kleine Insel - S01E01.mkv");
+    assert_eq!(std::fs::read(&recycled).expect("recycled file"), b"old");
+    assert!(!movie_bin.exists(), "Radarr's bin stays untouched");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Spec download-import AC-11 (series): `sonarr_config_mediamanagement`'s minimum free
+/// space refuses an episode import unless the check is skipped.
+#[tokio::test]
+async fn the_minimum_free_space_refuses_an_episode_import_unless_the_check_is_skipped() {
+    for skip in [false, true] {
+        let s = Services::start().await;
+        s.feed("idx", &[s.item(S1, "s1", 2_000_000_000)]);
+        let root = root(if skip {
+            "episode-space-skip"
+        } else {
+            "episode-space-check"
+        });
+        let dir = download(&root, S1, &[("kleine.insel.s01e02.mkv", 2048)]);
+        let (app, folder, _) = series_app(&s, &root).await;
+        // More free space than any disk has: the check refuses whatever the real size.
+        app.db
+            .put_setting(
+                &format!("{}config_mediamanagement", series::PREFIX),
+                &json!({"minimumFreeSpaceWhenImporting": u64::MAX / 2,
+                        "skipFreeSpaceCheckWhenImporting": skip}),
+            )
+            .await
+            .expect("media management");
+        let report = app.rss_sync().await.expect("rss");
+        assert_eq!(report.series_grabs, 1, "{report:?}");
+        s.finish(77, S1, "SUCCESS/ALL", &format!("/remote/{S1}"));
+        let imported = app.check_downloads().await.expect("check");
+        let grab = &app.db.series_grabs(None).await.expect("grabs")[0];
+        let e02 = app
+            .db
+            .episodes(None)
+            .await
+            .expect("episodes")
+            .into_iter()
+            .find(|e| e.data.number == 2)
+            .expect("E02");
+        let target = folder.join("Staffel 01/Kleine Insel - S01E02 - Sturm WEBDL-1080p.mkv");
+        if skip {
+            assert_eq!(imported, 1);
+            assert_eq!(grab.status, GrabStatus::Imported);
+            assert!(e02.file.is_some());
+            assert!(target.is_file());
+            assert!(!dir.join("kleine.insel.s01e02.mkv").exists(), "moved");
+        } else {
+            assert_eq!(imported, 0);
+            assert_eq!(grab.status, GrabStatus::Completed);
+            let message = grab.message.as_deref().unwrap_or_default();
+            assert!(message.contains("zu wenig Speicherplatz"), "{message}");
+            assert!(e02.file.is_none());
+            assert!(!target.exists());
+            assert!(
+                dir.join("kleine.insel.s01e02.mkv").is_file(),
+                "nothing moved"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}

@@ -401,6 +401,36 @@ async fn fetches_series_episodes_and_files_from_sonarr() {
     assert_eq!(db.episodes(None).await.expect("episodes").len(), 3);
 }
 
+/// Spec library-import AC-07 (series): a Sonarr series with a TVDB id but without a
+/// title, or with an empty one, is not stored.
+#[tokio::test]
+async fn series_without_title_are_skipped() {
+    let db = Db::in_memory().await.expect("db");
+    let (mut docs, episodes) = sonarr_documents();
+    let shows = docs
+        .get_mut("series")
+        .expect("series")
+        .as_array_mut()
+        .expect("array");
+    shows.push(
+        json!({"id": 5, "tvdbId": 78, "monitored": true, "qualityProfileId": 1,
+        "path": "/tv/ohne Titel"}),
+    );
+    shows.push(
+        json!({"id": 6, "tvdbId": 79, "title": "", "monitored": true,
+        "qualityProfileId": 1, "path": "/tv/leer"}),
+    );
+    let summary = series::import_documents(&db, &docs, &episodes, Timestamp::now())
+        .await
+        .expect("import");
+    assert_eq!(summary.series, 1);
+    assert_eq!(db.series_by_tvdb(78).await.expect("db"), None);
+    assert_eq!(db.series_by_tvdb(79).await.expect("db"), None);
+    let stored = db.all_series().await.expect("series");
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].data.tvdb_id, 77);
+}
+
 #[tokio::test]
 async fn movie_and_series_settings_stay_apart() {
     let db = Db::in_memory().await.expect("db");

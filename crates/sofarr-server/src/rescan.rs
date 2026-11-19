@@ -914,6 +914,58 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
+    /// Spec disk-scan AC-04 (series): a video for an episode that still has its recorded
+    /// file leaves that episode alone; a multi-episode video is recorded only for the
+    /// episode without a file.
+    #[tokio::test]
+    async fn a_video_for_an_episode_with_its_file_is_left_alone() {
+        const RECORDED: &str = "Staffel 01/Kleine Insel - S01E01.mkv";
+        const MULTI: &str = "Staffel 01/Kleine.Insel.S01E01E02.1080p.WEB-DL.h264-GRP.mkv";
+        let root = temp("episode-kept");
+        let db = library_below(&root).await;
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        let show = root.join("tv/Kleine Insel");
+        fs::create_dir_all(show.join("Staffel 01")).expect("dir");
+        fs::write(show.join(RECORDED), b"v").expect("recorded file");
+        fs::write(
+            show.join("Staffel 01/Kleine.Insel.S01E01.1080p.BluRay.x264-NEU.mkv"),
+            b"v",
+        )
+        .expect("second video");
+        let rules = series::load_rules(&db).await.expect("rules");
+        let settings = ScanSettings {
+            auto_unmonitor: true,
+            delete_empty_folders: false,
+            keep_empty_root: false,
+        };
+        let before = db.episodes(None).await.expect("episodes")[0].file_id;
+        let report = all_series(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!((report.missing, report.found), (0, 0), "{report:?}");
+        let eps = db.episodes(None).await.expect("episodes");
+        let path = |eps: &[Episode], i: usize| {
+            eps[i]
+                .file
+                .as_ref()
+                .map(|f| f.relative_path.clone())
+                .unwrap_or_default()
+        };
+        assert_eq!(path(&eps, 0), RECORDED);
+        assert_eq!(eps[0].file_id, before);
+        assert!(eps[1].file.is_none());
+
+        // S01E01E02: E01 keeps its file, only E02 (without a file) takes the video.
+        fs::write(show.join(MULTI), b"v").expect("multi-episode video");
+        let report = all_series(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!((report.missing, report.found), (0, 1), "{report:?}");
+        let eps = db.episodes(None).await.expect("episodes");
+        assert_eq!(path(&eps, 0), RECORDED);
+        assert_eq!(eps[0].file_id, before);
+        assert_eq!(path(&eps, 1), MULTI);
+        assert_ne!(eps[1].file_id, eps[0].file_id);
+        assert!(eps[2].file.is_none(), "E03 is not in the video");
+        let _ = fs::remove_dir_all(&root);
+    }
+
     /// Spec disk-scan: in shadow mode the scan deletes no folder, even with
     /// `deleteEmptyFolders`; in live mode it does.
     #[tokio::test]
