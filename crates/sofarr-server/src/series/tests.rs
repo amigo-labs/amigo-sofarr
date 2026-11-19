@@ -142,6 +142,69 @@ fn names_episodes() {
 }
 
 #[test]
+fn episode_format_by_series_type_and_season_folders() {
+    let mut series = Series {
+        id: 1,
+        data: series_from_sonarr(&sonarr_documents().0["series"][0]).expect("series"),
+        tags: vec![],
+    };
+    let naming = NamingConfig {
+        standard_episode_format: "standard".to_owned(),
+        daily_episode_format: "daily".to_owned(),
+        anime_episode_format: "anime".to_owned(),
+        ..NamingConfig::default()
+    };
+    for (kind, expected) in [
+        ("standard", "standard"),
+        ("daily", "daily"),
+        ("anime", "anime"),
+        ("other", "standard"),
+    ] {
+        series.data.series_type = kind.to_owned();
+        assert_eq!(episode_pattern(&series, &naming), expected, "{kind}");
+    }
+    let ep = Episode {
+        id: 1,
+        series_id: 1,
+        data: NewEpisode {
+            tvdb_id: None,
+            season: 1,
+            number: 4,
+            absolute: None,
+            title: Some("Nebel".to_owned()),
+            title_de: None,
+            air_date: Some("2019-01-22".to_owned()),
+            monitored: true,
+        },
+        file_id: None,
+        file: None,
+    };
+    let naming = NamingConfig::default();
+    series.data.series_type = "daily".to_owned();
+    assert_eq!(
+        episode_name(
+            &series,
+            &[&ep],
+            "Kleine.Insel.2019.01.22.1080p.WEB-DL-G",
+            "WEBDL-1080p",
+            &naming,
+            None
+        ),
+        "Kleine Insel - 2019-01-22 - Nebel WEBDL-1080p"
+    );
+    // Default season folder format, and none at all when the series has no season folders.
+    assert_eq!(
+        season_folder(&series, 1, &naming),
+        PathBuf::from("/tv/Kleine Insel/Season 1")
+    );
+    series.data.season_folder = false;
+    assert_eq!(
+        season_folder(&series, 1, &naming),
+        PathBuf::from("/tv/Kleine Insel")
+    );
+}
+
+#[test]
 fn waits_for_episode_titles() {
     let ep = |title: Option<&str>, air: &str| Episode {
         id: 1,

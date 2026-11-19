@@ -475,6 +475,58 @@ mod tests {
     }
 
     #[test]
+    fn rename_setting_and_extension_case() {
+        let root = temp_dir("rename-off");
+        let download = root.join("dl");
+        fs::create_dir_all(&download).expect("dl");
+        fs::write(download.join("grp-garten.MKV"), vec![0u8; 64]).expect("video");
+        let library = root.join("lib");
+        let title = "Der.kleine.Garten.2019.German.1080p.BluRay.x264-GRP";
+        let renamed = plan(
+            &movie(&library, None),
+            title,
+            "Bluray-1080p",
+            &download,
+            &NamingConfig::default(),
+            None,
+        )
+        .expect("plan");
+        assert_eq!(
+            renamed.destination,
+            library.join("Kleiner Garten (2019) Bluray-1080p.mkv")
+        );
+        assert_eq!(renamed.old_file, None);
+        // Without renaming the file keeps its own name; the extension is lower case.
+        let naming = NamingConfig {
+            rename_movies: false,
+            ..NamingConfig::default()
+        };
+        let kept = plan(
+            &movie(&library, None),
+            title,
+            "Bluray-1080p",
+            &download,
+            &naming,
+            None,
+        )
+        .expect("plan");
+        assert_eq!(kept.destination, library.join("grp-garten.mkv"));
+        // A movie without a folder cannot be imported.
+        assert!(
+            plan(
+                &movie(Path::new(""), None),
+                title,
+                "Bluray-1080p",
+                &download,
+                &naming,
+                None
+            )
+            .is_err()
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn folder_for_new_movies() {
         let naming = NamingConfig {
             movie_folder_format: "{Movie TitleFirstCharacter:DE}/{Movie Title:DE} ({Release Year})"
