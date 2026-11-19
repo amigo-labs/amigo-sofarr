@@ -366,3 +366,38 @@ async fn refused_credentials_and_rpc_errors_fail_the_grab() {
     let message = grab.message.clone().unwrap_or_default();
     assert!(message.contains("nzbget: Fehler Invalid NZB"), "{message}");
 }
+
+#[tokio::test]
+async fn a_broken_release_is_blocklisted() {
+    // AC-07: Krake reports why a Usenet download failed, as NZBGet does.
+    for (status, par, unpack) in [
+        ("FAILURE/HEALTH", "NONE", "NONE"),
+        ("FAILURE/PAR", "FAILURE", "NONE"),
+        ("FAILURE/UNPACK", "SUCCESS", "FAILURE"),
+    ] {
+        let s = Setup::start(&format!("broken-{}", &status[8..]), &[(RELEASE, "g1")]).await;
+        let app = app_movies(&s).await;
+        app.rss_sync().await.expect("rss");
+        let mut entry = history_entry(KRAKE_ID, RELEASE, "movies", false, "/downloads/x");
+        entry["Status"] = json!(status);
+        entry["ParStatus"] = json!(par);
+        entry["UnpackStatus"] = json!(unpack);
+        entry["Health"] = json!(if status == "FAILURE/HEALTH" {
+            870
+        } else {
+            1000
+        });
+        entry["CriticalHealth"] = json!(950);
+        s.krake().history = vec![entry];
+        app.check_downloads().await.expect("check");
+        let grab = &app.db.grabs(None, 10).await.expect("grabs")[0];
+        assert_eq!(grab.status, GrabStatus::Failed, "{status}");
+        let blocks = app.db.blocks().await.expect("blocklist");
+        assert_eq!(
+            blocks.len(),
+            1,
+            "{status}: the broken release is blocklisted"
+        );
+        assert_eq!(blocks[0].title, RELEASE, "{status}");
+    }
+}
