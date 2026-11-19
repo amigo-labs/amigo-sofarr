@@ -268,6 +268,11 @@ async fn success_imports_from_krakes_folder_and_removes_without_deleting() {
     std::fs::write(other.join("fremd.mkv"), vec![2u8; 64]).expect("other video");
 
     let app = app_movies(&s).await;
+    // The library folder lies in the test's directory (the documents' `/data` is not
+    // writable outside a container).
+    let library = s.root.join("movies").join("Erster Film (2001)");
+    let id = crate::media_tests::place(&app, 101, &library, "unused.mkv").await;
+    app.db.remove_file(id).await.expect("no file yet");
     app.rss_sync().await.expect("rss");
     s.krake().history = vec![
         history_entry(
@@ -290,6 +295,8 @@ async fn success_imports_from_krakes_folder_and_removes_without_deleting() {
     assert_eq!(grab.status, GrabStatus::Imported);
     let movie = app.db.movie_by_tmdb(101).await.expect("db").expect("movie");
     assert!(movie.file.is_some(), "file recorded");
+    let placed = std::fs::read_dir(&library).expect("library folder").count();
+    assert_eq!(placed, 1, "the video lies in the library folder");
 
     let rpc = s.krake().rpc.clone();
     let edits: Vec<&String> = rpc.iter().filter(|c| c.starts_with("editqueue")).collect();
