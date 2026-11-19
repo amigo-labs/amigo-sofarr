@@ -1126,4 +1126,71 @@ mod tests {
             NamingConfig::default().movie_folder_format
         );
     }
+
+    #[test]
+    fn levels_collapse_spaces_and_trim_their_ends() {
+        // spec naming AC-04
+        let c = config();
+        let i = input();
+        let name = format("{Movie Title} {Edition Tags} {Quality Full}", &i, &c);
+        assert_eq!(name, "Mission - Impossible - Fallout Bluray-1080p");
+        assert_eq!(
+            format("_{Edition Tags} {Movie Title} -", &i, &c),
+            "Mission - Impossible - Fallout"
+        );
+        assert_eq!(
+            format(
+                "{Edition Tags}-{Movie Title}_/{Edition Tags}_{Release Year}-",
+                &i,
+                &c
+            ),
+            "Mission - Impossible - Fallout/2018"
+        );
+    }
+
+    #[test]
+    fn smart_colon_without_a_space() {
+        // spec naming AC-05
+        let c = NamingConfig {
+            colon_replacement: ColonReplacement::Smart,
+            ..NamingConfig::default()
+        };
+        let i = NamingInput {
+            title: "A:B".to_owned(),
+            ..NamingInput::default()
+        };
+        assert_eq!(format("{Movie Title}", &i, &c), "A-B");
+    }
+
+    #[test]
+    fn clean_titles_spell_out_ligatures_and_drop_backslashes() {
+        // spec naming AC-07
+        let i = NamingInput {
+            title: "Encyclopædia Back\\Slash".to_owned(),
+            ..NamingInput::default()
+        };
+        assert_eq!(
+            format("{Movie CleanTitle}", &i, &config()),
+            "Encyclopaedia Back Slash"
+        );
+    }
+
+    #[test]
+    fn series_clean_titles_and_german_episode_title_fallback() {
+        // spec naming AC-10
+        let c = config();
+        let mut i = episode_input();
+        i.title = "Small Island: Part 2".to_owned();
+        assert_eq!(format("{Series CleanTitle}", &i, &c), "Small Island Part 2");
+        assert_eq!(
+            format("{Series CleanTitleYear}", &i, &c),
+            "Small Island Part 2 (2019)"
+        );
+        i.episode_title_de = None;
+        assert_eq!(format("{Episode Title:DE}", &i, &c), "The Storm - Part 1");
+        assert_eq!(
+            format("{Episode CleanTitle:DE}", &i, &c),
+            "The Storm Part 1"
+        );
+    }
 }
