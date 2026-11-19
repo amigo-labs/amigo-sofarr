@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: M
 design: [sofarr.md §2, sofarr.md §4, sofarr.md §5, sofarr.md §9 D2, sofarr.md §9 D5, sofarr.md §9 D10]
@@ -43,17 +43,17 @@ describes what the code does today.
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When the user runs `amigo-sofarr import-radarr` without `--exports`, then sofarr reads the settings (quality profiles, quality definitions, custom formats, media management, indexer settings, naming, delay profiles, root folders, download client settings, import lists, list exclusions, tags) and the movie list from the Radarr configured in `[radarr]` and stores them.
-- [ ] AC-02 (option): Where `--exports <folder>` is given, sofarr reads the same documents from the `<name>.json` files of a config export folder instead of the API, leaves out every document whose file is missing, and — for `import-sonarr` — reads the settings and the series list only, without episodes and episode files.
-- [ ] AC-03 (event): When an import finishes, then the CLI prints a German summary: for Radarr the number of settings, movies, movies with a file and skipped entries, followed by the number of quality profiles and custom formats of the resulting rules, or a German hint that the rules are still incomplete; for Sonarr the number of settings, series, episodes and files.
-- [ ] AC-04 (always): sofarr keeps one movie per TMDB id: importing again updates the movie's fields from Radarr in the same record, leaves movies Radarr no longer lists unchanged, and removes the file record of a movie Radarr lists without a file; an entry without a TMDB id or without a title is skipped and counted as skipped.
-- [ ] AC-05 (always): An imported movie carries Radarr's title, original title, IMDb id, year, runtime, original language, monitored flag, quality profile, folder, Radarr id, alternative titles, tags, minimum availability (`released` when Radarr gives none), release status and the dates of cinema, digital and physical release (date only), poster and overview.
-- [ ] AC-06 (always): The file of an imported movie carries Radarr's relative path, size, quality, revision, release group and scene name; its custom format score is Radarr's `customFormatScore`, and where Radarr gives none, the score the imported custom formats give the scene name under the movie's profile.
-- [ ] AC-07 (event): When the user runs `amigo-sofarr import-sonarr` without `--exports`, then sofarr reads the settings (quality profiles, quality definitions, custom formats, media management, indexer settings, naming, download client settings, root folders, tags), the series list and, for every series, its episodes and episode files from the Sonarr configured in `[sonarr]`, and stores them: one series per TVDB id, one episode per season and number, a file that holds several episodes linked to each of them; importing again adds no second record, and a series without a TVDB id or title is left out.
-- [ ] AC-08 (always): Sonarr's settings are kept apart from Radarr's: movies are decided, named and imported by Radarr's profiles, custom formats and settings, series by Sonarr's; a series import leaves the movies unchanged.
-- [ ] AC-09 (always): A setting that an import does not bring along keeps its stored value.
-- [ ] AC-10 (error): If Radarr or Sonarr refuses the API key or cannot be reached, then the import stops with a German error message that names the app and the reason (the refused key with its HTTP status, or the endpoint that could not be fetched).
-- [ ] AC-11 (error): If the export folder holds none of the known documents, a document is no valid JSON, or no `--exports` is given while `[radarr]` (`import-radarr`) or `[sonarr]` (`import-sonarr`) is missing in the configuration, then the import stops with a German error message (naming the file for invalid JSON, the missing section otherwise) and the CLI exits with a code ≠ 0.
+- [x] AC-01 (event): When the user runs `amigo-sofarr import-radarr` without `--exports`, then sofarr reads the settings (quality profiles, quality definitions, custom formats, media management, indexer settings, naming, delay profiles, root folders, download client settings, import lists, list exclusions, tags) and the movie list from the Radarr configured in `[radarr]` and stores them.
+- [x] AC-02 (option): Where `--exports <folder>` is given, sofarr reads the same documents from the `<name>.json` files of a config export folder instead of the API, leaves out every document whose file is missing, and — for `import-sonarr` — reads the settings and the series list only, without episodes and episode files.
+- [x] AC-03 (event): When an import finishes, then the CLI prints a German summary: for Radarr the number of settings, movies, movies with a file and skipped entries, followed by the number of quality profiles and custom formats of the resulting rules, or a German hint that the rules are still incomplete; for Sonarr the number of settings, series, episodes and files.
+- [x] AC-04 (always): sofarr keeps one movie per TMDB id: importing again updates the movie's fields from Radarr in the same record, leaves movies Radarr no longer lists unchanged, and removes the file record of a movie Radarr lists without a file; an entry without a TMDB id or without a title is skipped and counted as skipped.
+- [x] AC-05 (always): An imported movie carries Radarr's title, original title, IMDb id, year, runtime, original language, monitored flag, quality profile, folder, Radarr id, alternative titles, tags, minimum availability (`released` when Radarr gives none), release status and the dates of cinema, digital and physical release (date only), poster and overview.
+- [x] AC-06 (always): The file of an imported movie carries Radarr's relative path, size, quality, revision, release group and scene name; its custom format score is Radarr's `customFormatScore`, and where Radarr gives none, the score the imported custom formats give the scene name under the movie's profile.
+- [x] AC-07 (event): When the user runs `amigo-sofarr import-sonarr` without `--exports`, then sofarr reads the settings (quality profiles, quality definitions, custom formats, media management, indexer settings, naming, download client settings, root folders, tags), the series list and, for every series, its episodes and episode files from the Sonarr configured in `[sonarr]`, and stores them: one series per TVDB id, one episode per season and number, a file that holds several episodes linked to each of them; importing again adds no second record, and a series without a TVDB id or title is left out.
+- [x] AC-08 (always): Sonarr's settings are kept apart from Radarr's: movies are decided, named and imported by Radarr's profiles, custom formats and settings, series by Sonarr's; a series import leaves the movies unchanged.
+- [x] AC-09 (always): A setting that an import does not bring along keeps its stored value.
+- [x] AC-10 (error): If Radarr or Sonarr refuses the API key or cannot be reached, then the import stops with a German error message that names the app and the reason (the refused key with its HTTP status, or the endpoint that could not be fetched).
+- [x] AC-11 (error): If the export folder holds none of the known documents, a document is no valid JSON, or no `--exports` is given while `[radarr]` (`import-radarr`) or `[sonarr]` (`import-sonarr`) is missing in the configuration, then the import stops with a German error message (naming the file for invalid JSON, the missing section otherwise) and the CLI exits with a code ≠ 0.
 
 ## Technical notes
 
@@ -95,17 +95,26 @@ describes what the code does today.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `library_import_tests::fetches_settings_and_movies_from_radarr` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
-| AC-02 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | built | 0db7cad |
-| AC-03 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | built | 0db7cad |
-| AC-04 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest`, `library_import_tests::entries_without_tmdb_id_or_title_are_skipped` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | built | 0db7cad, a7886fb |
-| AC-05 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `image_tests::imports_and_refreshes_store_poster_paths` (`crates/sofarr-server/src/image_tests.rs`) | built | 0db7cad, a7886fb |
-| AC-06 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | built | 0db7cad, a7886fb |
-| AC-07 | `library_import_tests::fetches_series_episodes_and_files_from_sonarr` (`crates/sofarr-server/src/library_import_tests.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`); `library_import_tests::series_without_title_are_skipped` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad, 8987674 |
-| AC-08 | `library_import_tests::movie_and_series_settings_stay_apart` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
-| AC-09 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
-| AC-10 | `library_import_tests::a_rejected_key_or_an_unreachable_app_stops_the_import` (`crates/sofarr-server/src/library_import_tests.rs`) | built | 0db7cad |
-| AC-11 | `imports_fail_on_bad_exports_and_missing_connections` (`crates/sofarr-server/tests/cli_import.rs`) | built | 0db7cad |
+| AC-01 | `library_import_tests::fetches_settings_and_movies_from_radarr` (`crates/sofarr-server/src/library_import_tests.rs`) | verified | 0db7cad |
+| AC-02 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | verified | 0db7cad |
+| AC-03 | `import_radarr_reads_an_export_folder`, `import_sonarr_reads_series_without_episodes_from_an_export_folder` (`crates/sofarr-server/tests/cli_import.rs`) | verified | 0db7cad |
+| AC-04 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest`, `library_import_tests::entries_without_tmdb_id_or_title_are_skipped` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | verified | 0db7cad, a7886fb |
+| AC-05 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `image_tests::imports_and_refreshes_store_poster_paths` (`crates/sofarr-server/src/image_tests.rs`) | verified | 0db7cad, a7886fb |
+| AC-06 | `library_import_tests::movies_keep_radarrs_fields` (`crates/sofarr-server/src/library_import_tests.rs`); `library::tests::imports_library_and_computes_wanted` (`crates/sofarr-server/src/library.rs`) | verified | 0db7cad, a7886fb |
+| AC-07 | `library_import_tests::fetches_series_episodes_and_files_from_sonarr` (`crates/sofarr-server/src/library_import_tests.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`); `library_import_tests::series_without_title_are_skipped` (`crates/sofarr-server/src/library_import_tests.rs`) | verified | 0db7cad, 8987674 |
+| AC-08 | `library_import_tests::movie_and_series_settings_stay_apart` (`crates/sofarr-server/src/library_import_tests.rs`) | verified | 0db7cad |
+| AC-09 | `library_import_tests::reimport_updates_movies_by_tmdb_id_and_keeps_the_rest` (`crates/sofarr-server/src/library_import_tests.rs`) | verified | 0db7cad |
+| AC-10 | `library_import_tests::a_rejected_key_or_an_unreachable_app_stops_the_import` (`crates/sofarr-server/src/library_import_tests.rs`) | verified | 0db7cad |
+| AC-11 | `imports_fail_on_bad_exports_and_missing_connections` (`crates/sofarr-server/tests/cli_import.rs`) | verified | 0db7cad |
+
+## Summary
+
+> Completed: 2026-11-19
+
+- CLI `import-radarr` / `import-sonarr` take over settings and libraries from the Radarr/Sonarr API or a config export folder, with a German summary and German errors.
+- Movies are kept one per TMDB id and series one per TVDB id; re-imports update in place, never delete, and keep settings an import does not bring.
+- Movies and their files carry Radarr's fields; a file's custom format score is Radarr's own or computed from the scene name.
+- Sonarr's settings live apart from Radarr's under the `sonarr_` prefix.
 
 ## Decisions
 
