@@ -232,10 +232,11 @@ async fn movies_keep_radarrs_fields() {
     movies[0] = json!({
         "id": 11, "tmdbId": 101, "imdbId": "tt0000101", "title": "Erster Film",
         "originalTitle": "First Film", "year": 2001, "runtime": 95, "monitored": true,
-        "qualityProfileId": 1, "path": "/data/media/movies/Erster Film (2001)",
+        "qualityProfileId": 7, "path": "/media/filme/Erster Film (2001)",
         "originalLanguage": {"id": 1, "name": "English"},
-        "minimumAvailability": "inCinemas", "status": "released",
+        "minimumAvailability": "inCinemas", "status": "inCinemas",
         "inCinemas": "2001-05-03T00:00:00Z", "digitalRelease": "2001-09-01T00:00:00Z",
+        "physicalRelease": "2001-11-20T00:00:00Z",
         "tags": [4], "alternateTitles": [{"title": "Der erste Film"}],
         "movieFile": {"relativePath": "Erster Film (2001).mkv", "size": 4096,
             "releaseGroup": "GRP", "sceneName": "Erster.Film.2001.1080p.BluRay.x264-GRP",
@@ -256,6 +257,13 @@ async fn movies_keep_radarrs_fields() {
     assert_eq!((movie.year, movie.runtime_minutes), (Some(2001), 95));
     assert_eq!(movie.original_language.as_deref(), Some("English"));
     assert_eq!(movie.radarr_id, Some(11));
+    assert_eq!(movie.quality_profile_id, 7);
+    assert_eq!(movie.path, "/media/filme/Erster Film (2001)");
+    assert_eq!(movie.availability.status.as_deref(), Some("inCinemas"));
+    assert_eq!(
+        movie.availability.physical_release.as_deref(),
+        Some("2001-11-20")
+    );
     assert_eq!(movie.alternative_titles, ["Der erste Film"]);
     assert_eq!(movie.availability.minimum, "inCinemas");
     assert_eq!(movie.availability.in_cinemas.as_deref(), Some("2001-05-03"));
@@ -270,12 +278,44 @@ async fn movies_keep_radarrs_fields() {
     assert_eq!(file.quality, "Bluray-1080p");
     assert_eq!((file.revision_version, file.revision_real), (2, 1));
     assert_eq!(file.release_group.as_deref(), Some("GRP"));
+    assert_eq!(
+        file.scene_name.as_deref(),
+        Some("Erster.Film.2001.1080p.BluRay.x264-GRP")
+    );
     // Radarr's own score wins over one computed from the scene name.
     assert_eq!(file.custom_format_score, 25);
     let second = db.movie_by_tmdb(102).await.expect("db").expect("movie");
     assert_eq!(second.availability.minimum, "released");
     // No score from Radarr: computed from the scene name (German +10).
     assert_eq!(second.file.expect("file").custom_format_score, 10);
+}
+
+#[tokio::test]
+async fn entries_without_tmdb_id_or_title_are_skipped() {
+    let db = Db::in_memory().await.expect("db");
+    let mut docs = documents();
+    let movies = docs
+        .get_mut("movie")
+        .expect("movies")
+        .as_array_mut()
+        .expect("array");
+    // A TMDB id but no title, and a TMDB id with an empty title.
+    movies.push(
+        json!({"id": 6, "tmdbId": 106, "monitored": true, "qualityProfileId": 1,
+        "path": "/x/ohne Titel"}),
+    );
+    movies.push(
+        json!({"id": 7, "tmdbId": 107, "title": "", "monitored": true,
+        "qualityProfileId": 1, "path": "/x/leer"}),
+    );
+    let summary = library::import_documents(&db, &docs, Timestamp::now())
+        .await
+        .expect("import");
+    // The fixture's entry with TMDB id 0 plus the two without a title.
+    assert_eq!((summary.movies, summary.skipped), (4, 3));
+    assert_eq!(db.movie_by_tmdb(106).await.expect("db"), None);
+    assert_eq!(db.movie_by_tmdb(107).await.expect("db"), None);
+    assert_eq!(db.movies().await.expect("movies").len(), 4);
 }
 
 /// Sonarr's API answers for the test series: settings, the series list, and episodes

@@ -389,3 +389,81 @@ async fn an_import_waits_for_a_missing_episode_title() {
     );
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[tokio::test]
+async fn a_proper_or_real_release_records_its_revision() {
+    for (title, revision) in [
+        (
+            "Erster.Film.2001.PROPER.German.1080p.BluRay.x264-GRP",
+            (2, 0),
+        ),
+        (
+            "Erster.Film.2001.REAL.PROPER.German.1080p.BluRay.x264-GRP",
+            (2, 1),
+        ),
+    ] {
+        let s = Services::start().await;
+        s.feed("idx", &[s.item(title, "g1", 5_000_000_000)]);
+        let root = root(if revision.0 == 2 { "proper" } else { "real" });
+        download(&root, title, &[("grp-erster.mkv", 4096)]);
+        let (app, _) = movie_app(&s, &root, "", 101).await;
+        app.rss_sync().await.expect("rss");
+        s.finish(77, title, "SUCCESS/ALL", &format!("/remote/{title}"));
+        assert_eq!(app.check_downloads().await.expect("check"), 1, "{title}");
+        let movie = app.db.movie_by_tmdb(101).await.expect("db").expect("movie");
+        let file = movie.file.expect("file recorded");
+        assert_eq!(
+            (file.revision_version, file.revision_real),
+            revision,
+            "{title}"
+        );
+        assert_eq!(file.scene_name.as_deref(), Some(title));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[tokio::test]
+async fn the_minimum_free_space_refuses_an_import_unless_the_check_is_skipped() {
+    for skip in [false, true] {
+        let s = Services::start().await;
+        s.feed("idx", &[s.item(G1, "g1", 5_000_000_000)]);
+        let root = root(if skip { "space-skip" } else { "space-check" });
+        let dir = download(&root, G1, &[("grp-erster.mkv", 4096)]);
+        let (app, folder) = movie_app(&s, &root, "", 101).await;
+        // More free space than any disk has: the check refuses whatever the real size.
+        app.db
+            .put_setting(
+                "config_mediamanagement",
+                &json!({"minimumFreeSpaceWhenImporting": u64::MAX / 2,
+                        "skipFreeSpaceCheckWhenImporting": skip}),
+            )
+            .await
+            .expect("media management");
+        app.rss_sync().await.expect("rss");
+        s.finish(77, G1, "SUCCESS/ALL", &format!("/remote/{G1}"));
+        let imported = app.check_downloads().await.expect("check");
+        let grab = &app.db.grabs(None, 10).await.expect("grabs")[0];
+        let file = app
+            .db
+            .movie_by_tmdb(101)
+            .await
+            .expect("db")
+            .expect("movie")
+            .file;
+        if skip {
+            assert_eq!(imported, 1);
+            assert_eq!(grab.status, GrabStatus::Imported);
+            assert!(file.is_some());
+            assert!(!dir.join("grp-erster.mkv").exists(), "moved");
+        } else {
+            assert_eq!(imported, 0);
+            assert_eq!(grab.status, GrabStatus::Completed);
+            let message = grab.message.as_deref().unwrap_or_default();
+            assert!(message.contains("zu wenig Speicherplatz"), "{message}");
+            assert!(file.is_none());
+            assert!(dir.join("grp-erster.mkv").is_file(), "nothing moved");
+            assert!(!folder.exists(), "no movie folder created");
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}

@@ -407,3 +407,124 @@ async fn rss_and_download_jobs_follow_the_config() {
     assert_eq!(Job::Rss.interval(&bare), None);
     assert_eq!(Job::Downloads.interval(&bare), None);
 }
+
+/// An app with the movie test library plus the series of `sonarr_documents()`.
+async fn movies_and_series(config: &str) -> crate::app::App {
+    let app = app(Library::Movies, config).await;
+    let (docs, eps) = series::tests::sonarr_documents();
+    series::import_documents(&app.db, &docs, &eps, Timestamp::now())
+        .await
+        .expect("series");
+    app
+}
+
+#[tokio::test]
+async fn the_report_counts_movie_releases_and_matches_to_monitored_available_movies() {
+    let s = Services::start().await;
+    s.feed(
+        "idx",
+        &[
+            s.item(G1, "g1", 5_000_000_000),
+            // An episode: not a movie release.
+            s.item(S1, "s1", 2_000_000_000),
+            // Vierter Film is not monitored.
+            s.item("Vierter.Film.1080p.BluRay.x264-A", "v1", 5_000_000_000),
+            // Fuenfter Film is monitored but only announced.
+            s.item(
+                "Fuenfter.Film.2030.1080p.BluRay.x264-A",
+                "f1",
+                5_000_000_000,
+            ),
+        ],
+    );
+    let app = movies_and_series(&s.indexer_toml("idx", &[])).await;
+    let mut docs = documents();
+    docs.get_mut("movie")
+        .expect("movies")
+        .as_array_mut()
+        .expect("array")
+        .push(
+            json!({"id": 9, "tmdbId": 109, "title": "Fuenfter Film", "year": 2030,
+            "monitored": true, "qualityProfileId": 1, "path": "/x/Fuenfter Film (2030)",
+            "minimumAvailability": "released", "status": "announced"}),
+        );
+    library::import_documents(&app.db, &docs, Timestamp::now())
+        .await
+        .expect("fifth movie");
+    let report = app.rss_sync().await.expect("rss");
+    assert_eq!(
+        (
+            report.releases,
+            report.matched,
+            report.approved,
+            report.series_grabs
+        ),
+        (3, 1, 1, 1),
+        "{report:?}"
+    );
+    let grabs = app.db.grabs(None, 10).await.expect("grabs");
+    assert_eq!(grabs.len(), 1);
+    assert_eq!(grabs[0].guid, "g1");
+}
+
+#[tokio::test]
+async fn an_episode_release_is_decided_for_series_only() {
+    let s = Services::start().await;
+    s.feed("idx", &[s.item(S1, "s1", 2_000_000_000)]);
+    let app = movies_and_series(&s.indexer_toml("idx", &[])).await;
+    // A monitored movie without a file that has the series' title.
+    let mut docs = documents();
+    docs.get_mut("movie")
+        .expect("movies")
+        .as_array_mut()
+        .expect("array")
+        .push(
+            json!({"id": 8, "tmdbId": 108, "title": "Kleine Insel", "year": 2019,
+            "monitored": true, "qualityProfileId": 1, "path": "/x/Kleine Insel (2019)"}),
+        );
+    library::import_documents(&app.db, &docs, Timestamp::now())
+        .await
+        .expect("movie");
+    // The same name without the episode reads as that movie.
+    let movies = app.db.movies().await.expect("movies");
+    let index = MovieIndex::new(&movies);
+    let as_movie = release("Kleine.Insel.2019.German.1080p.WEB-DL.h264-GRP", "m", 1);
+    assert_eq!(
+        index
+            .lookup(&as_movie, &sofarr_parser::parse(&as_movie.title))
+            .len(),
+        1
+    );
+
+    let report = app.rss_sync().await.expect("rss");
+    assert_eq!(
+        (report.releases, report.matched, report.series_grabs),
+        (0, 0, 1),
+        "{report:?}"
+    );
+    assert!(app.db.grabs(None, 10).await.expect("grabs").is_empty());
+    let grabs = app.db.series_grabs(None).await.expect("grabs");
+    assert_eq!(grabs.len(), 1);
+    assert_eq!(grabs[0].title, S1);
+}
+
+#[tokio::test]
+async fn a_tagged_indexer_serves_only_series_with_its_tag() {
+    let s = Services::start().await;
+    s.feed("kids", &[s.item(S1, "s1", 2_000_000_000)]);
+    let app = app(Library::Series, &s.indexer_toml("kids", &["Kids"])).await;
+    // The series carries tag id 2, which has no label yet.
+    assert_eq!(app.rss_sync().await.expect("rss").series_grabs, 0);
+    assert!(app.db.series_grabs(None).await.expect("grabs").is_empty());
+
+    // Tag 2 is labelled `KIDS` (compared without case): now the indexer serves it.
+    app.db
+        .put_setting(
+            &format!("{}tag", series::PREFIX),
+            &json!([{"id": 2, "label": "KIDS"}]),
+        )
+        .await
+        .expect("tag");
+    assert_eq!(app.rss_sync().await.expect("rss").series_grabs, 1);
+    assert_eq!(app.db.series_grabs(None).await.expect("grabs").len(), 1);
+}
