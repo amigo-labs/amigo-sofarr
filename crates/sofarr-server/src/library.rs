@@ -179,6 +179,8 @@ pub fn context(movie: &Movie, pending: Option<&Grab>, rules: &Rules) -> MovieCon
             Some(g) => Some(rules.pending(&g.quality, &g.title, g.custom_format_score)),
             None => movie.file.as_ref().map(|f| rules.existing(f)),
         },
+        // RSS sync and search skip imported names before deciding (`Exclusions`).
+        imported_releases: Vec::new(),
     }
 }
 
