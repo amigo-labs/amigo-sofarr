@@ -83,13 +83,30 @@ test.describe('shelf arrows (AC-03)', () => {
       await expect(forward).toBeDisabled();
       return;
     }
+    // A click scrolls smoothly; the arrows change only when the scrolling stops. Checking the
+    // forward arrow while the strip still moves would click it just before it turns disabled.
+    const scrolled = async () => {
+      let last = Number.NaN;
+      await expect
+        .poll(
+          async () => {
+            const now = await strip.evaluate((el) => el.scrollLeft);
+            const still = now === last;
+            last = now;
+            return still;
+          },
+          { intervals: [150] },
+        )
+        .toBe(true);
+    };
     await expect(forward).toBeEnabled();
     await forward.click();
     await expect.poll(() => strip.evaluate((el) => el.scrollLeft)).toBeGreaterThan(100);
+    await scrolled();
     await expect(back).toBeEnabled();
     for (let i = 0; i < 20 && (await forward.isEnabled()); i += 1) {
       await forward.click();
-      await page.waitForTimeout(400);
+      await scrolled();
     }
     await expect(forward).toBeDisabled();
     expect(
