@@ -23,7 +23,7 @@ gaps that made it unusable for sofarr (the NZB of `append` was dropped, categori
 history had no `Name`, all NZBs shared one folder); they are fixed in Krake itself
 (amigo-labs/amigo-krake#134). This spec proves that sofarr's whole download path works against Krake's answers,
 which differ from nzbget's in details (version text, fields always present but zero, failures
-reported as `FAILURE/NONE`, ids derived from Krake's own download ids).
+failure kinds limited to health, par and unpack, ids derived from Krake's own download ids).
 
 Terms:
 
@@ -44,9 +44,6 @@ Terms:
 ### Out of scope
 
 - A native client for Krake's REST API (`/api/v1`) — because D32 chooses the NZBGet-compatible API.
-- Telling release failures from local failures with Krake — because Krake reports every failure
-  as `FAILURE/NONE`; sofarr treats such a grab as failed for local reasons (no blocklist), see
-  Assumptions.
 - Running nzbget and Krake side by side — because `[nzbget]` names one client.
 
 ## Acceptance criteria
@@ -66,6 +63,7 @@ Terms:
 - [ ] AC-06 (error): If Krake rejects the credentials (HTTP 401) or answers an RPC error, then the
   grab fails with the German error message of the download client and no grab is recorded as
   sent.
+- [ ] AC-07 (event): When Krake reports the download as failed because of the release (`FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`), then sofarr marks the grab as failed and puts the release on the blocklist, as for the same states from nzbget.
 
 ## Technical notes
 
@@ -74,7 +72,7 @@ Terms:
 - Krake's answers (after the fix): `append` → positive integer; `listgroups` entries with
   `NZBID`, `NZBName`, `Category`, `Status` (`QUEUED`/`DOWNLOADING`/`PAUSED`), `FileSizeMB`,
   `RemainingSizeMB`, `DestDir`; `history` entries with `NZBID`, `Name`, `NZBName`, `Category`,
-  `Status` (`SUCCESS/ALL` or `FAILURE/NONE`), `FileSizeMB`, `DestDir`, `FinalDir`; `version` →
+  `Status` (`SUCCESS/ALL`, `FAILURE/HEALTH`, `FAILURE/PAR`, `FAILURE/UNPACK`, or `FAILURE/NONE` for local errors), `ParStatus`, `UnpackStatus`, `Health`, `CriticalHealth`, `FileSizeMB`, `DestDir`, `FinalDir`; `version` →
   `"krake-<version>"`.
 
 ## Edge cases
@@ -85,14 +83,6 @@ Terms:
 | Queue entry with size 0 (Krake does not know the size yet) | Downloading, sizes 0 |
 | Krake restarts and reports the same download under the same id | Same grab, no duplicate |
 | Download vanishes from Krake | Vanished-download handling of `fail-handling` applies unchanged |
-
-## Assumptions
-
-| Assumption | Reason | Risk |
-| ---------- | ------ | ---- |
-| Every Krake failure counts as a local failure (no blocklist, no automatic re-search of another release) | Krake reports no failure kind; nzbget's `FAILURE/NONE` is treated the same way | A broken release may be grabbed again by the next search; the owner can blocklist it by hand |
-| Krake's ids stay stable for a download across restarts | Krake derives the NZBID from its stored download id | Krake hashes the id with Rust's default hasher, stable within one build only: after a Krake update, grabs still downloading would show as vanished |
-| A Usenet download Krake could not complete still arrives as `SUCCESS/ALL` | Krake detects no missing articles or failed post-processing yet (amigo-krake#134, known limits) | sofarr finds no video and handles it as a failed import (spec `download-import`), not as a failed release |
 
 ## Open questions
 
@@ -106,5 +96,8 @@ Terms:
 | AC-04 |      | open   |        |
 | AC-05 |      | open   |        |
 | AC-06 |      | open   |        |
+| AC-07 |      | open   |        |
 
 ## Decisions
+
+- 2026-11-19 (build): AC-07 added, Assumptions on failure kinds and NZBIDs dropped: amigo-krake#134 now reports why a Usenet download failed (health, par, unpack) and gives NZBIDs that never change (FNV-1a over Krake's download id), on the owner's request.
