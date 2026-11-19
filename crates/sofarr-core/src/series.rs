@@ -109,6 +109,7 @@ pub fn evaluate_episodes(
         runtime_minutes: series.runtime_minutes.saturating_mul(count),
         original_language: series.original_language,
         file: weakest_file(&wanted, profile),
+        imported_releases: Vec::new(),
     };
     let mut decision = evaluate(config, profile, release, info.release.clone(), &context);
     if covered.is_empty() {

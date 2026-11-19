@@ -37,6 +37,9 @@ pub struct MovieContext {
     pub runtime_minutes: u32,
     pub original_language: Option<Language>,
     pub file: Option<ExistingFile>,
+    /// Names of the film's releases that were grabbed and imported; a release with one
+    /// of these names (ignoring case) is not taken again.
+    pub imported_releases: Vec<String>,
 }
 
 /// The film's current file.
@@ -111,6 +114,8 @@ pub enum Rejection {
     RepackOtherGroup,
     /// A repack, but the release group of the file is unknown.
     FileGroupUnknown,
+    /// A release with the same name was grabbed and imported for this item before.
+    AlreadyImported,
     /// Larger than the indexer setting `maximumSize`.
     MaximumSizeExceeded {
         size: u64,
@@ -157,6 +162,7 @@ impl Rejection {
             Self::NoBetterScore => "no_better_score",
             Self::RepackOtherGroup => "repack_other_group",
             Self::FileGroupUnknown => "file_group_unknown",
+            Self::AlreadyImported => "already_imported",
             Self::MaximumSizeExceeded { .. } => "maximum_size_exceeded",
             Self::OutsideRetention { .. } => "outside_retention",
             Self::TooYoung { .. } => "too_young",
@@ -214,6 +220,9 @@ impl fmt::Display for Rejection {
             }
             Self::FileGroupUnknown => {
                 f.write_str("Repack, aber die Release-Gruppe der Datei ist unbekannt")
+            }
+            Self::AlreadyImported => {
+                f.write_str("Release mit gleichem Namen wurde schon geholt und importiert")
             }
             Self::MaximumSizeExceeded { size, maximum } => write!(
                 f,
@@ -306,6 +315,14 @@ pub fn evaluate(
     let score = profile.score(&custom_formats);
 
     let mut rejections = Vec::new();
+    let title = release.title.trim();
+    if movie
+        .imported_releases
+        .iter()
+        .any(|name| name.trim().eq_ignore_ascii_case(title))
+    {
+        rejections.push(Rejection::AlreadyImported);
+    }
     if !profile.is_allowed(quality.id) {
         rejections.push(Rejection::QualityNotWanted {
             quality: quality.name.clone(),
@@ -504,6 +521,7 @@ mod tests {
             runtime_minutes: 100,
             original_language: Some(Language::English),
             file,
+            imported_releases: Vec::new(),
         }
     }
 
@@ -810,5 +828,40 @@ mod tests {
         assert_eq!(keys, ["maximum_size_exceeded", "too_young"]);
         assert!(d.rejections[0].permanent());
         assert!(!d.rejections[1].permanent());
+    }
+
+    #[test]
+    fn imported_release_name_is_rejected() {
+        // release-oracle-history AC-01
+        let config = config();
+        let title = "Some.Movie.2020.1080p.BluRay.x264-GRP";
+        let mut context = movie(Some(file(7, 0)));
+        context.imported_releases = vec!["some.movie.2020.1080P.bluray.x264-grp ".into()];
+        let with = keys(&config, title, &context);
+        context.imported_releases.clear();
+        let without = keys(&config, title, &context);
+        assert!(with.contains(&"already_imported"), "{with:?}");
+        assert_eq!(
+            with.iter()
+                .filter(|k| **k != "already_imported")
+                .collect::<Vec<_>>(),
+            without.iter().collect::<Vec<_>>(),
+            "the other rejections stay"
+        );
+        assert!(!without.is_empty(), "the file gives another rejection");
+    }
+
+    #[test]
+    fn other_names_are_no_imported_release() {
+        // release-oracle-history AC-02
+        let config = config();
+        let title = "Some.Movie.2020.1080p.BluRay.x264-GRP";
+        let mut context = movie(None);
+        assert!(keys(&config, title, &context).is_empty());
+        context.imported_releases = vec![
+            "Some.Movie.2020.720p.BluRay.x264-GRP".into(),
+            "Some.Movie.2020.1080p.BluRay.x264-GRP.nzb".into(),
+        ];
+        assert!(keys(&config, title, &context).is_empty());
     }
 }
