@@ -796,6 +796,87 @@ mod tests {
     }
 
     #[test]
+    fn unknown_runtime_skips_size_limits() {
+        let config = config();
+        let tiny = ReleaseInput {
+            size_bytes: 1,
+            ..release("Some.Movie.2020.1080p.BluRay.x264-GRP")
+        };
+        let unknown_runtime = MovieContext {
+            runtime_minutes: 0,
+            ..movie(None)
+        };
+        let d = decide(&config, &config.profiles[0], &tiny, &unknown_runtime);
+        assert!(d.approved(), "{:?}", d.rejections);
+        // With a known runtime the same release is too small.
+        let d = decide(&config, &config.profiles[0], &tiny, &movie(None));
+        assert_eq!(
+            d.rejections.iter().map(Rejection::key).collect::<Vec<_>>(),
+            ["too_small"]
+        );
+    }
+
+    #[test]
+    fn retention_rejects_old_releases_permanently() {
+        let mut config = config();
+        config.settings.retention_days = 30;
+        let title = "Some.Movie.2020.1080p.WEB-DL.H.264-GRP";
+        let old = ReleaseInput {
+            age_minutes: 31.0 * 24.0 * 60.0,
+            ..release(title)
+        };
+        let d = decide(&config, &config.profiles[0], &old, &movie(None));
+        assert_eq!(
+            d.rejections.iter().map(Rejection::key).collect::<Vec<_>>(),
+            ["outside_retention"]
+        );
+        assert!(d.rejections[0].permanent());
+        let fresh = ReleaseInput {
+            age_minutes: 29.0 * 24.0 * 60.0,
+            ..release(title)
+        };
+        assert!(decide(&config, &config.profiles[0], &fresh, &movie(None)).approved());
+        // `0` switches retention and maximum size off.
+        config.settings.retention_days = 0;
+        config.settings.maximum_size_mb = 0;
+        let huge = ReleaseInput {
+            size_bytes: 15 * GB,
+            ..old
+        };
+        assert!(decide(&config, &config.profiles[0], &huge, &movie(None)).approved());
+    }
+
+    #[test]
+    fn best_release_order() {
+        use std::cmp::Ordering;
+        let config = config();
+        let profile = &config.profiles[0];
+        let d = |title: &str| decide(&config, profile, &release(title), &movie(None));
+        let web = d("Some.Movie.2020.1080p.WEB-DL.H.264-GRP");
+        let web_good = d("Some.Movie.2020.1080p.WEB-DL.H.264-GOOD");
+        let web_proper = d("Some.Movie.2020.1080p.WEB-DL.H.264.PROPER-GRP");
+        let bluray = d("Some.Movie.2020.1080p.BluRay.x264-GRP");
+        let cmp =
+            |a: &Decision, b: &Decision, policy| compare(profile, policy, (a, 5 * GB), (b, 5 * GB));
+        let policy = PropersPolicy::PreferAndUpgrade;
+        // Quality rank first, even against a better score.
+        assert_eq!(cmp(&bluray, &web_good, policy), Ordering::Greater);
+        // Same rank: score before revision.
+        assert_eq!(cmp(&web_good, &web_proper, policy), Ordering::Greater);
+        // Same rank and score: revision, unless propers are not preferred.
+        assert_eq!(cmp(&web_proper, &web, policy), Ordering::Greater);
+        assert_eq!(
+            cmp(&web_proper, &web, PropersPolicy::DoNotPrefer),
+            Ordering::Equal
+        );
+        // Everything equal: the bigger release wins.
+        assert_eq!(
+            compare(profile, policy, (&web, 6 * GB), (&web, 5 * GB)),
+            Ordering::Greater
+        );
+    }
+
+    #[test]
     fn hardcoded_subs_follow_the_setting() {
         let mut config = config();
         let title = "Some.Movie.2020.SUBBED.1080p.BluRay.x264-GRP";
