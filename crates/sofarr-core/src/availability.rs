@@ -166,4 +166,27 @@ mod tests {
             today
         ));
     }
+
+    #[test]
+    fn announced_minimum_takes_unreleased_movies() {
+        // decision-engine AC-13: the dates are in the future and the status is
+        // `announced`, yet a movie whose minimum is `announced` is available.
+        let today = d("2026-11-11");
+        let info = ReleaseInfo {
+            status: Some(Stage::Announced),
+            in_cinemas: Some(d("2027-03-01")),
+            digital: Some(d("2027-06-01")),
+            physical: None,
+        };
+        assert!(is_available(Stage::Announced, &info, 0, today));
+        assert!(is_available(Stage::Announced, &info, 30, today));
+        assert!(!is_available(Stage::InCinemas, &info, 0, today));
+        assert!(!is_available(Stage::Released, &info, 0, today));
+        let status_only = ReleaseInfo {
+            status: Some(Stage::Announced),
+            ..ReleaseInfo::default()
+        };
+        assert!(is_available(Stage::Announced, &status_only, 0, today));
+        assert!(!is_available(Stage::InCinemas, &status_only, 0, today));
+    }
 }

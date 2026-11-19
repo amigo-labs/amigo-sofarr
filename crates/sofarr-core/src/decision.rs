@@ -945,4 +945,105 @@ mod tests {
         ];
         assert!(keys(&config, title, &context).is_empty());
     }
+
+    #[test]
+    fn minimum_upgrade_score() {
+        // decision-engine AC-09: a score gain below `min_upgrade_format_score` is no
+        // upgrade; `None` and `0` count as 1.
+        let mut config = config();
+        let good = "Some.Movie.2020.1080p.WEB-DL.H.264-GOOD"; // score 100
+        config.profiles[0].min_upgrade_format_score = Some(150);
+        let check =
+            |config: &RadarrConfig, score| keys(config, good, &movie(Some(file(15, score))));
+        assert_eq!(check(&config, 0), ["no_better_score"]);
+        assert_eq!(check(&config, -49), ["no_better_score"]);
+        assert!(check(&config, -50).is_empty());
+        assert!(check(&config, -100).is_empty());
+        for minimum in [None, Some(0), Some(1)] {
+            config.profiles[0].min_upgrade_format_score = minimum;
+            assert!(check(&config, 99).is_empty(), "{minimum:?}");
+            assert_eq!(check(&config, 100), ["no_better_score"], "{minimum:?}");
+        }
+    }
+
+    #[test]
+    fn reported_languages_feed_language_formats() {
+        // decision-engine AC-06: reported languages decide language conditions of
+        // custom formats, also when the title names no language.
+        let mut config = config();
+        let language_format = |id, name: &str, except| CustomFormat {
+            id: CustomFormatId(id),
+            name: name.into(),
+            specifications: vec![Specification {
+                name: "Sprache".into(),
+                condition: Condition::Language {
+                    language: LanguageRef::Language(Language::German),
+                    except,
+                },
+                negate: false,
+                required: false,
+            }],
+        };
+        config
+            .custom_formats
+            .push(language_format(3, "German", false));
+        config
+            .custom_formats
+            .push(language_format(4, "Not German", true));
+        config.profiles[0]
+            .format_scores
+            .extend([(CustomFormatId(3), 30), (CustomFormatId(4), -20)]);
+        let title = "Some.Movie.2020.1080p.WEB-DL.H.264-GRP";
+        let plain = decide(&config, &config.profiles[0], &release(title), &movie(None));
+        assert_eq!(plain.custom_formats, [CustomFormatId(4)]);
+        assert_eq!(plain.score, -20);
+        let reported = ReleaseInput {
+            languages: Some(&[Language::German]),
+            ..release(title)
+        };
+        let d = decide(&config, &config.profiles[0], &reported, &movie(None));
+        assert_eq!(d.custom_formats, [CustomFormatId(3)]);
+        assert_eq!(d.score, 30);
+    }
+
+    #[test]
+    fn tagged_hardcoded_subs_name_the_tag() {
+        // decision-engine AC-07
+        let config = config();
+        let title = "Some.Movie.2020.Retail.DKsubs.1080p.WEB-DL.H.264-GRP";
+        let d = decide(&config, &config.profiles[0], &release(title), &movie(None));
+        assert_eq!(
+            d.rejections,
+            [Rejection::HardcodedSubs {
+                subs: HardcodedSubs::Tagged("DKsubs".into())
+            }]
+        );
+        assert_eq!(
+            d.rejections[0].to_string(),
+            "eingebrannte Untertitel (DKsubs)"
+        );
+    }
+
+    #[test]
+    fn year_rule_comes_before_already_imported() {
+        // release-oracle-history AC-01: a release that fails the year rule gets only
+        // that rejection, even when its name was imported before.
+        let config = config();
+        let check = |title: &str| {
+            let context = MovieContext {
+                imported_releases: vec![title.to_owned()],
+                ..movie(None)
+            };
+            keys(&config, title, &context)
+        };
+        assert_eq!(check("Some.Movie.1080p.BluRay.x264-GRP"), ["unparsable"]);
+        assert_eq!(
+            check("Some.Movie.2022.1080p.BluRay.x264-GRP"),
+            ["unknown_movie"]
+        );
+        assert_eq!(
+            check("Some.Movie.2020.1080p.BluRay.x264-GRP"),
+            ["already_imported"]
+        );
+    }
 }

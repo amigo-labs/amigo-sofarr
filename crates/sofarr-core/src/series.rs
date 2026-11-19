@@ -303,4 +303,40 @@ mod tests {
         // S02E02 has not aired, S02E01 has no file: wanted.
         assert!(double.decision.approved(), "{:?}", keys(&double));
     }
+
+    /// decision-engine AC-14: size limits count the episode runtime times the covered
+    /// episodes.
+    #[test]
+    fn sizes_scale_with_covered_episodes() {
+        const MB: u64 = 1024 * 1024;
+        let mut config = config();
+        let web = config
+            .definitions
+            .0
+            .iter_mut()
+            .find(|d| d.quality.id == WEBDL_1080)
+            .expect("WEBDL-1080p");
+        // 45 min per episode: one episode 675-1350 MB, two episodes 1350-2700 MB.
+        web.min_size = 15.0;
+        web.max_size = Some(30.0);
+        let run = |title: &str, size: u64| {
+            let info = parse_episode(title).expect("episode");
+            let release = ReleaseInput {
+                title,
+                size_bytes: size,
+                age_minutes: 60.0,
+                languages: None,
+            };
+            let d = evaluate_episodes(&config, &config.profiles[0], &release, &info, &series());
+            keys(&d)
+        };
+        let single = "Kleine.Insel.S02E01.German.1080p.WEB-DL.h264-GRP";
+        let double = "Kleine.Insel.S02E01E02.German.1080p.WEB-DL.h264-GRP";
+        // Too large for one episode, fits two.
+        assert_eq!(run(single, 2000 * MB), ["too_large"]);
+        assert!(run(double, 2000 * MB).is_empty());
+        // Fits one episode, too small for two.
+        assert!(run(single, 1000 * MB).is_empty());
+        assert_eq!(run(double, 1000 * MB), ["too_small"]);
+    }
 }
