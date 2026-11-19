@@ -204,7 +204,9 @@ fn marker_at(tokens: &[Token<'_>], i: usize, title_start: usize) -> Option<Marke
             .and_then(|n| digits(&n.key))
             .filter(|s| *s < 100)
     {
-        if anime_season_in_title(tokens, i + 2, title_start) {
+        if anime_season_in_title(tokens, i + 2, title_start)
+            || dash_after_season_word(tokens, i, title_start)
+        {
             return None;
         }
         // `Season 1 Episode 2`
@@ -305,20 +307,49 @@ fn bracketed_title(tokens: &[Token<'_>]) -> Option<(std::ops::Range<usize>, Mark
     let wordy = tokens[title..number]
         .iter()
         .any(|t| digits(&t.key).is_none());
-    // `[Grp][Title.S2][05]` names a season as well; that form is left open.
-    let season = tokens[title..number]
-        .iter()
-        .any(|t| season_episode(&t.key).is_some());
+    // `[Grp][Title.S2][05]`: a season as the title's last word makes the number an
+    // episode of that season (parser-season-in-title AC-02); elsewhere it is no such form.
+    let seasons: Vec<(usize, u16)> = (title..number)
+        .filter_map(|k| {
+            season_episode(&tokens[k].key)
+                .filter(|(_, e)| e.is_empty())
+                .map(|(s, _)| (k, s))
+        })
+        .collect();
+    let season = match seasons.as_slice() {
+        [] => None,
+        [(k, s)] if *k == number - 1 && *k > title => Some(*s),
+        _ => return None,
+    };
     if starts[0] != 0
         || !alone
         || !wordy
-        || season
+        || tokens[title..number]
+            .iter()
+            .any(|t| season_episode(&t.key).is_some_and(|(_, e)| !e.is_empty()))
         || !tokens[..=number].iter().all(|t| t.bracketed)
     {
         return None;
     }
     let n = bracket_number(&tokens[number])?;
-    Some((title..number, Marker::Absolute { numbers: vec![n] }))
+    Some(match season {
+        Some(season) => (
+            title..number - 1,
+            Marker::Episode {
+                season,
+                episodes: vec![n],
+            },
+        ),
+        None => (title..number, Marker::Absolute { numbers: vec![n] }),
+    })
+}
+
+/// `Title.2nd.Season.-.06`: a season word followed by a spaced dash and an absolute
+/// number belongs to the title (parser-season-in-title AC-01).
+fn dash_after_season_word(tokens: &[Token<'_>], i: usize, title_start: usize) -> bool {
+    tokens.get(i + 1).is_some_and(|n| n.sep == Sep::Dash)
+        && !tight_dash(tokens, i + 1)
+        && absolute_at(tokens, i + 1, title_start).is_some()
 }
 
 /// Behind a leading group (anime style), a season followed by ` - 07` is part of the
@@ -602,6 +633,101 @@ mod tests {
             "Formula 1 - Grand Prix-Rennen-25 Oktober 2026-720p.WEB-DL",
         ] {
             assert_eq!(parse_episode(title), None, "{title}");
+        }
+    }
+
+    #[test]
+    fn season_word_before_spaced_dash_number() {
+        // parser-season-in-title AC-01
+        let e = ep(
+            "[Erai-raws].Kikansha.no.Mahou.wa.Tokubetsu.desu.2nd.Season.-.06.[1080p.CR.WEBRip.HEVC.AAC][MultiSub][BFA1EA3B]",
+        );
+        assert_eq!(
+            e.series_title,
+            "Kikansha no Mahou wa Tokubetsu desu 2nd Season"
+        );
+        assert_eq!((e.season, e.full_season), (None, false));
+        assert_eq!(e.absolute_episodes, [6]);
+        let s = ep("[Grp] Show 2nd Season - 06 (1080p)");
+        assert_eq!(
+            (s.series_title.as_str(), s.absolute_episodes.as_slice()),
+            ("Show 2nd Season", &[6][..])
+        );
+        assert_eq!(
+            ep("[Grp].Show.Season.-.06v2.[1080p]").absolute_episodes,
+            [6]
+        );
+        assert_eq!(
+            ep("[Grp].Show.Season.-.06-07.[1080p]").absolute_episodes,
+            [6, 7]
+        );
+    }
+
+    #[test]
+    fn bracketed_title_with_season() {
+        // parser-season-in-title AC-02
+        for title in [
+            "[Nekomoe.kissaten][Sasaki.to.Pii-chan.S2][05][1080p][JPTC]",
+            "[Nekomoe.kissaten][Sasaki.to.Pii-chan.S2][05v2][1080p][JPSC]",
+        ] {
+            let e = ep(title);
+            assert_eq!(e.series_title, "Sasaki to Pii-chan", "{title}");
+            assert_eq!(
+                (e.season, e.episodes.as_slice(), e.full_season),
+                (Some(2), &[5][..], false),
+                "{title}"
+            );
+            assert!(e.absolute_episodes.is_empty(), "{title}");
+        }
+    }
+
+    #[test]
+    fn season_forms_stay_unchanged() {
+        // parser-season-in-title AC-03
+        let pack = ep("Show.Name.Season.2.1080p.WEB-GRP");
+        assert_eq!(
+            (pack.series_title.as_str(), pack.season, pack.full_season),
+            ("Show Name", Some(2), true)
+        );
+        let multi = ep("Show.Season.1-3.1080p");
+        assert_eq!((multi.season, multi.last_season), (Some(1), Some(3)));
+        let tight = ep("Show.Season-2.1080p.WEB-GRP");
+        assert_eq!((tight.season, tight.full_season), (Some(2), true));
+        let no_group = ep("Show.Season.2.-.07.[720p]");
+        assert_eq!((no_group.season, no_group.full_season), (Some(2), true));
+        let word = ep("Kleine Insel Season 1 Episode 4 720p");
+        assert_eq!((word.season, word.episodes.as_slice()), (Some(1), &[4][..]));
+        let cour = ep("[Grp].Sky.Pirates.Season.2.-.07.[720p.WEB-DL]");
+        assert_eq!(
+            (
+                cour.series_title.as_str(),
+                cour.absolute_episodes.as_slice()
+            ),
+            ("Sky Pirates Season 2", &[7][..])
+        );
+        assert_eq!(
+            ep("[Nekomoe.kissaten][Chii.Fuyo][06][1080p][JPSC]").absolute_episodes,
+            [6]
+        );
+    }
+
+    #[test]
+    fn season_in_title_rejects_non_episodes() {
+        // parser-season-in-title AC-04
+        for title in ["[Grp][Title.S2][1080p][WEB]", "[Grp][Title.S2][2026]"] {
+            assert!(
+                parse_episode(title).is_none_or(|e| e.episodes.is_empty()),
+                "{title}"
+            );
+        }
+        for title in [
+            "[Grp].Title.Season.-.2026.[1080p]",
+            "[Grp].Title.Season.-.1080p",
+        ] {
+            assert!(
+                parse_episode(title).is_none_or(|e| e.absolute_episodes.is_empty()),
+                "{title}"
+            );
         }
     }
 }
