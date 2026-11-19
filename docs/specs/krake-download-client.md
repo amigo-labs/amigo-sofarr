@@ -20,8 +20,8 @@ Sonarr/Radarr. sofarr's download client already speaks that protocol for nzbget 
 Decision D32 (owner, 2026-11-19): sofarr uses Krake through its NZBGet-compatible API, with the
 existing `[nzbget]` configuration — no second `DownloadClient` implementation. Krake's API had
 gaps that made it unusable for sofarr (the NZB of `append` was dropped, categories ignored, the
-history had no `Name`); they are fixed in Krake itself (branch `fix/nzbget-compat-for-sofarr` of
-amigo-krake). This spec proves that sofarr's whole download path works against Krake's answers,
+history had no `Name`, all NZBs shared one folder); they are fixed in Krake itself
+(amigo-labs/amigo-krake#134). This spec proves that sofarr's whole download path works against Krake's answers,
 which differ from nzbget's in details (version text, fields always present but zero, failures
 reported as `FAILURE/NONE`, ids derived from Krake's own download ids).
 
@@ -91,7 +91,8 @@ Terms:
 | Assumption | Reason | Risk |
 | ---------- | ------ | ---- |
 | Every Krake failure counts as a local failure (no blocklist, no automatic re-search of another release) | Krake reports no failure kind; nzbget's `FAILURE/NONE` is treated the same way | A broken release may be grabbed again by the next search; the owner can blocklist it by hand |
-| Krake's ids stay stable for a download across restarts | Krake derives the NZBID from its stored download id | Changed ids would show a grab as vanished |
+| Krake's ids stay stable for a download across restarts | Krake derives the NZBID from its stored download id | Krake hashes the id with Rust's default hasher, stable within one build only: after a Krake update, grabs still downloading would show as vanished |
+| A Usenet download Krake could not complete still arrives as `SUCCESS/ALL` | Krake detects no missing articles or failed post-processing yet (amigo-krake#134, known limits) | sofarr finds no video and handles it as a failed import (spec `download-import`), not as a failed release |
 
 ## Open questions
 
