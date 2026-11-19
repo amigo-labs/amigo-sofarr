@@ -289,4 +289,18 @@ mod tests {
         let abs = parse_episode("[G] Kleine Insel - 02 [1080p]").expect("absolute");
         assert_eq!(ids(abs), [2]);
     }
+
+    /// Spec series: a multi-season pack covers every episode of its seasons, specials
+    /// only when season 0 is part of it; a multi-episode release covers each of its
+    /// episodes.
+    #[test]
+    fn multi_season_and_multi_episode_releases() {
+        let pack = decide("Kleine.Insel.S01-S02.1080p.BluRay.x264-GRP");
+        assert_eq!(pack.episodes, [1, 2, 3, 4]);
+        assert!(pack.decision.approved(), "{:?}", keys(&pack));
+        let double = decide("Kleine.Insel.S02E01E02.1080p.WEB-DL.h264-GRP");
+        assert_eq!(double.episodes, [3, 4]);
+        // S02E02 has not aired, S02E01 has no file: wanted.
+        assert!(double.decision.approved(), "{:?}", keys(&double));
+    }
 }
