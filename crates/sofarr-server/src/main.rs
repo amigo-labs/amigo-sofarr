@@ -75,6 +75,8 @@ mod imdb_tests;
 #[cfg(test)]
 mod import_list_tests;
 #[cfg(test)]
+mod krake_tests;
+#[cfg(test)]
 mod library_api_tests;
 #[cfg(test)]
 mod library_edit_tests;
