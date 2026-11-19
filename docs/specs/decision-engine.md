@@ -148,12 +148,12 @@ Terms used below:
 | AC-06 | `decision::tests::reported_languages_replace_parsed_ones`, `decision::tests::language_and_indexer_settings`, `decision::tests::reported_languages_feed_language_formats` (`crates/sofarr-core/src/decision.rs`); `language::tests::matching`, `language::tests::resolves_ids_and_names` (`crates/sofarr-core/src/language.rs`) | built | 0cd1688 |
 | AC-07 | `decision::tests::hardcoded_subs_follow_the_setting`, `decision::tests::tagged_hardcoded_subs_name_the_tag` (`crates/sofarr-core/src/decision.rs`) | built | 0cd1688 |
 | AC-08 | `decision::tests::language_and_indexer_settings`, `decision::tests::retention_rejects_old_releases_permanently` (`crates/sofarr-core/src/decision.rs`) | built | 8a646d0 |
-| AC-09 | `decision::tests::upgrades_rank_then_revision_then_score`, `decision::tests::file_at_cutoff_quality`, `decision::tests::minimum_upgrade_score` (`crates/sofarr-core/src/decision.rs`) | built | 0cd1688 |
-| AC-10 | `decision::tests::profile_without_upgrades` (`crates/sofarr-core/src/decision.rs`) | built | |
-| AC-11 | `decision::tests::propers_policy`, `decision::tests::repacks_need_the_group_of_the_file` (`crates/sofarr-core/src/decision.rs`) | built | |
+| AC-09 | `decision::tests::upgrades_rank_then_revision_then_score`, `decision::tests::file_at_cutoff_quality`, `decision::tests::minimum_upgrade_score`, `decision::tests::cutoff_group_takes_a_revision_of_another_quality` (`crates/sofarr-core/src/decision.rs`) | built | 0cd1688, 8783e8f |
+| AC-10 | `decision::tests::profile_without_upgrades`, `decision::tests::no_upgrades_take_a_revision_of_another_quality_in_the_group` (`crates/sofarr-core/src/decision.rs`) | built | 8783e8f |
+| AC-11 | `decision::tests::propers_policy`, `decision::tests::repacks_need_the_group_of_the_file`, `decision::tests::repacks_under_do_not_prefer_skip_the_group_check` (`crates/sofarr-core/src/decision.rs`) | built | 8783e8f |
 | AC-12 | `decision::tests::best_release_order` (`crates/sofarr-core/src/decision.rs`) | built | 8a646d0 |
 | AC-13 | `availability::tests::stages`, `availability::tests::released_needs_home_release`, `availability::tests::status_without_dates`, `availability::tests::announced_minimum_takes_unreleased_movies` (`crates/sofarr-core/src/availability.rs`) | built | 0cd1688 |
-| AC-14 | `series::tests::missing_episode_is_wanted`, `series::tests::upgrades_and_season_packs`, `series::tests::unwanted_and_unknown`, `series::tests::daily_and_absolute`, `series::tests::sizes_scale_with_covered_episodes` (`crates/sofarr-core/src/series.rs`) | built | 0cd1688 |
+| AC-14 | `series::tests::missing_episode_is_wanted`, `series::tests::upgrades_and_season_packs`, `series::tests::unwanted_and_unknown`, `series::tests::daily_and_absolute`, `series::tests::sizes_scale_with_covered_episodes`, `series::tests::a_wanted_episode_without_file_leaves_nothing_to_beat`, `series::tests::equal_rank_files_fall_back_to_the_lower_score` (`crates/sofarr-core/src/series.rs`) | built | 0cd1688, 8783e8f |
 | AC-15 | `release_oracle`, `harness_tests::same_set_only_ratchets_up`, `harness_tests::changed_set_may_go_down` (`crates/sofarr-parity/tests/release_oracle.rs`); baseline `fixtures/decision-baseline.toml` | built | |
 
 ## Decisions
