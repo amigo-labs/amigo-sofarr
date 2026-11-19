@@ -72,7 +72,8 @@ describes what the code does today.
 | -------- | ----------------- |
 | The settings are imported after the movies, or not at all | Movies are stored; scores that Radarr does not give are 0; the CLI hints that the rules are incomplete (AC-03) |
 | An import runs again after the user changed a movie in sofarr (monitored, profile) | Radarr's values overwrite sofarr's (AC-04): Radarr stays the source until it is switched off |
-| An import runs again after a metadata refresh | Radarr's fields overwrite the movie's; the German title from TMDB is cleared for movies (series keep theirs) until the next refresh |
+| An import runs again after a metadata refresh | Radarr's fields overwrite the movie's; the German title from TMDB stays, for movies as for series |
+| `--exports` names a folder without export files | Error "<Ordner> enthält keinen Radarr-Export" (`import-radarr`) or "… keinen Sonarr-Export" (`import-sonarr`) |
 | Radarr lists a movie with TMDB id 0 | Skipped and counted (AC-04) |
 | A Sonarr export folder is used | Series without episodes; the next `import-sonarr` against the API or `refresh-series` brings the episodes |
 | Sonarr lists an episode without season or episode number | Left out |
@@ -110,3 +111,4 @@ describes what the code does today.
 ## Decisions
 
 - 2026-11-19: Extracted from the existing code (phases 3 and 5) with `spec-extract`; tests for ACs without one were added in a93a7ca.
+- 2026-11-19 (spec-fix): A repeated movie import keeps the German title from TMDB (it cleared it before, unlike series), and an empty export folder names the app of the command (`import-sonarr` said "Radarr-Export"); both found while extracting.
