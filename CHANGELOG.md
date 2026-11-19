@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.2.0...v1.3.0) (2026-11-19)
+
+
+### Features
+
+* **core:** reject a release already grabbed and imported under its name (AC-01, AC-02) ([6bef5bb](https://github.com/amigo-labs/amigo-sofarr/commit/6bef5bb5157a74d9fdd5a682c03a84167379f4c7))
+* **download:** a release marked bad (FAILURE/BAD) is a release failure ([028d336](https://github.com/amigo-labs/amigo-sofarr/commit/028d3366ea2a93f3383fa5ffca08355a3b30abfc))
+* **parity:** record imported release names and compare already_imported (AC-03, AC-04, AC-05, AC-06) ([f6984d2](https://github.com/amigo-labs/amigo-sofarr/commit/f6984d287a312f58f7f2faaf5e1c15af1e5f3e97))
+* **parser:** season word before ' - 06' and season in a bracketed title (AC-01, AC-02, AC-03, AC-04) ([5eec838](https://github.com/amigo-labs/amigo-sofarr/commit/5eec8382b66c5353841c87acdc196d11db6c50a0))
+
+
+### Bug Fixes
+
+* **db:** a movie update without German title keeps the stored one ([861678c](https://github.com/amigo-labs/amigo-sofarr/commit/861678ccb603703e56ad9321c72ded35a159f3fb))
+* **metadata:** keep a person's credits once per movie and role (AC-11) ([4f2b784](https://github.com/amigo-labs/amigo-sofarr/commit/4f2b7844887109c7e651406d51a43f00113ca7ca))
+* **server:** a scan judges each root folder once, before deleting there (AC-10) ([1e6bea8](https://github.com/amigo-labs/amigo-sofarr/commit/1e6bea8797144a8903e5cd87993f61e9e346499e))
+* **server:** an empty export folder names Sonarr for import-sonarr ([6f40a79](https://github.com/amigo-labs/amigo-sofarr/commit/6f40a797b48e41107d9c63164cbfbd351f9a5b81))
+* **server:** an import list selects each movie once, through cast or crew (AC-11) ([fd59917](https://github.com/amigo-labs/amigo-sofarr/commit/fd5991735ca858d49e923d7ccc2e89c739cd93f0))
+
 ## [1.2.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.1.0...v1.2.0) (2026-11-18)
 
 
