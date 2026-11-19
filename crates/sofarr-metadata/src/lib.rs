@@ -351,7 +351,8 @@ fn release_date(value: &Value, types: &[u64]) -> Option<String> {
     })
 }
 
-/// Reads a `person/{id}/movie_credits` answer; each movie appears once.
+/// Reads a `person/{id}/movie_credits` answer; each movie appears once per role (as cast,
+/// and once per crew department).
 pub fn credits_from_json(value: &Value) -> Vec<CreditedMovie> {
     let mut out: Vec<CreditedMovie> = Vec::new();
     let entries = value["cast"]
@@ -370,7 +371,7 @@ pub fn credits_from_json(value: &Value) -> Vec<CreditedMovie> {
         let Some(tmdb_id) = movie["id"].as_i64() else {
             continue;
         };
-        if out.iter().any(|m| m.tmdb_id == tmdb_id) {
+        if out.iter().any(|m| m.tmdb_id == tmdb_id && m.role == role) {
             continue;
         }
         out.push(CreditedMovie {
@@ -472,15 +473,20 @@ mod tests {
     }
 
     #[test]
-    fn reads_credits_once_per_movie() {
+    fn reads_credits_once_per_movie_and_role() {
         let credits = credits_from_json(&json!({
-            "cast": [{"id": 1, "title": "A", "release_date": "2001-01-01"}],
+            "cast": [{"id": 1, "title": "A", "release_date": "2001-01-01"},
+                     {"id": 1, "title": "A", "release_date": "2001-01-01"}],
             "crew": [{"id": 1, "title": "A", "department": "Directing"},
+                     {"id": 1, "title": "A", "department": "Directing"},
                      {"id": 2, "title": "B", "release_date": "", "department": "Writing"}]
         }));
-        assert_eq!(credits.len(), 2);
-        assert_eq!(credits[0].role, "cast");
-        assert_eq!(credits[1].year, None);
+        let roles: Vec<(i64, &str)> = credits
+            .iter()
+            .map(|c| (c.tmdb_id, c.role.as_str()))
+            .collect();
+        assert_eq!(roles, [(1, "cast"), (1, "Directing"), (2, "Writing")]);
+        assert_eq!(credits[2].year, None);
     }
 
     #[tokio::test]

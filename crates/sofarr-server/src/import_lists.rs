@@ -101,11 +101,13 @@ pub fn exclusions(settings: Option<&Value>) -> BTreeSet<i64> {
         .collect()
 }
 
-/// The movies of a person that the list selects.
+/// The movies of a person that the list selects, each once.
 pub fn select<'a>(list: &PersonList, credits: &'a [CreditedMovie]) -> Vec<&'a CreditedMovie> {
+    let mut seen = BTreeSet::new();
     credits
         .iter()
         .filter(|c| (list.cast && c.role == "cast") || list.departments.contains(&c.role.as_str()))
+        .filter(|c| seen.insert(c.tmdb_id))
         .collect()
 }
 
@@ -159,9 +161,78 @@ mod tests {
                 .collect::<Vec<_>>(),
             [2]
         );
+        // A movie the person acted in and directed counts for both; selected once.
+        let both = vec![
+            CreditedMovie {
+                tmdb_id: 3,
+                title: "C".to_owned(),
+                year: None,
+                role: "cast".to_owned(),
+            },
+            CreditedMovie {
+                tmdb_id: 3,
+                title: "C".to_owned(),
+                year: None,
+                role: "Directing".to_owned(),
+            },
+        ];
+        let ids =
+            |selected: Vec<&CreditedMovie>| selected.iter().map(|c| c.tmdb_id).collect::<Vec<_>>();
+        assert_eq!(ids(select(list, &both)), [3], "crew-only list");
+        let mut with_cast = list.clone();
+        with_cast.cast = true;
+        assert_eq!(
+            ids(select(&with_cast, &both)),
+            [3],
+            "once with cast and crew"
+        );
         assert_eq!(
             exclusions(Some(&json!([{"tmdbId": 5, "movieTitle": "x"}]))),
             BTreeSet::from([5])
+        );
+    }
+
+    /// Spec import-lists: what a list without the optional keys means — cast included,
+    /// monitored, no search, minimum availability `released`, no tags; a list without
+    /// quality profile is skipped with a German warning.
+    #[test]
+    fn missing_list_keys_have_defaults() {
+        let settings = json!([
+            {"name": "Knapp", "implementation": "TMDbPersonImport", "qualityProfileId": 2,
+             "fields": [{"name": "personId", "value": 9}]},
+            {"name": "Ohne Profil", "implementation": "TMDbPersonImport",
+             "fields": [{"name": "personId", "value": 9}]}
+        ]);
+        let (lists, warnings) = person_lists(&settings);
+        assert_eq!(
+            warnings,
+            ["Import List Ohne Profil: qualityProfileId fehlt"]
+        );
+        assert_eq!(
+            lists,
+            [PersonList {
+                name: "Knapp".to_owned(),
+                person_id: 9,
+                cast: true,
+                departments: Vec::new(),
+                monitored: true,
+                quality_profile_id: 2,
+                root_folder: String::new(),
+                search_on_add: false,
+                minimum_availability: "released".to_owned(),
+                tags: Vec::new(),
+            }]
+        );
+        // All four crew departments, without cast.
+        let crew = json!([{"name": "Crew", "implementation": "TMDbPersonImport", "qualityProfileId": 1,
+            "fields": [{"name": "personId", "value": 9}, {"name": "personCast", "value": false},
+                       {"name": "personCastDirector", "value": true}, {"name": "personCastProducer", "value": true},
+                       {"name": "personCastSound", "value": true}, {"name": "personCastWriting", "value": true}]}]);
+        let (lists, _) = person_lists(&crew);
+        assert!(!lists[0].cast);
+        assert_eq!(
+            lists[0].departments,
+            ["Directing", "Production", "Sound", "Writing"]
         );
     }
 }

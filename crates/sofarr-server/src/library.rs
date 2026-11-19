@@ -179,6 +179,8 @@ pub fn context(movie: &Movie, pending: Option<&Grab>, rules: &Rules) -> MovieCon
             Some(g) => Some(rules.pending(&g.quality, &g.title, g.custom_format_score)),
             None => movie.file.as_ref().map(|f| rules.existing(f)),
         },
+        // RSS sync and search skip imported names before deciding (`Exclusions`).
+        imported_releases: Vec::new(),
     }
 }
 
@@ -361,11 +363,16 @@ pub async fn import_documents(
 
 /// Reads a config export directory (`fixtures/private/config/radarr` layout).
 pub fn read_export_dir(dir: &Path) -> anyhow::Result<BTreeMap<String, Value>> {
-    read_dir_documents(dir, &["movie"])
+    read_dir_documents(dir, &["movie"], "Radarr")
 }
 
-/// Reads the setting documents plus `extra` (e.g. `series`) from an export directory.
-pub fn read_dir_documents(dir: &Path, extra: &[&str]) -> anyhow::Result<BTreeMap<String, Value>> {
+/// Reads the setting documents plus `extra` (e.g. `series`) from an export directory
+/// of `app` (`Radarr`, `Sonarr`; named in the error).
+pub fn read_dir_documents(
+    dir: &Path,
+    extra: &[&str],
+    app: &str,
+) -> anyhow::Result<BTreeMap<String, Value>> {
     let mut docs = BTreeMap::new();
     for key in SETTING_KEYS.iter().chain(extra) {
         let path = dir.join(format!("{key}.json"));
@@ -381,7 +388,7 @@ pub fn read_dir_documents(dir: &Path, extra: &[&str]) -> anyhow::Result<BTreeMap
     }
     anyhow::ensure!(
         !docs.is_empty(),
-        "{} enthält keinen Radarr-Export",
+        "{} enthält keinen {app}-Export",
         dir.display()
     );
     Ok(docs)

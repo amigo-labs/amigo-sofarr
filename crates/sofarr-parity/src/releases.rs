@@ -119,6 +119,10 @@ pub fn collect(
         {
             movie["movieFile"] = file;
         }
+        movie["importedReleases"] = radarr
+            .imported_releases(id)
+            .with_context(|| format!("Radarr-History für Film {id}"))?
+            .into();
         let movie = &movie;
         eprintln!("Film {}/{total}: Suche läuft …", n + 1);
         let releases = radarr
@@ -150,7 +154,7 @@ pub fn collect(
                 origin: ORIGIN,
                 collected_at,
                 oracle: oracle(),
-                movie: Some(public_movie(movie)),
+                movie: Some(public_movie(movie, title)),
                 response: public_release(release),
             })? {
                 new += 1;
@@ -254,7 +258,7 @@ pub fn rebuild_public(fixtures: &Path) -> anyhow::Result<usize> {
                 app: record["oracle"]["app"].as_str().unwrap_or("radarr"),
                 version: record["oracle"]["version"].as_str().unwrap_or(""),
             },
-            movie: Some(public_movie(&record["movie"])),
+            movie: Some(public_movie(&record["movie"], field("title")?)),
             response: public_release(&record["response"]),
         })?;
     }
@@ -317,8 +321,21 @@ pub fn public_release(release: &Value) -> Value {
 }
 
 /// The film reduced to what the decision depends on: no path, no ids but the profile.
-pub fn public_movie(movie: &Value) -> Value {
+/// The film as the decision for `title` sees it. Of the imported release names only
+/// `title` itself stays (the rest of the history is private); films recorded without
+/// them keep none.
+pub fn public_movie(movie: &Value, title: &str) -> Value {
     let mut out = pick(movie, MOVIE_KEYS);
+    if let Some(names) = movie["importedReleases"].as_array() {
+        let own: Vec<Value> = names
+            .iter()
+            .filter_map(Value::as_str)
+            .filter(|n| n.trim().eq_ignore_ascii_case(title.trim()))
+            .map(|_| Value::from(title))
+            .take(1)
+            .collect();
+        out.insert("importedReleases".into(), Value::Array(own));
+    }
     if let Some(language) = movie.get("originalLanguage") {
         out.insert(
             "originalLanguage".into(),
@@ -423,7 +440,7 @@ mod tests {
                           "path": "/data/media/movies/Some Movie (2020)/x.mkv",
                           "quality": {"quality": {"id": 7}}, "customFormatScore": 50}
         });
-        let public = public_movie(&movie);
+        let public = public_movie(&movie, "Some.Movie.2020.1080p.BluRay-GRP");
         assert!(!public.to_string().contains("/data/media/movies"));
         assert!(public.get("id").is_none());
         assert!(public.get("tmdbId").is_none());
@@ -431,5 +448,21 @@ mod tests {
         assert_eq!(public["movieFile"]["customFormatScore"], 50);
         assert!(public["movieFile"].get("relativePath").is_none());
         assert_eq!(public["secondaryYear"], 2019);
+        assert!(public.get("importedReleases").is_none());
+    }
+
+    #[test]
+    fn public_movie_keeps_only_the_own_imported_name() {
+        // release-oracle-history AC-03
+        let movie = json!({"title": "Some Movie", "importedReleases": [
+            "Some.Movie.2020.720p.WEB-PRIV", "some.movie.2020.1080p.bluray-grp"]});
+        let own = public_movie(&movie, "Some.Movie.2020.1080p.BluRay-GRP");
+        assert_eq!(
+            own["importedReleases"],
+            json!(["Some.Movie.2020.1080p.BluRay-GRP"])
+        );
+        assert!(!own.to_string().contains("PRIV"));
+        let other = public_movie(&movie, "Some.Movie.2020.2160p.WEB-X");
+        assert_eq!(other["importedReleases"], json!([]));
     }
 }

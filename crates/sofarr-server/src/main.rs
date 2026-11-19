@@ -63,6 +63,8 @@ mod backup_tests;
 #[cfg(test)]
 mod compare_media_tests;
 #[cfg(test)]
+mod download_import_tests;
+#[cfg(test)]
 mod failure_tests;
 #[cfg(test)]
 mod image_tests;
@@ -75,11 +77,15 @@ mod imdb_tests;
 #[cfg(test)]
 mod import_list_tests;
 #[cfg(test)]
+mod krake_tests;
+#[cfg(test)]
 mod library_api_tests;
 #[cfg(test)]
 mod library_edit_tests;
 #[cfg(test)]
 mod library_files_tests;
+#[cfg(test)]
+mod library_import_tests;
 #[cfg(test)]
 mod media_import_tests;
 #[cfg(test)]
@@ -90,6 +96,8 @@ mod media_tests;
 mod overview_tests;
 #[cfg(test)]
 mod rename_media_tests;
+#[cfg(test)]
+mod rss_tests;
 #[cfg(test)]
 mod search_tests;
 #[cfg(test)]
@@ -471,7 +479,7 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
         Command::ImportSonarr { exports } => {
             let (docs, episodes) = match exports {
                 Some(dir) => (
-                    library::read_dir_documents(&dir, &["series"])?,
+                    library::read_dir_documents(&dir, &["series"], "Sonarr")?,
                     Default::default(),
                 ),
                 None => series::fetch_from_sonarr(&sonarr()?).await?,

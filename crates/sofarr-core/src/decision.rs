@@ -37,6 +37,9 @@ pub struct MovieContext {
     pub runtime_minutes: u32,
     pub original_language: Option<Language>,
     pub file: Option<ExistingFile>,
+    /// Names of the film's releases that were grabbed and imported; a release with one
+    /// of these names (ignoring case) is not taken again.
+    pub imported_releases: Vec<String>,
 }
 
 /// The film's current file.
@@ -111,6 +114,8 @@ pub enum Rejection {
     RepackOtherGroup,
     /// A repack, but the release group of the file is unknown.
     FileGroupUnknown,
+    /// A release with the same name was grabbed and imported for this item before.
+    AlreadyImported,
     /// Larger than the indexer setting `maximumSize`.
     MaximumSizeExceeded {
         size: u64,
@@ -157,6 +162,7 @@ impl Rejection {
             Self::NoBetterScore => "no_better_score",
             Self::RepackOtherGroup => "repack_other_group",
             Self::FileGroupUnknown => "file_group_unknown",
+            Self::AlreadyImported => "already_imported",
             Self::MaximumSizeExceeded { .. } => "maximum_size_exceeded",
             Self::OutsideRetention { .. } => "outside_retention",
             Self::TooYoung { .. } => "too_young",
@@ -214,6 +220,9 @@ impl fmt::Display for Rejection {
             }
             Self::FileGroupUnknown => {
                 f.write_str("Repack, aber die Release-Gruppe der Datei ist unbekannt")
+            }
+            Self::AlreadyImported => {
+                f.write_str("Release mit gleichem Namen wurde schon geholt und importiert")
             }
             Self::MaximumSizeExceeded { size, maximum } => write!(
                 f,
@@ -306,6 +315,14 @@ pub fn evaluate(
     let score = profile.score(&custom_formats);
 
     let mut rejections = Vec::new();
+    let title = release.title.trim();
+    if movie
+        .imported_releases
+        .iter()
+        .any(|name| name.trim().eq_ignore_ascii_case(title))
+    {
+        rejections.push(Rejection::AlreadyImported);
+    }
     if !profile.is_allowed(quality.id) {
         rejections.push(Rejection::QualityNotWanted {
             quality: quality.name.clone(),
@@ -504,6 +521,7 @@ mod tests {
             runtime_minutes: 100,
             original_language: Some(Language::English),
             file,
+            imported_releases: Vec::new(),
         }
     }
 
@@ -709,6 +727,53 @@ mod tests {
         );
     }
 
+    /// decision-engine AC-09: at the cutoff, a higher revision of another quality in the
+    /// file's group (same rank) is still taken; without the revision the cutoff is met.
+    #[test]
+    fn cutoff_group_takes_a_revision_of_another_quality() {
+        let mut config = config();
+        config.profiles[0].cutoff = 1000;
+        config.profiles[0].cutoff_format_score = 0;
+        let check = |title, file| keys(&config, title, &movie(Some(file)));
+        // File WEBRip-1080p, release WEBDL-1080p: both in the "WEB 1080p" cutoff group.
+        assert!(check("Some.Movie.2020.1080p.WEB-DL.H.264.PROPER-GRP", file(15, 0)).is_empty());
+        assert_eq!(
+            check("Some.Movie.2020.1080p.WEB-DL.H.264-GRP", file(15, 0)),
+            ["cutoff_met"]
+        );
+    }
+
+    /// decision-engine AC-10: without upgrades, a higher revision of another quality in
+    /// the file's group passes; without the revision the cutoff is met.
+    #[test]
+    fn no_upgrades_take_a_revision_of_another_quality_in_the_group() {
+        let mut config = config();
+        config.profiles[0].upgrade_allowed = false;
+        config.profiles[0].cutoff_format_score = 0;
+        let check = |title, file| keys(&config, title, &movie(Some(file)));
+        assert!(check("Some.Movie.2020.1080p.WEB-DL.H.264.PROPER-GRP", file(15, 0)).is_empty());
+        assert_eq!(
+            check("Some.Movie.2020.1080p.WEB-DL.H.264-GRP", file(15, 0)),
+            ["cutoff_met"]
+        );
+    }
+
+    /// decision-engine AC-11: under "do not prefer" a repack is no upgrade by revision,
+    /// so the group check of the file does not apply.
+    #[test]
+    fn repacks_under_do_not_prefer_skip_the_group_check() {
+        let mut config = config();
+        config.settings.propers = PropersPolicy::DoNotPrefer;
+        let check = |title, file| keys(&config, title, &movie(Some(file)));
+        let other = "Some.Movie.2020.1080p.WEB-DL.H.264.REPACK-OTHER";
+        assert_eq!(check(other, file(3, 0)), ["no_better_score"]);
+        let unknown = ExistingFile {
+            release_group: None,
+            ..file(3, 0)
+        };
+        assert_eq!(check(other, unknown), ["no_better_score"]);
+    }
+
     #[test]
     fn titles_without_year_need_german() {
         let config = config();
@@ -778,6 +843,87 @@ mod tests {
     }
 
     #[test]
+    fn unknown_runtime_skips_size_limits() {
+        let config = config();
+        let tiny = ReleaseInput {
+            size_bytes: 1,
+            ..release("Some.Movie.2020.1080p.BluRay.x264-GRP")
+        };
+        let unknown_runtime = MovieContext {
+            runtime_minutes: 0,
+            ..movie(None)
+        };
+        let d = decide(&config, &config.profiles[0], &tiny, &unknown_runtime);
+        assert!(d.approved(), "{:?}", d.rejections);
+        // With a known runtime the same release is too small.
+        let d = decide(&config, &config.profiles[0], &tiny, &movie(None));
+        assert_eq!(
+            d.rejections.iter().map(Rejection::key).collect::<Vec<_>>(),
+            ["too_small"]
+        );
+    }
+
+    #[test]
+    fn retention_rejects_old_releases_permanently() {
+        let mut config = config();
+        config.settings.retention_days = 30;
+        let title = "Some.Movie.2020.1080p.WEB-DL.H.264-GRP";
+        let old = ReleaseInput {
+            age_minutes: 31.0 * 24.0 * 60.0,
+            ..release(title)
+        };
+        let d = decide(&config, &config.profiles[0], &old, &movie(None));
+        assert_eq!(
+            d.rejections.iter().map(Rejection::key).collect::<Vec<_>>(),
+            ["outside_retention"]
+        );
+        assert!(d.rejections[0].permanent());
+        let fresh = ReleaseInput {
+            age_minutes: 29.0 * 24.0 * 60.0,
+            ..release(title)
+        };
+        assert!(decide(&config, &config.profiles[0], &fresh, &movie(None)).approved());
+        // `0` switches retention and maximum size off.
+        config.settings.retention_days = 0;
+        config.settings.maximum_size_mb = 0;
+        let huge = ReleaseInput {
+            size_bytes: 15 * GB,
+            ..old
+        };
+        assert!(decide(&config, &config.profiles[0], &huge, &movie(None)).approved());
+    }
+
+    #[test]
+    fn best_release_order() {
+        use std::cmp::Ordering;
+        let config = config();
+        let profile = &config.profiles[0];
+        let d = |title: &str| decide(&config, profile, &release(title), &movie(None));
+        let web = d("Some.Movie.2020.1080p.WEB-DL.H.264-GRP");
+        let web_good = d("Some.Movie.2020.1080p.WEB-DL.H.264-GOOD");
+        let web_proper = d("Some.Movie.2020.1080p.WEB-DL.H.264.PROPER-GRP");
+        let bluray = d("Some.Movie.2020.1080p.BluRay.x264-GRP");
+        let cmp =
+            |a: &Decision, b: &Decision, policy| compare(profile, policy, (a, 5 * GB), (b, 5 * GB));
+        let policy = PropersPolicy::PreferAndUpgrade;
+        // Quality rank first, even against a better score.
+        assert_eq!(cmp(&bluray, &web_good, policy), Ordering::Greater);
+        // Same rank: score before revision.
+        assert_eq!(cmp(&web_good, &web_proper, policy), Ordering::Greater);
+        // Same rank and score: revision, unless propers are not preferred.
+        assert_eq!(cmp(&web_proper, &web, policy), Ordering::Greater);
+        assert_eq!(
+            cmp(&web_proper, &web, PropersPolicy::DoNotPrefer),
+            Ordering::Equal
+        );
+        // Everything equal: the bigger release wins.
+        assert_eq!(
+            compare(profile, policy, (&web, 6 * GB), (&web, 5 * GB)),
+            Ordering::Greater
+        );
+    }
+
+    #[test]
     fn hardcoded_subs_follow_the_setting() {
         let mut config = config();
         let title = "Some.Movie.2020.SUBBED.1080p.BluRay.x264-GRP";
@@ -810,5 +956,141 @@ mod tests {
         assert_eq!(keys, ["maximum_size_exceeded", "too_young"]);
         assert!(d.rejections[0].permanent());
         assert!(!d.rejections[1].permanent());
+    }
+
+    #[test]
+    fn imported_release_name_is_rejected() {
+        // release-oracle-history AC-01
+        let config = config();
+        let title = "Some.Movie.2020.1080p.BluRay.x264-GRP";
+        let mut context = movie(Some(file(7, 0)));
+        context.imported_releases = vec!["some.movie.2020.1080P.bluray.x264-grp ".into()];
+        let with = keys(&config, title, &context);
+        context.imported_releases.clear();
+        let without = keys(&config, title, &context);
+        assert!(with.contains(&"already_imported"), "{with:?}");
+        assert_eq!(
+            with.iter()
+                .filter(|k| **k != "already_imported")
+                .collect::<Vec<_>>(),
+            without.iter().collect::<Vec<_>>(),
+            "the other rejections stay"
+        );
+        assert!(!without.is_empty(), "the file gives another rejection");
+    }
+
+    #[test]
+    fn other_names_are_no_imported_release() {
+        // release-oracle-history AC-02
+        let config = config();
+        let title = "Some.Movie.2020.1080p.BluRay.x264-GRP";
+        let mut context = movie(None);
+        assert!(keys(&config, title, &context).is_empty());
+        context.imported_releases = vec![
+            "Some.Movie.2020.720p.BluRay.x264-GRP".into(),
+            "Some.Movie.2020.1080p.BluRay.x264-GRP.nzb".into(),
+        ];
+        assert!(keys(&config, title, &context).is_empty());
+    }
+
+    #[test]
+    fn minimum_upgrade_score() {
+        // decision-engine AC-09: a score gain below `min_upgrade_format_score` is no
+        // upgrade; `None` and `0` count as 1.
+        let mut config = config();
+        let good = "Some.Movie.2020.1080p.WEB-DL.H.264-GOOD"; // score 100
+        config.profiles[0].min_upgrade_format_score = Some(150);
+        let check =
+            |config: &RadarrConfig, score| keys(config, good, &movie(Some(file(15, score))));
+        assert_eq!(check(&config, 0), ["no_better_score"]);
+        assert_eq!(check(&config, -49), ["no_better_score"]);
+        assert!(check(&config, -50).is_empty());
+        assert!(check(&config, -100).is_empty());
+        for minimum in [None, Some(0), Some(1)] {
+            config.profiles[0].min_upgrade_format_score = minimum;
+            assert!(check(&config, 99).is_empty(), "{minimum:?}");
+            assert_eq!(check(&config, 100), ["no_better_score"], "{minimum:?}");
+        }
+    }
+
+    #[test]
+    fn reported_languages_feed_language_formats() {
+        // decision-engine AC-06: reported languages decide language conditions of
+        // custom formats, also when the title names no language.
+        let mut config = config();
+        let language_format = |id, name: &str, except| CustomFormat {
+            id: CustomFormatId(id),
+            name: name.into(),
+            specifications: vec![Specification {
+                name: "Sprache".into(),
+                condition: Condition::Language {
+                    language: LanguageRef::Language(Language::German),
+                    except,
+                },
+                negate: false,
+                required: false,
+            }],
+        };
+        config
+            .custom_formats
+            .push(language_format(3, "German", false));
+        config
+            .custom_formats
+            .push(language_format(4, "Not German", true));
+        config.profiles[0]
+            .format_scores
+            .extend([(CustomFormatId(3), 30), (CustomFormatId(4), -20)]);
+        let title = "Some.Movie.2020.1080p.WEB-DL.H.264-GRP";
+        let plain = decide(&config, &config.profiles[0], &release(title), &movie(None));
+        assert_eq!(plain.custom_formats, [CustomFormatId(4)]);
+        assert_eq!(plain.score, -20);
+        let reported = ReleaseInput {
+            languages: Some(&[Language::German]),
+            ..release(title)
+        };
+        let d = decide(&config, &config.profiles[0], &reported, &movie(None));
+        assert_eq!(d.custom_formats, [CustomFormatId(3)]);
+        assert_eq!(d.score, 30);
+    }
+
+    #[test]
+    fn tagged_hardcoded_subs_name_the_tag() {
+        // decision-engine AC-07
+        let config = config();
+        let title = "Some.Movie.2020.Retail.DKsubs.1080p.WEB-DL.H.264-GRP";
+        let d = decide(&config, &config.profiles[0], &release(title), &movie(None));
+        assert_eq!(
+            d.rejections,
+            [Rejection::HardcodedSubs {
+                subs: HardcodedSubs::Tagged("DKsubs".into())
+            }]
+        );
+        assert_eq!(
+            d.rejections[0].to_string(),
+            "eingebrannte Untertitel (DKsubs)"
+        );
+    }
+
+    #[test]
+    fn year_rule_comes_before_already_imported() {
+        // release-oracle-history AC-01: a release that fails the year rule gets only
+        // that rejection, even when its name was imported before.
+        let config = config();
+        let check = |title: &str| {
+            let context = MovieContext {
+                imported_releases: vec![title.to_owned()],
+                ..movie(None)
+            };
+            keys(&config, title, &context)
+        };
+        assert_eq!(check("Some.Movie.1080p.BluRay.x264-GRP"), ["unparsable"]);
+        assert_eq!(
+            check("Some.Movie.2022.1080p.BluRay.x264-GRP"),
+            ["unknown_movie"]
+        );
+        assert_eq!(
+            check("Some.Movie.2020.1080p.BluRay.x264-GRP"),
+            ["already_imported"]
+        );
     }
 }

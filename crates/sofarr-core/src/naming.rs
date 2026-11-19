@@ -932,6 +932,142 @@ mod tests {
             format("{Unbekannt} x", &input(), &config()),
             "{Unbekannt} x"
         );
+        // An unclosed brace is kept as text.
+        assert_eq!(
+            format("{Release Year} {Movie Title", &input(), &config()),
+            "2018 {Movie Title"
+        );
+    }
+
+    #[test]
+    fn token_name_case_and_separator_shape_the_value() {
+        let i = NamingInput {
+            title: "The Quiet Pond".to_owned(),
+            year: Some(2004),
+            season: Some(3),
+            ..NamingInput::default()
+        };
+        let c = config();
+        assert_eq!(format("{MOVIE TITLE}", &i, &c), "THE QUIET POND");
+        assert_eq!(format("{movie title}", &i, &c), "the quiet pond");
+        assert_eq!(format("{Movie Title}", &i, &c), "The Quiet Pond");
+        assert_eq!(format("{Movie_Title}", &i, &c), "The_Quiet_Pond");
+        assert_eq!(format("{Movie-Title}", &i, &c), "The-Quiet-Pond");
+        // Numbers are not affected by the case of the token name.
+        assert_eq!(format("{SEASON:00}", &i, &c), "03");
+    }
+
+    #[test]
+    fn colon_default_and_kept_illegal_characters() {
+        let i = NamingInput {
+            title: "Who? What: Where/When".to_owned(),
+            ..NamingInput::default()
+        };
+        // Default: space-dash.
+        assert_eq!(
+            format("{Movie Title}", &i, &NamingConfig::default()),
+            "Who What - Where+When"
+        );
+        let glued = NamingInput {
+            title: "A:B".to_owned(),
+            ..NamingInput::default()
+        };
+        assert_eq!(
+            format("{Movie Title}", &glued, &NamingConfig::default()),
+            "A -B"
+        );
+        // Without replacing illegal characters, slashes are dropped as well.
+        let c = NamingConfig {
+            replace_illegal_characters: false,
+            ..config()
+        };
+        assert_eq!(format("{Movie Title}", &i, &c), "Who What - WhereWhen");
+    }
+
+    #[test]
+    fn other_movie_tokens() {
+        let mut i = input();
+        i.edition = Some("Directors Cut".to_owned());
+        let c = config();
+        assert_eq!(
+            format(
+                "{Movie OriginalTitle} [{Edition Tags}] {Quality Title} {ImdbId} {TmdbId}",
+                &i,
+                &c
+            ),
+            "Mission - Impossible - Fallout [Directors Cut] Bluray-1080p tt4912910 353081"
+        );
+        i.original_title = Some("Mission: Impossible".to_owned());
+        assert_eq!(
+            format("{Movie CleanOriginalTitle}", &i, &c),
+            "Mission Impossible"
+        );
+        // `:DE` falls back to the title when there is no German title.
+        i.title_de = None;
+        assert_eq!(
+            format("{Movie CleanTitle:DE}", &i, &c),
+            "Mission Impossible Fallout"
+        );
+        assert_eq!(
+            format(
+                "{Movie CleanTitleThe}",
+                &NamingInput {
+                    title: "Das Boot: Teil 1".to_owned(),
+                    ..NamingInput::default()
+                },
+                &c
+            ),
+            // The clean title drops the comma of the moved article too.
+            "Boot Teil 1 Das"
+        );
+    }
+
+    #[test]
+    fn numbered_revision_in_quality_full() {
+        let mut i = input();
+        i.revision = Revision {
+            version: 3,
+            proper: true,
+            repack: false,
+            real: 0,
+        };
+        assert_eq!(
+            format("{Quality Full}", &i, &config()),
+            "Bluray-1080p Proper3"
+        );
+        i.quality = None;
+        assert_eq!(format("[{Quality Full}]", &i, &config()), "[]");
+    }
+
+    #[test]
+    fn release_name_guess_vocabulary() {
+        let guess = |name| media_info_from_name(name);
+        assert_eq!(
+            guess("F.2020.2160p.WEB.AV1.AAC").as_deref(),
+            Some("AV1 AAC")
+        );
+        assert_eq!(guess("F.2020.DVDRip.XviD.AC3").as_deref(), Some("XviD AC3"));
+        assert_eq!(
+            guess("F.2020.1080p.H.265.DDP5.1").as_deref(),
+            Some("x265 EAC3")
+        );
+        assert_eq!(
+            guess("F.2020.2160p.BluRay.HEVC.TrueHD.Atmos").as_deref(),
+            Some("x265 TrueHD")
+        );
+        assert_eq!(
+            guess("F.2020.1080p.BluRay.AVC.FLAC").as_deref(),
+            Some("x264 FLAC")
+        );
+        assert_eq!(guess("F.2020.1080p.BluRay.DTS").as_deref(), Some("DTS"));
+        assert_eq!(
+            dynamic_range_from_name("F.2020.2160p.DoVi.WEB").as_deref(),
+            Some("DV")
+        );
+        assert_eq!(
+            dynamic_range_from_name("F.2020.2160p.HDR10+.WEB").as_deref(),
+            Some("HDR")
+        );
     }
 
     #[test]
@@ -948,6 +1084,35 @@ mod tests {
     }
 
     #[test]
+    fn missing_naming_settings_take_their_defaults() {
+        let empty = NamingConfig::from_json(&serde_json::json!({}));
+        assert_eq!(empty, NamingConfig::default());
+        assert!(empty.rename_movies && empty.rename_episodes);
+        assert!(empty.replace_illegal_characters);
+        assert_eq!(empty.colon_replacement, ColonReplacement::SpaceDash);
+        assert_eq!(empty.multi_episode_style, MultiEpisodeStyle::PrefixedRange);
+        assert_eq!(empty.season_folder_format, "Season {season}");
+        for (value, expected) in [
+            (serde_json::json!("delete"), ColonReplacement::Delete),
+            (serde_json::json!(0), ColonReplacement::Delete),
+            (serde_json::json!("dash"), ColonReplacement::Dash),
+            (serde_json::json!(1), ColonReplacement::Dash),
+            (serde_json::json!(3), ColonReplacement::SpaceDashSpace),
+            (serde_json::json!("whatever"), ColonReplacement::SpaceDash),
+        ] {
+            assert_eq!(ColonReplacement::from_setting(&value), expected, "{value}");
+        }
+        assert_eq!(
+            MultiEpisodeStyle::from_setting(&serde_json::json!(0)),
+            MultiEpisodeStyle::Extend
+        );
+        let off = NamingConfig::from_json(&serde_json::json!({
+            "renameMovies": false, "renameEpisodes": false, "replaceIllegalCharacters": false
+        }));
+        assert!(!off.rename_movies && !off.rename_episodes && !off.replace_illegal_characters);
+    }
+
+    #[test]
     fn reads_naming_config() {
         let c = NamingConfig::from_json(&serde_json::json!({
             "renameMovies": true, "replaceIllegalCharacters": true,
@@ -959,6 +1124,73 @@ mod tests {
         assert_eq!(
             c.movie_folder_format,
             NamingConfig::default().movie_folder_format
+        );
+    }
+
+    #[test]
+    fn levels_collapse_spaces_and_trim_their_ends() {
+        // spec naming AC-04
+        let c = config();
+        let i = input();
+        let name = format("{Movie Title} {Edition Tags} {Quality Full}", &i, &c);
+        assert_eq!(name, "Mission - Impossible - Fallout Bluray-1080p");
+        assert_eq!(
+            format("_{Edition Tags} {Movie Title} -", &i, &c),
+            "Mission - Impossible - Fallout"
+        );
+        assert_eq!(
+            format(
+                "{Edition Tags}-{Movie Title}_/{Edition Tags}_{Release Year}-",
+                &i,
+                &c
+            ),
+            "Mission - Impossible - Fallout/2018"
+        );
+    }
+
+    #[test]
+    fn smart_colon_without_a_space() {
+        // spec naming AC-05
+        let c = NamingConfig {
+            colon_replacement: ColonReplacement::Smart,
+            ..NamingConfig::default()
+        };
+        let i = NamingInput {
+            title: "A:B".to_owned(),
+            ..NamingInput::default()
+        };
+        assert_eq!(format("{Movie Title}", &i, &c), "A-B");
+    }
+
+    #[test]
+    fn clean_titles_spell_out_ligatures_and_drop_backslashes() {
+        // spec naming AC-07
+        let i = NamingInput {
+            title: "Encyclopædia Back\\Slash".to_owned(),
+            ..NamingInput::default()
+        };
+        assert_eq!(
+            format("{Movie CleanTitle}", &i, &config()),
+            "Encyclopaedia Back Slash"
+        );
+    }
+
+    #[test]
+    fn series_clean_titles_and_german_episode_title_fallback() {
+        // spec naming AC-10
+        let c = config();
+        let mut i = episode_input();
+        i.title = "Small Island: Part 2".to_owned();
+        assert_eq!(format("{Series CleanTitle}", &i, &c), "Small Island Part 2");
+        assert_eq!(
+            format("{Series CleanTitleYear}", &i, &c),
+            "Small Island Part 2 (2019)"
+        );
+        i.episode_title_de = None;
+        assert_eq!(format("{Episode Title:DE}", &i, &c), "The Storm - Part 1");
+        assert_eq!(
+            format("{Episode CleanTitle:DE}", &i, &c),
+            "The Storm Part 1"
         );
     }
 }

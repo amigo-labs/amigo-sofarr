@@ -113,13 +113,14 @@ pub fn fingerprint(fixtures: &[Fixture]) -> String {
 }
 
 /// Rejection keys the engine does not produce (yet), with the reason.
-pub const NOT_MODELLED: &[(&str, &str)] = &[
-    (
-        "raw_disc",
-        "nicht aus dem Titel ableitbar (gleiche Titelmuster mal mit, mal ohne)",
-    ),
-    ("already_imported", "braucht die History (Phase 3)"),
-];
+pub const NOT_MODELLED: &[(&str, &str)] = &[(
+    "raw_disc",
+    "nicht aus dem Titel ableitbar (gleiche Titelmuster mal mit, mal ohne)",
+)];
+
+/// Rejection that needs the film's imported release names (`importedReleases`); fixtures
+/// collected without them leave it out of the comparison.
+const ALREADY_IMPORTED: &str = "already_imported";
 
 /// Maps an oracle rejection text to `Rejection::key()` (or a key of [`NOT_MODELLED`]).
 pub fn rejection_key(text: &str) -> Option<&'static str> {
@@ -218,6 +219,8 @@ pub struct Report {
     pub fields: BTreeMap<&'static str, FieldResult>,
     /// Oracle rejection texts without a mapping, numbers normalised, with counts.
     pub unmapped: BTreeMap<String, usize>,
+    /// Fixtures whose film has no `importedReleases` (collected before they were recorded).
+    pub without_history: usize,
 }
 
 impl Report {
@@ -245,6 +248,13 @@ impl Report {
                 out,
                 "{} übersprungen: Profil nicht in der Config",
                 self.skipped
+            );
+        }
+        if self.without_history > 0 {
+            let _ = writeln!(
+                out,
+                "{} ohne History verglichen: „{ALREADY_IMPORTED}“ bleibt dort außen vor",
+                self.without_history
             );
         }
         for field in FIELDS {
@@ -314,7 +324,11 @@ pub fn evaluate(config: &RadarrConfig, fixtures: &[Fixture]) -> Report {
         let decision = decide(config, profile, &release, &movie_context(&fixture.movie));
 
         let response = &fixture.response;
-        let expected_rejections = expected_rejections(response, &mut report.unmapped);
+        let with_history = fixture.movie["importedReleases"].is_array();
+        if !with_history {
+            report.without_history += 1;
+        }
+        let expected_rejections = expected_rejections(response, &mut report.unmapped, with_history);
         let mut rejections: Vec<&str> = decision.rejections.iter().map(Rejection::key).collect();
         rejections.sort_unstable();
         rejections.dedup();
@@ -389,7 +403,11 @@ fn show(value: &str) -> String {
 }
 
 /// Sorted, deduplicated keys; unmapped texts stay visible as `? <text>`.
-fn expected_rejections(response: &Value, unmapped: &mut BTreeMap<String, usize>) -> Option<String> {
+fn expected_rejections(
+    response: &Value,
+    unmapped: &mut BTreeMap<String, usize>,
+    with_history: bool,
+) -> Option<String> {
     let mut keys: Vec<String> = response["rejections"]
         .as_array()?
         .iter()
@@ -402,6 +420,7 @@ fn expected_rejections(response: &Value, unmapped: &mut BTreeMap<String, usize>)
                 format!("{UNMAPPED} {text}")
             }
         })
+        .filter(|key| with_history || key != ALREADY_IMPORTED)
         .collect();
     keys.sort_unstable();
     keys.dedup();
@@ -455,6 +474,16 @@ pub fn movie_context(movie: &Value) -> MovieContext {
             .unwrap_or(0),
         original_language,
         file,
+        imported_releases: movie["importedReleases"]
+            .as_array()
+            .map(|names| {
+                names
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default(),
     }
 }
 
@@ -616,8 +645,68 @@ mod tests {
             "Release is 3 days old",
             "Release is 5 days old",
         ]});
-        let keys = expected_rejections(&response, &mut unmapped).expect("rejections");
+        let keys = expected_rejections(&response, &mut unmapped, true).expect("rejections");
         assert_eq!(keys, "? Release is # days old, language_not_wanted");
         assert_eq!(unmapped["Release is # days old"], 2);
+    }
+
+    /// The public fixture of `Papillon.2017…-FuN`, which Radarr rejects as already imported.
+    fn papillon() -> (RadarrConfig, Fixture) {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures");
+        let config = load_config(&root.join("public/config/radarr"))
+            .expect("config")
+            .expect("public config");
+        let fixture = load_dir(&root.join("public"))
+            .expect("fixtures")
+            .into_iter()
+            .find(|f| f.title == "Papillon.2017.German.AC3.DL.1080p.BluRay.x265-FuN")
+            .expect("Papillon fixture");
+        (config, fixture)
+    }
+
+    #[test]
+    fn imported_releases_reach_the_decision() {
+        // release-oracle-history AC-04
+        let (config, mut fixture) = papillon();
+        fixture.movie["importedReleases"] = json!([fixture.title.clone()]);
+        let report = evaluate(&config, std::slice::from_ref(&fixture));
+        assert_eq!(report.without_history, 0);
+        let rejections = &report.fields["rejections"];
+        assert_eq!(
+            (rejections.pass, rejections.total),
+            (1, 1),
+            "{rejections:?}"
+        );
+
+        // A different imported name: the oracle's `already_imported` is now missed.
+        fixture.movie["importedReleases"] = json!(["Papillon.2017.1080p.BluRay.x264-OTHER"]);
+        let report = evaluate(&config, std::slice::from_ref(&fixture));
+        assert_eq!(report.fields["rejections"].pass, 0);
+    }
+
+    #[test]
+    fn fixtures_without_history_leave_already_imported_out() {
+        // release-oracle-history AC-05
+        let (config, fixture) = papillon();
+        assert!(fixture.movie.get("importedReleases").is_none());
+        let report = evaluate(&config, std::slice::from_ref(&fixture));
+        assert_eq!(report.without_history, 1);
+        assert_eq!(report.fields["rejections"].pass, 1);
+        assert!(
+            report
+                .render("public")
+                .contains("1 ohne History verglichen")
+        );
+        let mut unmapped = BTreeMap::new();
+        let response =
+            json!({"rejections": ["Has same release name as a grabbed and imported release"]});
+        assert_eq!(
+            expected_rejections(&response, &mut unmapped, false).as_deref(),
+            Some("")
+        );
+        assert_eq!(
+            expected_rejections(&response, &mut unmapped, true).as_deref(),
+            Some("already_imported")
+        );
     }
 }

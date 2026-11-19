@@ -32,7 +32,7 @@ is out of scope until further notice.
 | v1 | Movies: parser, decision engine, Newznab RSS, TMDB, nzbget, import/rename, import lists (TMDb persons) |
 | v2 | Series: episode parsing, seasons, specials, series metadata |
 | v3 (phase 6) | Operations and comfort: failure handling, backups, optional auth, media info, web UI, discover/people/IMDb rating, subtitles, local trailers |
-| later | amigo-downloader as download client, integrations with v3 API compatibility |
+| later | Krake as download client (spec `krake-download-client`, D32) |
 
 **Non-goals:** music, books, torrents (Usenet only until a real need comes up), multiple users and
 requests with approval, full Sonarr/Radarr API compatibility.
@@ -125,8 +125,8 @@ public specifications, general knowledge of release names.
 | Jellyfin | – | not needed: Jellyfin watches the library itself (D12); subtitles and trailers are stored by Jellyfin's naming rules (D17, D18) |
 | OpenSubtitles.com | spec `subtitles` | official REST API (movie hash, IMDb/TMDb id) |
 | IMDb datasets | spec `discover` | `title.ratings.tsv.gz`, daily, personal non-commercial use |
-| amigo-downloader | after Radarr is replaced | second `DownloadClient` implementation (needs a headless mode / library crate) |
-| Prowlarr, Jellyseerr, Bazarr | only if needed | exactly the v3 endpoints these tools call |
+| Krake (amigo-downloader) | spec `krake-download-client` | Krake's NZBGet-compatible JSON-RPC API through the existing nzbget client and `[nzbget]` (D32) |
+| Prowlarr, Jellyseerr, Bazarr | not planned | no v3 API shim (D33) |
 
 ## 9. Decision log
 
@@ -163,7 +163,10 @@ public specifications, general knowledge of release names.
 | D29 | The web UI takes the shared amigo app theme from amigo-labs/website (`theme/`, generated into `ui/src/theme/` and checked by the Site data workflow) with sofarr's accent from `docs/site/project.yml`; dark is the default palette, light and system can be chosen; Inter is the UI font, bundled through `@fontsource-variable/inter`. This replaces the `@primer/primitives` half of D23; `@primer/octicons` stays until the shared theme has icons | Owner decision: every amigo app has the same look and differs only in its accent. One source in the website, where brand colours and app icons already come from, keeps the apps together; generated files plus a CI check need no package registry |
 | D30 | Web UI redesign: the navigation is a left sidebar on windows from 1024 px (collapsible to icons, remembered in the browser) and a drawer below; the UI loads the generated shared component classes (`ui/src/theme/components.css`), sofarr's global classes take their look and are renamed per page by the redesign specs (`ui-shell-redesign` and its three successors) | Ten entries no longer fit one header row; the shared classes give every amigo app the same controls without hand-written copies |
 | D31 | sofarr re-encodes library files that are too large for their resolution (size per minute above a threshold per resolution class) to HEVC with the image's ffmpeg (libx265) in a background job, largest files first, and moves the original to the recycle bin; the result is checked with the own media info reader, so D22 stands (no ffprobe); the job is off by default (specs `reencode-rule`, `reencode-job`, `ui-reencode`) | Owner decision: remuxes and high-bitrate files fill the disk without a visible gain; ffmpeg is in the image since D18; Radarr/Sonarr have no such feature, so there is no oracle |
+| D32 | amigo-downloader became Krake (amigo-labs/amigo-krake); sofarr uses it through Krake's NZBGet-compatible JSON-RPC API with the existing nzbget client and `[nzbget]` configuration, no second `DownloadClient` implementation; gaps in Krake's API are fixed in Krake (owner, 2026-11-19) | Krake is a daemon with an API built for Sonarr/Radarr; one protocol means one client, one config and the same tests for nzbget and Krake. Answers §10's open question |
+| D33 | No v3 API shim for Prowlarr, Jellyseerr or Bazarr (owner, 2026-11-19) | No tool needs it: indexers are configured in `sofarr.toml`, sofarr adds titles itself (spec `discover`) and fetches subtitles itself (D17); D8 stands |
 
 ## 10. Open questions
 
-- amigo-downloader: library crate or daemon with an API?
+
+None at the moment.

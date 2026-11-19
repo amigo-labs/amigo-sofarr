@@ -37,6 +37,8 @@ pub struct Fake {
     pub tvdb_series: HashMap<i64, Value>,
     /// TVDB episodes by TVDB id.
     pub tvdb_episodes: HashMap<i64, Vec<Value>>,
+    /// TVDB episodes in German (`episodes/default/deu`) by TVDB id.
+    pub tvdb_episodes_de: HashMap<i64, Vec<Value>>,
     /// TMDB answers 503 to everything.
     pub tmdb_down: bool,
     /// TVDB answers 503 to everything.
@@ -199,7 +201,14 @@ fn tvdb(fake: &Fake, method: &Method, path: &str) -> Response {
                 Json(json!({"data": {"episodes": episodes}, "links": {"next": null}}))
                     .into_response()
             } else {
-                Json(json!({"data": {"episodes": []}})).into_response()
+                let german = id
+                    .parse::<i64>()
+                    .ok()
+                    .filter(|_| rest == ["deu"])
+                    .and_then(|id| fake.tvdb_episodes_de.get(&id))
+                    .cloned()
+                    .unwrap_or_default();
+                Json(json!({"data": {"episodes": german}})).into_response()
             }
         }
         _ => not_found(),

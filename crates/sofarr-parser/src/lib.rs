@@ -727,6 +727,11 @@ mod tests {
         let r = parse("Copper.Bell.1958.2160p.UHD.BluRay.HEVC-GLOCKE");
         assert_eq!(r.quality.modifier, Modifier::Remux);
         assert_eq!(r.quality.resolution, Resolution::R2160);
+        // HEVC counts as disc video only at 2160p (spec parser AC-06).
+        let r = parse("Copper.Bell.1958.1080p.BluRay.HEVC-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::None);
+        let r = parse("Copper.Bell.1958.1080p.Blu-ray.HEVC.TrueHD.7.1-GLOCKE");
+        assert_eq!(r.quality.modifier, Modifier::None);
     }
 
     #[test]
@@ -831,6 +836,24 @@ mod tests {
     fn file_extension_is_ignored() {
         let r = parse("Hollow.Pines.2012.720p.BluRay.x264-WALD.mkv");
         assert_eq!(r.release_group.as_deref(), Some("WALD"));
+    }
+
+    #[test]
+    fn separators_and_case_do_not_matter() {
+        // Dots, spaces and underscores separate words alike; keywords match in any case.
+        for input in [
+            "Quiet.Orchard.2011.1080p.BluRay.x264-HAIN",
+            "Quiet Orchard 2011 1080p BluRay x264-HAIN",
+            "Quiet_Orchard_2011_1080p_BluRay_x264-HAIN",
+            "Quiet.Orchard.2011.1080P.bluray.X264-HAIN",
+        ] {
+            let r = parse(input);
+            assert_eq!(r.title(), Some("Quiet Orchard"), "{input}");
+            assert_eq!(r.year, Some(2011), "{input}");
+            assert_eq!(r.quality.source, Source::BluRay, "{input}");
+            assert_eq!(r.quality.resolution, Resolution::R1080, "{input}");
+            assert_eq!(r.release_group.as_deref(), Some("HAIN"), "{input}");
+        }
     }
 
     #[test]
@@ -1005,6 +1028,8 @@ mod tests {
             Source::Tv
         );
         assert_eq!(q("Copper Bell-1958-2160p-4K-WEB-5.1-GLOCKE").0, Source::Tv);
+        // Any `WEB` followed by a dash but `-DL`/`-Rip` is no source (spec parser AC-04).
+        assert_eq!(q("Film.2001.1080p.WEB-G").0, Source::Tv);
         assert_eq!(
             q("Copper.Bell.1958.1080p.WEB-DL.x264-GLOCKE").0,
             Source::WebDl

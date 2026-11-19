@@ -302,7 +302,8 @@ impl Db {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (tmdb_id) DO UPDATE SET
                 imdb_id = excluded.imdb_id, title = excluded.title,
-                original_title = excluded.original_title, title_de = excluded.title_de,
+                original_title = excluded.original_title,
+                title_de = COALESCE(excluded.title_de, movies.title_de),
                 year = excluded.year, runtime = excluded.runtime,
                 original_language = excluded.original_language, monitored = excluded.monitored,
                 quality_profile_id = excluded.quality_profile_id, path = excluded.path,
@@ -655,6 +656,21 @@ mod tests {
             .await
             .expect("overwrite");
         assert_eq!(db.setting("x").await.expect("read"), Some(json!({"a": 2})));
+    }
+
+    #[tokio::test]
+    async fn update_without_german_title_keeps_it() {
+        // A Radarr import knows no German title; the one from TMDB stays.
+        let db = Db::in_memory().await.expect("db");
+        let id = db
+            .upsert_movie(&new_movie(42), now())
+            .await
+            .expect("insert");
+        let mut from_radarr = new_movie(42);
+        from_radarr.title_de = None;
+        db.upsert_movie(&from_radarr, now()).await.expect("update");
+        let movie = db.movie(id).await.expect("read").expect("exists");
+        assert_eq!(movie.title_de.as_deref(), Some("Der kleine Garten"));
     }
 
     #[tokio::test]

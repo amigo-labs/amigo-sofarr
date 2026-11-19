@@ -50,7 +50,9 @@ interval_minutes = 30   # 0 schaltet den RSS-Sync ab
 # pin = "optional"
 # url = "https://api4.thetvdb.com/v4"   # API-Adresse; nur für Testaufbauten ändern
 
-# Download-Client (nur im Modus "live" genutzt).
+# Download-Client (nur im Modus "live" genutzt): nzbget oder Krake (amigo-krake) über
+# dessen NZBGet-kompatible API. Für Krake: url = "http://krake:1516", Benutzer und
+# Passwort aus Krakes `[nzbget_api]`.
 # [nzbget]
 # url = "http://nzbget:6789"
 # username = "nzbget"

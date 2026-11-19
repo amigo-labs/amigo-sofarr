@@ -79,6 +79,27 @@ fn start_mock() -> (String, Arc<Mutex<Vec<String>>>) {
                         .to_owned(),
                 ),
                 "/api/v3/history" => ("200 OK", r#"{"records":[]}"#.to_owned()),
+                "/api/v3/history/movie" if query == "movieId=1" => (
+                    "200 OK",
+                    serde_json::json!([
+                        {"eventType": "grabbed", "downloadId": "d1",
+                         "sourceTitle": "Erfunden.2021.1080p.WEB-DL-movieId=1"},
+                        {"eventType": "downloadFolderImported", "downloadId": "d1",
+                         "sourceTitle": "Erfunden.2021.1080p.WEB-DL-movieId=1"},
+                        {"eventType": "grabbed", "downloadId": "d2",
+                         "sourceTitle": "Privat.Importiert.2021-PRIV"},
+                        {"eventType": "downloadFolderImported", "downloadId": "d2"},
+                        {"eventType": "grabbed", "downloadId": "d3",
+                         "sourceTitle": "Nur.Gegrabbt.2021-GRAB"},
+                        {"eventType": "downloadFolderImported", "downloadId": "d4",
+                         "sourceTitle": "Manuell.Importiert.2021-MAN"}
+                    ])
+                    .to_string(),
+                ),
+                "/api/v3/history/movie" if query == "movieId=5" => {
+                    ("500 Internal Server Error", "{}".to_owned())
+                }
+                "/api/v3/history/movie" => ("200 OK", "[]".to_owned()),
                 "/api/v3/parse" => (
                     "200 OK",
                     serde_json::json!({
@@ -99,7 +120,8 @@ fn start_mock() -> (String, Arc<Mutex<Vec<String>>>) {
                         {"id": 3, "title": "Zweiter", "monitored": true, "runtime": 100},
                         {"id": 4, "title": "Mit Datei", "monitored": false, "hasFile": true,
                          "qualityProfileId": 5,
-                         "movieFile": {"quality": {"quality": {"name": "WEBDL-2160p"}}}}
+                         "movieFile": {"quality": {"quality": {"name": "WEBDL-2160p"}}}},
+                        {"id": 5, "title": "Kaputte History", "monitored": false}
                     ])
                     .to_string(),
                 ),
@@ -381,4 +403,82 @@ fn rebuild_public_redacts_the_private_file_again() {
     let after = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
     assert_eq!(after, before);
     assert!(!after.contains("geheime-guid"));
+}
+
+#[test]
+fn releases_record_the_imported_release_names() {
+    // release-oracle-history AC-03
+    let (base, _log) = start_mock();
+    let dir = fixtures_dir("collect-imported");
+    let http = HttpClient::new(1000.0, false);
+    let sources = Sources::Releases {
+        movies: 2,
+        with_file: false,
+        ids: Vec::new(),
+    };
+    collect::run(&config(&base, "indexer-key"), &http, &dir, sources).expect("run");
+
+    let private = lines(&dir.join(releases::PRIVATE_FILE));
+    let first = private
+        .iter()
+        .find(|r| r["movie"]["id"] == 1)
+        .expect("film 1");
+    assert_eq!(
+        first["movie"]["importedReleases"],
+        serde_json::json!([
+            "Erfunden.2021.1080p.WEB-DL-movieId=1",
+            "Privat.Importiert.2021-PRIV"
+        ])
+    );
+    let public = lines(&dir.join(releases::PUBLIC_FILE));
+    assert_eq!(
+        public[0]["movie"]["importedReleases"],
+        serde_json::json!(["Erfunden.2021.1080p.WEB-DL-movieId=1"])
+    );
+    assert_eq!(
+        public[1]["movie"]["importedReleases"],
+        serde_json::json!([])
+    );
+    let text = fs::read_to_string(dir.join(releases::PUBLIC_FILE)).expect("public");
+    for (i, private_name) in ["PRIV", "GRAB", "MAN"].iter().enumerate() {
+        assert!(!text.contains(private_name), "history name {i} leaked");
+    }
+
+    fs::write(dir.join(releases::PUBLIC_FILE), "").expect("clear");
+    releases::rebuild_public(&dir).expect("rebuild");
+    let rebuilt = lines(&dir.join(releases::PUBLIC_FILE));
+    assert_eq!(
+        rebuilt[0]["movie"]["importedReleases"],
+        public[0]["movie"]["importedReleases"]
+    );
+}
+
+#[test]
+fn unreadable_history_fails_the_film_without_lines() {
+    // release-oracle-history AC-06
+    let (base, log) = start_mock();
+    let dir = fixtures_dir("collect-history-error");
+    let http = HttpClient::new(1000.0, false);
+    let sources = Sources::Releases {
+        movies: 1,
+        with_file: false,
+        ids: vec![5],
+    };
+    let err = collect::run(&config(&base, "indexer-key"), &http, &dir, sources)
+        .expect_err("history error");
+    assert!(
+        format!("{err:#}").contains("Radarr-History für Film 5"),
+        "{err:#}"
+    );
+    for file in [releases::PRIVATE_FILE, releases::PUBLIC_FILE] {
+        let text = fs::read_to_string(dir.join(file)).unwrap_or_default();
+        assert!(text.trim().is_empty(), "{file} has lines");
+    }
+    assert!(
+        !log.lock()
+            .expect("lock")
+            .iter()
+            .any(|p| p.starts_with("/api/v3/release?movieId=5")),
+        "no search after the history failed"
+    );
 }

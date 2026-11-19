@@ -373,6 +373,7 @@ mod tests {
         let plain =
             series_from_json(&json!({"id": 1, "name": "X", "overview": "Text"})).expect("plain");
         assert_eq!(plain.overview.as_deref(), Some("Text"));
+        assert_eq!(plain.title_de, "X", "without German title TVDB's own");
         assert_eq!(plain.poster, None);
         let e = episodes_from_json(&json!({"episodes": [
             {"id": 1, "seasonNumber": 1, "number": 1, "absoluteNumber": 1, "name": "Pilot", "aired": "2019-01-01"},

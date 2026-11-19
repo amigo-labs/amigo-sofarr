@@ -101,6 +101,8 @@ Diese Fälle werden aus dem Parity-Diff ausgenommen.
 | Public-Fixtures: `response` | Aus der `/api/v3/parse`-Antwort werden nur `title`, `parsedMovieInfo` und `languages` gespeichert, nicht die komplette Antwort. | Ein Treffer in der Bibliothek liefert ein `movie`-Objekt mit Pfaden und Bibliotheksdaten; die gehören nicht ins öffentliche Repo. Private History-Fixtures bleiben roh. |
 | Media-Infos: Atmos in E-AC-3 | sofarr erkennt Joint Object Coding nur in den ersten Frames; Radarr/Sonarr finden es auch weiter hinten im Datenstrom. | sofarr liest nur Header und die ersten Frames jeder Spur (Spec `mediainfo`, „Header data“), damit ein Scan großer Bibliotheken über das Netz schnell bleibt; im Abgleich betrifft das unter 1 % der Filme und höchstens 3,8 % der Episoden (alle Audio-Abweichungen bei Sonarr). |
 | Episoden-Parser: `E23` ohne Staffel hinter einer Gruppe | `[Onalrie].Yamato.yo.Towa.ni.Rebel.3199.-.E23…` (4 Titel) und `[Onalrie].Shin.Tennis…U-17…-.E07…`: sofarr liest Staffel 1, Episode 23 bzw. 7; Sonarr übergeht `E23` und nimmt eine Zahl aus dem Serientitel als absolute Nummer (3199, 17). | Die Zahl im Titel ist keine Episode; `E<n>` ohne Staffel heißt sonst überall Staffel 1 (Spec `parser-episode-gaps`, AC-02). |
+| Episoden-Parser: `[Grp][Titel.S2][05]` | `[Nekomoe.kissaten][Sasaki.to.Pii-chan.S2][05]…` (2 Titel): sofarr liest Staffel 2, Episode 5; Sonarr liest die ganze Staffel 2 ohne Episode. | Der Release enthält eine Episode; als Staffel-Paket genommen, würde die Decision Engine eine Episode statt der ganzen Staffel grabben (Spec `parser-season-in-title`). |
+| Release-Orakel: „Raw Bluray/DVD release“ | Radarr lehnt 6 öffentliche Releases so ab; sofarr nicht. | Radarr entscheidet das aus Indexer-Metadaten, die der Release-Titel nicht trägt: dieselben Titelmuster nimmt Radarr bei anderen Releases an. Aus dem Titel geraten, würden gute Releases abgelehnt; Full-Discs mit `BR-DISK` im Namen lehnt sofarr über die Quality ab (Spec `release-oracle-history`). |
 
 ## Stand Release-Orakel
 
@@ -158,10 +160,10 @@ Hinweise zur Messung:
 
 Noch nicht abgedeckt:
 
-- Nicht modelliert: „Raw Bluray/DVD release“ (6×, nicht aus dem Titel ableitbar). „Has
-  same release name as a grabbed and imported release“ (1×) braucht die History: RSS-Sync
-  und Suche nehmen keinen Release, dessen Name einem importierten Grab gleicht; im
-  Release-Orakel (ohne History) bleibt der Fall offen.
+- „Has same release name as a grabbed and imported release“ (1×): die Decision Engine lehnt
+  ab (`already_imported`), sobald ein Fixture die importierten Release-Namen des Films trägt
+  (`importedReleases`, Spec `release-oracle-history`). Die bisherigen Fixtures haben sie noch
+  nicht; dort bleibt die Ablehnung außen vor, bis `collect --source releases` sie neu sammelt.
 - Quality-Abweichungen des Parsers (3×, Einzelfälle ohne Gegenstück im Parse-Orakel):
   `1080p.Bluray.HEVC` mit DTSHD (Radarr: Remux), `[2160p]…WEB.AV1` (Radarr: HDTV, im
   Parse-Orakel ist `WEB.AV1` WEB-DL) und `Cam` vor dem Jahr.
@@ -262,6 +264,6 @@ Radarrs manuellen Import (Spec §5).
 | Serien: `multiEpisodeStyle` | 0 Extend, 1 Duplicate, 2 Repeat, 3 Scene, 4 Range, 5 Prefixed Range; Duplicate schreibt die Staffel mit der Auffüllung der Episode. |
 | Serien: `colonReplacementFormat` (numerisch) | 0 Delete, 1 Dash, 2 Space Dash, 3 Space Dash Space, 4 Smart. |
 | Serien: Episoden-Import | jede Videodatei wird über ihren Namen (sonst den Grab-Titel) Episoden zugeordnet. |
-| Fehlgeschlagene Downloads | Release-Fehler (`FAILURE/HEALTH`, `/PAR`, `/UNPACK`, `DELETED/HEALTH`, `/MANUAL`) und kaputte NZBs (HTTP 404/410, Newznab-Fehler 300, von nzbget abgelehnt) kommen auf die Blocklist des Films bzw. der Serie (GUID und normalisierter Titel, ohne Ablauf); lokale Fehler, Ausfälle und verschwundene Downloads nicht. Re-Suche je Medienart laut `[download] redownload_failed_*`, sonst `autoRedownloadFailed` aus dem Import, sonst aus (Spec `fail-handling`). |
+| Fehlgeschlagene Downloads | Release-Fehler (`FAILURE/HEALTH`, `/PAR`, `/UNPACK`, `/BAD`, `DELETED/HEALTH`, `/MANUAL`) und kaputte NZBs (HTTP 404/410, Newznab-Fehler 300, von nzbget abgelehnt) kommen auf die Blocklist des Films bzw. der Serie (GUID und normalisierter Titel, ohne Ablauf); lokale Fehler, Ausfälle und verschwundene Downloads nicht. Re-Suche je Medienart laut `[download] redownload_failed_*`, sonst `autoRedownloadFailed` aus dem Import, sonst aus (Spec `fail-handling`). |
 | Verschwundene Downloads | Ein aktiver Grab, dessen Download bei jedem erfolgreichen Download-Check seit 24 Stunden weder in Queue noch History steht, gilt als fehlgeschlagen; nicht erreichbare Checks zählen nicht. |
 | Serien-Refresh: neue Episoden | Eine neue Episode einer bekannten Staffel wird nur überwacht, wenn in dieser Staffel schon eine Episode überwacht ist; eine neue Staffel folgt dem Schalter „neue Staffeln überwachen“ der Serie (Standard an, Sonarrs eigene Einstellung wird nicht übernommen). Aus Sonarr importierte Serien mit einer ganz unüberwachten Staffel behalten diese unüberwacht (D28). |
