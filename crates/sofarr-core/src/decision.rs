@@ -727,6 +727,53 @@ mod tests {
         );
     }
 
+    /// decision-engine AC-09: at the cutoff, a higher revision of another quality in the
+    /// file's group (same rank) is still taken; without the revision the cutoff is met.
+    #[test]
+    fn cutoff_group_takes_a_revision_of_another_quality() {
+        let mut config = config();
+        config.profiles[0].cutoff = 1000;
+        config.profiles[0].cutoff_format_score = 0;
+        let check = |title, file| keys(&config, title, &movie(Some(file)));
+        // File WEBRip-1080p, release WEBDL-1080p: both in the "WEB 1080p" cutoff group.
+        assert!(check("Some.Movie.2020.1080p.WEB-DL.H.264.PROPER-GRP", file(15, 0)).is_empty());
+        assert_eq!(
+            check("Some.Movie.2020.1080p.WEB-DL.H.264-GRP", file(15, 0)),
+            ["cutoff_met"]
+        );
+    }
+
+    /// decision-engine AC-10: without upgrades, a higher revision of another quality in
+    /// the file's group passes; without the revision the cutoff is met.
+    #[test]
+    fn no_upgrades_take_a_revision_of_another_quality_in_the_group() {
+        let mut config = config();
+        config.profiles[0].upgrade_allowed = false;
+        config.profiles[0].cutoff_format_score = 0;
+        let check = |title, file| keys(&config, title, &movie(Some(file)));
+        assert!(check("Some.Movie.2020.1080p.WEB-DL.H.264.PROPER-GRP", file(15, 0)).is_empty());
+        assert_eq!(
+            check("Some.Movie.2020.1080p.WEB-DL.H.264-GRP", file(15, 0)),
+            ["cutoff_met"]
+        );
+    }
+
+    /// decision-engine AC-11: under "do not prefer" a repack is no upgrade by revision,
+    /// so the group check of the file does not apply.
+    #[test]
+    fn repacks_under_do_not_prefer_skip_the_group_check() {
+        let mut config = config();
+        config.settings.propers = PropersPolicy::DoNotPrefer;
+        let check = |title, file| keys(&config, title, &movie(Some(file)));
+        let other = "Some.Movie.2020.1080p.WEB-DL.H.264.REPACK-OTHER";
+        assert_eq!(check(other, file(3, 0)), ["no_better_score"]);
+        let unknown = ExistingFile {
+            release_group: None,
+            ..file(3, 0)
+        };
+        assert_eq!(check(other, unknown), ["no_better_score"]);
+    }
+
     #[test]
     fn titles_without_year_need_german() {
         let config = config();

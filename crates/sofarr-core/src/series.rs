@@ -220,6 +220,10 @@ mod tests {
     }
 
     fn decide(title: &str) -> EpisodeDecision {
+        decide_in(title, &series())
+    }
+
+    fn decide_in(title: &str, series: &SeriesTarget) -> EpisodeDecision {
         let config = config();
         let info = parse_episode(title).expect("episode");
         let release = ReleaseInput {
@@ -228,7 +232,7 @@ mod tests {
             age_minutes: 60.0,
             languages: None,
         };
-        evaluate_episodes(&config, &config.profiles[0], &release, &info, &series())
+        evaluate_episodes(&config, &config.profiles[0], &release, &info, series)
     }
 
     fn keys(d: &EpisodeDecision) -> Vec<&'static str> {
@@ -338,5 +342,58 @@ mod tests {
         // Fits one episode, too small for two.
         assert!(run(single, 1000 * MB).is_empty());
         assert_eq!(run(double, 1000 * MB), ["too_small"]);
+    }
+
+    /// decision-engine AC-14: one wanted episode without a file leaves no file to beat,
+    /// even when another covered episode has a file at the cutoff.
+    #[test]
+    fn a_wanted_episode_without_file_leaves_nothing_to_beat() {
+        let target = SeriesTarget {
+            episodes: vec![episode(1, 3, 1, Some(BLURAY_1080)), episode(2, 3, 2, None)],
+            ..series()
+        };
+        let pack = decide_in("Kleine.Insel.S03.1080p.BluRay.x264-GRP", &target);
+        assert_eq!(pack.episodes, [1, 2]);
+        assert!(pack.decision.approved(), "{:?}", keys(&pack));
+        // Control: with only the file at the cutoff, the same release is no upgrade.
+        let only_file = SeriesTarget {
+            episodes: vec![episode(1, 3, 1, Some(BLURAY_1080))],
+            ..series()
+        };
+        assert_eq!(
+            keys(&decide_in(
+                "Kleine.Insel.S03.1080p.BluRay.x264-GRP",
+                &only_file
+            )),
+            ["cutoff_met"]
+        );
+    }
+
+    /// decision-engine AC-14: among covered files of the same rank, the lower custom
+    /// format score is the file to beat.
+    #[test]
+    fn equal_rank_files_fall_back_to_the_lower_score() {
+        let scored = |id, number, score| EpisodeState {
+            file: Some(ExistingFile {
+                custom_format_score: score,
+                ..file(WEBDL_1080)
+            }),
+            ..episode(id, 3, number, None)
+        };
+        // The higher score comes first, so ignoring the score would keep it.
+        let target = SeriesTarget {
+            episodes: vec![scored(1, 1, 0), scored(2, 2, -50)],
+            ..series()
+        };
+        let title = "Kleine.Insel.S03.1080p.WEB-DL.h264-GRP";
+        let pack = decide_in(title, &target);
+        assert_eq!(pack.episodes, [1, 2]);
+        // Score 0 beats -50 but not 0.
+        assert!(pack.decision.approved(), "{:?}", keys(&pack));
+        let only_higher = SeriesTarget {
+            episodes: vec![scored(1, 1, 0)],
+            ..series()
+        };
+        assert_eq!(keys(&decide_in(title, &only_higher)), ["no_better_score"]);
     }
 }
