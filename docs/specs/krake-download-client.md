@@ -51,8 +51,9 @@ Terms:
 - [ ] AC-01 (event): When sofarr grabs a release in live mode and `[nzbget] url` points at Krake,
   then sofarr sends the NZB with the category of the movie or series to Krake and records the
   download id Krake returns.
-- [ ] AC-02 (state): While Krake lists the download in its queue (queued, downloading or paused),
-  sofarr shows the grab as downloading with Krake's size and remaining size.
+- [ ] AC-02 (state): While Krake lists the download in its queue, sofarr keeps the grab as sent
+  while it is queued or paused and shows it as downloading while Krake downloads it, and reads
+  Krake's size and remaining size for it.
 - [ ] AC-03 (event): When Krake reports the download as successful in its history, then sofarr
   imports the files from the folder Krake names into the library, and afterwards removes the
   entry from Krake without asking Krake to delete files.
@@ -99,5 +100,7 @@ Terms:
 | AC-07 |      | open   |        |
 
 ## Decisions
+
+- 2026-11-19 (check): AC-02 revised to the behavior shared with nzbget: a queued or paused download keeps the grab as sent, only a running one shows it as downloading; the acceptance check found the wording contradicting code and test.
 
 - 2026-11-19 (build): AC-07 added, Assumptions on failure kinds and NZBIDs dropped: amigo-krake#134 now reports why a Usenet download failed (health, par, unpack) and gives NZBIDs that never change (FNV-1a over Krake's download id), on the owner's request.
