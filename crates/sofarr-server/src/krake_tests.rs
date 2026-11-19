@@ -28,6 +28,8 @@ struct Krake {
     history: Vec<Value>,
     /// `(filename, category)` of every `append`.
     appended: Vec<(String, String)>,
+    /// The Base64 NZB content of every `append`.
+    contents: Vec<String>,
     /// Every call as `method params`.
     rpc: Vec<String>,
     /// Answer every call with this JSON-RPC error.
@@ -74,6 +76,9 @@ async fn jsonrpc(
                 p[0].as_str().unwrap_or_default().to_owned(),
                 p[2].as_str().unwrap_or_default().to_owned(),
             ));
+            krake
+                .contents
+                .push(p[1].as_str().unwrap_or_default().to_owned());
             json!(KRAKE_ID)
         }
         "listgroups" => json!(krake.queue),
@@ -189,6 +194,8 @@ async fn grab_sends_the_nzb_with_category_and_records_the_id() {
         [(format!("{RELEASE}.nzb"), "movies".to_owned())]
     );
     let grabs = app.db.grabs(None, 10).await.expect("grabs");
+    // The NZB the indexer served (`<nzb/>` from the testkit) reaches Krake unchanged.
+    assert_eq!(s.krake().contents, ["PG56Yi8+"]);
     assert_eq!(grabs[0].status, GrabStatus::Queued);
     assert_eq!(
         grabs[0].download_id.as_deref(),
