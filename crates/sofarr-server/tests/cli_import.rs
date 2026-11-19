@@ -127,11 +127,11 @@ fn imports_fail_on_bad_exports_and_missing_connections() {
     let (dir, config) = setup("errors");
     let empty = dir.join("empty");
     std::fs::create_dir_all(&empty).expect("empty");
-    for command in ["import-radarr", "import-sonarr"] {
+    for (command, app) in [("import-radarr", "Radarr"), ("import-sonarr", "Sonarr")] {
         let output = run(&config, &[command, "--exports", &empty.to_string_lossy()]);
         assert!(!output.status.success(), "{command}");
         assert!(
-            stderr(&output).contains("enthält keinen Radarr-Export"),
+            stderr(&output).contains(&format!("enthält keinen {app}-Export")),
             "{command}: {}",
             stderr(&output)
         );

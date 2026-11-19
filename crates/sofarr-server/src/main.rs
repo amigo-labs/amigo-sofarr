@@ -479,7 +479,7 @@ async fn run_command(config: Config, command: Command) -> anyhow::Result<()> {
         Command::ImportSonarr { exports } => {
             let (docs, episodes) = match exports {
                 Some(dir) => (
-                    library::read_dir_documents(&dir, &["series"])?,
+                    library::read_dir_documents(&dir, &["series"], "Sonarr")?,
                     Default::default(),
                 ),
                 None => series::fetch_from_sonarr(&sonarr()?).await?,
