@@ -164,4 +164,48 @@ mod tests {
             BTreeSet::from([5])
         );
     }
+
+    /// Spec import-lists: what a list without the optional keys means — cast included,
+    /// monitored, no search, minimum availability `released`, no tags; a list without
+    /// quality profile is skipped with a German warning.
+    #[test]
+    fn missing_list_keys_have_defaults() {
+        let settings = json!([
+            {"name": "Knapp", "implementation": "TMDbPersonImport", "qualityProfileId": 2,
+             "fields": [{"name": "personId", "value": 9}]},
+            {"name": "Ohne Profil", "implementation": "TMDbPersonImport",
+             "fields": [{"name": "personId", "value": 9}]}
+        ]);
+        let (lists, warnings) = person_lists(&settings);
+        assert_eq!(
+            warnings,
+            ["Import List Ohne Profil: qualityProfileId fehlt"]
+        );
+        assert_eq!(
+            lists,
+            [PersonList {
+                name: "Knapp".to_owned(),
+                person_id: 9,
+                cast: true,
+                departments: Vec::new(),
+                monitored: true,
+                quality_profile_id: 2,
+                root_folder: String::new(),
+                search_on_add: false,
+                minimum_availability: "released".to_owned(),
+                tags: Vec::new(),
+            }]
+        );
+        // All four crew departments, without cast.
+        let crew = json!([{"name": "Crew", "implementation": "TMDbPersonImport", "qualityProfileId": 1,
+            "fields": [{"name": "personId", "value": 9}, {"name": "personCast", "value": false},
+                       {"name": "personCastDirector", "value": true}, {"name": "personCastProducer", "value": true},
+                       {"name": "personCastSound", "value": true}, {"name": "personCastWriting", "value": true}]}]);
+        let (lists, _) = person_lists(&crew);
+        assert!(!lists[0].cast);
+        assert_eq!(
+            lists[0].departments,
+            ["Directing", "Production", "Sound", "Writing"]
+        );
+    }
 }
