@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: S
 design: [sofarr.md §2 (v2 episode parsing), sofarr.md §5, sofarr.md §6]
@@ -56,28 +56,28 @@ and general knowledge of anime release names.
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When a title has a season word followed by a spaced dash and a number that
+- [x] AC-01 (event): When a title has a season word followed by a spaced dash and a number that
   qualifies as an absolute episode (two to four digits, not a year, followed by a bracket, a dash
   or nothing — the rule of ` - 06` in parser-episode-gaps), then sofarr reads the season word as
   part of the series title, the number as the absolute episode, and no season and no season
   pack (`[Erai-raws].Kikansha.no.Mahou.wa.Tokubetsu.desu.2nd.Season.-.06.[1080p…]` →
   "Kikansha no Mahou wa Tokubetsu desu 2nd Season", absolute 6).
-- [ ] AC-02 (event): When a leading group is followed by a bracketed title whose last word is a
+- [x] AC-02 (event): When a leading group is followed by a bracketed title whose last word is a
   season marker `S<n>` without episodes, and then by an episode number alone in square brackets
   (`[Nekomoe.kissaten][Sasaki.to.Pii-chan.S2][05][1080p][JPTC]`), then sofarr reads the series
   title without the season marker ("Sasaki to Pii-chan"), season n, episode number from the
   bracket (5), and no season pack.
-- [ ] AC-03 (always): sofarr reads season packs and episodes that use a season word or `S<n>`
+- [x] AC-03 (always): sofarr reads season packs and episodes that use a season word or `S<n>`
   the same as before: `Show.Name.Season.2.1080p.WEB-GRP` (season 2 pack),
   `Show.Season.1-3.1080p` (seasons 1 to 3), `Kleine Insel Season 1 Episode 4 720p` (S01E04),
   `[Grp].Sky.Pirates.Season.2.-.07.[720p.WEB-DL]` (absolute 7, title "Sky Pirates Season 2"),
   `[Nekomoe.kissaten][Chii.Fuyo][06][1080p][JPSC]` (absolute 6).
-- [ ] AC-04 (error): If a bracketed title with a season marker is followed by a bracket that is
+- [x] AC-04 (error): If a bracketed title with a season marker is followed by a bracket that is
   no episode number (`[Grp][Title.S2][1080p][WEB]`, `[Grp][Title.S2][2026]`), then sofarr
   recognises no episode of form 2; if the number after the spaced dash is a year or a
   resolution (`[Grp].Title.Season.-.2026.[1080p]`, `[Grp].Title.Season.-.1080p`), then it reads
   no absolute episode of form 1.
-- [ ] AC-05 (always): In the episode oracle, the four titles of form 1 match Sonarr on every
+- [x] AC-05 (always): In the episode oracle, the four titles of form 1 match Sonarr on every
   compared field, and the two titles of form 2 match Sonarr on series title and season; no
   field's pass rate falls below the ratchet baseline, which is rewritten to the new rates; the
   movie oracle stays below its limit of movie titles read as episodes.
@@ -99,11 +99,25 @@ and general knowledge of anime release names.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
+| AC-01 | `episode::tests::season_word_before_spaced_dash_number` (`crates/sofarr-parser/src/episode.rs`) | verified | 5eec838 |
+| AC-02 | `episode::tests::bracketed_title_with_season` (`crates/sofarr-parser/src/episode.rs`) | verified | 5eec838 |
+| AC-03 | `episode::tests::season_forms_stay_unchanged`, `episode::tests::anime_season_in_title_is_no_pack`, `episode::tests::season_packs` (`crates/sofarr-parser/src/episode.rs`) | verified | 5eec838 |
+| AC-04 | `episode::tests::season_in_title_rejects_non_episodes` (`crates/sofarr-parser/src/episode.rs`) | verified | 5eec838 |
+| AC-05 | `season_in_title_matches_oracle`, `sonarr_oracle_ratchet`, `movies_are_rarely_episodes` (`crates/sofarr-parser/tests/episode_oracle.rs`); baseline `fixtures/parser-episode-baseline.toml` | verified | 06d0f38 |
+
+## Summary
+
+> Completed: 2026-11-19
+
+- A season word followed by a spaced dash and an absolute number (`…2nd.Season.-.06`) stays
+  in the series title; the number is the absolute episode, no season pack.
+- A bracketed title ending in `S<n>` followed by a bracketed episode number
+  (`[Grp][Title.S2][05]`) gives season n, episode 5 without the marker in the title — a
+  deliberate deviation from Sonarr's full season, recorded in `docs/parity.md`.
+- Existing season packs, `Season 1 Episode 4` and anime cours behind a leading group read as
+  before; years and resolutions after the dash or in the bracket give no episode.
+- Episode-oracle baseline raised (series_title 993 ‰, full_season 999 ‰); no movie title
+  reads as an episode.
 
 ## Decisions
 

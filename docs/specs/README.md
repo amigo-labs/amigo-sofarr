@@ -44,7 +44,7 @@ because later specs build on earlier ones.
 | 26 | [reencode-job](reencode-job.md) | M | reencode-file | Re-encoding 3: background job around the clock through the candidate list, largest first, skips settled and resting files, repairs interrupted attempts, stops with the server, system page (D31) | done |
 | 27 | [ui-reencode](ui-reencode.md) | M | reencode-job | Re-encoding 4: page "Neu encodieren" with the job state, candidates with their job state, history and saved space; encode now, exclude a file from the job (D31) | done |
 | 28 | [reencode-audio](reencode-audio.md) | M | reencode-file | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC; DTS-HD MA stays, as DTS:X cannot be ruled out) to E-AC-3 640 kbit/s in the same encode; an HEVC video is then copied (owner 2026-11-17); revises reencode-file AC-03 | done |
-| 29 | [parser-season-in-title](parser-season-in-title.md) | S | parser-episode-gaps | Episode parser: a season word before ` - 06` belongs to the anime title; `[Grp][Title.S2][05]` is S02E05 (deliberate deviation from Sonarr) | `/spec-check` |
+| 29 | [parser-season-in-title](parser-season-in-title.md) | S | parser-episode-gaps | Episode parser: a season word before ` - 06` belongs to the anime title; `[Grp][Title.S2][05]` is S02E05 (deliberate deviation from Sonarr) | done |
 | 30 | [release-oracle-history](release-oracle-history.md) | S | – | Release oracle: `already_imported` in the decision engine, imported release names in the release fixtures; "Raw Bluray/DVD release" as deliberate deviation | `/spec-check` |
 | 31 | [krake-download-client](krake-download-client.md) | M | – | Krake (formerly amigo-downloader) as download client through its NZBGet-compatible API (D32) | `/spec-check` |
 
@@ -82,6 +82,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [reencode-job](reencode-job.md) | 2026-11-18 | Re-encoding 3: background job `[reencode] enabled` (off by default, live mode), largest due file first, settled and resting files skipped, interrupted attempts repaired at start, encodes stopped with the server, "Neu encodieren" on the system page (D31) |
 | [ui-reencode](ui-reencode.md) | 2026-11-18 | Re-encoding 4: page "Neu encodieren" (`GET /api/reencode`) with the job state, the running encode, saved space, candidates with their job state and the latest 50 attempts; encode now, keep a library file out of the job (`/api/reencode/exclusions`), read-only in shadow mode (D31) |
 | [reencode-audio](reencode-audio.md) | 2026-11-18 | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC) to E-AC-3 in the same encode (`[reencode] convert_lossless_audio`, `audio_bitrate_kbps`, default 640, stereo 256), TrueHD Atmos and every DTS track copied, an HEVC video copied when audio is converted, every audio track checked against its plan (D31) |
+| [parser-season-in-title](parser-season-in-title.md) | 2026-11-19 | Episode parser: a season word before ` - 06` belongs to the anime title (absolute number, no pack); `[Grp][Title.S2][05]` is S02E05, a deliberate deviation from Sonarr's full season |
 
 ## Phase 1–5 behavior
 
