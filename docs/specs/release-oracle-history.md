@@ -57,7 +57,9 @@ Terms:
 
 - [ ] AC-01 (event): When the decision for a film gets its imported release names and the
   release title equals one of them ignoring case, then sofarr rejects the release with the
-  rejection `already_imported`, in addition to every other rejection the release gets.
+  rejection `already_imported`, in addition to every other rule's rejection — for every release
+  that passes the year rule (spec `decision-engine` AC-04); a release that fails it keeps only
+  `unparsable` or `unknown_movie`.
 - [ ] AC-02 (state): While a film has no imported release names, or none equals the release
   title, sofarr gives no `already_imported` rejection.
 - [ ] AC-03 (event): When `sofarr-parity collect --source releases` records the releases of a
@@ -117,3 +119,4 @@ Terms:
 - 2026-11-19 (spec): The public fixture keeps only the release's own title from the imported
   names, because the full history of a film is private (like `radarr-parse-history.jsonl`),
   while the release's own title is public already.
+- 2026-11-19 (check): AC-01 revised: a release that fails the year rule gets only `unparsable` or `unknown_movie`, as decision-engine AC-04 says and as Radarr answers "Unable to parse" without further checks (`parity.md`); the acceptance check found the two specs contradicting each other.
