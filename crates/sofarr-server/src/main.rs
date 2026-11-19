@@ -63,6 +63,8 @@ mod backup_tests;
 #[cfg(test)]
 mod compare_media_tests;
 #[cfg(test)]
+mod download_import_tests;
+#[cfg(test)]
 mod failure_tests;
 #[cfg(test)]
 mod image_tests;
@@ -83,6 +85,8 @@ mod library_edit_tests;
 #[cfg(test)]
 mod library_files_tests;
 #[cfg(test)]
+mod library_import_tests;
+#[cfg(test)]
 mod media_import_tests;
 #[cfg(test)]
 mod media_refresh_tests;
@@ -92,6 +96,8 @@ mod media_tests;
 mod overview_tests;
 #[cfg(test)]
 mod rename_media_tests;
+#[cfg(test)]
+mod rss_tests;
 #[cfg(test)]
 mod search_tests;
 #[cfg(test)]
