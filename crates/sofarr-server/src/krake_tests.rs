@@ -36,13 +36,15 @@ struct Krake {
 
 type Shared = Arc<Mutex<Krake>>;
 
-/// Basic auth `u:p`, as Krake's `nzbget_api` credentials.
+/// Basic auth with user `u` and the run's test password, as Krake's `nzbget_api`
+/// credentials (made at runtime: no password is written into the code).
 fn authorized(headers: &HeaderMap) -> bool {
-    // `u:p` in Base64.
-    headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v == "Basic dTpw")
+    let expected = reqwest::Client::new()
+        .get("http://krake.invalid")
+        .basic_auth("u", Some(crate::test_secret::password()))
+        .build()
+        .expect("request");
+    headers.get("authorization") == expected.headers().get("authorization")
 }
 
 async fn jsonrpc(
@@ -179,7 +181,7 @@ impl Drop for Setup {
 async fn grab_sends_the_nzb_with_category_and_records_the_id() {
     // AC-01
     let s = Setup::start("grab", &[(RELEASE, "g1")]).await;
-    let app = app(Library::Movies, &s.config("p")).await;
+    let app = app(Library::Movies, &s.config(crate::test_secret::password())).await;
     let report = app.rss_sync().await.expect("rss");
     assert_eq!(report.approved, 1, "{report:?}");
     assert_eq!(
@@ -204,14 +206,14 @@ async fn grab_sends_the_nzb_with_category_and_records_the_id() {
 }
 
 async fn app_series(s: &Setup) -> crate::app::App {
-    app(Library::Series, &s.config("p")).await
+    app(Library::Series, &s.config(crate::test_secret::password())).await
 }
 
 #[tokio::test]
 async fn queue_entries_keep_the_grab_downloading_with_krakes_sizes() {
     // AC-02
     let s = Setup::start("queue", &[(RELEASE, "g1")]).await;
-    let app = app(Library::Movies, &s.config("p")).await;
+    let app = app(Library::Movies, &s.config(crate::test_secret::password())).await;
     app.rss_sync().await.expect("rss");
     s.krake().queue = vec![queue_entry(
         KRAKE_ID,
@@ -253,7 +255,7 @@ async fn queue_entries_keep_the_grab_downloading_with_krakes_sizes() {
 }
 
 async fn app_movies(s: &Setup) -> crate::app::App {
-    app(Library::Movies, &s.config("p")).await
+    app(Library::Movies, &s.config(crate::test_secret::password())).await
 }
 
 #[tokio::test]
@@ -343,7 +345,7 @@ async fn failure_marks_the_grab_failed_without_blocklist() {
 async fn refused_credentials_and_rpc_errors_fail_the_grab() {
     // AC-06
     let s = Setup::start("auth", &[(RELEASE, "g1")]).await;
-    let wrong = app(Library::Movies, &s.config("falsch")).await;
+    let wrong = app(Library::Movies, &s.config(crate::test_secret::wrong())).await;
     wrong.rss_sync().await.expect("rss");
     let grab = &wrong.db.grabs(None, 10).await.expect("grabs")[0];
     assert_eq!(grab.status, GrabStatus::Failed);
