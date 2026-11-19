@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: M
 design: [sofarr.md §2, sofarr.md §5, sofarr.md §7]
@@ -57,16 +57,16 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When a disk scan finds that the recorded file of a movie or an episode no longer exists, then sofarr forgets that file.
-- [ ] AC-02 (option): Where the media-management setting `autoUnmonitorPreviouslyDownloadedMovies` (movies) or `autoUnmonitorPreviouslyDownloadedEpisodes` (series) is on, a monitored movie or episode whose recorded file is gone and not replaced in the same scan by a found file is no longer monitored; with the setting off, monitoring stays unchanged.
-- [ ] AC-03 (event): When a disk scan finds a video in the folder of a movie without a recorded file, then sofarr records it with quality, revision and release group read from the file name and the custom format score of the movie's quality profile.
-- [ ] AC-04 (event): When a disk scan finds a video in a series folder whose name names episodes of that series without a recorded file, then sofarr records the video for each of these episodes; a video that names no such episode is left alone.
-- [ ] AC-05 (state): While the root folder of a movie or series is not usable (missing or empty), the scan skips that title and changes nothing for it.
-- [ ] AC-06 (option): Where `deleteEmptyFolders` is on, the scan removes a movie folder that holds no file (with its empty sub folders) unless `createEmptyMovieFolders` is on, and removes the empty sub folders of a series folder, the series folder itself too when it ends up empty unless `createEmptySeriesFolders` is on; a folder that holds a file or a symbolic link stays, and links are never followed.
-- [ ] AC-07 (state): While sofarr runs in shadow mode, the scan removes no folder, whatever `deleteEmptyFolders` says.
-- [ ] AC-08 (option): Where `rescanAfterRefresh` is `always` (also when missing), a metadata refresh is followed by a disk scan of the same media kind; `afterManual` scans only after a refresh started by command, `never` not at all — set per media kind by its media-management settings.
-- [ ] AC-09 (event): When a disk scan runs (command `amigo-sofarr rescan`, or after a refresh), then it reports per media kind how many titles it checked and skipped, how many files were missing, how many movies or episodes it stopped monitoring, how many files it found and how many folders it removed; a media kind without any title in the library is not scanned and reports nothing.
-- [ ] AC-10 (event): When a scan removes the last empty folder of a usable root folder, then it still checks the titles of that root folder that come after it in the same pass.
+- [x] AC-01 (event): When a disk scan finds that the recorded file of a movie or an episode no longer exists, then sofarr forgets that file.
+- [x] AC-02 (option): Where the media-management setting `autoUnmonitorPreviouslyDownloadedMovies` (movies) or `autoUnmonitorPreviouslyDownloadedEpisodes` (series) is on, a monitored movie or episode whose recorded file is gone and not replaced in the same scan by a found file is no longer monitored; with the setting off, monitoring stays unchanged.
+- [x] AC-03 (event): When a disk scan finds a video in the folder of a movie without a recorded file, then sofarr records it with quality, revision and release group read from the file name and the custom format score of the movie's quality profile.
+- [x] AC-04 (event): When a disk scan finds a video in a series folder whose name names episodes of that series without a recorded file, then sofarr records the video for each of these episodes; a video that names no such episode is left alone.
+- [x] AC-05 (state): While the root folder of a movie or series is not usable (missing or empty), the scan skips that title and changes nothing for it.
+- [x] AC-06 (option): Where `deleteEmptyFolders` is on, the scan removes a movie folder that holds no file (with its empty sub folders) unless `createEmptyMovieFolders` is on, and removes the empty sub folders of a series folder, the series folder itself too when it ends up empty unless `createEmptySeriesFolders` is on; a folder that holds a file or a symbolic link stays, and links are never followed.
+- [x] AC-07 (state): While sofarr runs in shadow mode, the scan removes no folder, whatever `deleteEmptyFolders` says.
+- [x] AC-08 (option): Where `rescanAfterRefresh` is `always` (also when missing), a metadata refresh is followed by a disk scan of the same media kind; `afterManual` scans only after a refresh started by command, `never` not at all — set per media kind by its media-management settings.
+- [x] AC-09 (event): When a disk scan runs (command `amigo-sofarr rescan`, or after a refresh), then it reports per media kind how many titles it checked and skipped, how many files were missing, how many movies or episodes it stopped monitoring, how many files it found and how many folders it removed; a media kind without any title in the library is not scanned and reports nothing.
+- [x] AC-10 (event): When a scan removes the last empty folder of a usable root folder, then it still checks the titles of that root folder that come after it in the same pass.
 
 ## Technical notes
 
@@ -123,16 +123,25 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
-| AC-02 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up`, `rescan::tests::reads_settings` (movie and series switch) (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 9ba1551 |
-| AC-03 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots` (PROPER revision), `rescan::tests::found_files_read_the_revision_from_the_name` (REAL REPACK) (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 9ba1551 |
-| AC-04 | `rescan::tests::scans_series_folders`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up`, `rescan::tests::a_video_for_an_episode_with_its_file_is_left_alone` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 8987674 |
-| AC-05 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 5f48692 |
-| AC-06 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::empty_folders_go_unless_empty_folders_are_kept`, `rescan::tests::removes_only_empty_folders`, `rescan::tests::never_follows_symlinks` (Unix only, runs in CI), `rescan::tests::reads_settings` (`createEmptySeriesFolders`, `createEmptyMovieFolders`) (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 9ba1551 |
-| AC-07 | `rescan::tests::shadow_mode_deletes_no_folder` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
-| AC-08 | `rescan::tests::refresh_scans_as_rescan_after_refresh_says`, `rescan::tests::reads_settings` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
-| AC-09 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders` (`checked` asserted in both), `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | 5f48692, 9ba1551 |
-| AC-10 | `rescan::tests::deleting_the_last_folder_keeps_the_root_usable` (`crates/sofarr-server/src/rescan.rs`) | built | 1e6bea8 |
+| AC-01 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring` (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a |
+| AC-02 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up`, `rescan::tests::reads_settings` (movie and series switch) (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a, 9ba1551 |
+| AC-03 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots` (PROPER revision), `rescan::tests::found_files_read_the_revision_from_the_name` (REAL REPACK) (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a, 9ba1551 |
+| AC-04 | `rescan::tests::scans_series_folders`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up`, `rescan::tests::a_video_for_an_episode_with_its_file_is_left_alone` (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a, 8987674 |
+| AC-05 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a, 5f48692 |
+| AC-06 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::empty_folders_go_unless_empty_folders_are_kept`, `rescan::tests::removes_only_empty_folders`, `rescan::tests::never_follows_symlinks` (Unix only, runs in CI), `rescan::tests::reads_settings` (`createEmptySeriesFolders`, `createEmptyMovieFolders`) (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a, 9ba1551 |
+| AC-07 | `rescan::tests::shadow_mode_deletes_no_folder` (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a |
+| AC-08 | `rescan::tests::refresh_scans_as_rescan_after_refresh_says`, `rescan::tests::reads_settings` (`crates/sofarr-server/src/rescan.rs`) | verified | df2799a |
+| AC-09 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders` (`checked` asserted in both), `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | verified | 5f48692, 9ba1551 |
+| AC-10 | `rescan::tests::deleting_the_last_folder_keeps_the_root_usable` (`crates/sofarr-server/src/rescan.rs`) | verified | 1e6bea8 |
+
+## Summary
+
+> Completed: 2026-11-19
+
+- Disk scan for movies and series (`rescan.rs`): forgets recorded files that are gone, ends monitoring only with `autoUnmonitorPreviouslyDownloaded…` and only when no found file replaces them.
+- Takes up videos found in movie folders (largest video, quality, revision, group and custom format score) and in series folders (only for episodes without a file, multi-episode files once for each).
+- Skips titles whose root folder is missing or empty, judging each root once per pass; removes empty folders per `deleteEmptyFolders` / `createEmpty…Folders`, never in shadow mode and never through symbolic links.
+- Runs by `amigo-sofarr rescan` and after a metadata refresh as `rescanAfterRefresh` says, with a per-media-kind report.
 
 ## Decisions
 
