@@ -1,6 +1,6 @@
 //! Download-client abstraction (`DownloadClient` trait) and implementations.
-//! First implementation: nzbget (spec D6). amigo-downloader follows once sofarr
-//! replaces Radarr.
+//! One implementation: the NZBGet JSON-RPC protocol (D6), spoken by nzbget and by Krake's
+//! NZBGet-compatible API (D32).
 
 use std::future::Future;
 
