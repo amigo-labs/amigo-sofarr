@@ -142,21 +142,21 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `series::tests::imports_sonarr_and_decides`, `series::tests::sonarr_series_without_tvdb_id_are_skipped` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-02 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::reads_series_and_episodes` (`crates/sofarr-metadata/src/tvdb.rs`) | built | 7fadd63 |
-| AC-03 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::logs_in_and_relogs_on_401` (`crates/sofarr-metadata/src/tvdb.rs`) | built | 7fadd63 |
-| AC-04 | `series::tests::new_episodes_follow_their_season_and_new_seasons_the_switch`, `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`); `add_tests::an_added_series_monitors_the_chosen_seasons_and_new_ones_by_the_switch` (`crates/sofarr-server/src/add_tests.rs`) | built | 7fadd63 |
-| AC-05 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-06 | `series::tests::without_tvdb_series_are_not_refreshed` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-07 | `series::tests::the_refresh_is_scheduled_by_its_interval` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-08 | `series::tests::releases_match_series_by_title_german_title_alias_or_year` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-09 | `series::tests::daily_and_absolute`, `series::tests::upgrades_and_season_packs`, `series::tests::unwanted_and_unknown`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`) | built | fd36e06 |
+| AC-01 | `series::tests::imports_sonarr_and_decides`, `series::tests::sonarr_series_without_tvdb_id_are_skipped`, `series::tests::the_sonarr_import_takes_series_episodes_and_files` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412, 9ba1551 |
+| AC-02 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (title, monitoring, profile and path kept; TVDB's own title without German one) (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::reads_series_and_episodes` (`crates/sofarr-metadata/src/tvdb.rs`) | built | f4b5412, 9ba1551, 3bf6b8a |
+| AC-03 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (absolute number, German episode title) (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::logs_in_and_relogs_on_401` (`crates/sofarr-metadata/src/tvdb.rs`) | built | f4b5412, 9ba1551 |
+| AC-04 | `series::tests::new_episodes_follow_their_season_and_new_seasons_the_switch`, `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`); `add_tests::an_added_series_monitors_the_chosen_seasons_and_new_ones_by_the_switch` (`crates/sofarr-server/src/add_tests.rs`) | built | f4b5412 |
+| AC-05 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
+| AC-06 | `series::tests::without_tvdb_series_are_not_refreshed` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
+| AC-07 | `series::tests::the_refresh_is_scheduled_by_its_interval` (default 24 h, configured 6 h, 0 off) (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412, 9ba1551 |
+| AC-08 | `series::tests::releases_match_series_by_title_german_title_alias_or_year` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
+| AC-09 | `series::tests::daily_and_absolute`, `series::tests::upgrades_and_season_packs`, `series::tests::unwanted_and_unknown`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`) | built | 3bf7901 |
 | AC-10 | `series::tests::missing_episode_is_wanted`, `series::tests::unwanted_and_unknown` (`crates/sofarr-core/src/series.rs`) | built |  |
-| AC-11 | `series::tests::upgrades_and_season_packs`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | built | fd36e06 |
-| AC-12 | `series::tests::imports_sonarr_and_decides`, `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-13 | `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-14 | `app::tests::live_series_pipeline` (`crates/sofarr-server/src/app/tests.rs`); `series::tests::names_episodes`, `series::tests::episode_formats_follow_the_series_type_and_season_folders` (`crates/sofarr-server/src/series/tests.rs`) | built | 7fadd63 |
-| AC-15 | `series::tests::waits_for_episode_titles` (`crates/sofarr-server/src/series/tests.rs`) | built |  |
+| AC-11 | `series::tests::upgrades_and_season_packs`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | built | 3bf7901, f4b5412 |
+| AC-12 | `series::tests::imports_sonarr_and_decides`, `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
+| AC-13 | `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
+| AC-14 | `app::tests::live_series_pipeline` (`crates/sofarr-server/src/app/tests.rs`); `series::tests::names_episodes`, `series::tests::episode_formats_follow_the_series_type_and_season_folders` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
+| AC-15 | `series::tests::waits_for_episode_titles` (`crates/sofarr-server/src/series/tests.rs`); `download_import_tests::an_import_waits_for_a_missing_episode_title` (`crates/sofarr-server/src/download_import_tests.rs`) | built | 0db7cad |
 
 ## Decisions
 

@@ -125,17 +125,17 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`) | built | 06136ba |
-| AC-02 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-03 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-04 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-05 | `import_list_tests::without_a_usable_list_tmdb_is_not_asked` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists` (`crates/sofarr-server/src/import_lists.rs`) | built | 06136ba |
-| AC-06 | `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`); `import_list_tests::without_a_usable_list_tmdb_is_not_asked` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-07 | `import_list_tests::a_movie_without_details_is_skipped_and_the_rest_added` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-08 | `import_list_tests::unreadable_credits_end_the_sync_with_an_error` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-09 | `import_list_tests::the_sync_is_scheduled_only_live_with_tmdb` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 06136ba |
-| AC-10 | `sync_import_lists_prints_the_added_count` (`crates/sofarr-server/tests/cli_import_lists.rs`) | built | 06136ba |
-| AC-11 |      | open   |        |
+| AC-01 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`) | built | 83e52b8 |
+| AC-02 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (quality profile 3, `inCinemas`), `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8, 9ba1551 |
+| AC-03 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
+| AC-04 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
+| AC-05 | `import_list_tests::without_a_usable_list_tmdb_is_not_asked` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists` (`crates/sofarr-server/src/import_lists.rs`) | built | 83e52b8 |
+| AC-06 | `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`); `import_list_tests::without_a_usable_list_tmdb_is_not_asked`, `import_list_tests::a_broken_list_is_skipped_with_a_warning_and_the_others_sync` (warnings in the log, the usable list still adds) (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8, 9ba1551 |
+| AC-07 | `import_list_tests::a_movie_without_details_is_skipped_and_the_rest_added` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
+| AC-08 | `import_list_tests::unreadable_credits_end_the_sync_with_an_error` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
+| AC-09 | `import_list_tests::the_sync_is_scheduled_only_live_with_tmdb` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
+| AC-10 | `sync_import_lists_prints_the_added_count`, `sync_import_lists_adds_and_prints_a_lists_movie_in_shadow_mode` (fake TMDB, shadow mode, `Hinzugefügt: 1` and the title) (`crates/sofarr-server/tests/cli_import_lists.rs`) | built | 83e52b8, 9ba1551 |
+| AC-11 | `tests::reads_credits_once_per_movie_and_role` (`crates/sofarr-metadata/src/lib.rs`); `import_lists::tests::reads_person_lists` (`crates/sofarr-server/src/import_lists.rs`) | built | 4f2b784 |
 
 ## Decisions
 

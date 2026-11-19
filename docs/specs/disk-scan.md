@@ -123,16 +123,16 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
-| AC-02 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up`, `rescan::tests::reads_settings` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
-| AC-03 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots` (`crates/sofarr-server/src/rescan.rs`) | built |  |
-| AC-04 | `rescan::tests::scans_series_folders`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
-| AC-05 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | ff9f4f9 |
-| AC-06 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::empty_folders_go_unless_empty_folders_are_kept`, `rescan::tests::removes_only_empty_folders`, `rescan::tests::never_follows_symlinks` (Unix only, runs in CI) (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
-| AC-07 | `rescan::tests::shadow_mode_deletes_no_folder` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
-| AC-08 | `rescan::tests::refresh_scans_as_rescan_after_refresh_says`, `rescan::tests::reads_settings` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
-| AC-09 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | ff9f4f9 |
-| AC-10 |      | open   |        |
+| AC-01 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
+| AC-02 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::without_auto_unmonitor_missing_files_keep_monitoring`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up`, `rescan::tests::reads_settings` (movie and series switch) (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 9ba1551 |
+| AC-03 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots` (PROPER revision), `rescan::tests::found_files_read_the_revision_from_the_name` (REAL REPACK) (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 9ba1551 |
+| AC-04 | `rescan::tests::scans_series_folders`, `rescan::tests::replaced_and_multi_episode_files_are_taken_up` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
+| AC-05 | `rescan::tests::scans_movie_folders`, `rescan::tests::keeps_monitoring_on_rename_and_skips_empty_roots`, `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 5f48692 |
+| AC-06 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::empty_folders_go_unless_empty_folders_are_kept`, `rescan::tests::removes_only_empty_folders`, `rescan::tests::never_follows_symlinks` (Unix only, runs in CI), `rescan::tests::reads_settings` (`createEmptySeriesFolders`, `createEmptyMovieFolders`) (`crates/sofarr-server/src/rescan.rs`) | built | df2799a, 9ba1551 |
+| AC-07 | `rescan::tests::shadow_mode_deletes_no_folder` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
+| AC-08 | `rescan::tests::refresh_scans_as_rescan_after_refresh_says`, `rescan::tests::reads_settings` (`crates/sofarr-server/src/rescan.rs`) | built | df2799a |
+| AC-09 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders` (`checked` asserted in both), `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | 5f48692, 9ba1551 |
+| AC-10 | `rescan::tests::deleting_the_last_folder_keeps_the_root_usable` (`crates/sofarr-server/src/rescan.rs`) | built | 1e6bea8 |
 
 ## Decisions
 
