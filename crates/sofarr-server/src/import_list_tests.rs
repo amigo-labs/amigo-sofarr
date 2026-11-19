@@ -49,8 +49,8 @@ async fn the_import_list_sync_adds_selected_movies_with_the_lists_settings() {
             "importlist",
             &json!([{"id": 1, "name": "Regie", "implementation": "TMDbPersonImport",
                 "enabled": true, "enableAuto": true, "monitor": "movieOnly",
-                "qualityProfileId": 1, "rootFolderPath": root.to_string_lossy(),
-                "searchOnAdd": true, "minimumAvailability": "released", "tags": [2],
+                "qualityProfileId": 3, "rootFolderPath": root.to_string_lossy(),
+                "searchOnAdd": true, "minimumAvailability": "inCinemas", "tags": [2],
                 "fields": [{"name": "personId", "value": 7}, {"name": "personCast", "value": true},
                            {"name": "personCastDirector", "value": true}]}]),
         )
@@ -70,8 +70,8 @@ async fn the_import_list_sync_adds_selected_movies_with_the_lists_settings() {
         root.join("Garten Eins (2001)").to_string_lossy()
     );
     assert!(first.monitored);
-    assert_eq!(first.quality_profile_id, 1);
-    assert_eq!(first.availability.minimum, "released");
+    assert_eq!(first.quality_profile_id, 3);
+    assert_eq!(first.availability.minimum, "inCinemas");
     assert_eq!(first.tags, [2]);
     assert_eq!(first.imdb_id.as_deref(), Some("tt0000501"));
     assert_eq!(
@@ -251,6 +251,54 @@ async fn unreadable_credits_end_the_sync_with_an_error() {
         .await
         .expect("lists");
     assert!(app.sync_import_lists().await.is_err());
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// A person list without person or quality profile is skipped with a German warning
+/// naming it; a usable list next to it still adds its movie (spec import-lists AC-06).
+#[tokio::test]
+async fn a_broken_list_is_skipped_with_a_warning_and_the_others_sync() {
+    let log = crate::auth_log_tests::Captured::default();
+    let _guard = log.install();
+    let providers = Providers::start().await;
+    let root = temp_root("broken");
+    let app = providers.app(Library::Movies, "").await;
+    {
+        let mut fake = providers.lock();
+        fake.movie_credits
+            .insert(7, json!({"cast": [{"id": 501, "title": "Garten Eins"}]}));
+        fake.movies
+            .insert(501, movie(501, "Garten Eins", "2001-03-04", "Released"));
+    }
+    let mut no_person = person_list(1, 7, "movieOnly", false, &root);
+    no_person["name"] = json!("Kaputt");
+    no_person["fields"] = json!([]);
+    let mut no_profile = person_list(2, 7, "movieOnly", false, &root);
+    no_profile["name"] = json!("Ohne Profil");
+    no_profile
+        .as_object_mut()
+        .expect("list")
+        .remove("qualityProfileId");
+    let usable = person_list(3, 7, "movieOnly", false, &root);
+    app.db
+        .put_setting("importlist", &json!([no_person, no_profile, usable]))
+        .await
+        .expect("lists");
+
+    assert_eq!(
+        app.sync_import_lists().await.expect("sync"),
+        ["Garten Eins"]
+    );
+    assert!(app.db.movie_by_tmdb(501).await.expect("db").is_some());
+    let text = log.text();
+    assert!(
+        text.contains("Import List Kaputt: personId fehlt"),
+        "the missing person is logged"
+    );
+    assert!(
+        text.contains("Import List Ohne Profil: qualityProfileId fehlt"),
+        "the missing profile is logged"
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 

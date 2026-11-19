@@ -24,20 +24,22 @@ pub fn sonarr_documents() -> (Documents, EpisodeDocuments) {
         "series".to_owned(),
         json!([{"id": 3, "tvdbId": 77, "title": "Kleine Insel", "year": 2019, "runtime": 45,
                 "seriesType": "standard", "monitored": true, "seasonFolder": true,
-                "qualityProfileId": 1, "path": "/tv/Kleine Insel",
+                "qualityProfileId": 1, "path": "/tv/Kleine Insel", "tags": [2],
+                "originalLanguage": {"id": 1, "name": "English"},
                 "alternateTitles": [{"title": "Small Island", "seasonNumber": -1}]}]),
     );
     let eps = vec![
-        json!({"id": 30, "seasonNumber": 1, "episodeNumber": 1, "title": "Ankunft", "airDate": "2019-01-01",
-               "monitored": true, "episodeFileId": 300}),
-        json!({"id": 31, "seasonNumber": 1, "episodeNumber": 2, "title": "Sturm", "airDate": "2019-01-08",
-               "monitored": true, "episodeFileId": 0}),
-        json!({"id": 32, "seasonNumber": 1, "episodeNumber": 3, "title": "Zukunft", "airDate": "2099-01-01",
-               "monitored": true}),
+        json!({"id": 30, "seasonNumber": 1, "episodeNumber": 1, "absoluteEpisodeNumber": 1,
+               "title": "Ankunft", "airDate": "2019-01-01", "monitored": true, "episodeFileId": 300}),
+        json!({"id": 31, "seasonNumber": 1, "episodeNumber": 2, "absoluteEpisodeNumber": 2,
+               "title": "Sturm", "airDate": "2019-01-08", "monitored": true, "episodeFileId": 0}),
+        json!({"id": 32, "seasonNumber": 1, "episodeNumber": 3, "absoluteEpisodeNumber": 3,
+               "title": "Zukunft", "airDate": "2099-01-01", "monitored": true}),
     ];
     let files = vec![
         json!({"id": 300, "relativePath": "Staffel 01/Kleine Insel - S01E01.mkv", "size": 5,
-        "quality": {"quality": {"name": "WEBDL-1080p"}, "revision": {"version": 1, "real": 0}}}),
+        "quality": {"quality": {"name": "WEBDL-1080p"}, "revision": {"version": 1, "real": 0}},
+        "releaseGroup": "GRP", "customFormatScore": 5}),
     ];
     (docs, BTreeMap::from([(3, (eps, files))]))
 }
@@ -97,6 +99,76 @@ async fn imports_sonarr_and_decides() {
     let titles: Vec<&str> = picks.iter().map(|p| p.release.title.as_str()).collect();
     // The Bluray season pack covers E01 (upgrade) and E02 (missing) and beats the singles.
     assert_eq!(titles, ["Kleine.Insel.S01.1080p.BluRay.x264-E"]);
+}
+
+/// Spec series AC-01: the Sonarr import takes the series, episode and file fields.
+#[tokio::test]
+async fn the_sonarr_import_takes_series_episodes_and_files() {
+    let db = Db::in_memory().await.expect("db");
+    let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+    let (docs, mut eps) = sonarr_documents();
+    // A repack (REAL): the shared fixture keeps the default revision for the renames.
+    eps.get_mut(&3).expect("episodes").1[0]["quality"]["revision"] =
+        json!({"version": 2, "real": 1});
+    import_documents(&db, &docs, &eps, now)
+        .await
+        .expect("import");
+
+    let series = db.all_series().await.expect("series");
+    assert_eq!(series.len(), 1);
+    let show = &series[0];
+    assert_eq!(show.data.title, "Kleine Insel");
+    assert_eq!(show.data.tvdb_id, 77);
+    assert_eq!(show.data.year, Some(2019));
+    assert_eq!(show.data.runtime_minutes, 45);
+    assert_eq!(show.data.original_language.as_deref(), Some("English"));
+    assert_eq!(show.data.series_type, "standard");
+    assert!(show.data.monitored);
+    assert!(show.data.season_folder);
+    assert_eq!(show.data.quality_profile_id, 1);
+    assert_eq!(show.data.path, "/tv/Kleine Insel");
+    assert_eq!(show.data.alternative_titles, ["Small Island"]);
+    assert_eq!(show.tags, [2]);
+
+    let episodes = db.episodes(Some(show.id)).await.expect("episodes");
+    /// Season, number, absolute number, title, air date, monitored.
+    type State<'a> = (
+        u16,
+        u16,
+        Option<u16>,
+        Option<&'a str>,
+        Option<&'a str>,
+        bool,
+    );
+    let state: Vec<State> = episodes
+        .iter()
+        .map(|e| {
+            (
+                e.data.season,
+                e.data.number,
+                e.data.absolute,
+                e.data.title.as_deref(),
+                e.data.air_date.as_deref(),
+                e.data.monitored,
+            )
+        })
+        .collect();
+    assert_eq!(
+        state,
+        [
+            (1, 1, Some(1), Some("Ankunft"), Some("2019-01-01"), true),
+            (1, 2, Some(2), Some("Sturm"), Some("2019-01-08"), true),
+            (1, 3, Some(3), Some("Zukunft"), Some("2099-01-01"), true),
+        ]
+    );
+    let file = episodes[0].file.as_ref().expect("file of S01E01");
+    assert_eq!(file.relative_path, "Staffel 01/Kleine Insel - S01E01.mkv");
+    assert_eq!(file.size, 5);
+    assert_eq!(file.quality, "WEBDL-1080p");
+    assert_eq!((file.revision_version, file.revision_real), (2, 1));
+    assert_eq!(file.release_group.as_deref(), Some("GRP"));
+    assert_eq!(file.custom_format_score, 5);
+    assert!(episodes[1].file.is_none() && episodes[2].file.is_none());
 }
 
 #[test]
@@ -323,6 +395,9 @@ fn new_episodes_follow_their_season_and_new_seasons_the_switch() {
 /// duplicates, takes poster and German overview, updates known episodes while keeping
 /// their monitoring and files, adds new episodes (D28) and keeps episodes TVDB no longer
 /// lists; a series TVDB cannot give is left as it is and the others are refreshed.
+/// Title, monitoring, quality profile and path stay; without a German translation the
+/// German title is TVDB's own title. Episodes take TVDB's absolute number and German
+/// title.
 #[tokio::test]
 async fn refresh_takes_titles_and_episodes_from_tvdb() {
     use crate::{testkit::Library, tmdb_fake::Providers};
@@ -336,6 +411,19 @@ async fn refresh_takes_titles_and_episodes_from_tvdb() {
         .upsert_series(&lost, Timestamp::now())
         .await
         .expect("second series");
+    let quiet = series_from_sonarr(&json!({"id": 5, "tvdbId": 88, "title": "Stille Insel",
+        "monitored": false, "qualityProfileId": 2, "path": "/tv/Stille Insel"}))
+    .expect("series");
+    app.db
+        .upsert_series(&quiet, Timestamp::now())
+        .await
+        .expect("third series");
+    let island_before = app
+        .db
+        .series_by_tvdb(77)
+        .await
+        .expect("db")
+        .expect("series");
     let before = app.db.episodes(None).await.expect("episodes");
     app.db
         .set_episodes_monitored(&[before[1].id], false)
@@ -352,10 +440,22 @@ async fn refresh_takes_titles_and_episodes_from_tvdb() {
                    "translations": {"nameTranslations": [{"language": "deu", "name": "Kleine Insel"}],
                        "overviewTranslations": [{"language": "deu", "overview": "Eine Insel."}]}}),
         );
+        // TVDB's own title only, no German translation.
+        fake.tvdb_series.insert(
+            88,
+            json!({"id": 88, "name": "Quiet Island", "year": "2020"}),
+        );
         let episode = |id: i64, season: u16, number: u16, name: &str, aired: &str| {
             json!({"id": id, "seasonNumber": season, "number": number, "name": name,
-                   "aired": aired})
+                   "aired": aired, "absoluteNumber": id - 700})
         };
+        fake.tvdb_episodes_de.insert(
+            77,
+            vec![
+                json!({"id": 702, "seasonNumber": 1, "number": 2, "name": "Der Sturm"}),
+                json!({"id": 705, "seasonNumber": 2, "number": 1, "name": "Die Rückkehr"}),
+            ],
+        );
         // S01E03 is no longer listed.
         fake.tvdb_episodes.insert(
             77,
@@ -380,6 +480,23 @@ async fn refresh_takes_titles_and_episodes_from_tvdb() {
         .expect("series");
     assert_eq!(show.data.title, "Kleine Insel");
     assert_eq!(show.data.title_de.as_deref(), Some("Kleine Insel"));
+    assert_eq!(show.data.monitored, island_before.data.monitored);
+    assert_eq!(
+        show.data.quality_profile_id,
+        island_before.data.quality_profile_id
+    );
+    assert_eq!(show.data.path, island_before.data.path);
+    let quiet = app
+        .db
+        .series_by_tvdb(88)
+        .await
+        .expect("db")
+        .expect("series");
+    assert_eq!(quiet.data.title, "Stille Insel");
+    assert_eq!(quiet.data.title_de.as_deref(), Some("Quiet Island"));
+    assert!(!quiet.data.monitored);
+    assert_eq!(quiet.data.quality_profile_id, 2);
+    assert_eq!(quiet.data.path, "/tv/Stille Insel");
     assert_eq!(
         show.data.alternative_titles,
         ["Small Island", "Die Insel", "Kleine Insel"]
@@ -431,6 +548,23 @@ async fn refresh_takes_titles_and_episodes_from_tvdb() {
             (2, 1, Some("Rückkehr"), Some("2020-01-01"), true, false),
         ]
     );
+    // Absolute number and German title as TVDB lists them; S01E03 is no longer listed
+    // and keeps what it had.
+    let german: Vec<(Option<u16>, Option<&str>)> = episodes
+        .iter()
+        .map(|e| (e.data.absolute, e.data.title_de.as_deref()))
+        .collect();
+    assert_eq!(
+        german,
+        [
+            (None, None),
+            (Some(1), None),
+            (Some(2), Some("Der Sturm")),
+            (Some(3), None),
+            (Some(4), None),
+            (Some(5), Some("Die Rückkehr")),
+        ]
+    );
 }
 
 /// Spec series: without `[tvdb]` the series refresh asks nobody and changes nothing.
@@ -458,6 +592,11 @@ async fn the_refresh_is_scheduled_by_its_interval() {
     assert_eq!(
         Job::Refresh.interval(&default),
         Some(std::time::Duration::from_secs(24 * 3600))
+    );
+    let every_six = app(Library::Series, "[library]\nrefresh_interval_hours = 6\n").await;
+    assert_eq!(
+        Job::Refresh.interval(&every_six),
+        Some(std::time::Duration::from_secs(6 * 3600))
     );
     let off = app(Library::Series, "[library]\nrefresh_interval_hours = 0\n").await;
     assert_eq!(Job::Refresh.interval(&off), None);

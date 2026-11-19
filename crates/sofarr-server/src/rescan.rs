@@ -537,6 +537,15 @@ mod tests {
         let s = ScanSettings::movies(Some(&v));
         assert!(s.auto_unmonitor && s.delete_empty_folders && !s.keep_empty_root);
         assert!(!ScanSettings::series(Some(&v)).auto_unmonitor);
+        let kept = serde_json::json!({"autoUnmonitorPreviouslyDownloadedEpisodes": true,
+            "deleteEmptyFolders": true, "createEmptySeriesFolders": true,
+            "createEmptyMovieFolders": true});
+        let s = ScanSettings::series(Some(&kept));
+        assert!(s.auto_unmonitor && s.delete_empty_folders && s.keep_empty_root);
+        let s = ScanSettings::movies(Some(&kept));
+        assert!(!s.auto_unmonitor && s.delete_empty_folders && s.keep_empty_root);
+        let only_movies = serde_json::json!({"createEmptyMovieFolders": true});
+        assert!(!ScanSettings::series(Some(&only_movies)).keep_empty_root);
         let r = RescanAfterRefresh::from_setting(Some(&v));
         assert!(r.applies(true) && !r.applies(false));
         assert!(RescanAfterRefresh::from_setting(None).applies(false));
@@ -581,6 +590,7 @@ mod tests {
             keep_empty_root: false,
         };
         let report = movies(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!(report.checked, 3, "every movie with a usable root folder");
         assert_eq!(report.missing, 1);
         assert_eq!(report.unmonitored, 1);
         assert_eq!(report.found, 1);
@@ -618,7 +628,11 @@ mod tests {
         // Zweiter Film: the recorded file was renamed.
         let second = root.join("lib/Zweiter Film (2002)");
         fs::create_dir_all(&second).expect("dir");
-        fs::write(second.join("Zweiter Film (2002) WEBDL-1080p.mkv"), b"v").expect("video");
+        fs::write(
+            second.join("Zweiter Film (2002) PROPER WEBDL-1080p.mkv"),
+            b"v",
+        )
+        .expect("video");
         let third = root.join("lib/Dritter Film (2003)");
         fs::create_dir_all(&third).expect("dir");
         fs::write(third.join("Dritter Film (2003).mkv"), b"v").expect("video");
@@ -643,8 +657,28 @@ mod tests {
         assert!(second.monitored);
         assert_eq!(
             second.file.as_ref().map(|f| f.relative_path.as_str()),
-            Some("Zweiter Film (2002) WEBDL-1080p.mkv")
+            Some("Zweiter Film (2002) PROPER WEBDL-1080p.mkv")
         );
+        let file = second.file.as_ref().expect("recorded");
+        assert_eq!((file.revision_version, file.revision_real), (2, 0));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// A found file takes its revision from its name (REPACK, REAL).
+    #[tokio::test]
+    async fn found_files_read_the_revision_from_the_name() {
+        let root = temp("revision");
+        let db = Db::in_memory().await.expect("db");
+        let now: Timestamp = "2026-11-01T00:00:00Z".parse().expect("ts");
+        import_documents(&db, &documents(), now)
+            .await
+            .expect("import");
+        let rules = load_rules(&db).await.expect("rules");
+        let path = root.join("Erster.Film.2001.REAL.REPACK.1080p.BluRay.x264-GRP.mkv");
+        fs::write(&path, b"video").expect("video");
+        let file = found_file(&path, "x.mkv".to_owned(), &rules, 0);
+        assert_eq!((file.revision_version, file.revision_real), (2, 1));
+        assert_eq!(file.release_group.as_deref(), Some("GRP"));
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -704,6 +738,7 @@ mod tests {
             keep_empty_root: true,
         };
         let report = all_series(&db, &rules, settings, now).await.expect("scan");
+        assert_eq!(report.checked, 1);
         assert_eq!(
             (
                 report.missing,
