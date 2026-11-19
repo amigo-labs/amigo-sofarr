@@ -112,6 +112,19 @@ fn root_usable(folder: &Path) -> bool {
         .is_some_and(|mut entries| entries.next().is_some())
 }
 
+/// Root folders judged during one scan. A root is judged when the scan first reaches it,
+/// before it deletes anything there: an empty folder it removes itself must not make the
+/// root look unmounted for the titles after it.
+#[derive(Debug, Default)]
+struct Roots(std::collections::HashMap<PathBuf, bool>);
+
+impl Roots {
+    fn usable(&mut self, folder: &Path) -> bool {
+        let root = folder.parent().map(Path::to_path_buf).unwrap_or_default();
+        *self.0.entry(root).or_insert_with(|| root_usable(folder))
+    }
+}
+
 /// What the disk says about a recorded file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FileState {
@@ -243,8 +256,9 @@ pub async fn movies(
     now: Timestamp,
 ) -> anyhow::Result<ScanReport> {
     let mut report = ScanReport::default();
+    let mut roots = Roots::default();
     for movie in db.movies().await? {
-        scan_movie(db, rules, settings, &movie, now, &mut report).await?;
+        scan_movie_in(db, rules, settings, &movie, now, &mut report, &mut roots).await?;
     }
     Ok(report)
 }
@@ -258,11 +272,24 @@ pub async fn scan_movie(
     now: Timestamp,
     report: &mut ScanReport,
 ) -> anyhow::Result<()> {
+    let mut roots = Roots::default();
+    scan_movie_in(db, rules, settings, movie, now, report, &mut roots).await
+}
+
+async fn scan_movie_in(
+    db: &Db,
+    rules: &Rules,
+    settings: ScanSettings,
+    movie: &Movie,
+    now: Timestamp,
+    report: &mut ScanReport,
+    roots: &mut Roots,
+) -> anyhow::Result<()> {
     if movie.path.is_empty() {
         return Ok(());
     }
     let folder = PathBuf::from(&movie.path);
-    if !root_usable(&folder) {
+    if !roots.usable(&folder) {
         report.skipped += 1;
         return Ok(());
     }
@@ -318,8 +345,9 @@ pub async fn all_series(
     now: Timestamp,
 ) -> anyhow::Result<ScanReport> {
     let mut report = ScanReport::default();
+    let mut roots = Roots::default();
     for show in db.all_series().await? {
-        scan_one_series(db, rules, settings, &show, now, &mut report).await?;
+        scan_series_in(db, rules, settings, &show, now, &mut report, &mut roots).await?;
     }
     Ok(report)
 }
@@ -333,11 +361,24 @@ pub async fn scan_one_series(
     now: Timestamp,
     report: &mut ScanReport,
 ) -> anyhow::Result<()> {
+    let mut roots = Roots::default();
+    scan_series_in(db, rules, settings, show, now, report, &mut roots).await
+}
+
+async fn scan_series_in(
+    db: &Db,
+    rules: &Rules,
+    settings: ScanSettings,
+    show: &Series,
+    now: Timestamp,
+    report: &mut ScanReport,
+    roots: &mut Roots,
+) -> anyhow::Result<()> {
     if show.data.path.is_empty() {
         return Ok(());
     }
     let folder = PathBuf::from(&show.data.path);
-    if !root_usable(&folder) {
+    if !roots.usable(&folder) {
         report.skipped += 1;
         return Ok(());
     }
@@ -868,6 +909,30 @@ mod tests {
             );
             let _ = fs::remove_dir_all(&root);
         }
+    }
+
+    /// Spec disk-scan: deleting the last folder of a root folder does not make the scan
+    /// take the root for unmounted; the movies after it are still checked.
+    #[tokio::test]
+    async fn deleting_the_last_folder_keeps_the_root_usable() {
+        let root = temp("last-folder");
+        let db = library_below(&root).await;
+        db.put_setting(
+            "config_mediamanagement",
+            &serde_json::json!({"deleteEmptyFolders": true}),
+        )
+        .await
+        .expect("setting");
+        // Only Erster Film's empty folder is there; Zweiter and Dritter Film's files are gone.
+        fs::create_dir_all(root.join("movies/Erster Film (2001)")).expect("dir");
+        let config =
+            crate::config::Config::parse("[automation]\nmode = \"live\"\n").expect("config");
+        let app = crate::app::App::with_db(config, db).expect("app");
+        let (scan, _) = app.rescan().await.expect("scan");
+        let scan = scan.expect("movies");
+        assert_eq!(scan.removed_folders, 1);
+        assert_eq!(scan.missing, 2, "{scan:?}");
+        let _ = fs::remove_dir_all(&root);
     }
 
     /// Spec disk-scan: a media kind without any title in the library is not scanned
