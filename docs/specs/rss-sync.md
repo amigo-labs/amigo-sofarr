@@ -43,7 +43,7 @@ describes what the code does today. What happens when grabbing fails is spec `fa
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When an RSS sync runs, then sofarr asks every configured indexer once for its latest releases in the indexer's movie and series categories together, decides them against the library and reports the number of releases, of releases matched to a library movie, of approved movie decisions and of series releases taken.
+- [ ] AC-01 (event): When an RSS sync runs, then sofarr asks every configured indexer once for its latest releases in the indexer's movie and series categories together, decides them against the library and reports the number of movie releases (those not read as an episode or season), of movie releases matched to a monitored, available movie, of approved movie decisions and of series releases taken.
 - [ ] AC-02 (error): If an indexer cannot be reached or answers with an error, then the sync goes on with the releases of the other indexers and reports that indexer's error as a German message that starts with the indexer's name.
 - [ ] AC-03 (always): A release whose name reads as an episode or season of a series is decided for series only, every other release for movies only.
 - [ ] AC-04 (always): A release belongs to a library movie when the indexer gives that movie's IMDb id; otherwise when its title equals, after normalization, the movie's title, original title, German title or one of its alternative titles and — where both are known — its year differs from the movie's by at most one.
@@ -121,3 +121,4 @@ describes what the code does today. What happens when grabbing fails is spec `fa
 ## Decisions
 
 - 2026-11-19: Extracted from the existing code (phases 3 and 5) with `spec-extract`; tests for ACs without one were added in a93a7ca and b7494da.
+- 2026-11-19 (check): AC-01 revised to what the report counts: releases read as episodes are not in the release count, and a match counts only for monitored, available movies (the matcher only knows those); the acceptance check found the wording broader.

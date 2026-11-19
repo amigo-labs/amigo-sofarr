@@ -77,7 +77,6 @@ describes what the code does today.
 | Radarr lists a movie with TMDB id 0 | Skipped and counted (AC-04) |
 | A Sonarr export folder is used | Series without episodes; the next `import-sonarr` against the API or `refresh-series` brings the episodes |
 | Sonarr lists an episode without season or episode number | Left out |
-| The export folder holds no known file at all | Error; the message speaks of a Radarr export for Sonarr folders too (AC-11) |
 | Radarr refuses the key half-way through the documents | Nothing is stored: every document is fetched before the first one is written |
 
 ## Assumptions
