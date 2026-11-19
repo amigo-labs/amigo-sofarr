@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: M
 design: [sofarr.md §2, sofarr.md §5, sofarr.md §9 D11, sofarr.md §9 D19]
@@ -8,6 +8,16 @@ oracle: GET /api/v3/movie
 ---
 
 # Import lists
+
+## Summary
+
+> Completed: 2026-11-19
+
+- The import list sync reads TMDB movie credits for every usable `TMDbPersonImport` list (enabled, synced automatically, with person and quality profile) and adds the selected cast and crew-department movies that are neither in the library nor excluded.
+- Added movies carry TMDB metadata and the list's quality profile, minimum availability, tags, root folder and monitoring; search on add only for monitored, available movies; a movie several lists select is added once with the first list's settings.
+- Broken lists are skipped with German warnings, a movie without TMDB details is retried at the next sync, unreadable credits end the sync with an error.
+- Schedule `[import_lists] interval_hours` (default 24, live mode with `[tmdb]` only) and the CLI `amigo-sofarr sync-import-lists` (also in shadow mode, prints `Hinzugefügt: <n>` and the titles).
+- Fix: credits are kept once per movie and role, so a crew-only list no longer misses movies the person also acted in (AC-11).
 
 ## Context
 
@@ -62,17 +72,17 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When the import list sync runs, then sofarr reads the movie credits of each usable list's person from TMDB and adds every selected movie that is neither in the library nor on the exclusion list; a list includes cast unless it switches cast off, and crew credits only of the departments it chose (Directing, Production, Sound, Writing).
-- [ ] AC-02 (event): When the sync adds a movie, then the movie gets its TMDB metadata (title, year, IMDb id, poster) and the list's quality profile, minimum availability and tags, a folder under the list's root folder named by the movie folder format, and is monitored unless the list's monitoring is `none`.
-- [ ] AC-03 (option): Where a list has search on add, sofarr searches the indexers for an added movie right away if it is monitored and available; a movie that is unmonitored or not yet available is not searched, and a list without search on add searches nothing.
-- [ ] AC-04 (always): sofarr adds a movie at most once: a movie already in the library is skipped, so a repeated sync adds nothing new; a movie that several lists select is added once, with the settings of the first of these lists in the `importlist` setting.
-- [ ] AC-05 (state): While no list is usable (none stored, or only lists that are disabled, not synced automatically or of another type), the sync adds nothing and sends no request to TMDB.
-- [ ] AC-06 (error): If a TMDb person list names no person or no quality profile, then sofarr skips that list with a German warning in the log naming the list (`Import List <Name>: personId fehlt` / `qualityProfileId fehlt`), and syncs the other lists.
-- [ ] AC-07 (error): If TMDB cannot give the details of one selected movie, then sofarr skips that movie, adds the list's other movies, and tries the skipped one again at the next sync.
-- [ ] AC-08 (error): If TMDB cannot give a list's credits (unknown person, TMDB unreachable), then the sync ends with an error; movies that earlier lists added in the same run stay in the library.
-- [ ] AC-09 (option): Where `[import_lists] interval_hours` is set, the sync runs on its own every that many hours (default 24); 0 switches the schedule off, and the schedule runs only in live mode with `[tmdb]` configured.
-- [ ] AC-10 (event): When the user runs `amigo-sofarr sync-import-lists`, then sofarr runs the sync once, in shadow mode too, and prints the number of added movies (`Hinzugefügt: <n>`).
-- [ ] AC-11 (event): When the person both acted in and worked in a chosen crew department on a movie, then a list selects it through either credit, and adds it once.
+- [x] AC-01 (event): When the import list sync runs, then sofarr reads the movie credits of each usable list's person from TMDB and adds every selected movie that is neither in the library nor on the exclusion list; a list includes cast unless it switches cast off, and crew credits only of the departments it chose (Directing, Production, Sound, Writing).
+- [x] AC-02 (event): When the sync adds a movie, then the movie gets its TMDB metadata (title, year, IMDb id, poster) and the list's quality profile, minimum availability and tags, a folder under the list's root folder named by the movie folder format, and is monitored unless the list's monitoring is `none`.
+- [x] AC-03 (option): Where a list has search on add, sofarr searches the indexers for an added movie right away if it is monitored and available; a movie that is unmonitored or not yet available is not searched, and a list without search on add searches nothing.
+- [x] AC-04 (always): sofarr adds a movie at most once: a movie already in the library is skipped, so a repeated sync adds nothing new; a movie that several lists select is added once, with the settings of the first of these lists in the `importlist` setting.
+- [x] AC-05 (state): While no list is usable (none stored, or only lists that are disabled, not synced automatically or of another type), the sync adds nothing and sends no request to TMDB.
+- [x] AC-06 (error): If a TMDb person list names no person or no quality profile, then sofarr skips that list with a German warning in the log naming the list (`Import List <Name>: personId fehlt` / `qualityProfileId fehlt`), and syncs the other lists.
+- [x] AC-07 (error): If TMDB cannot give the details of one selected movie, then sofarr skips that movie, adds the list's other movies, and tries the skipped one again at the next sync.
+- [x] AC-08 (error): If TMDB cannot give a list's credits (unknown person, TMDB unreachable), then the sync ends with an error; movies that earlier lists added in the same run stay in the library.
+- [x] AC-09 (option): Where `[import_lists] interval_hours` is set, the sync runs on its own every that many hours (default 24); 0 switches the schedule off, and the schedule runs only in live mode with `[tmdb]` configured.
+- [x] AC-10 (event): When the user runs `amigo-sofarr sync-import-lists`, then sofarr runs the sync once, in shadow mode too, and prints the number of added movies (`Hinzugefügt: <n>`).
+- [x] AC-11 (event): When the person both acted in and worked in a chosen crew department on a movie, then a list selects it through either credit, and adds it once.
 
 ## Technical notes
 
@@ -125,17 +135,17 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`) | built | 83e52b8 |
-| AC-02 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (quality profile 3, `inCinemas`), `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8, 9ba1551 |
-| AC-03 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
-| AC-04 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
-| AC-05 | `import_list_tests::without_a_usable_list_tmdb_is_not_asked` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists` (`crates/sofarr-server/src/import_lists.rs`) | built | 83e52b8 |
-| AC-06 | `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`); `import_list_tests::without_a_usable_list_tmdb_is_not_asked`, `import_list_tests::a_broken_list_is_skipped_with_a_warning_and_the_others_sync` (warnings in the log, the usable list still adds) (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8, 9ba1551 |
-| AC-07 | `import_list_tests::a_movie_without_details_is_skipped_and_the_rest_added` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
-| AC-08 | `import_list_tests::unreadable_credits_end_the_sync_with_an_error` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
-| AC-09 | `import_list_tests::the_sync_is_scheduled_only_live_with_tmdb` (`crates/sofarr-server/src/import_list_tests.rs`) | built | 83e52b8 |
-| AC-10 | `sync_import_lists_prints_the_added_count`, `sync_import_lists_adds_and_prints_a_lists_movie_in_shadow_mode` (fake TMDB, shadow mode, `Hinzugefügt: 1` and the title) (`crates/sofarr-server/tests/cli_import_lists.rs`) | built | 83e52b8, 9ba1551 |
-| AC-11 | `tests::reads_credits_once_per_movie_and_role` (`crates/sofarr-metadata/src/lib.rs`); `import_lists::tests::reads_person_lists` (`crates/sofarr-server/src/import_lists.rs`) | built | 4f2b784 |
+| AC-01 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`) | verified | 83e52b8 |
+| AC-02 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings` (quality profile 3, `inCinemas`), `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8, 9ba1551 |
+| AC-03 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8 |
+| AC-04 | `import_list_tests::the_import_list_sync_adds_selected_movies_with_the_lists_settings`, `import_list_tests::unmonitored_or_silent_lists_add_without_searching` (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8 |
+| AC-05 | `import_list_tests::without_a_usable_list_tmdb_is_not_asked` (`crates/sofarr-server/src/import_list_tests.rs`); `import_lists::tests::reads_person_lists` (`crates/sofarr-server/src/import_lists.rs`) | verified | 83e52b8 |
+| AC-06 | `import_lists::tests::reads_person_lists`, `import_lists::tests::missing_list_keys_have_defaults` (`crates/sofarr-server/src/import_lists.rs`); `import_list_tests::without_a_usable_list_tmdb_is_not_asked`, `import_list_tests::a_broken_list_is_skipped_with_a_warning_and_the_others_sync` (warnings in the log, the usable list still adds) (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8, 9ba1551 |
+| AC-07 | `import_list_tests::a_movie_without_details_is_skipped_and_the_rest_added` (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8 |
+| AC-08 | `import_list_tests::unreadable_credits_end_the_sync_with_an_error` (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8 |
+| AC-09 | `import_list_tests::the_sync_is_scheduled_only_live_with_tmdb` (`crates/sofarr-server/src/import_list_tests.rs`) | verified | 83e52b8 |
+| AC-10 | `sync_import_lists_prints_the_added_count`, `sync_import_lists_adds_and_prints_a_lists_movie_in_shadow_mode` (fake TMDB, shadow mode, `Hinzugefügt: 1` and the title) (`crates/sofarr-server/tests/cli_import_lists.rs`) | verified | 83e52b8, 9ba1551 |
+| AC-11 | `tests::reads_credits_once_per_movie_and_role` (`crates/sofarr-metadata/src/lib.rs`); `import_lists::tests::reads_person_lists` (crew-only list and cast+crew list select the movie once) (`crates/sofarr-server/src/import_lists.rs`) | verified | 4f2b784 |
 
 ## Decisions
 

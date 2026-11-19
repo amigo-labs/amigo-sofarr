@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-19
 size: L
 design: [sofarr.md §2, sofarr.md §4, sofarr.md §5, sofarr.md §9 D2, sofarr.md §9 D5, sofarr.md §9 D10, sofarr.md §9 D28]
@@ -8,6 +8,15 @@ oracle: GET /api/v3/series
 ---
 
 # Series
+
+## Summary
+
+> Completed: 2026-11-19
+
+- `import-sonarr` takes over Sonarr's settings (prefix `sonarr_`), every series with a TVDB id, its episodes and episode files.
+- The series refresh from TVDB writes German title, aliases, poster, overview and episode data, keeps monitoring, files and episodes TVDB no longer lists, monitors new episodes per D28, skips series TVDB cannot give, and does nothing without `[tvdb]`; it runs every `[library] refresh_interval_hours`.
+- Series decisions in the RSS sync: matching by title, German title, alias or title with year; covered episodes for single, multi-episode, season packs, daily and anime releases; wanted episodes only; the weakest wanted file decides; the best release wins, a pack beats the singles it covers; grabs in flight count as files.
+- Finished series downloads are imported per episode into season folders under the episode format of the series type, and wait for missing episode titles as `episodeTitleRequired` says.
 
 ## Context
 
@@ -65,21 +74,21 @@ Terms used below:
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When the user imports from Sonarr, then sofarr takes over Sonarr's quality profiles, quality definitions, custom formats, media-management, indexer, naming and download-client settings, root folders and tags, every series with a TVDB id (title, year, runtime, original language, series type, monitored, season folders, quality profile, path, alternative titles, tags), its episodes (season, number, absolute number, title, air date, monitored) and its episode files (path, size, quality, revision, release group, custom format score); a series without TVDB id is left out.
-- [ ] AC-02 (event): When a series is refreshed, then sofarr takes from TVDB the German title (TVDB's own title when there is no German one), adds TVDB's aliases and the German title to the series' alternative titles without duplicates, and takes the poster and the overview (the German one when TVDB has it); title, monitoring, quality profile and path stay as they are.
-- [ ] AC-03 (event): When a series is refreshed, then every episode TVDB lists takes TVDB's title, German title, air date and absolute number; an episode the library knows keeps its monitoring and its file, an episode it does not know is added, and an episode TVDB no longer lists stays in the library unchanged.
-- [ ] AC-04 (always): A new episode added by a refresh is monitored only when its series is monitored and it is not a special (season 0), and then: in a known season only when an episode of that season is monitored; in a new season only when the series' switch „neue Staffeln überwachen“ is on (default on).
-- [ ] AC-05 (error): If TVDB cannot give a series during a refresh, then that series stays unchanged, the other series are refreshed, and the refresh ends without error.
-- [ ] AC-06 (state): While no `[tvdb]` section is configured, a refresh changes no series and no episode.
-- [ ] AC-07 (option): Where `[library] refresh_interval_hours` is set, the metadata refresh runs on its own every that many hours (default 24), in shadow mode too; 0 switches the schedule off.
-- [ ] AC-08 (always): A release belongs to a monitored series whose title, German title, alternative title, or title followed by its year the release names, ignoring case and separators; an unmonitored series takes no release.
-- [ ] AC-09 (always): sofarr covers by a release: the named episodes of the named season (several for a multi-episode release), every episode of the named seasons for a season pack (a range of seasons included), the episodes with the named air date for a daily release, the episodes with the named absolute numbers for an anime release; a release that covers no library episode is rejected as an unknown episode.
-- [ ] AC-10 (always): sofarr takes a series release only if it covers at least one wanted episode; a release whose covered episodes are all unmonitored or not yet aired is rejected as not wanted.
-- [ ] AC-11 (always): A release has to beat the weakest file among its wanted covered episodes by the quality profile's rules; when one of them has no file, the release counts as filling a missing episode.
-- [ ] AC-12 (always): Of several approved releases that cover the same episodes of a series, sofarr takes the best one by the quality profile's ranking; a release that covers more episodes, including all episodes of another approved release, wins over it (a season pack over single episodes).
-- [ ] AC-13 (state): While an episode has a grab in flight, it counts as having the grabbed release as its file: only a release that beats the grabbed one is taken for it.
-- [ ] AC-14 (event): When a finished download of a series grab is imported, then each video is assigned to the grabbed episodes its name names, moved into the season folder (the series folder itself for a series without season folders) under a name made by the episode format of the series type (standard, daily, anime), and recorded as the file of these episodes.
-- [ ] AC-15 (option): Where Sonarr's `episodeTitleRequired` is `always` — or `bulkSeasonReleases` and the download is a season pack — and the episode format uses an episode title, the import waits while a covered episode that aired less than 48 hours ago has no title yet (empty or `TBA`; for a German title token the German title, else the default one).
+- [x] AC-01 (event): When the user imports from Sonarr, then sofarr takes over Sonarr's quality profiles, quality definitions, custom formats, media-management, indexer, naming and download-client settings, root folders and tags, every series with a TVDB id (title, year, runtime, original language, series type, monitored, season folders, quality profile, path, alternative titles, tags), its episodes (season, number, absolute number, title, air date, monitored) and its episode files (path, size, quality, revision, release group, custom format score); a series without TVDB id is left out.
+- [x] AC-02 (event): When a series is refreshed, then sofarr takes from TVDB the German title (TVDB's own title when there is no German one), adds TVDB's aliases and the German title to the series' alternative titles without duplicates, and takes the poster and the overview (the German one when TVDB has it); title, monitoring, quality profile and path stay as they are.
+- [x] AC-03 (event): When a series is refreshed, then every episode TVDB lists takes TVDB's title, German title, air date and absolute number; an episode the library knows keeps its monitoring and its file, an episode it does not know is added, and an episode TVDB no longer lists stays in the library unchanged.
+- [x] AC-04 (always): A new episode added by a refresh is monitored only when its series is monitored and it is not a special (season 0), and then: in a known season only when an episode of that season is monitored; in a new season only when the series' switch „neue Staffeln überwachen“ is on (default on).
+- [x] AC-05 (error): If TVDB cannot give a series during a refresh, then that series stays unchanged, the other series are refreshed, and the refresh ends without error.
+- [x] AC-06 (state): While no `[tvdb]` section is configured, a refresh changes no series and no episode.
+- [x] AC-07 (option): Where `[library] refresh_interval_hours` is set, the metadata refresh runs on its own every that many hours (default 24), in shadow mode too; 0 switches the schedule off.
+- [x] AC-08 (always): A release belongs to a monitored series whose title, German title, alternative title, or title followed by its year the release names, ignoring case and separators; an unmonitored series takes no release.
+- [x] AC-09 (always): sofarr covers by a release: the named episodes of the named season (several for a multi-episode release), every episode of the named seasons for a season pack (a range of seasons included), the episodes with the named air date for a daily release, the episodes with the named absolute numbers for an anime release; a release that covers no library episode is rejected as an unknown episode.
+- [x] AC-10 (always): sofarr takes a series release only if it covers at least one wanted episode; a release whose covered episodes are all unmonitored or not yet aired is rejected as not wanted.
+- [x] AC-11 (always): A release has to beat the weakest file among its wanted covered episodes by the quality profile's rules; when one of them has no file, the release counts as filling a missing episode.
+- [x] AC-12 (always): Of several approved releases that cover the same episodes of a series, sofarr takes the best one by the quality profile's ranking; a release that covers more episodes, including all episodes of another approved release, wins over it (a season pack over single episodes).
+- [x] AC-13 (state): While an episode has a grab in flight, it counts as having the grabbed release as its file: only a release that beats the grabbed one is taken for it.
+- [x] AC-14 (event): When a finished download of a series grab is imported, then each video is assigned to the grabbed episodes its name names, moved into the season folder (the series folder itself for a series without season folders) under a name made by the episode format of the series type (standard, daily, anime), and recorded as the file of these episodes.
+- [x] AC-15 (option): Where Sonarr's `episodeTitleRequired` is `always` — or `bulkSeasonReleases` and the download is a season pack — and the episode format uses an episode title, the import waits while a covered episode that aired less than 48 hours ago has no title yet (empty or `TBA`; for a German title token the German title, else the default one).
 
 ## Technical notes
 
@@ -142,21 +151,21 @@ Terms used below:
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `series::tests::imports_sonarr_and_decides`, `series::tests::sonarr_series_without_tvdb_id_are_skipped`, `series::tests::the_sonarr_import_takes_series_episodes_and_files` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412, 9ba1551 |
-| AC-02 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (title, monitoring, profile and path kept; TVDB's own title without German one) (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::reads_series_and_episodes` (`crates/sofarr-metadata/src/tvdb.rs`) | built | f4b5412, 9ba1551, 3bf6b8a |
-| AC-03 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (absolute number, German episode title) (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::logs_in_and_relogs_on_401` (`crates/sofarr-metadata/src/tvdb.rs`) | built | f4b5412, 9ba1551 |
-| AC-04 | `series::tests::new_episodes_follow_their_season_and_new_seasons_the_switch`, `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`); `add_tests::an_added_series_monitors_the_chosen_seasons_and_new_ones_by_the_switch` (`crates/sofarr-server/src/add_tests.rs`) | built | f4b5412 |
-| AC-05 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
-| AC-06 | `series::tests::without_tvdb_series_are_not_refreshed` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
-| AC-07 | `series::tests::the_refresh_is_scheduled_by_its_interval` (default 24 h, configured 6 h, 0 off) (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412, 9ba1551 |
-| AC-08 | `series::tests::releases_match_series_by_title_german_title_alias_or_year` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
-| AC-09 | `series::tests::daily_and_absolute`, `series::tests::upgrades_and_season_packs`, `series::tests::unwanted_and_unknown`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`) | built | 3bf7901 |
-| AC-10 | `series::tests::missing_episode_is_wanted`, `series::tests::unwanted_and_unknown` (`crates/sofarr-core/src/series.rs`) | built |  |
-| AC-11 | `series::tests::upgrades_and_season_packs`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | built | 3bf7901, f4b5412 |
-| AC-12 | `series::tests::imports_sonarr_and_decides`, `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
-| AC-13 | `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
-| AC-14 | `app::tests::live_series_pipeline` (`crates/sofarr-server/src/app/tests.rs`); `series::tests::names_episodes`, `series::tests::episode_formats_follow_the_series_type_and_season_folders` (`crates/sofarr-server/src/series/tests.rs`) | built | f4b5412 |
-| AC-15 | `series::tests::waits_for_episode_titles` (`crates/sofarr-server/src/series/tests.rs`); `download_import_tests::an_import_waits_for_a_missing_episode_title` (`crates/sofarr-server/src/download_import_tests.rs`) | built | 0db7cad |
+| AC-01 | `series::tests::imports_sonarr_and_decides`, `series::tests::sonarr_series_without_tvdb_id_are_skipped`, `series::tests::the_sonarr_import_takes_series_episodes_and_files` (`crates/sofarr-server/src/series/tests.rs`); `library_import_tests::fetches_series_episodes_and_files_from_sonarr` (all nine settings, series without TVDB id left out) (`crates/sofarr-server/src/library_import_tests.rs`) | verified | f4b5412, 9ba1551, 0db7cad |
+| AC-02 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (title, monitoring, profile and path kept; TVDB's own title without German one) (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::reads_series_and_episodes` (`crates/sofarr-metadata/src/tvdb.rs`) | verified | f4b5412, 9ba1551, 3bf6b8a |
+| AC-03 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (absolute number, German episode title) (`crates/sofarr-server/src/series/tests.rs`); `tvdb::tests::logs_in_and_relogs_on_401` (`crates/sofarr-metadata/src/tvdb.rs`) | verified | f4b5412, 9ba1551 |
+| AC-04 | `series::tests::new_episodes_follow_their_season_and_new_seasons_the_switch`, `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`); `add_tests::an_added_series_monitors_the_chosen_seasons_and_new_ones_by_the_switch` (`crates/sofarr-server/src/add_tests.rs`) | verified | f4b5412 |
+| AC-05 | `series::tests::refresh_takes_titles_and_episodes_from_tvdb` (`crates/sofarr-server/src/series/tests.rs`) | verified | f4b5412 |
+| AC-06 | `series::tests::without_tvdb_series_are_not_refreshed` (`crates/sofarr-server/src/series/tests.rs`) | verified | f4b5412 |
+| AC-07 | `series::tests::the_refresh_is_scheduled_by_its_interval` (default 24 h, configured 6 h, 0 off) (`crates/sofarr-server/src/series/tests.rs`) | verified | f4b5412, 9ba1551 |
+| AC-08 | `series::tests::releases_match_series_by_title_german_title_alias_or_year` (`crates/sofarr-server/src/series/tests.rs`) | verified | f4b5412 |
+| AC-09 | `series::tests::daily_and_absolute`, `series::tests::upgrades_and_season_packs`, `series::tests::unwanted_and_unknown`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`) | verified | 3bf7901 |
+| AC-10 | `series::tests::missing_episode_is_wanted`, `series::tests::unwanted_and_unknown` (`crates/sofarr-core/src/series.rs`) | verified | before a8f635d |
+| AC-11 | `series::tests::upgrades_and_season_packs`, `series::tests::multi_season_and_multi_episode_releases` (`crates/sofarr-core/src/series.rs`); `series::tests::imports_sonarr_and_decides` (`crates/sofarr-server/src/series/tests.rs`) | verified | 3bf7901, f4b5412 |
+| AC-12 | `series::tests::imports_sonarr_and_decides`, `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | verified | f4b5412 |
+| AC-13 | `series::tests::the_best_release_wins_and_grabs_count_as_files` (`crates/sofarr-server/src/series/tests.rs`) | verified | f4b5412 |
+| AC-14 | `app::tests::live_series_pipeline` (`crates/sofarr-server/src/app/tests.rs`); `series::tests::names_episodes`, `series::tests::episode_formats_follow_the_series_type_and_season_folders` (`crates/sofarr-server/src/series/tests.rs`); `download_import_tests::a_season_pack_imports_each_grabbed_episode` (`crates/sofarr-server/src/download_import_tests.rs`) | verified | f4b5412, 0db7cad |
+| AC-15 | `series::tests::waits_for_episode_titles` (`crates/sofarr-server/src/series/tests.rs`); `download_import_tests::an_import_waits_for_a_missing_episode_title` (`crates/sofarr-server/src/download_import_tests.rs`) | verified | 0db7cad |
 
 ## Decisions
 

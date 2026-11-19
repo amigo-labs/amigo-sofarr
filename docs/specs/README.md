@@ -83,6 +83,8 @@ Large specs (L) are split while being written when they need more than a few ses
 | [ui-reencode](ui-reencode.md) | 2026-11-18 | Re-encoding 4: page "Neu encodieren" (`GET /api/reencode`) with the job state, the running encode, saved space, candidates with their job state and the latest 50 attempts; encode now, keep a library file out of the job (`/api/reencode/exclusions`), read-only in shadow mode (D31) |
 | [reencode-audio](reencode-audio.md) | 2026-11-18 | Re-encoding 5: lossless audio without object audio (TrueHD without Atmos, PCM, FLAC) to E-AC-3 in the same encode (`[reencode] convert_lossless_audio`, `audio_bitrate_kbps`, default 640, stereo 256), TrueHD Atmos and every DTS track copied, an HEVC video copied when audio is converted, every audio track checked against its plan (D31) |
 | [parser-season-in-title](parser-season-in-title.md) | 2026-11-19 | Episode parser: a season word before ` - 06` belongs to the anime title (absolute number, no pack); `[Grp][Title.S2][05]` is S02E05, a deliberate deviation from Sonarr's full season |
+| [series](series.md) | 2026-11-19 | Series: Sonarr import, TVDB refresh (German title, aliases, episodes, D28), refresh schedule, release-to-series matching, covered/wanted episodes, season packs, grabs in flight, episode import |
+| [import-lists](import-lists.md) | 2026-11-19 | TMDb person import list sync: cast/crew selection (a movie through either credit, once), exclusions, adding with the list's settings, search on add, TMDB errors, schedule, CLI `sync-import-lists` |
 
 ## Phase 1–5 behavior
 
@@ -98,9 +100,9 @@ the oracles stays in [`../parity.md`](../parity.md).
 | [library-import](library-import.md) | M | Takeover of settings and library from Radarr/Sonarr (API or export folder): movies by TMDB id, series/episodes/files by TVDB id, German CLI summary and errors | `/spec-check` |
 | [rss-sync](rss-sync.md) | M | Scheduled RSS sync over all Newznab indexers: matching to movies and series, best release per movie/episode set, open grabs count as the file, indexer tags, shadow grabs vs. hand-over by category | `/spec-check` |
 | [download-import](download-import.md) | M | Download check: queue/history states, moving and renaming finished downloads, recycle bin on upgrade, waiting for episode titles, retry after a failed import, free-space check, remove completed | `/spec-check` |
-| [import-lists](import-lists.md) | M | TMDb person import list sync: cast/crew selection, exclusions, adding with the list's settings, search on add, TMDB errors, schedule, CLI `sync-import-lists` | `/spec-check` |
+| [import-lists](import-lists.md) | M | TMDb person import list sync: cast/crew selection, exclusions, adding with the list's settings, search on add, TMDB errors, schedule, CLI `sync-import-lists` | done |
 | [disk-scan](disk-scan.md) | M | Disk scan of movies and series: forget missing files (auto-unmonitor), take up found videos, skip unmounted root folders, delete empty folders (not in shadow mode), `rescanAfterRefresh`, scan report | `/spec-check` |
-| [series](series.md) | L | Series: Sonarr import, TVDB refresh (German title, aliases, episodes, D28), refresh schedule, release-to-series matching, covered/wanted episodes, season packs, grabs in flight, episode import | `/spec-check` |
+| [series](series.md) | L | Series: Sonarr import, TVDB refresh (German title, aliases, episodes, D28), refresh schedule, release-to-series matching, covered/wanted episodes, season packs, grabs in flight, episode import | done |
 
 ## Backlog
 
