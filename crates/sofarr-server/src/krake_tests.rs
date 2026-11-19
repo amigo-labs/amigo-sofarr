@@ -381,6 +381,8 @@ async fn a_broken_release_is_blocklisted() {
         ("FAILURE/HEALTH", "NONE", "NONE"),
         ("FAILURE/PAR", "FAILURE", "NONE"),
         ("FAILURE/UNPACK", "SUCCESS", "FAILURE"),
+        // Unpacked, but no media file in it.
+        ("FAILURE/BAD", "SUCCESS", "SUCCESS"),
     ] {
         let s = Setup::start(&format!("broken-{}", &status[8..]), &[(RELEASE, "g1")]).await;
         let app = app_movies(&s).await;
