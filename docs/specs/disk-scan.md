@@ -66,6 +66,7 @@ Terms used below:
 - [ ] AC-07 (state): While sofarr runs in shadow mode, the scan removes no folder, whatever `deleteEmptyFolders` says.
 - [ ] AC-08 (option): Where `rescanAfterRefresh` is `always` (also when missing), a metadata refresh is followed by a disk scan of the same media kind; `afterManual` scans only after a refresh started by command, `never` not at all — set per media kind by its media-management settings.
 - [ ] AC-09 (event): When a disk scan runs (command `amigo-sofarr rescan`, or after a refresh), then it reports per media kind how many titles it checked and skipped, how many files were missing, how many movies or episodes it stopped monitoring, how many files it found and how many folders it removed; a media kind without any title in the library is not scanned and reports nothing.
+- [ ] AC-10 (event): When a scan removes the last empty folder of a usable root folder, then it still checks the titles of that root folder that come after it in the same pass.
 
 ## Technical notes
 
@@ -102,14 +103,14 @@ Terms used below:
 | A multi-episode file (`S01E02E03`) | Recorded once, for each of its episodes |
 | A video in a series folder for an episode that already has a file | Left alone (no replacement of a present file) |
 | A movie folder with several videos and no recorded file | The largest one is recorded |
-| The scan removes the last folder of a root folder | The root folder is empty now: titles of that root folder scanned after it in the same pass are skipped (AC-05), see Assumptions |
+| The scan removes the last folder of a root folder | The root folder was judged usable when the pass reached it first; the titles after it in the same pass are still checked |
 | A title without a folder path | Not scanned, not counted |
 
 ## Assumptions
 
 | Assumption | Reason | Risk |
 | ---------- | ------ | ---- |
-| An empty root folder means an unmounted volume | Docker bind mounts leave an empty mount point; forgetting a whole library would be far worse than missing a few deletions | A root folder whose titles were all deleted by hand is never cleaned up; within one pass, removing the last empty folder of a root folder makes later titles of that root folder count as unmounted |
+| An empty root folder means an unmounted volume | Docker bind mounts leave an empty mount point; forgetting a whole library would be far worse than missing a few deletions | A root folder whose titles were all deleted by hand is never cleaned up |
 | A replaced file keeps the monitoring | A rename or manual replacement is not "previously downloaded and deleted" | A deleted file replaced by an unrelated video keeps the movie monitored |
 | Shadow mode may still forget and record files (database only) | Shadow mode protects `/data`, not sofarr's own database | The shadow library drifts from Radarr/Sonarr's view when they disagree |
 | Without the setting, `rescanAfterRefresh` is `always` | The owner's Radarr and Sonarr both use `always` (`docs/parity.md`) | A refresh scans even where nobody asked for it |
@@ -131,8 +132,10 @@ Terms used below:
 | AC-07 | `rescan::tests::shadow_mode_deletes_no_folder` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
 | AC-08 | `rescan::tests::refresh_scans_as_rescan_after_refresh_says`, `rescan::tests::reads_settings` (`crates/sofarr-server/src/rescan.rs`) | built | bbe7c1a |
 | AC-09 | `rescan::tests::scans_movie_folders`, `rescan::tests::scans_series_folders`, `rescan::tests::an_empty_library_is_not_scanned` (`crates/sofarr-server/src/rescan.rs`) | built | ff9f4f9 |
+| AC-10 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-19: Reverse-engineered from the phase-4/5 code (`spec-extract`); the ACs describe the
   behavior as built. Uncertain points are recorded under Assumptions instead of being asked.
+- 2026-11-19 (spec-fix): A root folder is judged once per pass, when the pass first reaches it, because removing the last empty folder of a root folder made the titles after it count as unmounted (found while extracting).
