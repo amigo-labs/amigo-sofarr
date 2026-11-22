@@ -49,6 +49,8 @@ pub struct MovieMetadata {
     pub physical_release: Option<String>,
     /// TMDB file path of the poster, e.g. `/abc.jpg`.
     pub poster_path: Option<String>,
+    /// TMDB file path of the backdrop (the wide image), e.g. `/def.jpg`.
+    pub backdrop_path: Option<String>,
     /// German overview text, else the default one.
     pub overview: Option<String>,
 }
@@ -155,6 +157,20 @@ impl Tmdb {
     pub async fn series_imdb_id(&self, tmdb_id: i64) -> Result<Option<String>, MetadataError> {
         let value = self.get(&format!("tv/{tmdb_id}/external_ids"), &[]).await?;
         Ok(imdb_id_from_external_ids(&value))
+    }
+
+    /// The file path of the backdrop TMDB names for a series; `None` when it names none
+    /// (spec ui-cinema-backdrops).
+    pub async fn series_backdrop(&self, tmdb_id: i64) -> Result<Option<String>, MetadataError> {
+        let value = self.get(&format!("tv/{tmdb_id}"), &[]).await?;
+        if !value.is_object() {
+            return Err(MetadataError::Decode(format!("tv/{tmdb_id}: kein Objekt")));
+        }
+        Ok(value["backdrop_path"]
+            .as_str()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned))
     }
 
     /// The TVDB id TMDB knows for a series (spec discover AC-08).
@@ -291,6 +307,7 @@ pub fn movie_from_json(value: &Value) -> Result<MovieMetadata, MetadataError> {
     let release = |types: &[u64]| release_date(value, types);
     Ok(MovieMetadata {
         poster_path: text(&value["poster_path"]),
+        backdrop_path: text(&value["backdrop_path"]),
         overview: german_overview.or_else(|| text(&value["overview"])),
         status: value["status"]
             .as_str()
