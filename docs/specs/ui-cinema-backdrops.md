@@ -104,19 +104,21 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 ## Open questions
 
+- AC-11 („the website screenshots `movie.png` and `series.png` are regenerated and show the demo titles with their backdrops“) is of the form `(always)` but can only be judged by looking at the two pictures. Proposed revision: `(always, manual: images)`, with the owner's look at the two files as its evidence.
+
 ## Evidence
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
+| AC-01 | `the_movie_refresh_stores_drops_and_keeps_the_backdrop` (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
+| AC-02 | `the_series_refresh_takes_the_backdrop_by_tmdb_id` (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
+| AC-03 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`, `a_series_tells_its_backdrop_and_the_address_follows_the_image` (`crates/sofarr-server/src/backdrop_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
+| AC-04 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode` (1280 px, cache, 404 not cached, title without a backdrop, unknown title), `a_series_tells_its_backdrop_and_the_address_follows_the_image` (`crates/sofarr-server/src/backdrop_tests.rs`); `images_need_a_credential_backdrops_like_posters` (`crates/sofarr-server/src/auth_tests.rs`); `previews_show_the_title_and_say_whether_it_is_in_the_library` (the preview address of a library title, `crates/sofarr-server/src/discover/title_tests.rs`) | built |  |
 | AC-05 | `movie page / series page / preview page: sharp backdrop (AC-05)` › `fills the head sharp, cropped, anchored to the top, under a scrim`, `the scrim is strong under the text and light at the top right` (1440 px), `below 1024 px the head is as high as its content` (`ui/e2e/cinema-backdrops.spec.ts`); `preview head (AC-04)` › `the backdrop sharp under a scrim in the page ground; compact facts` (`ui/e2e/discover-polish.spec.ts`) | built |  |
 | AC-06 | `fallbacks (AC-06)` › `a library title without a backdrop shows its poster, blurred`, `a backdrop that fails to load falls back to the blurred poster`, `without backdrop and poster the head has the plain ground`, `a preview whose backdrop fails to load has the plain ground` (`ui/e2e/cinema-backdrops.spec.ts`); `backdrop (AC-01)` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
 | AC-07 | `movie page / series page / preview page: contrast over any image (AC-07)` › `at least 4.5:1 over an all-white / all-black backdrop at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
-| AC-09 |      | open   |        |
+| AC-09 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`; the refresh tests run in shadow mode, the test app's default (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
 | AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-11 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22 from the demo instance, whose refresh stores the demo titles' backdrops; `movie.png` and `series.png` show them behind the head | built |  |
 | AC-12 | manual: the owner checked the movie page („Nordlicht über Tromsø“), the series page („Hafenlichter“) and the preview page („Rote Dünen“) with their backdrops from screenshots of this branch's demo instance, dark palette, 1440 px („Sichtprüfung ok“), 2026-11-22 | built |  |
@@ -135,5 +137,10 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
   - AC-05: the scrim's strengths were not measured. New test `the scrim is strong under the text and light at the top right` on all three pages at 1440 px: over an all-white image it reads the scrim's share of the page ground from pixels (at most 45 % at the head's top right, at least 80 % under the title).
   - The verifier also found that AC-05 names no window width for „at most 45 % at the head's top right“: below about 1350 px the head's content reaches the right edge and the scrim is strong there too, which AC-07 needs. Whether the AC names the width is the owner's to decide (a stopping point); see Open questions.
 - 2026-11-22 (revision, owner): AC-05 names the window width for the light part of the scrim („from 1440 px … at most 45 % at the head's top right“), because in narrower windows the head's content reaches the right edge and AC-07 needs the strong scrim there. The sentence on the light palette under „Out of scope“ no longer claims an axe scan that does not exist; the light palette goes with `ui-cinema-shell` (D34). The technical note on serving names the address as built. The look does not change.
+- 2026-11-22 (spec-check, round 2: NOT READY): all gates green; three claims without a test.
+  - AC-04, the login: new test `images_need_a_credential_backdrops_like_posters` (401 without a credential for poster and backdrop, the images' own 404 with one). Green at once: the backdrop is a size of the poster's route.
+  - AC-04, the preview address of a library title: `previews_show_the_title_and_say_whether_it_is_in_the_library` now asserts it. Green at once: the preview code is unchanged.
+  - AC-11 has no test and cannot have a meaningful one (it is about pictures); whether it becomes a manual criterion is the owner's to decide; see Open questions.
+  - The Evidence rows of AC-01 to AC-04 and AC-09 were still `open`: the commit that should have carried them was refused by a red gate and repeated without them. They are filled in now.
 - 2026-11-22 (build): Older e2e tests adjusted, none removed: the preview's backdrop is sharp (`discover-polish.spec.ts`), the blurred poster is the fallback and its veil is the component's (`library-detail-head.spec.ts`).
 - 2026-11-22: The scrim, not the choice of image, guarantees the contrast (AC-07), because sofarr cannot know how bright a provider's image is.
