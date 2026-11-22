@@ -16,17 +16,18 @@
   import type { DiscoverFilters } from '../filters';
   import { DISCOVER_PATH, shelfHref } from '../links';
   import { createTitlePages } from '../pages.svelte';
-  import { createTitleStates } from '../states.svelte';
+  import { createTitleStates, type Shown } from '../states.svelte';
   import { discover, ensureStatus } from '../status.svelte';
   import AddDialog from '../components/AddDialog.svelte';
+  import DiscoverHero from '../components/DiscoverHero.svelte';
   import FreshnessNote from '../components/FreshnessNote.svelte';
   import DiscoverToolbar from '../components/DiscoverToolbar.svelte';
   import ShelfArrows from '../components/ShelfArrows.svelte';
   import StatusGate from '../components/StatusGate.svelte';
   import TitleList from '../components/TitleList.svelte';
 
-  // The discover page (spec discover AC-01, AC-02, AC-13..AC-15): the shelves, or with a
-  // filter set one result list that loads while scrolling.
+  // The discover page (spec discover AC-01, AC-02, AC-13..AC-15): the hero and the shelves
+  // (spec ui-cinema-hero), or with a filter set one result list that loads while scrolling.
 
   /** The result list loads on until at least this many titles are visible (AC-02). */
   const VISIBLE = 20;
@@ -74,9 +75,10 @@
   });
 
   $effect(() => {
-    const shown: TitleCard[] = filtered
+    const hero = shelves?.hero ?? null;
+    const shown: Shown[] = filtered
       ? [...list.items]
-      : (shelves?.shelves.flatMap((s) => s.items) ?? []);
+      : [...(hero === null ? [] : [hero]), ...(shelves?.shelves.flatMap((s) => s.items) ?? [])];
     untrack(() => states.show(shown));
   });
 
@@ -151,6 +153,15 @@
     </section>
   {:else if shelves !== null}
     <FreshnessNote part="notice" freshness={shelves.freshness} />
+    {#if shelves.hero !== null}
+      {@const hero = shelves.hero}
+      <DiscoverHero
+        {hero}
+        state={states.of(hero)}
+        onadd={() =>
+          (adding = { kind: hero.kind, tmdbId: hero.tmdb_id, title: hero.title, seasons: null })}
+      />
+    {/if}
     {#each shelves.shelves as shelf (shelf.id)}
       <section class="section" aria-labelledby="shelf-{shelf.id}" data-testid="shelf">
         <div class="shelf-head">

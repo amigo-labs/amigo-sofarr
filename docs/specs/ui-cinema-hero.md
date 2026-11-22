@@ -92,15 +92,15 @@ This spec builds on `ui-cinema-backdrops` (`HeadBackdrop`, its scrim and contras
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
+| AC-01 | `the_hero_is_the_first_candidate_with_a_backdrop`, `ten_candidates_at_most_asked_for_at_once` (`crates/sofarr-server/src/discover/hero_tests.rs`); `the hero (AC-01, AC-02)` › `the featured title above the first shelf, on its backdrop` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
+| AC-02 | `the hero (AC-01, AC-02)` › `the featured title above the first shelf, on its backdrop`, `at 1024 px the hero is at least 420 px high`, `a long overview is cut after three lines`, `a series without year, rating and overview shows what is there`, `a series with a year`, `without ratings the hero shows no rating`, `„Hinzufügen“ opens the add dialog of today`, `below 768 px the backdrop is a 16:9 band above the text` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
+| AC-03 | `contrast over any image (AC-03)` › `at least 4.5:1 over an all-white/all-black backdrop at 1440/1024 px` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
+| AC-04 | `no_hero_without_trending_or_without_candidates`, `ten_candidates_at_most_asked_for_at_once` (`crates/sofarr-server/src/discover/hero_tests.rs`); `no hero (AC-04)` › `without a featured title the shelves stand as today`, `a filter shows the result list without a hero` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
+| AC-05 | `an_added_hero_gives_way_to_the_next_candidate` (`crates/sofarr-server/src/discover/hero_tests.rs`); `adding from the hero (AC-05)` › `the hero shows the library state and links to the library page` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
+| AC-06 | `the_hero_is_the_first_candidate_with_a_backdrop`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
+| AC-07 | `ten_candidates_at_most_asked_for_at_once`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`) | built |  |
+| AC-08 | `the_hero_is_the_first_candidate_with_a_backdrop` (`crates/sofarr-server/src/discover/hero_tests.rs`) | built |  |
+| AC-09 | `accessibility (AC-09)` › `no violation and a visible focus at 1440 px`, `… at 360 px` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
 | AC-10 |      | open   |        |
 | AC-11 |      | open   |        |
 
@@ -108,3 +108,13 @@ This spec builds on `ui-cinema-backdrops` (`HeadBackdrop`, its scrim and contras
 
 - 2026-11-22: The featured title is the first title of „Heute beliebt“ with a backdrop that is neither in the library nor excluded (owner), because the hero should suggest something new and the shelf already orders by today's popularity.
 - 2026-11-22: The server chooses the featured title and sends it with the shelves, because the choice needs previews from TMDB's cache, and the page should stay one request.
+- 2026-11-22: A series whose preview is not cached yet counts as a candidate until its preview is loaded; then it is checked again, because only the preview names the TVDB id the library finds a series by.
+- 2026-11-22: A title TMDB answered „not found“ for (`discover.unknown`) counts among the 10 candidates but is not asked for again, because it has no preview to wait for.
+- 2026-11-22: The hero's backdrop is TMDB's `w1280`, as on the preview page, because the same image is then cached once for both.
+- 2026-11-22: Kind, year and rating stand in one line („Film · 2024 · ★ 7,8“); a rating still loading shows nothing, as the tiles show no visible text for it.
+- 2026-11-22: The hero stands below the stale notice and above the first shelf, without negative margins: it spans the content's width like the shelves. From 768 px it is at least 360 px high, from 1024 px `clamp(420px, 36vw, 560px)`.
+- 2026-11-22: „Details“ stays next to „Zur Bibliothek“ once the title is added, because the spec names both and the preview page leads to the library page then; after adding, the focus moves to „Zur Bibliothek“ as on the tiles.
+- 2026-11-22: `HeadBackdrop` gets a `band` prop (below 768 px a 16:9 band in the flow, without scrim) instead of a second backdrop component, so the scrim and the contrast rule stay in one place.
+- 2026-11-22: The e2e catalog moves the held title 504 from „Heute beliebt“ to „Diese Woche beliebt“ (and `discover-pages.spec.ts` looks for it there), because the start page now waits for the first candidates' previews (AC-07) and a held preview would hold it back until a test releases it.
+- 2026-11-22: `cinema-tiles.spec.ts` scrolls a tile into view before measuring it at rest, because the hero pushes the first shelf to the fold at 1440 × 900 and hovering scrolled the tile.
+- 2026-11-22: The two AC-04 e2e tests were green on their first run: without a hero component the page already showed none; their red counterpart is the server test, and they guard that the page stays so.
