@@ -47,7 +47,7 @@ because later specs build on earlier ones.
 | 29 | [parser-season-in-title](parser-season-in-title.md) | S | parser-episode-gaps | Episode parser: a season word before ` - 06` belongs to the anime title; `[Grp][Title.S2][05]` is S02E05 (deliberate deviation from Sonarr) | done |
 | 30 | [release-oracle-history](release-oracle-history.md) | S | – | Release oracle: `already_imported` in the decision engine, imported release names in the release fixtures; "Raw Bluray/DVD release" as deliberate deviation | done |
 | 31 | [krake-download-client](krake-download-client.md) | M | – | Krake (formerly amigo-downloader) as download client through its NZBGet-compatible API (D32) | done |
-| 32 | [ui-polish](ui-polish.md) | M | ui-overview-polish | UI redesign 11: even poster tiles with two title lines, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 | `/spec-build ui-polish` |
+| 32 | [ui-polish](ui-polish.md) | M | ui-overview-polish | UI redesign 11: even poster tiles with two title lines, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 | done |
 | 33 | [ui-cinema-backdrops](ui-cinema-backdrops.md) | M | ui-polish | Cinema look 1: backdrops for library movies and series from TMDB, served from the image cache, sharp behind the head of the movie, series and preview pages (D34); revises ui-detail-head AC-01, ui-polish AC-01, ui-discover-polish AC-04 | `/spec-build ui-cinema-backdrops` |
 
 Large specs (L) are split while being written when they need more than a few sessions
@@ -96,6 +96,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [naming](naming.md) | 2026-11-19 | File and folder naming: token syntax and case, colon/illegal characters, tidy folder levels, clean titles, movie/series/episode tokens, Quality Full, multi-episode styles, `config_naming` defaults, movie and episode import naming |
 | [series](series.md) | 2026-11-19 | Series: Sonarr import, TVDB refresh (German title, aliases, episodes, D28), refresh schedule, release-to-series matching, covered/wanted episodes, season packs, grabs in flight, episode import |
 | [import-lists](import-lists.md) | 2026-11-19 | TMDb person import list sync: cast/crew selection (a movie through either credit, once), exclusions, adding with the list's settings, search on add, TMDB errors, schedule, CLI `sync-import-lists` |
+| [ui-polish](ui-polish.md) | 2026-11-22 | UI redesign 11: even poster tiles with two title lines, a quiet pending rating, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 |
 
 ## Phase 1–5 behavior
 

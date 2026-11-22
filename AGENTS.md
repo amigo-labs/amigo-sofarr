@@ -232,6 +232,9 @@ Project knowledge belongs in the repository, not on one machine:
   `ui/test-results`, `ui/.svelte-kit`, das laufende `target/debug/amigo-sofarr` und den
   Log-Ordner der Gates. Parallel nur in getrennten Worktrees; die Port-Basis trennt nur die
   e2e-Server.
+- e2e-Tests, die den Tastaturfokus über Shift+Tab/Tab prüfen, warten auf Detailseiten erst auf
+  `networkidle`: Die Boxen laden ihre Knöpfe nacheinander, und ein Knopf, der zwischen zwei
+  Tastendrücken erscheint, nimmt den Fokus (lokal selten, in der CI regelmäßig rot).
 - Cloud-Container laufen oft als root, und root ignoriert Dateirechte: Ein Test, der einen
   Fehlschlag über `chmod` erzwingt, ist dort grün statt rot. Fehlschläge beim Löschen von
   Sicherungen erzwingen die Tests deshalb über `backup_files::remove_file`
