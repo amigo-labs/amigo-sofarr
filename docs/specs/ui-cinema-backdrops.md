@@ -104,6 +104,8 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 ## Open questions
 
+- AC-05 says the scrim is „at most 45 % of the page ground at the head's top right“ without a window width. That holds from about 1440 px; in narrower windows the head's content fills the width and the scrim must stay strong for AC-07. Proposed revision: „at window widths from 1440 px“. The sentence under „Out of scope“ that the light palette's contrast is covered by an axe scan of AC-10 is also wrong (AC-10 scans the dark palette only): add light scans, or correct the sentence?
+
 ## Evidence
 
 | AC    | Test | Status | Commit |
@@ -130,5 +132,9 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 - 2026-11-22 (build): The scrim is 84 % of the page ground under the head's content (the poster column and a measure of 42 rem), falls to 15 % within the next 16 rem, and is the full page ground at the lower edge. All content of the head, the facts panel too, keeps to the 42 rem measure, so the image is free beside it.
 - 2026-11-22 (build): The demo instance of the website screenshots runs `refresh-metadata` and `refresh-series` after its imports, because only the refresh stores backdrops. AC-11 (the regenerated screenshots) and AC-12 are open: at 1440 px the head's content and its scrim leave only a narrow strip of the image visible, and the owner has been asked whether the head should change its layout (a revision of AC-05).
 - 2026-11-22: The owner saw the movie and series page at 1440 px and chose to keep this layout: the backdrop as a quiet mood behind the head, the content on a strong scrim (over a band of the image above the head, or a narrower text column). AC-05 stays as written.
+- 2026-11-22 (spec-check, round 1: NOT READY): all gates green; two gaps.
+  - AC-02: the test asserted „no backdrop without a TMDB id“ only on a series that never had one. It now stores a backdrop first and expects the refresh to remove it.
+  - AC-05: the scrim's strengths were not measured. New test `the scrim is strong under the text and light at the top right` on all three pages at 1440 px: over an all-white image it reads the scrim's share of the page ground from pixels (at most 45 % at the head's top right, at least 80 % under the title).
+  - The verifier also found that AC-05 names no window width for „at most 45 % at the head's top right“: below about 1350 px the head's content reaches the right edge and the scrim is strong there too, which AC-07 needs. Whether the AC names the width is the owner's to decide (a stopping point); see Open questions.
 - 2026-11-22 (build): Older e2e tests adjusted, none removed: the preview's backdrop is sharp (`discover-polish.spec.ts`), the blurred poster is the fallback and its veil is the component's (`library-detail-head.spec.ts`).
 - 2026-11-22: The scrim, not the choice of image, guarantees the contrast (AC-07), because sofarr cannot know how bright a provider's image is.
