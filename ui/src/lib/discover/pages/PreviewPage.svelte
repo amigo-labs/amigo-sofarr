@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HeadBackdrop from '../../components/HeadBackdrop.svelte';
   import plusIcon from '@primer/octicons/build/svg/plus-16.svg?raw';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -58,9 +59,6 @@
 
   const current = $derived(preview === null ? null : states.of(preview));
   const label = $derived(current === null ? null : libraryLabel(current.library.status));
-
-  // The title's TMDB backdrop, blurred behind the head (spec ui-discover-polish AC-04).
-  let backdropFailed = $state(false);
 </script>
 
 <svelte:head>
@@ -71,12 +69,7 @@
   {#if preview !== null && current !== null}
     {@const p = preview}
     <section class="head" data-testid="preview">
-      {#if p.backdrop !== null && !backdropFailed}
-        <div class="backdrop" aria-hidden="true">
-          <img src={p.backdrop} alt="" decoding="async" onerror={() => (backdropFailed = true)} />
-          <div class="backdrop-veil"></div>
-        </div>
-      {/if}
+      <HeadBackdrop image={p.backdrop} />
       <div class="poster"><TmdbImage src={p.poster} name={p.title} lazy={false} /></div>
       <div class="text">
         <h1>{p.title}<span class="year">{p.year === null ? '' : ` (${p.year})`}</span></h1>
@@ -213,34 +206,11 @@
     overflow: hidden;
   }
 
-  .backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    overflow: hidden;
-  }
-
-  .backdrop img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: blur(20px) saturate(1.2);
-    transform: scale(1.1);
-  }
-
-  .backdrop-veil {
-    position: absolute;
-    inset: 0;
-    background: var(--am-bg);
-    opacity: 0.78;
-  }
-
-  .backdrop::after {
-    content: '';
-    position: absolute;
-    inset: auto 0 0;
-    height: 35%;
-    background: linear-gradient(transparent, var(--am-bg));
+  /* Room for the backdrop to read as an image (spec ui-cinema-backdrops AC-05). */
+  @media (min-width: 1024px) {
+    .head {
+      min-height: 420px;
+    }
   }
 
   .text,
@@ -249,6 +219,12 @@
     flex-direction: column;
     gap: var(--base-size-12);
     min-width: 0;
+  }
+
+  /* The head's content keeps to the measure the backdrop's scrim is strong under, which
+     leaves the image free beside it (spec ui-cinema-backdrops AC-05, AC-07). */
+  .head .text > :global(*) {
+    max-width: 42rem;
   }
 
   h1 {

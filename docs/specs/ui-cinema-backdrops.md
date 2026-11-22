@@ -112,12 +112,12 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 | AC-02 |      | open   |        |
 | AC-03 |      | open   |        |
 | AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
+| AC-05 | `movie page / series page / preview page: sharp backdrop (AC-05)` › `fills the head sharp, cropped, anchored to the top, under a scrim`, `below 1024 px the head is as high as its content` (`ui/e2e/cinema-backdrops.spec.ts`); `preview head (AC-04)` › `the backdrop sharp under a scrim in the page ground; compact facts` (`ui/e2e/discover-polish.spec.ts`) | built |  |
+| AC-06 | `fallbacks (AC-06)` › `a library title without a backdrop shows its poster, blurred`, `a backdrop that fails to load falls back to the blurred poster`, `without backdrop and poster the head has the plain ground`, `a preview whose backdrop fails to load has the plain ground` (`ui/e2e/cinema-backdrops.spec.ts`); `backdrop (AC-01)` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
+| AC-07 | `movie page / series page / preview page: contrast over any image (AC-07)` › `at least 4.5:1 over an all-white / all-black backdrop at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
+| AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-11 |      | open   |        |
 | AC-12 |      | open   |        |
 
@@ -125,4 +125,9 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 - 2026-11-22: The owner chose all four elements of the cinema look (hero banner, tiles with a hover state, real backdrops, the library as rows) for the whole UI; within the shared theme, dark palette only, touch not a goal (D34).
 - 2026-11-22: The backdrop is stored as a path at the metadata refresh, like the poster, and not asked from TMDB when a page opens, because a page of the library must not wait for a provider (D24) and the lists of the later specs need `has_backdrop` for many titles at once.
+- 2026-11-22 (build): The head's ground is one component, `HeadBackdrop.svelte`, for the library pages and the preview page. The UI tests were written with it; red runs on the way: the contrast tests failed over an all-white backdrop (3.3:1 for the rating line, 2.0:1 for „Originaltitel“ on the preview), because those lines reached into the weaker part of the scrim.
+- 2026-11-22 (build): The contrast is measured from pixels: the head's texts are made transparent, each text's box is photographed and its lightest and darkest pixel compared with the text's colour.
+- 2026-11-22 (build): The scrim is 84 % of the page ground under the head's content (the poster column and a measure of 42 rem), falls to 15 % within the next 16 rem, and is the full page ground at the lower edge. All content of the head, the facts panel too, keeps to the 42 rem measure, so the image is free beside it.
+- 2026-11-22 (build): The demo instance of the website screenshots runs `refresh-metadata` and `refresh-series` after its imports, because only the refresh stores backdrops. AC-11 (the regenerated screenshots) and AC-12 are open: at 1440 px the head's content and its scrim leave only a narrow strip of the image visible, and the owner has been asked whether the head should change its layout (a revision of AC-05).
+- 2026-11-22 (build): Older e2e tests adjusted, none removed: the preview's backdrop is sharp (`discover-polish.spec.ts`), the blurred poster is the fallback and its veil is the component's (`library-detail-head.spec.ts`).
 - 2026-11-22: The scrim, not the choice of image, guarantees the contrast (AC-07), because sofarr cannot know how bright a provider's image is.

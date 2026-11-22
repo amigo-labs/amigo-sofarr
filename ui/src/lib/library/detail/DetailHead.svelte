@@ -1,6 +1,7 @@
 <script lang="ts">
   import searchIcon from '@primer/octicons/build/svg/search-16.svg?raw';
   import type { Snippet } from 'svelte';
+  import HeadBackdrop from '../../components/HeadBackdrop.svelte';
   import Icon from '../../components/Icon.svelte';
   import type { MediaKind } from '../../api/generated/MediaKind';
   import { posterAddress } from '../../api/library';
@@ -8,8 +9,8 @@
   import Poster from '../components/Poster.svelte';
 
   // Poster, titles, overview text and the item's main actions (AC-05, AC-06, AC-09, AC-10),
-  // over the title's own poster, blurred (spec ui-detail-head AC-01, AC-02): titles, status
-  // chips, rating, overview, actions, facts.
+  // over the title's backdrop, or else its poster, blurred (spec ui-cinema-backdrops AC-05,
+  // AC-06; ui-detail-head AC-02): titles, status chips, rating, overview, actions, facts.
   type Props = {
     kind: MediaKind;
     id: number;
@@ -18,6 +19,8 @@
     otherTitles: readonly string[];
     overview: string | null;
     hasPoster: boolean;
+    /** sofarr's address of the title's backdrop, if it has one. */
+    backdrop: string | null;
     monitored: boolean;
     busy: boolean;
     searching: boolean;
@@ -35,6 +38,7 @@
     otherTitles,
     overview,
     hasPoster,
+    backdrop,
     monitored,
     busy,
     searching,
@@ -44,22 +48,10 @@
     rating,
     facts,
   }: Props = $props();
-
-  let backdropFailed = $state(false);
 </script>
 
 <section class="head">
-  {#if hasPoster && !backdropFailed}
-    <div class="backdrop" aria-hidden="true">
-      <img
-        src={posterAddress(kind, id, 'detail')}
-        alt=""
-        decoding="async"
-        onerror={() => (backdropFailed = true)}
-      />
-      <div class="backdrop-veil"></div>
-    </div>
-  {/if}
+  <HeadBackdrop image={backdrop} fallback={hasPoster ? posterAddress(kind, id, 'detail') : null} />
   <div class="poster">
     <Poster {kind} {id} {title} {hasPoster} size="detail" />
   </div>
@@ -96,36 +88,11 @@
     overflow: hidden;
   }
 
-  .backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    overflow: hidden;
-  }
-
-  .backdrop img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* Blurred far beyond any shape of the poster, so only its colours remain as an even wash
-       (spec ui-polish AC-01); scaled up, so the blur's soft edge lies outside the head. */
-    filter: blur(clamp(56px, 9vw, 120px)) saturate(1.2);
-    transform: scale(1.6);
-  }
-
-  .backdrop-veil {
-    position: absolute;
-    inset: 0;
-    background: var(--am-bg);
-    opacity: 0.78;
-  }
-
-  .backdrop::after {
-    content: '';
-    position: absolute;
-    inset: auto 0 0;
-    height: 35%;
-    background: linear-gradient(transparent, var(--am-bg));
+  /* Room for the backdrop to read as an image (spec ui-cinema-backdrops AC-05). */
+  @media (min-width: 1024px) {
+    .head {
+      min-height: 420px;
+    }
   }
 
   .labels {
@@ -149,6 +116,12 @@
     overflow-wrap: anywhere;
   }
 
+  /* The head's content keeps to the measure the backdrop's scrim is strong under, which
+     leaves the image free beside it (spec ui-cinema-backdrops AC-05, AC-07). */
+  .text > :global(*) {
+    max-width: 42rem;
+  }
+
   .year {
     color: var(--fgColor-muted);
     font-weight: var(--base-text-weight-normal);
@@ -159,7 +132,7 @@
   }
 
   .overview {
-    max-width: 50rem;
+    max-width: 42rem;
   }
 
   .actions {

@@ -53,6 +53,8 @@ export async function renderArtwork(browser, dir) {
     if (t.kind === 'movie') cache(dir, 'movie', ['list', 'detail'], posterPath(t), png);
     else cache(dir, 'series', ['list', 'detail'], tvdbPosterPath(t), png);
     cache(dir, 'tmdb', TMDB_SIZES, backdropPath(t), wide);
+    // The library's own backdrop address (spec ui-cinema-backdrops).
+    cache(dir, t.kind === 'movie' ? 'movie' : 'series', ['backdrop'], backdropPath(t), wide);
   });
   const people = PEOPLE.map(async (p) =>
     cache(dir, 'tmdb', TMDB_SIZES, photoPath(p), await portrait(browser, p)),
@@ -226,6 +228,10 @@ export async function seedLibrary({ binary, config, dir, fixtures, sonarrPort })
   } finally {
     sonarr.close();
   }
+  // The metadata refresh stores what the import does not bring: the backdrops (spec
+  // ui-cinema-backdrops AC-01, AC-02).
+  await run(binary, ['--config', config, 'refresh-metadata']);
+  await run(binary, ['--config', config, 'refresh-series']);
 }
 
 export { SONARR_KEY };

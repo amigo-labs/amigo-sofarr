@@ -56,6 +56,7 @@
     )}
     overview={s.overview}
     hasPoster={s.has_poster}
+    backdrop={s.backdrop}
     monitored={s.monitored}
     busy={actions.busy.has('monitor')}
     searching={actions.busy.has('search')}

@@ -19,6 +19,7 @@ const top = async (page: Page, selector: string): Promise<number> =>
 
 test.describe('backdrop (AC-01)', () => {
   for (const palette of PALETTES) {
+    // The fallback of a title without a backdrop (ui-cinema-backdrops AC-06).
     test(`the blurred poster under at least 70 % of the page ground (${palette})`, async ({
       page,
     }) => {
@@ -31,7 +32,7 @@ test.describe('backdrop (AC-01)', () => {
       const poster = await page.locator('.head .poster img').getAttribute('src');
       await expect(backdrop).toHaveAttribute('src', poster ?? '');
       expect(await backdrop.evaluate((el) => getComputedStyle(el).filter)).toMatch(/blur/);
-      const veil = await page.locator('.backdrop-veil').evaluate((el) => ({
+      const veil = await page.locator('.backdrop .veil').evaluate((el) => ({
         colour: getComputedStyle(el).backgroundColor,
         opacity: Number(getComputedStyle(el).opacity),
       }));
