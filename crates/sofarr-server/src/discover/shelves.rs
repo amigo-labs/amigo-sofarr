@@ -17,7 +17,9 @@ use super::{
     Failure,
     cache::{Cached, Freshness},
     cards::{Cards, TitleCard, TitleKind},
-    failure, tmdb_client,
+    failure,
+    hero::{self, Hero},
+    tmdb_client,
 };
 use crate::{
     api::ApiError,
@@ -129,6 +131,8 @@ pub struct Shelf {
 #[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ShelvesAnswer {
     pub shelves: Vec<Shelf>,
+    /// The featured title of the hero (spec ui-cinema-hero AC-06); `null` without one.
+    pub hero: Option<Hero>,
     pub freshness: Freshness,
 }
 
@@ -145,11 +149,25 @@ pub struct ListAnswer {
 pub async fn shelves(State(app): State<SharedApp>) -> Result<Json<ShelvesAnswer>, ApiError> {
     let tmdb = tmdb_client(&app)?;
     let now = Timestamp::now();
-    let mut cards = Cards::new(&app).await?;
-    let mut shelves = Vec::new();
-    let mut times = Vec::new();
-    let mut first_failure = None;
+    let mut pages = Vec::new();
     for id in SHELVES {
+        pages.push((id, shelf_page(&app, &tmdb, id, 1, now).await));
+    }
+    let mut cards = Cards::new(&app).await?;
+    let mut times = Vec::new();
+    // The hero first: its previews then also give the shelves' cards their ratings.
+    let hero = match pages.iter().find(|(id, _)| *id == ShelfId::TrendingDay) {
+        Some((_, Ok(trending))) => hero::choose(&app, &mut cards, &trending.value.results, now)
+            .await?
+            .map(|(hero, preview)| {
+                times.push((preview.fetched_at, preview.stale));
+                hero
+            }),
+        _ => None,
+    };
+    let mut shelves = Vec::new();
+    let mut first_failure = None;
+    for (id, loaded) in pages {
         let mut shelf = Shelf {
             id,
             title: id.title().to_owned(),
@@ -157,7 +175,7 @@ pub async fn shelves(State(app): State<SharedApp>) -> Result<Json<ShelvesAnswer>
             has_more: false,
             error: None,
         };
-        match shelf_page(&app, &tmdb, id, 1, now).await {
+        match loaded {
             Ok(page) => {
                 times.push((page.fetched_at, page.stale));
                 for title in page.value.results.iter().take(VISIBLE) {
@@ -174,13 +192,14 @@ pub async fn shelves(State(app): State<SharedApp>) -> Result<Json<ShelvesAnswer>
         shelves.push(shelf);
     }
     cards.finish(&app);
-    if times.is_empty()
+    if shelves.iter().all(|s| s.error.is_some())
         && let Some(error) = first_failure
     {
         return Err(error);
     }
     Ok(Json(ShelvesAnswer {
         shelves,
+        hero,
         freshness: Freshness::of(times, now),
     }))
 }

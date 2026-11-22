@@ -2,9 +2,10 @@
 //! router, and an [`App`] wired to them (spec discover).
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     net::SocketAddr,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use axum::{
@@ -43,6 +44,10 @@ pub struct Fake {
     pub tmdb_down: bool,
     /// TVDB answers 503 to everything.
     pub tvdb_down: bool,
+    /// TMDB paths (`movie/901`, `trending/all/day`) answered with 500.
+    pub broken: HashSet<String>,
+    /// How long TMDB takes for a title's detail (`movie/{id}`, `tv/{id}`).
+    pub detail_delay: Option<Duration>,
     /// Every TMDB request as `path?query` (without the key).
     pub requests: Vec<String>,
     /// Every image request path.
@@ -146,6 +151,9 @@ fn tmdb(fake: &mut Fake, path: &str, query: &str) -> Response {
     if fake.tmdb_down {
         return StatusCode::SERVICE_UNAVAILABLE.into_response();
     }
+    if fake.broken.contains(path) {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
     let parts: Vec<&str> = path.split('/').collect();
     match parts.as_slice() {
         ["movie", id] if id.parse::<i64>().is_ok() => by_id(&fake.movies, id),
@@ -215,6 +223,12 @@ fn tvdb(fake: &Fake, method: &Method, path: &str) -> Response {
     }
 }
 
+/// `/tmdb/3/movie/{id}` or `/tmdb/3/tv/{id}`.
+fn is_detail(path: &str) -> bool {
+    let parts: Vec<&str> = path.trim_start_matches("/tmdb/3/").split('/').collect();
+    matches!(parts.as_slice(), ["movie" | "tv", id] if id.parse::<i64>().is_ok())
+}
+
 async fn serve(
     State(fake): State<Shared>,
     method: Method,
@@ -222,8 +236,15 @@ async fn serve(
     RawQuery(query): RawQuery,
 ) -> Response {
     let query = query.unwrap_or_default();
-    let mut fake = fake.lock().expect("fake lock");
     let path = uri.path();
+    // A slow detail waits without holding the fake, so requests overlap.
+    let delay = fake.lock().expect("fake lock").detail_delay;
+    if let Some(delay) = delay
+        && is_detail(path)
+    {
+        tokio::time::sleep(delay).await;
+    }
+    let mut fake = fake.lock().expect("fake lock");
     if let Some(rest) = path.strip_prefix("/tmdb/3/") {
         tmdb(&mut fake, rest, &query)
     } else if let Some(rest) = path.strip_prefix("/tvdb/") {

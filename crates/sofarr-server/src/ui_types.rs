@@ -165,6 +165,7 @@ fn generated() -> BTreeMap<String, String> {
     one::<discover::cards::TitleCard>(&cfg, &mut out);
     one::<discover::shelves::ShelfId>(&cfg, &mut out);
     one::<discover::shelves::Shelf>(&cfg, &mut out);
+    one::<discover::hero::Hero>(&cfg, &mut out);
     one::<discover::shelves::ShelvesAnswer>(&cfg, &mut out);
     one::<discover::shelves::ShelfQuery>(&cfg, &mut out);
     one::<discover::shelves::ListAnswer>(&cfg, &mut out);
