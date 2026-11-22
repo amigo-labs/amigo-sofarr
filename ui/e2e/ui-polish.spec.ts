@@ -66,6 +66,10 @@ async function moviesWith(
   base = LIBRARY,
 ): Promise<void> {
   await page.route(`${base}/api/library/movies?*`, async (route) => {
+    // The rows above the list (spec ui-cinema-library-rows, 20 titles each) stay as they are.
+    if (new URL(route.request().url()).searchParams.get('page_size') === '20') {
+      return route.fallback();
+    }
     const answer = await route.fetch();
     const list = (await answer.json()) as ListPage<MovieListItem>;
     change(list.items);

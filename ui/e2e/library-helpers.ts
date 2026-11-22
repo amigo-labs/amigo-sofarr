@@ -58,6 +58,17 @@ export async function openFilters(page: Page): Promise<void> {
 }
 
 /**
+ * Leaves the rows above the movie and series lists without titles (spec
+ * ui-cinema-library-rows AC-06): their list requests (one page of 20) answer with an empty
+ * page, so the page starts with the full list as before the rows.
+ */
+export async function noListRows(page: Page): Promise<void> {
+  await page.route(/\/api\/library\/(movies|series)\?.*page_size=20/, (route) =>
+    route.fulfill({ json: { page: 1, page_size: 20, total: 0, items: [] } }),
+  );
+}
+
+/**
  * Leaves the overview's rows without titles (spec ui-cinema-home AC-04): the rows' list
  * requests (newest added first) answer with an empty page, so a test of the boxes alone
  * sees the quiet line of ui-polish AC-08.

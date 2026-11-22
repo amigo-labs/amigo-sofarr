@@ -97,19 +97,26 @@ async function rest(page: Page): Promise<void> {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 }
 
+/** Whether a response is a page of the full list, not of a row above it (page size 20). */
+const fullList = (url: string, kind: 'movies' | 'series'): boolean =>
+  url.includes(`/api/library/${kind}?`) && !url.includes('page_size=20');
+
 async function openMovies(page: Page, base = LIBRARY, query = ''): Promise<MovieListItem[]> {
-  const answer = page.waitForResponse((r) => r.url().includes('/api/library/movies?'));
+  const answer = page.waitForResponse((r) => fullList(r.url(), 'movies'));
   await page.goto(`${base}/filme${query}`);
   const list = (await (await answer).json()) as ListPage<MovieListItem>;
   await expect(items(page).first()).toBeVisible();
+  // The rows above the list (spec ui-cinema-library-rows) have loaded: nothing moves.
+  await page.waitForLoadState('networkidle');
   return list.items;
 }
 
 async function openSeries(page: Page, base = LIBRARY): Promise<SeriesListItem[]> {
-  const answer = page.waitForResponse((r) => r.url().includes('/api/library/series?'));
+  const answer = page.waitForResponse((r) => fullList(r.url(), 'series'));
   await page.goto(`${base}/serien`);
   const list = (await (await answer).json()) as ListPage<SeriesListItem>;
   await expect(items(page).first()).toBeVisible();
+  await page.waitForLoadState('networkidle');
   return list.items;
 }
 
@@ -509,8 +516,11 @@ test.describe('even tiles (AC-08)', () => {
   }) => {
     await posterView(page);
     await openMovies(page);
-    await rest(page);
     const all = items(page);
+    // Below the rows of ui-cinema-library-rows: the grid's first row in view, so hovering
+    // scrolls nothing.
+    await all.first().scrollIntoViewIfNeeded();
+    await rest(page);
     const tiles = await rects(all);
     const firstRow = tiles.filter((t) => Math.abs(t.y - (tiles[0]?.y ?? 0)) <= 2);
     expect(firstRow.length).toBeGreaterThanOrEqual(3);

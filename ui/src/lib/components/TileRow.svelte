@@ -14,16 +14,18 @@
     href: string;
     /** The number of tiles: the arrows measure the row's ends again when it changes. */
     count: number;
+    /** Called on a click of „Alle anzeigen“ before the browser follows the link. */
+    onmore?: (event: MouseEvent) => void;
     children: Snippet;
   };
-  let { id, title, href, count, children }: Props = $props();
+  let { id, title, href, count, onmore, children }: Props = $props();
 </script>
 
 <section class="tile-row" aria-labelledby="{id}-title" data-row={id} data-testid="tile-row">
   <div class="row-head">
     <h2 id="{id}-title">{title}</h2>
     <span class="row-tools">
-      <a class="ui-link" {href} data-row-more
+      <a class="ui-link" {href} data-row-more onclick={onmore}
         >Alle anzeigen<span class="sr-only">{`: ${title}`}</span></a
       >
       <ShelfArrows name={title} {count} />

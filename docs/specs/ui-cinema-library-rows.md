@@ -93,19 +93,29 @@ The notes are suggestions for the build; the ACs are binding.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-01 | `ui/e2e/cinema-library-rows.spec.ts`: „rows of the movie list (AC-01)“ (3 tests); `ui/src/lib/library/list-rows.test.ts`: „the rows“ | built |  |
+| AC-02 | `ui/e2e/cinema-library-rows.spec.ts`: „rows of the series list (AC-02)“ (2 tests) | built |  |
+| AC-03 | `ui/e2e/cinema-library-rows.spec.ts`: „the full list (AC-03)“ (movies, series) | built |  |
+| AC-04 | `ui/e2e/cinema-library-rows.spec.ts`: „searching and filtering (AC-04)“ (3 tests); `list-rows.test.ts`: „plain lists“ | built |  |
+| AC-05 | `ui/e2e/cinema-library-rows.spec.ts`: „„Alle anzeigen“ (AC-05)“ (3 tests); `list-rows.test.ts`: „„Alle anzeigen““ | built |  |
+| AC-06 | `ui/e2e/cinema-library-rows.spec.ts`: „empty rows (AC-06)“ (2 tests) | built |  |
+| AC-07 | `ui/e2e/cinema-library-rows.spec.ts`: „tiles and monitoring (AC-07)“ (2 tests) | built |  |
+| AC-08 | `ui/e2e/cinema-library-rows.spec.ts`: „loading time (AC-08)“; `ui/e2e/library-perf.spec.ts` (project `perf`) | built |  |
+| AC-09 | `ui/e2e/cinema-library-rows.spec.ts`: „accessibility in the dark palette (AC-09)“ (`/filme`, `/serien` at 1440 and 360 px) | built |  |
+| AC-10 | `docs/site/screenshots/movies.png` regenerated (`cd ui && bun run screenshots`); owner's check pending | open |  |
 | AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
+| AC-12 | `ui/e2e/cinema-library-rows.spec.ts`: „failures and reloads (AC-12)“ | built |  |
 
 ## Decisions
 
 - 2026-11-22: The movie and series lists show rows on top and the full list with search and filters below (owner).
+- 2026-11-22: The total („2501 Filme“) stays beside the page heading „Filme“ / „Serien“, because `ui-list-toolbar` AC-01 puts heading and count in one row; „Alle Filme“ / „Alle Serien“ is an `h2` of its own between the rows and the toolbar.
+- 2026-11-22: `ui-list-toolbar` AC-01 („the first item of the list starts at most 200 px below the top of `main`“) holds only while no row stands above the list, which this spec's owner decision puts there on a plain list; its test now serves the rows empty (`noListRows` in `ui/e2e/library-helpers.ts`, AC-06: the page starts with the full list as today). Tests of other specs that changed the list API's answers or waited for its first answer now leave the rows' requests (page size 20) alone, and `cinema-tiles` waits until the rows have loaded before measuring the grid.
+- 2026-11-22: The website screenshot `movies.png` is taken with the heading „Alle Filme“ a little above the middle of the window (`ui/e2e/site/screenshots.mjs`), so it shows the last rows above the full list; clicking „Poster“ for the shot used to scroll the toolbar into view anyway.
+- 2026-11-22: „Alle anzeigen“ is a link that adds a history entry (Back returns to the plain list with its rows), unlike the toolbar's changes, which replace it; a click with a modifier key opens the link as the browser does.
+- 2026-11-22: After „Alle anzeigen“ the focus moves to the heading „Alle Filme“ / „Alle Serien“ (`tabindex="-1"`), so a keyboard user continues at the full list.
+- 2026-11-22: „Am besten bewertet“ asks the list API for `sort=rating&order=asc`: the API sorts by rating best first in ascending order (imdb-ratings AC-06), as the toolbar's „Bewertung“ does; titles without a rating, which the API puts last, are dropped in the UI.
+- 2026-11-22: While ratings are on, a row tile shows the compact rating in its overlay and the rating with votes in its link's name, as the full list's poster tiles do (ui-cinema-tiles AC-05).
+- 2026-11-22: The rows load only when the page opens and when the list becomes plain (AC-12); a change of sort or view keeps them. They do not refresh on their own, so `keepRowFocus` is not needed.
+- 2026-11-22: `RowTile` takes an optional `monitor` (monitored, busy, ontoggle) for the toggle in the poster's top right corner, and `TileRow` an optional `onmore` click handler for „Alle anzeigen“; the overview passes neither.
+- 2026-11-22: The unit tests of `list-rows.ts` were written with the module; the e2e tests of `cinema-library-rows.spec.ts` were red first (no rows, no heading „Alle Filme“).
