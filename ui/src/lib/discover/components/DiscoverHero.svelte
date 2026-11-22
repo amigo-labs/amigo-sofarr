@@ -137,7 +137,7 @@
     .hero {
       justify-content: flex-end;
       min-height: 360px;
-      padding: var(--base-size-32) var(--base-size-24) var(--base-size-24);
+      padding: var(--base-size-48) var(--base-size-24) var(--base-size-24);
       border-radius: var(--borderRadius-large, 0.75rem);
     }
   }
