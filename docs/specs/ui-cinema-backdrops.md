@@ -118,7 +118,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 | AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-09 |      | open   |        |
 | AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
-| AC-11 |      | open   |        |
+| AC-11 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22 from the demo instance, whose refresh stores the demo titles' backdrops; `movie.png` and `series.png` show them behind the head | built |  |
 | AC-12 |      | open   |        |
 
 ## Decisions
@@ -129,5 +129,6 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 - 2026-11-22 (build): The contrast is measured from pixels: the head's texts are made transparent, each text's box is photographed and its lightest and darkest pixel compared with the text's colour.
 - 2026-11-22 (build): The scrim is 84 % of the page ground under the head's content (the poster column and a measure of 42 rem), falls to 15 % within the next 16 rem, and is the full page ground at the lower edge. All content of the head, the facts panel too, keeps to the 42 rem measure, so the image is free beside it.
 - 2026-11-22 (build): The demo instance of the website screenshots runs `refresh-metadata` and `refresh-series` after its imports, because only the refresh stores backdrops. AC-11 (the regenerated screenshots) and AC-12 are open: at 1440 px the head's content and its scrim leave only a narrow strip of the image visible, and the owner has been asked whether the head should change its layout (a revision of AC-05).
+- 2026-11-22: The owner saw the movie and series page at 1440 px and chose to keep this layout: the backdrop as a quiet mood behind the head, the content on a strong scrim (over a band of the image above the head, or a narrower text column). AC-05 stays as written.
 - 2026-11-22 (build): Older e2e tests adjusted, none removed: the preview's backdrop is sharp (`discover-polish.spec.ts`), the blurred poster is the fallback and its veil is the component's (`library-detail-head.spec.ts`).
 - 2026-11-22: The scrim, not the choice of image, guarantees the contrast (AC-07), because sofarr cannot know how bright a provider's image is.
