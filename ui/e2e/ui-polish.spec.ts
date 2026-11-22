@@ -271,6 +271,12 @@ test.describe('poster tiles (AC-04, AC-05)', () => {
     const metas = await row('.main .meta');
     const labels = await row('.main .labels');
     labels.forEach((l, i) => expect(l.y - (metas[i]?.bottom ?? 0)).toBeLessThanOrEqual(8));
+    // The row really holds the mix: a tile with two chips next to tiles with one.
+    const chipCounts = await all.evaluateAll((els) =>
+      els.map((el) => el.querySelectorAll('.main .labels .label').length),
+    );
+    expect(chipCounts.slice(0, n)).toContain(2);
+    expect(chipCounts.slice(0, n)).toContain(1);
     // Tiles and their ratings end at one edge, with one chip or two.
     expect(level(first.map((b) => b.bottom))).toBe(true);
     const ratings = await row('[data-testid="rating"]');
@@ -557,6 +563,30 @@ test.describe('freshness line (AC-10)', () => {
     await expectAtEnd(page);
   });
 
+  test('library series: the cast’s line stands at the end, not in the cast box', async ({
+    page,
+  }) => {
+    // The discover library's series has no TMDB id and so no cast: its cast request is
+    // answered with the cast answer of the library movie.
+    const movie = await movieId(page.request, DISCOVER, 'Das Boot');
+    const cast: unknown = await (
+      await page.request.get(`${DISCOVER}/api/library/movies/${movie}/cast`)
+    ).json();
+    await page.route('**/api/library/series/*/cast', (route) => route.fulfill({ json: cast }));
+    await page.goto(`${DISCOVER}/serien/${await seriesId(page.request, DISCOVER, 'Kleine Insel')}`);
+    await expect(page.getByRole('list', { name: 'Besetzung' })).toBeVisible();
+    await expect(page.locator('.cast').getByTestId('fetched')).toHaveCount(0);
+    await expectAtEnd(page);
+  });
+
+  test('a library page without a cast shows no freshness line', async ({ page }) => {
+    await page.goto(`${LIBRARY}/filme/${await movieId(page.request, LIBRARY, 'Film 0001')}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('list', { name: 'Besetzung' })).toHaveCount(0);
+    await expect(page.getByTestId('fetched')).toHaveCount(0);
+  });
+
   test('a stale answer keeps its warning on top and the line at the end', async ({ page }) => {
     await page.route('**/api/discover/shelves', async (route) => {
       const answer = await route.fetch();
@@ -627,6 +657,9 @@ test.describe('dropdowns (AC-11)', () => {
     const select = page.getByLabel('Qualitätsprofil');
     await expect(select).toBeVisible();
     expect((await look(select)).appearance).toBe('none');
+    // The boxes before the select load their buttons one by one; a button that arrives
+    // between the two key presses would take the focus. Wait until the page is at rest.
+    await page.waitForLoadState('networkidle');
     await select.focus();
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');
