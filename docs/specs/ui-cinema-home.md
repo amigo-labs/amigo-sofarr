@@ -82,14 +82,14 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
+| AC-01 | `ui/e2e/cinema-home.spec.ts` „rows (AC-01)“ (both tests); `ui/src/lib/library/home.test.ts` | built |        |
+| AC-02 | `ui/e2e/cinema-home.spec.ts` „tiles of „Demnächst“ (AC-02)“; `crates/sofarr-server/src/overview_tests.rs` `calendar_entries_say_whether_their_title_has_a_poster`; `ui/src/lib/library/home.test.ts` | built |        |
+| AC-03 | `ui/e2e/cinema-home.spec.ts` „„Alle anzeigen“ (AC-03)“ | built |        |
+| AC-04 | `ui/e2e/cinema-home.spec.ts` „empty rows (AC-04)“ (three tests); `ui/e2e/ui-polish.spec.ts` „overview: empty boxes (AC-08)“, `ui/e2e/overview-polish.spec.ts` „empty states“ with empty rows | built |        |
+| AC-05 | `ui/e2e/cinema-home.spec.ts` „refresh (AC-05)“ | built |        |
+| AC-06 | `ui/e2e/cinema-home.spec.ts` „failures (AC-06)“ | built |        |
+| AC-07 | `ui/e2e/cinema-home.spec.ts` „loading time (AC-07)“ (measured 1166 ms, annotation „Messung“) | built |        |
+| AC-08 | `ui/e2e/cinema-home.spec.ts` „accessibility in the dark palette (AC-08)“ at 1440 and 360 px | built |        |
 | AC-09 |      | open   |        |
 | AC-10 |      | open   |        |
 
@@ -97,3 +97,11 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 
 - 2026-11-22: The overview gets the rows „Demnächst“, „Zuletzt hinzugefügt“ and „Fehlt noch“ above its boxes (owner).
 - 2026-11-22: The rows read the APIs of today and need no new endpoint, because each row is a sorted or filtered page of an existing list.
+- 2026-11-22: The row component is `ui/src/lib/components/TileRow.svelte` (heading, „Alle anzeigen“, arrows, a list named by the heading) with `keepRowFocus` (`row-focus.ts`) for AC-05; `ShelfArrows` moved to `ui/src/lib/components/` and measures its ends again when the tile count changes, because `ui-cinema-library-rows` reuses all three outside discover.
+- 2026-11-22: The focus is kept by watching the rows' DOM (a `MutationObserver`), not by Svelte effects, because a keyed list may move a focused tile out and back in, which drops the focus without any event.
+- 2026-11-22: „Alle anzeigen“ carries the row's name as hidden text („Alle anzeigen: Demnächst“), because the three links lead to different pages and need distinct names.
+- 2026-11-22: Tiles of „Demnächst“ carry no state mark, and no tile of the rows shows an IMDb rating: the row itself says what the titles have in common, and the overview does not read the ratings switch.
+- 2026-11-22: A row whose first load has not answered yet counts as not empty, so the quiet line does not flash before the rows arrive; on equal added times movies come before series.
+- 2026-11-22: The older tests of the quiet line (`ui-polish` AC-08, AC-13; `ui-overview-polish` AC-06) serve empty rows (`emptyRows` in `library-helpers.ts`), because AC-04 shows the line only while the rows are empty too.
+- 2026-11-22: Poster tile links are never underlined: the placeholder's initial counted as an underlined title link (`look` AC-12).
+- 2026-11-22: The unit tests of `home.ts` were green at once (written after the module); the red run of AC-01 .. AC-08 is the e2e run before the page had rows (11 of 12 failed; „no rows and no boxes: the quiet line“ passed, the behavior of today).

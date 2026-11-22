@@ -12,7 +12,7 @@ import type { Page as ListPage } from '../src/lib/api/generated/Page';
 import type { StatesAnswer } from '../src/lib/api/generated/StatesAnswer';
 import { DISCOVER, settle } from './discover-helpers';
 import { RATINGS, waitForRatings } from './extras-helpers';
-import { LIBRARY, items, movieId, seriesId } from './library-helpers';
+import { emptyRows, LIBRARY, items, movieId, seriesId } from './library-helpers';
 import { ratingsSettled } from './site/settled.mjs';
 import { PALETTES, storeTheme } from './theme-helpers';
 
@@ -399,6 +399,7 @@ const figure = (page: Page, label: string) =>
 test.describe('overview: empty boxes (AC-08)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test('all boxes empty: no box, plain figures and the quiet line', async ({ page }) => {
+    await emptyRows(page);
     await overviewWith(page, EMPTY_OVERVIEW);
     await page.goto(`${LIBRARY}/`);
     await expect(page.getByText(ALL_QUIET)).toBeVisible();
@@ -461,6 +462,7 @@ test.describe('overview: empty boxes (AC-08)', () => {
       await page.request.get(`${LIBRARY}/api/overview`)
     ).json()) as OverviewAnswer;
     let withProblem = true;
+    await emptyRows(page);
     await page.route('**/api/overview', (route) =>
       route.fulfill({
         json: { ...EMPTY_OVERVIEW(real), problems: withProblem ? [PROBLEM] : [] },
@@ -715,6 +717,7 @@ for (const palette of PALETTES) {
       });
 
       test('overview with all boxes hidden and with only some', async ({ page }) => {
+        await emptyRows(page);
         await overviewWith(page, EMPTY_OVERVIEW);
         await page.goto(`${LIBRARY}/`);
         await expect(page.getByText(ALL_QUIET)).toBeVisible();

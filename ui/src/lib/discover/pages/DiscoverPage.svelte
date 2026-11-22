@@ -22,7 +22,7 @@
   import DiscoverHero from '../components/DiscoverHero.svelte';
   import FreshnessNote from '../components/FreshnessNote.svelte';
   import DiscoverToolbar from '../components/DiscoverToolbar.svelte';
-  import ShelfArrows from '../components/ShelfArrows.svelte';
+  import ShelfArrows from '../../components/ShelfArrows.svelte';
   import StatusGate from '../components/StatusGate.svelte';
   import TitleList from '../components/TitleList.svelte';
 

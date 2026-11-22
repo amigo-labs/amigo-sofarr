@@ -79,6 +79,7 @@
   .link {
     display: block;
     border-radius: var(--borderRadius-medium);
+    text-decoration: none;
   }
 
   .poster-wrap {
