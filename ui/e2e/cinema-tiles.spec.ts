@@ -230,6 +230,9 @@ test.describe('state mark (AC-02)', () => {
 
 /** Hovers a tile and checks that it opens over its neighbour and closes again (AC-03). */
 async function expectOpens(page: Page, tile: Locator, neighbour: Locator, texts: RegExp[]) {
+  // In view first: hovering would scroll it there and move it (the discover hero above
+  // the shelves pushes them to the fold, spec ui-cinema-hero).
+  await tile.scrollIntoViewIfNeeded();
   await rest(page);
   const before = await rect(tile);
   await tile.hover();

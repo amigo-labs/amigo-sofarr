@@ -57,7 +57,7 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
     await expect(unrated.getByRole('link')).toHaveAccessibleName(/, IMDb –$/);
 
     // A title whose IMDb id is still loading shows the placeholder until it is known.
-    const slow = cards(trending, 'movie/504').getByRole('link');
+    const slow = cards(shelves.nth(1), 'movie/504').getByRole('link');
     await expect(slow).toHaveAccessibleName(/, IMDb-Bewertung folgt$/);
     await release(page.request, 'movie', 504);
     await expect(slow).toHaveAccessibleName(/, IMDb 5,0 \(1\.000 Stimmen\)$/, {

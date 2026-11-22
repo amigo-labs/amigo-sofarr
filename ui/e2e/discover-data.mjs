@@ -91,10 +91,14 @@ export const movieById = (id) => byId(MOVIES, id);
 export const seriesById = (id) => byId(SERIES, id);
 const pick = (kind, ids) => ids.map((id) => (kind === 'movie' ? movieById(id) : seriesById(id)));
 
-/** The shelves' TMDB lists by path. */
+/**
+ * The shelves' TMDB lists by path. „Heute beliebt“ holds no title of `HELD`: sofarr loads
+ * the previews of its first candidates for the hero (spec ui-cinema-hero AC-07) before it
+ * answers, and a held one would hold back the whole start page.
+ */
 export const LISTS = {
   'trending/all/day': [
-    ...pick('movie', [501, 504]),
+    ...pick('movie', [501]),
     ...pick('series', [603]),
     ...pick('movie', [502]),
     ...pick('series', [601]),
@@ -103,7 +107,11 @@ export const LISTS = {
       fillers(520, 20, (id) => id),
     ),
   ],
-  'trending/all/week': [...pick('movie', [502, 505, 506]), ...pick('series', [601, 605])],
+  'trending/all/week': [
+    ...pick('movie', [502, 505, 506]),
+    ...pick('series', [601, 605]),
+    ...pick('movie', [504]),
+  ],
   'movie/popular': [
     ...pick('movie', [502, 503]),
     ...pick(
