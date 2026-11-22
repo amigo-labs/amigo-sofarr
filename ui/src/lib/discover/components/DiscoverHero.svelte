@@ -105,7 +105,7 @@
   h2 {
     margin: 0;
     font-size: var(--text-title-size-large);
-    line-height: var(--text-title-line);
+    line-height: var(--text-title-lineHeight-medium);
     overflow-wrap: anywhere;
   }
 
