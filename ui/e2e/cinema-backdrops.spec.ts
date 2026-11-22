@@ -216,6 +216,44 @@ for (const [name, open] of PAGES) {
       await expect(headOf(page).getByRole('heading', { level: 1 })).toBeVisible();
     });
 
+    test('the scrim is strong under the text and light at the top right', async ({ page }) => {
+      // Over an all-white image the scrim's share of the page ground can be read from a
+      // pixel: 0 is the white image, 1 the page ground.
+      await serveBackdrop(page, { colour: 'white' });
+      await open(page);
+      await loaded(page);
+      await page.addStyleTag({
+        content: 'section.head .text, section.head .text * { color: transparent !important; }',
+      });
+      const ground = (
+        (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).match(
+          /\d+/g,
+        ) ?? []
+      ).map(Number);
+      const share = async (x: number, y: number): Promise<number> => {
+        const shot = await page.screenshot({ clip: { x, y, width: 1, height: 1 } });
+        const pixel = await page.evaluate(async (data) => {
+          const image = new Image();
+          image.src = `data:image/png;base64,${data}`;
+          await image.decode();
+          const canvas = document.createElement('canvas');
+          canvas.width = 1;
+          canvas.height = 1;
+          const context = canvas.getContext('2d');
+          context?.drawImage(image, 0, 0);
+          return [...(context?.getImageData(0, 0, 1, 1).data ?? [0, 0, 0])].slice(0, 3);
+        }, shot.toString('base64'));
+        const shares = pixel.map((v, i) => (255 - v) / (255 - (ground[i] ?? 0)));
+        return shares.reduce((a, b) => a + b, 0) / shares.length;
+      };
+      const head = await rect(headOf(page));
+      const title = await rect(headOf(page).getByRole('heading', { level: 1 }));
+      expect(await share(head.x + head.width - 8, head.y + 8)).toBeLessThanOrEqual(0.45);
+      // Under the title: at its start and at the end of the text column's measure.
+      expect(await share(title.x + 2, title.y + 2)).toBeGreaterThanOrEqual(0.8);
+      expect(await share(title.x + title.width - 2, title.y + 2)).toBeGreaterThanOrEqual(0.8);
+    });
+
     test('below 1024 px the head is as high as its content', async ({ page }) => {
       await serveBackdrop(page, { colour: 'grey' });
       await page.setViewportSize({ width: 800, height: 900 });

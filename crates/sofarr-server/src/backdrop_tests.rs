@@ -214,7 +214,11 @@ async fn the_series_refresh_takes_the_backdrop_by_tmdb_id() {
             .expect("the refresh succeeds");
     };
 
-    // Without a TMDB client the series has no TMDB id and no backdrop.
+    // A series without a TMDB id has no backdrop: one stored earlier goes with the refresh.
+    app.db
+        .set_backdrop_path(MediaRef::Series(show.id), Some("/alt.jpg"))
+        .await
+        .expect("backdrop");
     refresh(None).await;
     assert_eq!(backdrop().await, None);
 
