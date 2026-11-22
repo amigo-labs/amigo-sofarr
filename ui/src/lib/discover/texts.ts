@@ -4,6 +4,7 @@ import type { Freshness } from '../api/generated/Freshness';
 import type { LibraryStatus } from '../api/generated/LibraryStatus';
 import type { Rating } from '../api/generated/Rating';
 import type { TitleKind } from '../api/generated/TitleKind';
+import type { Mark } from '../components/tile';
 import { ratingCompactText, ratingWithVotesText } from '../imdb/imdb';
 import { dateTimeText } from '../system/format';
 import type { Tone } from '../system/format';
@@ -13,6 +14,13 @@ export const KIND_TEXT: Readonly<Record<TitleKind, string>> = { movie: 'Film', s
 /** The label of a title's library state; `null` for a title that is neither. */
 export function libraryLabel(status: LibraryStatus): { text: string; tone: Tone } | null {
   if (status === 'in_library') return { text: 'In der Bibliothek', tone: 'success' };
+  if (status === 'excluded') return { text: 'Ausgeschlossen', tone: 'danger' };
+  return null;
+}
+
+/** The state mark of a title's tile (spec ui-cinema-tiles AC-02); `null` for neither. */
+export function libraryMark(status: LibraryStatus): Mark | null {
+  if (status === 'in_library') return { text: 'In der Bibliothek', tone: 'accent' };
   if (status === 'excluded') return { text: 'Ausgeschlossen', tone: 'danger' };
   return null;
 }

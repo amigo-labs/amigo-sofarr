@@ -1,4 +1,6 @@
 <script lang="ts">
+  import PosterTile from '../../components/PosterTile.svelte';
+  import { tileName } from '../../components/tile';
   import type { Row } from '../rows';
   import type { ListView } from '../view';
   import Label from './Label.svelte';
@@ -10,6 +12,8 @@
   // imdb-ratings AC-04, AC-09). Quiet cards and rows (spec ui-list-items): status chips, the
   // monitor toggle as an icon, the checkbox on hover, focus or while selecting, dimmed
   // posters of unmonitored items. The DOM order is the Tab order: title, checkbox, toggle.
+  // In poster view every item is a poster tile (spec ui-cinema-tiles): its information in
+  // the overlay, checkbox and toggle in the poster's top corners.
   type Props = {
     rows: readonly Row[];
     view: ListView;
@@ -22,6 +26,29 @@
   let { rows, view, ratings, selected, busy, onselect, onmonitor }: Props = $props();
 </script>
 
+{#snippet select(row: Row)}
+  <label class="select">
+    <input
+      type="checkbox"
+      checked={selected.has(row.id)}
+      onchange={(e) => onselect(row.id, e.currentTarget.checked)}
+    />
+    <span class="sr-only">„{row.title}“ auswählen</span>
+  </label>
+{/snippet}
+
+{#snippet monitor(row: Row)}
+  <span class="monitor-slot">
+    <MonitorButton
+      icon
+      monitored={row.monitored}
+      title={row.title}
+      busy={busy.has(row.id)}
+      ontoggle={() => onmonitor(row)}
+    />
+  </span>
+{/snippet}
+
 <ul
   class="items"
   class:grid={view === 'poster'}
@@ -29,65 +56,92 @@
   data-testid="library-items"
 >
   {#each rows as row (row.id)}
-    <li
-      class="item"
-      class:selected={selected.has(row.id)}
-      class:unmonitored={!row.monitored}
-      data-id={row.id}
-    >
-      <div class="poster-wrap">
-        <Poster
-          kind={row.kind}
-          id={row.id}
-          title={row.title}
-          hasPoster={row.hasPoster}
-          size="list"
-        />
-      </div>
-      <div class="main">
-        <span class="headline">
-          <a class="title ui-link" href={row.href} title={row.title}>{row.title}</a>
-          <span class="meta">
-            {[row.year, row.subtitle].filter((part) => part !== null).join(' · ')}
+    {#if view === 'poster'}
+      <PosterTile
+        class="item"
+        data-id={row.id}
+        href={row.href}
+        title={row.title}
+        name={tileName(row.title, row.year, ratings ? row.ratingFull : null)}
+        mark={row.mark}
+        dimmed={!row.monitored}
+        selected={selected.has(row.id)}
+      >
+        {#snippet poster()}
+          <Poster
+            kind={row.kind}
+            id={row.id}
+            title={row.title}
+            hasPoster={row.hasPoster}
+            size="list"
+          />
+        {/snippet}
+        {#snippet overlay()}
+          <span class="main">
+            <span class="title" aria-hidden="true">{row.title}</span>
+            <span class="meta">
+              {[row.year, row.subtitle].filter((part) => part !== null).join(' · ')}
+            </span>
+            {#if ratings}
+              <span class="rating" data-testid="rating" aria-hidden="true">{row.rating}</span>
+            {/if}
+            <span class="labels">
+              {#each row.labels as label (label.text)}<Label
+                  text={label.text}
+                  tone={label.tone}
+                />{/each}
+            </span>
           </span>
-        </span>
-        <span class="labels">
-          {#each row.labels as label (label.text)}<Label
-              text={label.text}
-              tone={label.tone}
-            />{/each}
-        </span>
-      </div>
-      <label class="select">
-        <input
-          type="checkbox"
-          checked={selected.has(row.id)}
-          onchange={(e) => onselect(row.id, e.currentTarget.checked)}
-        />
-        <span class="sr-only">„{row.title}“ auswählen</span>
-      </label>
-      {#if view === 'liste'}
+        {/snippet}
+        {#snippet controls()}
+          {@render select(row)}
+          {@render monitor(row)}
+        {/snippet}
+      </PosterTile>
+    {:else}
+      <li
+        class="item"
+        class:selected={selected.has(row.id)}
+        class:unmonitored={!row.monitored}
+        data-id={row.id}
+      >
+        <div class="poster-wrap">
+          <Poster
+            kind={row.kind}
+            id={row.id}
+            title={row.title}
+            hasPoster={row.hasPoster}
+            size="list"
+          />
+        </div>
+        <div class="main">
+          <span class="headline">
+            <a class="title ui-link" href={row.href} title={row.title}>{row.title}</a>
+            <span class="meta">
+              {[row.year, row.subtitle].filter((part) => part !== null).join(' · ')}
+            </span>
+          </span>
+          <span class="labels">
+            {#each row.labels as label (label.text)}<Label
+                text={label.text}
+                tone={label.tone}
+              />{/each}
+          </span>
+        </div>
+        {@render select(row)}
         <span class="size meta">{row.size}</span>
-      {/if}
-      {#if ratings}
-        <span
-          class="rating meta"
-          data-testid="rating"
-          role="img"
-          aria-label={row.ratingFull}
-          title={row.ratingFull}>{row.rating}</span
-        >
-      {/if}
-      <span class="monitor-slot">
-        <MonitorButton
-          icon
-          monitored={row.monitored}
-          title={row.title}
-          busy={busy.has(row.id)}
-          ontoggle={() => onmonitor(row)}
-        />
-      </span>
-    </li>
+        {#if ratings}
+          <span
+            class="rating meta"
+            data-testid="rating"
+            role="img"
+            aria-label={row.ratingFull}
+            title={row.ratingFull}>{row.rating}</span
+          >
+        {/if}
+        {@render monitor(row)}
+      </li>
+    {/if}
   {/each}
 </ul>
 
@@ -192,12 +246,12 @@
 
   /* The checkbox shows on hover or focus, or while selecting; touch devices always show it. */
   @media (hover: hover) {
-    .items:not(.selecting) .item:not(:hover, :focus-within) .select {
+    .items:not(.selecting) :global(li:not(:hover, :focus-within) .select) {
       opacity: 0;
     }
   }
 
-  /* Cards. */
+  /* Poster tiles (spec ui-cinema-tiles): a row is as high as its posters. */
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
@@ -206,51 +260,28 @@
     background: none;
   }
 
-  .grid .item {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: var(--base-size-8);
-    align-items: stretch;
-    padding: 0;
-    border: 0;
-  }
-
-  .grid .item.selected .poster-wrap {
-    outline: 2px solid var(--am-accent);
-    outline-offset: 2px;
-  }
-
-  .grid .headline {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-  }
-
-  .grid .title {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    min-height: 2lh;
-    overflow-wrap: anywhere;
+  .grid .title,
+  .grid .meta {
     white-space: normal;
   }
 
-  /* Every card reserves two title lines and its year line, and ends with its rating, so the
-     cards of a row line up (ui-polish AC-04, AC-05). */
-  .grid .headline .meta {
-    min-height: 1lh;
+  .grid .main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+    max-width: 100%;
   }
 
-  .grid .main {
-    flex: 1 0 auto;
+  .grid .labels {
+    margin-top: 2px;
   }
 
   .grid .select,
   .grid .monitor-slot {
     position: absolute;
     top: var(--base-size-4);
+    z-index: 2;
   }
 
   .grid .select {
@@ -261,11 +292,6 @@
 
   .grid .monitor-slot {
     right: var(--base-size-4);
-  }
-
-  .grid .rating {
-    align-self: flex-start;
-    margin-top: auto;
   }
 
   /* Rows on narrow screens: cards with the rating below the chips (AC-22). */

@@ -32,14 +32,15 @@
     list-style: none;
   }
 
-  /* Positioned, so hidden texts of tiles scrolled out of view stay inside the row. */
+  /* Positioned, so hidden texts of tiles scrolled out of view stay inside the row. Room
+     above and below for an open tile, which grows by 7 % (spec ui-cinema-tiles AC-03). */
   .row {
     position: relative;
     grid-template-columns: none;
     grid-auto-flow: column;
     grid-auto-columns: 9rem;
     overflow-x: auto;
-    padding-bottom: var(--base-size-8);
+    padding-block: var(--base-size-12) var(--base-size-16);
     overscroll-behavior-x: contain;
   }
 
