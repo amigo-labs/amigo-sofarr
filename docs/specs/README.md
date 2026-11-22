@@ -47,6 +47,7 @@ because later specs build on earlier ones.
 | 29 | [parser-season-in-title](parser-season-in-title.md) | S | parser-episode-gaps | Episode parser: a season word before ` - 06` belongs to the anime title; `[Grp][Title.S2][05]` is S02E05 (deliberate deviation from Sonarr) | done |
 | 30 | [release-oracle-history](release-oracle-history.md) | S | – | Release oracle: `already_imported` in the decision engine, imported release names in the release fixtures; "Raw Bluray/DVD release" as deliberate deviation | done |
 | 31 | [krake-download-client](krake-download-client.md) | M | – | Krake (formerly amigo-downloader) as download client through its NZBGet-compatible API (D32) | done |
+| 32 | [ui-polish](ui-polish.md) | M | ui-overview-polish | UI redesign 11: even poster tiles with two title lines, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 | `/spec-build ui-polish` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
