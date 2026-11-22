@@ -77,7 +77,8 @@ test.describe('overview (AC-02 .. AC-04)', () => {
   test('three key figures, counted from the boxes, each linking to its box', async ({ page }) => {
     const answer = await overviewAnswer(page);
     await page.goto(`${LIBRARY}/`);
-    const figures = page.getByRole('list', { name: 'Kennzahlen' }).getByRole('link');
+    // A figure links to its box while the box shows (ui-polish AC-08).
+    const figures = page.getByRole('list', { name: 'Kennzahlen' }).locator('.figure');
     await expect(figures).toHaveCount(3);
     await expect(figures.nth(0)).toHaveText(
       new RegExp(`^\\s*${answer.queue.items.length}\\s*Warteschlange\\s*$`),
@@ -94,9 +95,17 @@ test.describe('overview (AC-02 .. AC-04)', () => {
       'Die nächsten 7 Tage',
     ].entries()) {
       const href = await figures.nth(i).getAttribute('href');
-      expect(href).toMatch(/^#/);
-      await expect(page.locator(`${href} `)).toHaveText(heading);
+      const shown = (await page.getByRole('heading', { name: heading, exact: true }).count()) > 0;
+      if (shown) {
+        expect(href).toMatch(/^#/);
+        await expect(page.locator(`${href} `)).toHaveText(heading);
+      } else {
+        expect(href).toBeNull();
+      }
     }
+    // The library server has no download client and upcoming dates: two boxes show.
+    await expect(figures.nth(0)).toHaveAttribute('href', '#queue-title');
+    await expect(figures.nth(2)).toHaveAttribute('href', '#upcoming-title');
   });
 
   test('the problems figure is danger while there are problems, neutral without', async ({
@@ -122,7 +131,7 @@ test.describe('overview (AC-02 .. AC-04)', () => {
         route.fulfill({ json: { ...real, problems } }),
       );
       await page.goto(`${LIBRARY}/`);
-      const tile = page.getByRole('list', { name: 'Kennzahlen' }).getByRole('link').nth(1);
+      const tile = page.getByRole('list', { name: 'Kennzahlen' }).locator('.figure').nth(1);
       await expect(tile).toContainText(String(problems.length));
       const ground = await tile.evaluate((el) => getComputedStyle(el).backgroundColor);
       if (problems.length > 0) expect(ground).toBe(token('dark', 'danger-subtle'));
@@ -133,6 +142,25 @@ test.describe('overview (AC-02 .. AC-04)', () => {
 
   test('two columns from 1200 px, one below', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
+    // All four boxes with content, so all four show (ui-polish AC-08).
+    const real = await overviewAnswer(page);
+    const entry: OverviewAnswer['problems'][number] = {
+      kind: 'movie',
+      grab_id: 1,
+      media_id: 1,
+      media_title: 'Film 0001',
+      release_title: 'Film.0001.1951.1080p-GRP',
+      quality: 'Bluray-1080p',
+      size: 1_000_000,
+      status: 'failed',
+      message: 'Download fehlgeschlagen',
+      episode_ids: [],
+      grabbed_at: '2026-11-16T08:00:00Z',
+      updated_at: '2026-11-16T09:00:00Z',
+    };
+    await page.route('**/api/overview', (route) =>
+      route.fulfill({ json: { ...real, problems: [entry], activity: [entry] } }),
+    );
     await page.goto(`${LIBRARY}/`);
     const queue = page.getByRole('region', { name: 'Warteschlange' });
     const upcoming = page.getByRole('region', { name: 'Die nächsten 7 Tage' });

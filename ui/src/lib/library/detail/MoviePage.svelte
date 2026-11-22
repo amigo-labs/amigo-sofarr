@@ -6,7 +6,9 @@
   import { ensureOptions, options } from '../options.svelte';
   import { searchBody } from '../actions';
   import Label from '../components/Label.svelte';
+  import type { Freshness } from '../../api/generated/Freshness';
   import CastBox from '../../discover/CastBox.svelte';
+  import FreshnessNote from '../../discover/components/FreshnessNote.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
   import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
   import { imdb } from '../../imdb/info.svelte';
@@ -25,6 +27,9 @@
   // A movie (spec web-ui-library AC-05, AC-09 to AC-13, AC-15 to AC-17).
   type Props = { id: number };
   let { id }: Props = $props();
+
+  // When the cast was fetched; its line stands at the page's end (spec ui-polish AC-10).
+  let castFreshness: Freshness | null = $state(null);
 
   const movie = createResource(() => getMovie(id));
   const actions = createItemActions(() => void movie.reload());
@@ -51,6 +56,7 @@
     )}
     overview={m.overview}
     hasPoster={m.has_poster}
+    backdrop={m.backdrop}
     monitored={m.monitored}
     busy={actions.busy.has('monitor')}
     searching={actions.busy.has('search')}
@@ -107,7 +113,7 @@
     {/snippet}
   </DetailHead>
 
-  <CastBox kind="movie" id={m.id} />
+  <CastBox kind="movie" id={m.id} bind:freshness={castFreshness} />
 
   <div class="detail-columns">
     <div class="detail-main">
@@ -155,6 +161,7 @@
       <TrailerBox kind="movie" id={m.id} title={m.title} />
     </div>
   </div>
+  <FreshnessNote part="line" freshness={castFreshness} />
   <ImdbAttribution info={imdb.info} />
 {:else if movie.failure !== null}
   <PageError

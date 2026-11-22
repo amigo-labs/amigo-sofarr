@@ -110,7 +110,8 @@ pub async fn refresh_all(app: &App) -> anyhow::Result<usize> {
     Ok(done)
 }
 
-/// Poster path and overview TMDB offers for a movie (a new path loads the new poster).
+/// Poster path, backdrop path and overview TMDB offers for a movie (a new path loads the
+/// new image).
 pub async fn store_presentation(app: &App, id: i64, meta: &MovieMetadata) -> anyhow::Result<()> {
     app.db
         .set_movie_presentation(
@@ -120,6 +121,17 @@ pub async fn store_presentation(app: &App, id: i64, meta: &MovieMetadata) -> any
                 .and_then(crate::images::tmdb_path)
                 .as_deref(),
             meta.overview.as_deref(),
+        )
+        .await?;
+    // The backdrop follows TMDB's answer exactly: none named, none stored (spec
+    // ui-cinema-backdrops AC-01).
+    app.db
+        .set_backdrop_path(
+            sofarr_db::MediaRef::Movie(id),
+            meta.backdrop_path
+                .as_deref()
+                .and_then(crate::images::tmdb_path)
+                .as_deref(),
         )
         .await?;
     Ok(())
@@ -210,6 +222,7 @@ mod tests {
             digital_release: None,
             physical_release: None,
             poster_path: None,
+            backdrop_path: None,
             overview: None,
         }
     }

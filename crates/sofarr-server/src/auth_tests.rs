@@ -198,6 +198,26 @@ async fn the_cookie_is_secure_behind_an_https_proxy() {
     assert!(set.contains("Secure"), "{set}");
 }
 
+/// Spec ui-cinema-backdrops AC-04: a backdrop needs the same login as a poster.
+#[tokio::test]
+async fn images_need_a_credential_backdrops_like_posters() {
+    let (server, _) = on("").await;
+    for size in ["list", "backdrop"] {
+        let path = format!("/api/images/movie/1/{size}");
+        let without = server.get(&path).send().await.expect("request");
+        assert_eq!(without.status(), StatusCode::UNAUTHORIZED, "{path}");
+        // With a credential the request reaches the images: the movie has none stored.
+        let with = server
+            .get(&path)
+            .header("x-api-key", API_KEY)
+            .send()
+            .await
+            .expect("request");
+        assert_eq!(with.status(), StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(body(with).await["error"], "Kein Bild verfügbar", "{path}");
+    }
+}
+
 #[tokio::test]
 async fn the_api_key_header_authenticates() {
     let (server, _) = on("").await;

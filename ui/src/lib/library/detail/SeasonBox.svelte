@@ -14,6 +14,7 @@
   // file of each episode (AC-06) and its subtitles (spec subtitles AC-12). A compact header
   // with progress and icon actions, one line per episode (spec ui-detail-boxes AC-04 ..
   // AC-06); the actions sit beside the summary, so they never open or close the season.
+  // The toggles of an episode's file and subtitles sit in its line (spec ui-polish AC-06).
   type Props = {
     seriesId: number;
     seriesTitle: string;
@@ -98,41 +99,50 @@
             {/if}
             {#if episode.cutoff_unmet}<Label text="Cutoff nicht erreicht" />{/if}
           </span>
-          <span class="buttons">
-            <MonitorButton
-              icon
-              monitored={episode.monitored}
+          {#snippet buttons()}
+            <span class="buttons">
+              <MonitorButton
+                icon
+                monitored={episode.monitored}
+                title={`${seriesTitle} ${code}`}
+                busy={actions.busy.has(`episode-${episode.id}`)}
+                ontoggle={() =>
+                  void actions.setMonitored(`episode-${episode.id}`, !episode.monitored, [
+                    { kind: 'episode', id: episode.id },
+                  ])}
+              />
+              <button
+                type="button"
+                class="icon-button"
+                aria-label={`${seriesTitle} ${code} suchen`}
+                title={`${code} suchen`}
+                disabled={actions.busy.has(`episode-${episode.id}-search`)}
+                onclick={() =>
+                  void actions.search(
+                    `episode-${episode.id}-search`,
+                    `${seriesTitle} ${code}`,
+                    searchBody({
+                      series_id: seriesId,
+                      season: episode.season,
+                      episode: episode.number,
+                    }),
+                  )}
+              >
+                <Icon svg={searchIcon} />
+              </button>
+            </span>
+          {/snippet}
+          {#if episode.has_file}
+            <EpisodeExtras
+              {seriesId}
+              episodeId={episode.id}
               title={`${seriesTitle} ${code}`}
-              busy={actions.busy.has(`episode-${episode.id}`)}
-              ontoggle={() =>
-                void actions.setMonitored(`episode-${episode.id}`, !episode.monitored, [
-                  { kind: 'episode', id: episode.id },
-                ])}
+              actions={buttons}
             />
-            <button
-              type="button"
-              class="icon-button"
-              aria-label={`${seriesTitle} ${code} suchen`}
-              title={`${code} suchen`}
-              disabled={actions.busy.has(`episode-${episode.id}-search`)}
-              onclick={() =>
-                void actions.search(
-                  `episode-${episode.id}-search`,
-                  `${seriesTitle} ${code}`,
-                  searchBody({
-                    series_id: seriesId,
-                    season: episode.season,
-                    episode: episode.number,
-                  }),
-                )}
-            >
-              <Icon svg={searchIcon} />
-            </button>
-          </span>
+          {:else}
+            {@render buttons()}
+          {/if}
         </div>
-        {#if episode.has_file}
-          <EpisodeExtras {seriesId} episodeId={episode.id} title={`${seriesTitle} ${code}`} />
-        {/if}
       </li>
     {/each}
   </ul>
@@ -235,7 +245,7 @@
   }
 
   .episode-title {
-    flex: 1 1 10rem;
+    flex: 1 1 6rem;
     min-width: 0;
     overflow-wrap: anywhere;
   }

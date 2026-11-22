@@ -4,7 +4,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { DISCOVER, settle } from './discover-helpers';
-import { PALETTES, storeTheme, token } from './theme-helpers';
+import { PALETTES, storeTheme } from './theme-helpers';
 
 const filterButton = (page: Page) => page.getByRole('button', { name: /^Filter( \(\d+\))?$/ });
 const chips = (page: Page) => page.getByRole('list', { name: 'Aktive Filter' }).getByRole('button');
@@ -116,20 +116,18 @@ test.describe('shelf arrows (AC-03)', () => {
 });
 
 test.describe('preview head (AC-04)', () => {
-  test('the backdrop blurred under at least 70 % of the page ground; compact facts', async ({
-    page,
-  }) => {
+  // Revised by ui-cinema-backdrops AC-05: the backdrop is sharp under a scrim.
+  test('the backdrop sharp under a scrim in the page ground; compact facts', async ({ page }) => {
     await page.goto(`${DISCOVER}/entdecken/filme/502`);
     await settle(page);
     const backdrop = page.locator('[data-testid="preview"] .backdrop img');
     await expect(backdrop).toBeAttached();
-    expect(await backdrop.evaluate((el) => getComputedStyle(el).filter)).toMatch(/blur/);
-    const veil = await page.locator('[data-testid="preview"] .backdrop-veil').evaluate((el) => ({
-      colour: getComputedStyle(el).backgroundColor,
-      opacity: Number(getComputedStyle(el).opacity),
-    }));
-    expect(veil.colour).toBe(token('dark', 'bg'));
-    expect(veil.opacity).toBeGreaterThanOrEqual(0.7);
+    expect(await backdrop.evaluate((el) => getComputedStyle(el).filter)).toBe('none');
+    const scrim = page.locator('[data-testid="preview"] .backdrop .scrim');
+    await expect(scrim).toBeAttached();
+    expect(await scrim.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain(
+      'linear-gradient',
+    );
     await expect(page.locator('[data-testid="preview"] dl.facts-compact')).toBeVisible();
   });
 

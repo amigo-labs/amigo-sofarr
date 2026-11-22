@@ -57,6 +57,8 @@ mod auth_log_tests;
 #[cfg(test)]
 mod auth_tests;
 #[cfg(test)]
+mod backdrop_tests;
+#[cfg(test)]
 mod backup_api_tests;
 #[cfg(test)]
 mod backup_tests;

@@ -26,7 +26,11 @@
 </script>
 
 <li class="tile" data-testid="title-card" data-key="{card.kind}/{card.tmdb_id}">
-  <a class="link ui-link" href={titleHref(card.kind, card.tmdb_id, state.library)}>
+  <a
+    class="link ui-link"
+    href={titleHref(card.kind, card.tmdb_id, state.library)}
+    title={card.title}
+  >
     <TmdbImage src={card.poster} name={card.title} />
     <span class="title">{card.title}</span>
   </a>
@@ -34,18 +38,21 @@
     >{KIND_TEXT[card.kind]}{#if card.year !== null}&nbsp;· {card.year}{/if}</span
   >
   {#if note !== null && note !== ''}<span class="meta note">{note}</span>{/if}
-  <RatingText rating={state.rating} compact />
-  {#if label !== null}
-    <span class="state" data-testid="library-state"
-      ><Label text={label.text} tone={label.tone} /></span
-    >
-  {/if}
-  {#if canAdd && state.library.status !== 'in_library'}
-    <button type="button" class="btn add" onclick={() => onadd(card, state)}>
-      <Icon svg={plusIcon} /><span>Hinzufügen</span><span class="sr-only">{` „${card.title}“`}</span
+  <div class="foot">
+    <RatingText rating={state.rating} compact />
+    {#if label !== null}
+      <span class="state" data-testid="library-state"
+        ><Label text={label.text} tone={label.tone} /></span
       >
-    </button>
-  {/if}
+    {/if}
+    {#if canAdd && state.library.status !== 'in_library'}
+      <button type="button" class="btn add" onclick={() => onadd(card, state)}>
+        <Icon svg={plusIcon} /><span>Hinzufügen</span><span class="sr-only"
+          >{` „${card.title}“`}</span
+        >
+      </button>
+    {/if}
+  </div>
 </li>
 
 <style>
@@ -62,7 +69,14 @@
     gap: var(--base-size-4);
   }
 
+  /* Two title lines on every tile; a longer title is cut (ui-polish AC-04). */
   .title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    min-height: 2lh;
+    overflow: hidden;
     font-weight: var(--base-text-weight-semibold);
     overflow-wrap: anywhere;
   }
@@ -73,10 +87,18 @@
     overflow-wrap: anywhere;
   }
 
-  /* Chip and add button end a tile at the same height (ui-consistency AC-04). */
+  /* Rating, then chip or add button, at the tile's lower edge: the tiles of a row end
+     alike (ui-consistency AC-04, ui-polish AC-05). */
+  .foot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--base-size-4);
+    align-items: flex-start;
+    margin-top: auto;
+  }
+
   .state {
     display: flex;
-    margin-top: auto;
   }
 
   .state :global(.label),
@@ -92,8 +114,6 @@
   }
 
   .add {
-    align-self: flex-start;
-    margin-top: auto;
     padding-block: 0;
   }
 </style>

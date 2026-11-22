@@ -133,6 +133,8 @@ pub struct MovieListItem {
     pub available: bool,
     /// Whether the provider offers a poster (`/api/images/movie/{id}/list`).
     pub has_poster: bool,
+    /// Whether the title has a backdrop (`/api/images/{kind}/{id}/backdrop`).
+    pub has_backdrop: bool,
     pub quality_profile_id: i64,
     pub tags: Vec<i64>,
     pub added_at: String,
@@ -160,6 +162,8 @@ pub struct SeriesListItem {
     pub complete: bool,
     pub size: u64,
     pub has_poster: bool,
+    /// Whether the title has a backdrop (`/api/images/{kind}/{id}/backdrop`).
+    pub has_backdrop: bool,
     pub quality_profile_id: i64,
     pub tags: Vec<i64>,
     pub added_at: String,
@@ -393,6 +397,7 @@ pub fn movie_item(
         cutoff_unmet: state.cutoff_unmet,
         available: state.available,
         has_poster: p.is_some_and(|p| p.poster_path.is_some()),
+        has_backdrop: p.is_some_and(|p| p.backdrop_path.is_some()),
         quality_profile_id: movie.quality_profile_id,
         tags: movie.tags.clone(),
         added_at: p.map(|p| p.added_at.to_string()).unwrap_or_default(),
@@ -493,6 +498,7 @@ pub fn series_item(
         complete: counts.complete(),
         size: counts.size,
         has_poster: p.is_some_and(|p| p.poster_path.is_some()),
+        has_backdrop: p.is_some_and(|p| p.backdrop_path.is_some()),
         quality_profile_id: show.data.quality_profile_id,
         tags: show.tags.clone(),
         added_at: p.map(|p| p.added_at.to_string()).unwrap_or_default(),

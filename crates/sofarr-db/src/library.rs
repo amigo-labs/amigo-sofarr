@@ -15,6 +15,8 @@ pub struct Presentation {
     pub added_at: Timestamp,
     /// The provider's poster path (TMDB file path, TVDB artwork path).
     pub poster_path: Option<String>,
+    /// TMDB's file path of the wide image (spec ui-cinema-backdrops).
+    pub backdrop_path: Option<String>,
     pub overview: Option<String>,
 }
 
@@ -89,19 +91,21 @@ fn activity_from_row(row: &SqliteRow) -> Activity {
 }
 
 async fn presentation(db: &Db, table: &str) -> Result<HashMap<i64, Presentation>> {
-    let rows: Vec<(i64, String, Option<String>, Option<String>)> = sqlx::query_as(&format!(
-        "SELECT id, added_at, poster_path, overview FROM {table}"
+    type Row = (i64, String, Option<String>, Option<String>, Option<String>);
+    let rows: Vec<Row> = sqlx::query_as(&format!(
+        "SELECT id, added_at, poster_path, backdrop_path, overview FROM {table}"
     ))
     .fetch_all(db.pool())
     .await?;
     Ok(rows
         .into_iter()
-        .map(|(id, added_at, poster_path, overview)| {
+        .map(|(id, added_at, poster_path, backdrop_path, overview)| {
             (
                 id,
                 Presentation {
                     added_at: ts(&added_at),
                     poster_path,
+                    backdrop_path,
                     overview,
                 },
             )
@@ -142,6 +146,37 @@ impl Db {
                 .fetch_optional(self.pool())
                 .await?;
         Ok(path.flatten())
+    }
+
+    /// The backdrop path of one movie or series (spec ui-cinema-backdrops).
+    pub async fn backdrop_path(&self, media: MediaRef) -> Result<Option<String>> {
+        let (table, id) = match media {
+            MediaRef::Movie(id) => ("movies", id),
+            MediaRef::Series(id) => ("series", id),
+        };
+        let path: Option<Option<String>> =
+            sqlx::query_scalar(&format!("SELECT backdrop_path FROM {table} WHERE id = ?"))
+                .bind(id)
+                .fetch_optional(self.pool())
+                .await?;
+        Ok(path.flatten())
+    }
+
+    /// Stores the backdrop the provider names; `None` removes the stored one (unlike the
+    /// poster, a title whose provider names no backdrop has none).
+    pub async fn set_backdrop_path(&self, media: MediaRef, path: Option<&str>) -> Result<()> {
+        let (table, id) = match media {
+            MediaRef::Movie(id) => ("movies", id),
+            MediaRef::Series(id) => ("series", id),
+        };
+        sqlx::query(&format!(
+            "UPDATE {table} SET backdrop_path = ? WHERE id = ?"
+        ))
+        .bind(path)
+        .bind(id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
     }
 
     /// Stores what the provider says; `None` keeps the stored value.

@@ -298,6 +298,23 @@ pub async fn refresh(
         meta.overview.as_deref(),
     )
     .await?;
+    // The backdrop comes from TMDB by the series' TMDB id (spec ui-cinema-backdrops AC-02):
+    // a series without one has none; an answer that fails keeps the stored backdrop and
+    // does not fail the refresh.
+    let media = sofarr_db::MediaRef::Series(current.id);
+    match (tmdb, tmdb_id) {
+        (Some(tmdb), Some(id)) => match tmdb.series_backdrop(id).await {
+            Ok(path) => {
+                let path = path.as_deref().and_then(crate::images::tmdb_path);
+                db.set_backdrop_path(media, path.as_deref()).await?;
+            }
+            Err(e) => {
+                tracing::warn!(series = %series.data.title, error = %e, "TMDB backdrop failed");
+            }
+        },
+        (_, None) => db.set_backdrop_path(media, None).await?,
+        (None, Some(_)) => {}
+    }
     let existing = db.episodes(Some(series.id)).await?;
     let monitor_new_seasons = db.monitors_new_seasons(series.id).await?;
     let mut n = 0;

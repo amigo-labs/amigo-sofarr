@@ -3,7 +3,7 @@
   import { ratingCompact, ratingLine } from '../texts';
 
   // A title's IMDb rating and votes (spec imdb-ratings AC-04): a placeholder while it is
-  // still loading, "–" without one, nothing while ratings are off. Compact on the title
+  // still loading (an empty line on the tiles), "–" without one, nothing while ratings are off. Compact on the title
   // tiles, with the votes in tooltip and name, as the library rows (ui-consistency AC-03).
   type Props = { rating: Rating; compact?: boolean };
   let { rating, compact = false }: Props = $props();
@@ -33,5 +33,13 @@
     color: var(--fgColor-muted);
     font-size: var(--text-body-size-small);
     white-space: nowrap;
+  }
+
+  /* A pending rating keeps its line, so the tile does not jump (ui-polish AC-02). */
+  .rating[role='img'] {
+    display: block;
+    width: fit-content;
+    min-width: 1.5em;
+    min-height: 1lh;
   }
 </style>

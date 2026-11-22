@@ -47,6 +47,8 @@ because later specs build on earlier ones.
 | 29 | [parser-season-in-title](parser-season-in-title.md) | S | parser-episode-gaps | Episode parser: a season word before ` - 06` belongs to the anime title; `[Grp][Title.S2][05]` is S02E05 (deliberate deviation from Sonarr) | done |
 | 30 | [release-oracle-history](release-oracle-history.md) | S | – | Release oracle: `already_imported` in the decision engine, imported release names in the release fixtures; "Raw Bluray/DVD release" as deliberate deviation | done |
 | 31 | [krake-download-client](krake-download-client.md) | M | – | Krake (formerly amigo-downloader) as download client through its NZBGet-compatible API (D32) | done |
+| 32 | [ui-polish](ui-polish.md) | M | ui-overview-polish | UI redesign 11: even poster tiles with two title lines, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 | done |
+| 33 | [ui-cinema-backdrops](ui-cinema-backdrops.md) | M | ui-polish | Cinema look 1: backdrops for library movies and series from TMDB, served from the image cache, sharp behind the head of the movie, series and preview pages (D34); revises ui-detail-head AC-01, ui-polish AC-01, ui-discover-polish AC-04 | `/spec-build ui-cinema-backdrops` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -94,6 +96,7 @@ Large specs (L) are split while being written when they need more than a few ses
 | [naming](naming.md) | 2026-11-19 | File and folder naming: token syntax and case, colon/illegal characters, tidy folder levels, clean titles, movie/series/episode tokens, Quality Full, multi-episode styles, `config_naming` defaults, movie and episode import naming |
 | [series](series.md) | 2026-11-19 | Series: Sonarr import, TVDB refresh (German title, aliases, episodes, D28), refresh schedule, release-to-series matching, covered/wanted episodes, season packs, grabs in flight, episode import |
 | [import-lists](import-lists.md) | 2026-11-19 | TMDb person import list sync: cast/crew selection (a movie through either credit, once), exclusions, adding with the list's settings, search on add, TMDB errors, schedule, CLI `sync-import-lists` |
+| [ui-polish](ui-polish.md) | 2026-11-22 | UI redesign 11: even poster tiles with two title lines, a quiet pending rating, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 |
 
 ## Phase 1–5 behavior
 
@@ -117,7 +120,16 @@ the oracles stays in [`../parity.md`](../parity.md).
 
 Gaps not yet written as specs. Not commitments.
 
-None at the moment. Closed on 2026-11-19: the parser gaps (`parser-season-in-title`), the
+The rest of the cinema look (D34), in this order; each is written as a spec when the one before it is built, because it builds on that one's components:
+
+| Spec | Size | Content |
+| ---- | ---- | ------- |
+| ui-cinema-tiles | M | Poster tiles show only the poster at rest; on hover or focus they grow and show title, rating, state and actions; on touch devices the texts stay below the poster as today |
+| ui-cinema-hero | M | Hero banner on Entdecken: one featured title with its backdrop, overview, „Hinzufügen“ and „Details“ |
+| ui-cinema-home | L | Start page and library as rows to browse („Demnächst“, „Zuletzt hinzugefügt“, „Fehlt noch“, „Unter Cutoff“, „Am besten bewertet“); rows by genre need genres in the library (a migration) and are a spec of their own |
+| ui-cinema-shell | M | Calendar and administration pages flatter and darker within the shared theme, a quieter navigation; the light palette and the theme switch are removed |
+
+Closed on 2026-11-19: the parser gaps (`parser-season-in-title`), the
 release-oracle gaps (`release-oracle-history`; raw disc releases a deliberate deviation in
 `parity.md`), amigo-downloader (now Krake, `krake-download-client`, D32), the v3 API shim (not
 planned, D33), and the feature specs for phases 1–5 (table above).

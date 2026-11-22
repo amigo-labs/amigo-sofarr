@@ -4,25 +4,16 @@
   import { mediaHref } from '../actions';
   import { bytesText, statusText, statusTone } from '../format';
   import Label from '../components/Label.svelte';
-  import EmptyLine from './EmptyLine.svelte';
 
-  // Grabs and imports, newest first (AC-01): the last activities or the problems. Empty, its
-  // sentence after a decorative icon (ui-overview-polish AC-06).
-  type Props = {
-    id: string;
-    title: string;
-    entries: readonly ActivityEntry[];
-    empty: string;
-    emptyIcon: string;
-  };
-  let { id, title, entries, empty, emptyIcon }: Props = $props();
+  // Grabs and imports, newest first (AC-01): the last activities or the problems. Without
+  // entries the box does not show (spec ui-polish AC-08).
+  type Props = { id: string; title: string; entries: readonly ActivityEntry[] };
+  let { id, title, entries }: Props = $props();
 </script>
 
-<section class="box" aria-labelledby={id}>
-  <h2 {id} class="box-header">{title}</h2>
-  {#if entries.length === 0}
-    <EmptyLine icon={emptyIcon} text={empty} />
-  {:else}
+{#if entries.length > 0}
+  <section class="box" aria-labelledby={id}>
+    <h2 {id} class="box-header">{title}</h2>
     <ul class="rows">
       {#each entries as entry (entry.kind + entry.grab_id)}
         <li class="box-row">
@@ -40,8 +31,8 @@
         </li>
       {/each}
     </ul>
-  {/if}
-</section>
+  </section>
+{/if}
 
 <style>
   .rows {

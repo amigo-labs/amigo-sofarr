@@ -16,6 +16,7 @@ import { portBase } from '../env.mjs';
 import { MOVIES, SERIES } from './demo-data.mjs';
 import { SONARR_KEY, renderArtwork, seedLibrary } from './demo-seed.mjs';
 import { startDemoTmdb } from './demo-tmdb.mjs';
+import { ratingsSettled } from './settled.mjs';
 
 const ui = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const root = resolve(ui, '..');
@@ -67,7 +68,7 @@ async function waitFor(check, what, seconds = 120) {
 
 /** The pages to photograph: file name, path, and an optional step before the picture. */
 const SHOTS = [
-  { name: 'discover', path: '/entdecken', settled: 'IMDb …' },
+  { name: 'discover', path: '/entdecken' },
   { name: 'movies', path: '/filme', button: 'Poster' },
   { name: 'movie', path: '/filme', open: MOVIES[0].title },
   { name: 'series', path: '/serien', open: SERIES[0].title },
@@ -104,13 +105,8 @@ async function photograph(browser) {
     const heading = shot.open ?? shot.heading;
     if (heading) await page.getByRole('heading', { name: heading, level: 1 }).waitFor();
     if (shot.text) await page.getByText(shot.text).first().waitFor();
-    // Ratings and library states fill in in the background: reload until they are there.
-    for (let i = 0; shot.settled && i < 60; i += 1) {
-      await page.waitForLoadState('networkidle');
-      if ((await page.getByText(shot.settled).count()) === 0) break;
-      await new Promise((r) => setTimeout(r, 1000));
-      await page.reload();
-    }
+    // Ratings fill in in the background: no picture while one is pending (ui-polish AC-14).
+    await ratingsSettled(page);
     await page.waitForLoadState('networkidle');
     try {
       // Posters load lazily: wait until every image in the viewport has arrived.

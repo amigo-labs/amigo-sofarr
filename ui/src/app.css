@@ -159,6 +159,41 @@ body {
   font: inherit;
 }
 
+/* A dropdown is a field with a chevron (Octicon chevron-down) instead of the browser's
+   arrow; its opened list stays the browser's own (spec ui-polish AC-11). A background image
+   cannot read a custom property, so the chevron is drawn once per palette in the value of
+   `--am-text-secondary` (`theme/tokens.css`). The rule outweighs the theme's `.am-input`,
+   which sets the whole background and padding. */
+:root {
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23b4b7c0' d='M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%234a4e59' d='M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z'/%3E%3C/svg%3E");
+  }
+}
+
+:root[data-theme='light'] {
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%234a4e59' d='M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z'/%3E%3C/svg%3E");
+}
+
+select:not([multiple]) {
+  appearance: none;
+  padding-right: calc(var(--am-space-3) + 16px + var(--am-space-2));
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right var(--am-space-3) center;
+  background-size: 16px 16px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+select:not([multiple]):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 :where(textarea) {
   height: auto;
   padding: var(--am-space-2) var(--am-space-3);
@@ -490,7 +525,8 @@ li.box-row:not(.day-group) a.ui-link {
 }
 
 /* The facts of a detail page's head: a compact panel, the term small above its value
-   (spec ui-detail-head AC-03). */
+   (spec ui-detail-head AC-03). Rows of four, of five from 1200 px, of two on narrow windows;
+   where one fact would be left over, the rule below uses rows of three (spec ui-polish AC-07). */
 .facts-compact {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--base-size-12) var(--base-size-16);
@@ -509,8 +545,28 @@ li.box-row:not(.day-group) a.ui-link {
   font-size: var(--text-body-size-medium);
 }
 
-@media (max-width: 767.98px) {
+/* One fact left over would stand alone below a full row: three per row instead. */
+.facts-compact:has(> :nth-child(4n + 1):last-child) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (min-width: 1200px) {
   .facts-compact {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .facts-compact:has(> :nth-child(4n + 1):last-child) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .facts-compact:has(> :nth-child(5n + 1):last-child) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .facts-compact,
+  .facts-compact:has(> :nth-child(4n + 1):last-child) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

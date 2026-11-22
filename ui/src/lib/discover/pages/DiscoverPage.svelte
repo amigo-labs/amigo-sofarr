@@ -124,7 +124,7 @@
   {#if filtered}
     <section aria-labelledby="results-title" class="section">
       <h2 id="results-title">Ergebnisse</h2>
-      <FreshnessNote freshness={list.freshness} />
+      <FreshnessNote part="notice" freshness={list.freshness} />
       {#if list.failure !== null}
         <Flash tone="danger">
           <p>Die Ergebnisse konnten nicht geladen werden: {list.failure.message}</p>
@@ -150,7 +150,7 @@
       </div>
     </section>
   {:else if shelves !== null}
-    <FreshnessNote freshness={shelves.freshness} />
+    <FreshnessNote part="notice" freshness={shelves.freshness} />
     {#each shelves.shelves as shelf (shelf.id)}
       <section class="section" aria-labelledby="shelf-{shelf.id}" data-testid="shelf">
         <div class="shelf-head">
@@ -190,6 +190,7 @@
   {:else}
     <Loading label="Regale werden geladen …" />
   {/if}
+  <FreshnessNote part="line" freshness={filtered ? list.freshness : (shelves?.freshness ?? null)} />
   <ImdbAttribution info={discover.imdb} />
 </StatusGate>
 

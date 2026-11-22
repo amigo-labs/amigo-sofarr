@@ -36,8 +36,9 @@ test.describe('overview (AC-01)', () => {
     const upcoming = page.getByRole('region', { name: 'Die nächsten 7 Tage' });
     await expect(upcoming.getByRole('link', { name: 'Kalenderfilm' }).first()).toBeVisible();
     await expect(upcoming.getByText('S01E03 · Abschied')).toBeVisible();
-    await expect(page.getByText('Noch keine Grabs oder Importe.')).toBeVisible();
-    await expect(page.getByText('Keine Probleme in den letzten 7 Tagen.')).toBeVisible();
+    // Boxes without content do not show (ui-polish AC-08).
+    await expect(page.getByRole('heading', { name: 'Letzte Aktivität' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Probleme der letzten 7 Tage' })).toHaveCount(0);
   });
 
   test('shows progress, size, remaining time ("–" when none), activity and problems', async ({

@@ -19,6 +19,7 @@ const top = async (page: Page, selector: string): Promise<number> =>
 
 test.describe('backdrop (AC-01)', () => {
   for (const palette of PALETTES) {
+    // The fallback of a title without a backdrop (ui-cinema-backdrops AC-06).
     test(`the blurred poster under at least 70 % of the page ground (${palette})`, async ({
       page,
     }) => {
@@ -31,7 +32,7 @@ test.describe('backdrop (AC-01)', () => {
       const poster = await page.locator('.head .poster img').getAttribute('src');
       await expect(backdrop).toHaveAttribute('src', poster ?? '');
       expect(await backdrop.evaluate((el) => getComputedStyle(el).filter)).toMatch(/blur/);
-      const veil = await page.locator('.backdrop-veil').evaluate((el) => ({
+      const veil = await page.locator('.backdrop .veil').evaluate((el) => ({
         colour: getComputedStyle(el).backgroundColor,
         opacity: Number(getComputedStyle(el).opacity),
       }));
@@ -82,7 +83,7 @@ test.describe('head (AC-02, AC-03)', () => {
     expect(await top(page, '.head .overview')).toBeLessThan(await top(page, '.head .actions'));
   });
 
-  test('the facts are a compact surface panel with up to four per row', async ({ page }) => {
+  test('the facts are a compact surface panel with up to five per row', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openMovie(page, LIBRARY, 'Das Boot');
     const facts = page.locator('.head dl.facts-compact');
@@ -94,7 +95,8 @@ test.describe('head (AC-02, AC-03)', () => {
       .evaluateAll(
         (all) => new Set(all.map((el) => Math.round(el.getBoundingClientRect().x))).size,
       );
-    expect(columns).toBeLessThanOrEqual(4);
+    // Five per row from 1200 px (ui-polish AC-07).
+    expect(columns).toBeLessThanOrEqual(5);
     const sizes = await facts
       .locator(':scope > div')
       .first()

@@ -26,6 +26,13 @@ const card = (kind: 'movie' | 'series', id: number): TitleCard => ({
   rating: { state: 'off', rating: null, votes: null },
 });
 
+/** The freshness of one loaded page. */
+const page = (fetched_at: string, stale = false) => ({
+  fetched_at,
+  stale,
+  notice: stale ? 'TMDB ist nicht erreichbar.' : null,
+});
+
 describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
   it('names the library state', () => {
     expect(libraryLabel('in_library')?.text).toBe('In der Bibliothek');
@@ -47,6 +54,17 @@ describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
     expect(fresher(freshness, stale)).toBe(stale);
     expect(fresher(stale, freshness)).toBe(stale);
     expect(fresher(null, freshness)).toBe(freshness);
+  });
+
+  it('shows the oldest fetch time of all loaded pages (ui-polish AC-10)', () => {
+    const newer = page('2026-11-20T10:00:00Z');
+    const older = page('2026-11-01T08:00:00Z');
+    expect(fresher(newer, older).fetched_at).toBe(older.fetched_at);
+    expect(fresher(older, newer).fetched_at).toBe(older.fetched_at);
+    // A stale page still brings its notice, with the oldest time of all pages.
+    const stale = page('2026-11-10T08:00:00Z', true);
+    expect(fresher(older, stale)).toEqual({ ...stale, fetched_at: older.fetched_at });
+    expect(fresher(stale, newer)).toEqual(stale);
   });
 
   it('speaks German for TMDB terms it knows and keeps the others', () => {
@@ -81,7 +99,7 @@ describe('compact tile rating (ui-consistency AC-03)', () => {
       full: 'IMDb –',
     });
     expect(ratingCompact({ state: 'pending', rating: null, votes: null })).toEqual({
-      text: '…',
+      text: '',
       full: 'IMDb-Bewertung folgt',
     });
     expect(ratingCompact({ state: 'off', rating: null, votes: null })).toBeNull();

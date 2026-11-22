@@ -61,7 +61,7 @@
 <StatusGate {title}>
   <p class="back"><a href={DISCOVER_PATH}>Zurück zu Entdecken</a></p>
   <h1>{title}</h1>
-  <FreshnessNote freshness={list.freshness} />
+  <FreshnessNote part="notice" freshness={list.freshness} />
   {#if list.failure !== null}
     <Flash tone="danger">
       <p>Die Titel konnten nicht geladen werden: {list.failure.message}</p>
@@ -82,6 +82,7 @@
       <button type="button" class="btn" onclick={() => void list.next()}>Weitere laden</button>
     {/if}
   </div>
+  <FreshnessNote part="line" freshness={list.freshness} />
   <ImdbAttribution info={discover.imdb} />
 </StatusGate>
 
