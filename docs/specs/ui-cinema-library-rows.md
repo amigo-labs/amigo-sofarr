@@ -40,21 +40,28 @@ This spec builds on `ui-cinema-tiles` and on the row of `ui-cinema-home`.
 
 - [ ] AC-01 (state): While the movie list is plain, sofarr shows above its toolbar these rows in this order, each with at most 20 movies:
   1. „Zuletzt hinzugefügt“: newest added first.
-  2. „Fehlt noch“: monitored movies that are missing, newest added first.
-  3. „Unter Cutoff“: movies whose file is below the cutoff, newest added first.
-  4. „Am besten bewertet“: best IMDb rating first (votes as tie-breaker), only while ratings are on.
+  2. „Fehlt noch“: the movies of the toolbar's filter „Fehlt“ (monitored, available, without a file), newest added first.
+  3. „Unter Cutoff“: the movies of the toolbar's filter „Cutoff nicht erreicht“, newest added first.
+  4. „Am besten bewertet“: the movies of the toolbar's sort by rating (best first, votes as tie-breaker, `imdb-ratings` AC-06), without the movies that have no rating; only while ratings are on.
 - [ ] AC-02 (state): While the series list is plain, sofarr shows the same four rows for series: „Fehlt noch“ holds series with missing episodes, „Unter Cutoff“ series with episodes below the cutoff.
 - [ ] AC-03 (always): Below the rows the full list stands under the heading „Alle Filme“ or „Alle Serien“, with the toolbar and everything it does today.
 - [ ] AC-04 (state): While the list is not plain (a search text or a filter is set), sofarr shows no rows, so the results stand at the top; when the search and the filters are cleared, the rows show again.
-- [ ] AC-05 (event): When the user activates „Alle anzeigen“ of a row, then the full list shows that row's titles: the sort or filter of the row is set in the toolbar and the address (as a reload keeps it), and the page scrolls to the full list.
+- [ ] AC-05 (event): When the user activates „Alle anzeigen“ of a row, then the full list shows that row's titles, set in the toolbar and the address (as a reload keeps it):
+  - „Zuletzt hinzugefügt“: sort „Hinzugefügt“, newest first; the rows stay, and the page scrolls to the full list.
+  - „Am besten bewertet“: sort „Bewertung“, best first; the rows stay, and the page scrolls to the full list.
+  - „Fehlt noch“ and „Unter Cutoff“: their filter and the sort „Hinzugefügt“, newest first; the list is no longer plain, so the rows hide (AC-04) and the page starts with the full list.
 - [ ] AC-06 (state): While a row has no title, it does not show; while none has, the page starts with the full list as today.
-- [ ] AC-07 (always): A tile in a row is a poster tile of `ui-cinema-tiles` with its monitor toggle; it has no selection checkbox. A change of monitoring in a row shows in the full list and in the other rows without a reload.
+- [ ] AC-07 (always): A tile in a row is a poster tile of `ui-cinema-tiles` with its monitor toggle; it has no selection checkbox. A change of monitoring in a row or in the full list shows on every tile of that title on the page without a reload; a title that no longer matches its row stays in it until the rows load again (AC-12).
 - [ ] AC-08 (always): With the e2e library of 2,501 movies, the movie list shows its rows and the first page of the full list within 2 s after the page starts loading, and the time measurement of `web-ui-library` AC-04 still holds.
 - [ ] AC-09 (always): Both lists with their rows meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans); each row is a list named by its heading, reachable by keyboard with a visible focus.
 - [ ] AC-10 (always, manual: images): The website screenshot `movies.png` is regenerated and shows the rows above the full list; the owner checked the file.
-- [ ] AC-11 (state, manual: visual design): While the dark palette is active, the movie and series lists look like a streaming service's library at 1440 px and 360 px.
+- [ ] AC-11 (state, manual: visual design, judged by the owner): While the dark palette is active, the movie and series lists look like a streaming service's library at 1440 px and 360 px: the rows carry the top of the page, the full list is easy to find below them, nothing overlaps.
+- [ ] AC-12 (event): When the list page opens, or the list becomes plain again, then its rows load; if a row's data cannot be loaded, then that row does not show, the rest of the page shows as today, and the row loads again with the next of these events.
 
 ## Technical notes
+
+The notes are suggestions for the build; the ACs are binding.
+
 
 - **Data:** each row is one request to the list API of today (`sort`, `order`, `missing`, `cutoff_unmet`, `page_size=20`); no new endpoint.
 - **UI:** `ui/src/lib/library/components/MediaListPage.svelte`, the row component of `ui-cinema-home`, the toolbar's address handling in `ui/src/lib/library/list-query.ts`.
@@ -74,6 +81,9 @@ This spec builds on `ui-cinema-tiles` and on the row of `ui-cinema-home`.
 
 | Assumption | Reason | Risk |
 | ---------- | ------ | ---- |
+| At most 20 tiles per row | The discover shelves show 20 (`discover` AC-01); „Alle anzeigen“ leads to all | Low |
+| The rows stand above the toolbar | The toolbar belongs to the full list below; above it, it would seem to filter the rows | Low |
+| The series list has „Zuletzt hinzugefügt“, not „Demnächst“ | „Demnächst“ is the overview's and the calendar's; both lists get the same four rows | Low |
 | Rows hide while searching or filtering | A search should show its results at once, not below four rows | Low |
 | No selection in rows | Bulk actions on a row would duplicate the full list's selection bar | Low |
 
@@ -94,6 +104,7 @@ This spec builds on `ui-cinema-tiles` and on the row of `ui-cinema-home`.
 | AC-09 |      | open   |        |
 | AC-10 |      | open   |        |
 | AC-11 |      | open   |        |
+| AC-12 |      | open   |        |
 
 ## Decisions
 
