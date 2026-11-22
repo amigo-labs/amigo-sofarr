@@ -1,14 +1,22 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import chevronIcon from '@primer/octicons/build/svg/chevron-right-16.svg?raw';
   import Icon from '../../components/Icon.svelte';
   import EpisodeSubtitles from '../../subtitles/EpisodeSubtitles.svelte';
   import EpisodeFile from './EpisodeFile.svelte';
 
-  // The file and subtitles of an episode with a file: two quiet toggles on one line, each
-  // opening its content below in the row's full width; both can be open (spec
-  // ui-consistency AC-11).
-  type Props = { seriesId: number; episodeId: number; title: string };
-  let { seriesId, episodeId, title }: Props = $props();
+  // The file and subtitles of an episode with a file: two quiet toggles, each opening its
+  // content below in the row's full width; both can be open (spec ui-consistency AC-11).
+  // From 768 px the toggles sit in the episode's line before its `actions`, below that on a
+  // line of their own (spec ui-polish AC-06). All parts are items of the line's flex box.
+  type Props = {
+    seriesId: number;
+    episodeId: number;
+    title: string;
+    /** The episode's buttons, shown after the toggles. */
+    actions: Snippet;
+  };
+  let { seriesId, episodeId, title, actions }: Props = $props();
 
   let fileOpen = $state(false);
   let subtitlesOpen = $state(false);
@@ -40,6 +48,7 @@
     >Untertitel<span class="sr-only"> von {title}</span>
   </button>
 </div>
+{@render actions()}
 {#if fileOpen}
   <div class="disclosure-body" id="{id}-file">
     <EpisodeFile {seriesId} {episodeId} />
@@ -54,9 +63,9 @@
 <style>
   .toggles {
     display: flex;
-    flex: 1 1 100%;
+    flex: none;
     flex-wrap: wrap;
-    gap: var(--base-size-4) var(--base-size-16);
+    gap: var(--base-size-4) var(--base-size-12);
   }
 
   .toggle {
@@ -89,6 +98,7 @@
 
   .disclosure-body {
     flex: 1 1 100%;
+    order: 2;
     margin-top: var(--base-size-4);
     padding-left: var(--base-size-12);
     border-left: var(--borderWidth-thick) solid var(--borderColor-muted);
@@ -97,6 +107,12 @@
 
   /* Touch targets of at least 32 px on narrow windows (ui-detail-boxes AC-07). */
   @media (max-width: 767.98px) {
+    .toggles {
+      flex: 1 1 100%;
+      order: 1;
+      gap: var(--base-size-4) var(--base-size-16);
+    }
+
     .toggle {
       min-width: 2rem;
       min-height: 2rem;

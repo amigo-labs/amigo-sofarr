@@ -107,8 +107,10 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: blur(28px) saturate(1.2);
-    transform: scale(1.15);
+    /* Blurred far beyond any shape of the poster, so only its colours remain as an even wash
+       (spec ui-polish AC-01); scaled up, so the blur's soft edge lies outside the head. */
+    filter: blur(clamp(56px, 9vw, 120px)) saturate(1.2);
+    transform: scale(1.6);
   }
 
   .backdrop-veil {

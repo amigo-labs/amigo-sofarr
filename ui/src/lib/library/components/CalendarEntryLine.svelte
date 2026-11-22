@@ -7,8 +7,10 @@
   // One release date: a movie's cinema, digital or disc date, or an episode's air date (AC-07).
   // `dot` shows the state as a coloured dot named by its text, `cut` keeps title and detail on
   // one line each (spec ui-calendar AC-04).
-  type Props = { entry: CalendarEntry; dot?: boolean; cut?: boolean };
-  let { entry, dot = false, cut = false }: Props = $props();
+  // `quietUpcoming` leaves out the chip of an entry that is not out yet, where the list itself
+  // says so (spec ui-polish AC-09).
+  type Props = { entry: CalendarEntry; dot?: boolean; cut?: boolean; quietUpcoming?: boolean };
+  let { entry, dot = false, cut = false, quietUpcoming = false }: Props = $props();
 
   const href = $derived(
     entry.movie_id !== null
@@ -43,7 +45,10 @@
       >{entry.title}</a
     >{:else}<span class="title" title={cut ? entry.title : undefined}>{entry.title}</span>{/if}
   <span class="detail" title={cut ? what : undefined}>{what}</span>
-  {#if !dot}<Label text={state.text} tone={state.tone} />{/if}
+  {#if !dot && !(quietUpcoming && entry.state === 'upcoming')}<Label
+      text={state.text}
+      tone={state.tone}
+    />{/if}
 </span>
 
 <style>

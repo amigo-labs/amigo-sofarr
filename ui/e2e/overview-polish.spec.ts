@@ -75,7 +75,8 @@ test.describe('key figures (AC-01)', () => {
     page,
   }) => {
     await page.goto(`${LIBRARY}/`);
-    const figures = page.getByRole('list', { name: 'Kennzahlen' }).getByRole('link');
+    // A link while its box shows, plain text otherwise (ui-polish AC-08).
+    const figures = page.getByRole('list', { name: 'Kennzahlen' }).locator('.figure');
     await expect(figures).toHaveCount(3);
     for (const figure of await figures.all()) {
       const icon = figure.locator('svg');
@@ -190,8 +191,31 @@ test.describe('day headings (AC-05)', () => {
   });
 });
 
-test.describe('empty states (AC-06)', () => {
-  test('empty boxes show their sentence after a decorative icon, muted', async ({ page }) => {
+/** The sentence of `empty` stands muted after the decorative Octicon `name`. */
+async function expectEmptyLine(page: Page, empty: Locator, text: string, name: string) {
+  const muted = await resolvedColour(page, 'var(--fgColor-muted)');
+  await expect(empty).toHaveText(text);
+  expect(await iconOf(empty)).toBe(octicon(name));
+  const icon = empty.locator('svg');
+  await expect(icon).toHaveCount(1);
+  expect(await icon.evaluate((e) => e.closest('[aria-hidden="true"]') !== null)).toBe(true);
+  expect(await empty.evaluate((e) => getComputedStyle(e).color)).toBe(muted);
+  // The icon comes before the sentence.
+  const iconBox = await icon.boundingBox();
+  const textStart = await empty.evaluate((e) => {
+    const range = document.createRange();
+    const sentence = [...e.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
+    if (sentence === undefined) return 0;
+    range.selectNodeContents(sentence);
+    return range.getBoundingClientRect().x;
+  });
+  expect((iconBox?.x ?? 99) + (iconBox?.width ?? 0)).toBeLessThanOrEqual(textStart);
+}
+
+test.describe('empty states (AC-06, revised by ui-polish AC-08)', () => {
+  test('empty boxes are hidden; one muted line after a decorative icon says so', async ({
+    page,
+  }) => {
     await overviewWith(page, (a) => ({
       ...a,
       queue: { items: [], notice: null, as_of: '2026-11-17T08:05:00Z', client_configured: true },
@@ -200,35 +224,36 @@ test.describe('empty states (AC-06)', () => {
       activity: [],
     }));
     await page.goto(`${LIBRARY}/`);
-    const muted = await resolvedColour(page, 'var(--fgColor-muted)');
-    for (const [region, text, name] of [
-      ['Warteschlange', 'Nichts in der Warteschlange.', 'download'],
-      [
-        'Die nächsten 7 Tage',
-        'Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen.',
-        'calendar',
-      ],
-      ['Probleme der letzten 7 Tage', 'Keine Probleme in den letzten 7 Tagen.', 'check'],
-      ['Letzte Aktivität', 'Noch keine Grabs oder Importe.', 'history'],
-    ] as const) {
-      const empty = page.getByRole('region', { name: region }).locator('.empty');
-      await expect(empty).toHaveText(text);
-      expect(await iconOf(empty)).toBe(octicon(name));
-      const icon = empty.locator('svg');
-      await expect(icon).toHaveCount(1);
-      expect(await icon.evaluate((e) => e.closest('[aria-hidden="true"]') !== null)).toBe(true);
-      expect(await empty.evaluate((e) => getComputedStyle(e).color)).toBe(muted);
-      // The icon comes before the sentence.
-      const iconBox = await icon.boundingBox();
-      const textStart = await empty.evaluate((e) => {
-        const range = document.createRange();
-        const sentence = [...e.childNodes].find((n) => n.nodeType === Node.TEXT_NODE);
-        if (sentence === undefined) return 0;
-        range.selectNodeContents(sentence);
-        return range.getBoundingClientRect().x;
-      });
-      expect((iconBox?.x ?? 99) + (iconBox?.width ?? 0)).toBeLessThanOrEqual(textStart);
-    }
+    const empty = page.locator('.empty');
+    await expect(empty).toHaveCount(1);
+    await expectEmptyLine(
+      page,
+      empty,
+      'Alles ruhig – keine Downloads, Probleme oder Termine.',
+      'check',
+    );
+    await expect(page.getByRole('region')).toHaveCount(0);
+  });
+
+  test('an unreachable client without downloads keeps the queue’s empty sentence', async ({
+    page,
+  }) => {
+    await overviewWith(page, (a) => ({
+      ...a,
+      queue: {
+        items: [],
+        notice: 'Download-Client nicht erreichbar',
+        as_of: null,
+        client_configured: true,
+      },
+    }));
+    await page.goto(`${LIBRARY}/`);
+    await expectEmptyLine(
+      page,
+      queueBox(page).locator('.empty'),
+      'Nichts in der Warteschlange.',
+      'download',
+    );
   });
 });
 

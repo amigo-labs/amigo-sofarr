@@ -4,12 +4,12 @@
   import PageHeader from '#lib/components/PageHeader.svelte';
   import Loading from '#lib/components/Loading.svelte';
   import PageError from '#lib/components/PageError.svelte';
+  import type { OverviewAnswer } from '#lib/api/generated/OverviewAnswer.ts';
   import { getOverview } from '#lib/api/library.ts';
   import alertIcon from '@primer/octicons/build/svg/alert-16.svg?raw';
   import calendarIcon from '@primer/octicons/build/svg/calendar-16.svg?raw';
   import checkIcon from '@primer/octicons/build/svg/check-16.svg?raw';
   import downloadIcon from '@primer/octicons/build/svg/download-16.svg?raw';
-  import historyIcon from '@primer/octicons/build/svg/history-16.svg?raw';
   import Icon from '#lib/components/Icon.svelte';
   import { dateText, dayHeading, localToday } from '#lib/library/format.ts';
   import EmptyLine from '#lib/library/overview/EmptyLine.svelte';
@@ -20,7 +20,8 @@
 
   // The overview (spec web-ui-library AC-01): queue, activity, problems, upcoming dates;
   // refreshes every 15 seconds (spec web-ui-shell). Key figures on top and two columns from
-  // 1200 px (spec ui-overview-pages AC-02 .. AC-04).
+  // 1200 px (spec ui-overview-pages AC-02 .. AC-04). Empty boxes are hidden (spec ui-polish
+  // AC-08).
   const overview = createResource(getOverview);
 
   onMount(() => overview.start());
@@ -30,6 +31,18 @@
     void overview.data;
     return localToday();
   });
+
+  // A box shows only while it has something to say; its key figure says „0“ otherwise (spec
+  // ui-polish AC-08). The queue's notices (no client, client unreachable) count as content.
+  function shownBoxes(data: OverviewAnswer) {
+    return {
+      queue:
+        !data.queue.client_configured || data.queue.notice !== null || data.queue.items.length > 0,
+      upcoming: data.upcoming.length > 0,
+      problems: data.problems.length > 0,
+      activity: data.activity.length > 0,
+    };
+  }
 
   const upcomingDays = $derived.by(() => {
     const days = new Map<string, NonNullable<typeof overview.data>['upcoming']>();
@@ -43,6 +56,24 @@
 <svelte:head>
   <title>Übersicht – sofarr</title>
 </svelte:head>
+
+{#snippet figure(
+  linked: boolean,
+  target: string,
+  count: number,
+  icon: string,
+  label: string,
+  danger: boolean,
+)}
+  {#snippet content()}
+    <strong>{count}</strong><span class="figure-label"><Icon svg={icon} />{label}</span>
+  {/snippet}
+  {#if linked}
+    <a class="figure ui-link" class:danger href="#{target}">{@render content()}</a>
+  {:else}
+    <span class="figure" class:danger>{@render content()}</span>
+  {/if}
+{/snippet}
 
 <PageHeader title="Übersicht">
   {#snippet status()}
@@ -63,74 +94,83 @@
       </button>
     </Flash>
   {/if}
-  {@const problems = overview.data.problems.length}
+  {@const data = overview.data}
+  {@const problems = data.problems.length}
+  {@const shown = shownBoxes(data)}
+  {@const left = shown.queue || shown.upcoming}
+  {@const right = shown.problems || shown.activity}
   <ul class="figures" aria-label="Kennzahlen">
     <li>
-      <a class="figure ui-link" href="#queue-title">
-        <strong>{overview.data.queue.items.length}</strong><span class="figure-label"
-          ><Icon svg={downloadIcon} />Warteschlange</span
-        >
-      </a>
+      {@render figure(
+        shown.queue,
+        'queue-title',
+        data.queue.items.length,
+        downloadIcon,
+        'Warteschlange',
+        false,
+      )}
     </li>
     <li>
-      <a class="figure ui-link" class:danger={problems > 0} href="#problems-title">
-        <strong>{problems}</strong><span class="figure-label"
-          ><Icon svg={alertIcon} />Probleme (7 Tage)</span
-        >
-      </a>
+      {@render figure(
+        shown.problems,
+        'problems-title',
+        problems,
+        alertIcon,
+        'Probleme (7 Tage)',
+        problems > 0,
+      )}
     </li>
     <li>
-      <a class="figure ui-link" href="#upcoming-title">
-        <strong>{overview.data.upcoming.length}</strong><span class="figure-label"
-          ><Icon svg={calendarIcon} />Nächste 7 Tage</span
-        >
-      </a>
+      {@render figure(
+        shown.upcoming,
+        'upcoming-title',
+        data.upcoming.length,
+        calendarIcon,
+        'Nächste 7 Tage',
+        false,
+      )}
     </li>
   </ul>
-  <div class="columns">
-    <div class="column">
-      <QueueBox queue={overview.data.queue} onchanged={() => void overview.reload()} />
-      <section class="box" aria-labelledby="upcoming-title">
-        <h2 id="upcoming-title" class="box-header">Die nächsten 7 Tage</h2>
-        {#if upcomingDays.length === 0}
-          <EmptyLine
-            icon={calendarIcon}
-            text="Keine Veröffentlichungen überwachter Titel in den nächsten 7 Tagen."
-          />
-        {:else}
-          <ul class="days">
-            {#each upcomingDays as [day, entries] (day)}
-              <li class="box-row day-group">
-                <h3>
-                  <time datetime={day} title={dateText(day)}>{dayHeading(day, today)}</time>
-                </h3>
-                <ul class="entries">
-                  {#each entries as entry, i (i)}
-                    <li><CalendarEntryLine {entry} /></li>
-                  {/each}
-                </ul>
-              </li>
-            {/each}
-          </ul>
+  {#if !left && !right}
+    <EmptyLine icon={checkIcon} text="Alles ruhig – keine Downloads, Probleme oder Termine." />
+  {/if}
+  <div class="columns" class:single={!left || !right}>
+    {#if left}
+      <div class="column">
+        {#if shown.queue}
+          <QueueBox queue={data.queue} onchanged={() => void overview.reload()} />
         {/if}
-      </section>
-    </div>
-    <div class="column">
-      <ActivityBox
-        id="problems-title"
-        title="Probleme der letzten 7 Tage"
-        entries={overview.data.problems}
-        empty="Keine Probleme in den letzten 7 Tagen."
-        emptyIcon={checkIcon}
-      />
-      <ActivityBox
-        id="activity-title"
-        title="Letzte Aktivität"
-        entries={overview.data.activity}
-        empty="Noch keine Grabs oder Importe."
-        emptyIcon={historyIcon}
-      />
-    </div>
+        {#if shown.upcoming}
+          <section class="box" aria-labelledby="upcoming-title">
+            <h2 id="upcoming-title" class="box-header">Die nächsten 7 Tage</h2>
+            <ul class="days">
+              {#each upcomingDays as [day, entries] (day)}
+                <li class="box-row day-group">
+                  <h3>
+                    <time datetime={day} title={dateText(day)}>{dayHeading(day, today)}</time>
+                  </h3>
+                  <ul class="entries">
+                    {#each entries as entry, i (i)}
+                      <li><CalendarEntryLine {entry} quietUpcoming /></li>
+                    {/each}
+                  </ul>
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
+      </div>
+    {/if}
+    {#if right}
+      <div class="column">
+        <ActivityBox
+          id="problems-title"
+          title="Probleme der letzten 7 Tage"
+          entries={data.problems}
+        />
+        <ActivityBox id="activity-title" title="Letzte Aktivität" entries={data.activity} />
+      </div>
+    {/if}
   </div>
 {:else if overview.failure !== null}
   <PageError
@@ -203,7 +243,7 @@
   }
 
   @media (min-width: 1200px) {
-    .columns {
+    .columns:not(.single) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }

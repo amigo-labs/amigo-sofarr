@@ -9,7 +9,9 @@
   import { bytesText, missingText, seriesTypeText } from '../format';
   import { notify } from '../notices.svelte';
   import Label from '../components/Label.svelte';
+  import type { Freshness } from '../../api/generated/Freshness';
   import CastBox from '../../discover/CastBox.svelte';
+  import FreshnessNote from '../../discover/components/FreshnessNote.svelte';
   import RatingLine from '../../imdb/RatingLine.svelte';
   import ImdbAttribution from '../../imdb/ImdbAttribution.svelte';
   import { imdb } from '../../imdb/info.svelte';
@@ -25,6 +27,9 @@
   // AC-15 to AC-17).
   type Props = { id: number };
   let { id }: Props = $props();
+
+  // When the cast was fetched; its line stands at the page's end (spec ui-polish AC-10).
+  let castFreshness: Freshness | null = $state(null);
 
   const series = createResource(() => getSeries(id));
   const actions = createItemActions(() => void series.reload());
@@ -95,7 +100,7 @@
     {/snippet}
   </DetailHead>
 
-  <CastBox kind="series" id={s.id} />
+  <CastBox kind="series" id={s.id} bind:freshness={castFreshness} />
 
   <div class="detail-columns">
     <div class="detail-main">
@@ -140,6 +145,7 @@
       <TrailerBox kind="series" id={s.id} title={s.title} />
     </div>
   </div>
+  <FreshnessNote part="line" freshness={castFreshness} />
   <ImdbAttribution info={imdb.info} />
 {:else if series.failure !== null}
   <PageError

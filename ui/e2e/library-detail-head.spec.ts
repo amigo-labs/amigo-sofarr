@@ -82,7 +82,7 @@ test.describe('head (AC-02, AC-03)', () => {
     expect(await top(page, '.head .overview')).toBeLessThan(await top(page, '.head .actions'));
   });
 
-  test('the facts are a compact surface panel with up to four per row', async ({ page }) => {
+  test('the facts are a compact surface panel with up to five per row', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openMovie(page, LIBRARY, 'Das Boot');
     const facts = page.locator('.head dl.facts-compact');
@@ -94,7 +94,8 @@ test.describe('head (AC-02, AC-03)', () => {
       .evaluateAll(
         (all) => new Set(all.map((el) => Math.round(el.getBoundingClientRect().x))).size,
       );
-    expect(columns).toBeLessThanOrEqual(4);
+    // Five per row from 1200 px (ui-polish AC-07).
+    expect(columns).toBeLessThanOrEqual(5);
     const sizes = await facts
       .locator(':scope > div')
       .first()

@@ -48,8 +48,7 @@
         <span class="headline">
           <a class="title ui-link" href={row.href} title={row.title}>{row.title}</a>
           <span class="meta">
-            {#if row.year !== null}{row.year}{/if}{#if row.subtitle !== null}
-              · {row.subtitle}{/if}
+            {[row.year, row.subtitle].filter((part) => part !== null).join(' · ')}
           </span>
         </span>
         <span class="labels">
@@ -231,9 +230,21 @@
   .grid .title {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    min-height: 2lh;
+    overflow-wrap: anywhere;
     white-space: normal;
+  }
+
+  /* Every card reserves two title lines and its year line, and ends with its rating, so the
+     cards of a row line up (ui-polish AC-04, AC-05). */
+  .grid .headline .meta {
+    min-height: 1lh;
+  }
+
+  .grid .main {
+    flex: 1 0 auto;
   }
 
   .grid .select,
@@ -254,6 +265,7 @@
 
   .grid .rating {
     align-self: flex-start;
+    margin-top: auto;
   }
 
   /* Rows on narrow screens: cards with the rating below the chips (AC-22). */

@@ -262,7 +262,9 @@
     flex-direction: column;
     gap: var(--base-size-8);
     min-width: 0;
-    min-height: 7rem;
+    /* A week without entries stays low; one with entries grows with its fullest day (spec
+       ui-polish AC-12). */
+    min-height: 3.5rem;
     padding: var(--base-size-8);
     border-right: var(--borderWidth-thin) solid var(--borderColor-default);
     border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);

@@ -33,14 +33,16 @@ export function ratingLine(rating: Rating): string | null {
 
 /**
  * A tile's rating as the library rows show it: „★ 7,8“ with the full text for tooltip and
- * accessible name; `null` while ratings are off (ui-consistency AC-03).
+ * accessible name; `null` while ratings are off (ui-consistency AC-03). A pending rating has
+ * no visible text, only its name.
  */
 export function ratingCompact(rating: Rating): { text: string; full: string } | null {
   switch (rating.state) {
     case 'off':
       return null;
     case 'pending':
-      return { text: '…', full: 'IMDb-Bewertung folgt' };
+      // No visible text: „…“ read as a cut-off text (ui-polish AC-02).
+      return { text: '', full: 'IMDb-Bewertung folgt' };
     case 'none':
       return { text: '–', full: 'IMDb –' };
     case 'rated':

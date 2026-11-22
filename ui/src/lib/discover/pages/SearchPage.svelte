@@ -97,7 +97,7 @@
   {#if text === ''}
     <p class="muted">Suchbegriff eingeben, um Filme, Serien und Personen zu finden.</p>
   {:else}
-    <FreshnessNote {freshness} />
+    <FreshnessNote part="notice" {freshness} />
     {#if failure !== null}
       <Flash tone="danger">
         <p>Die Suche ist fehlgeschlagen: {failure.message}</p>
@@ -149,6 +149,7 @@
         >
       {/if}
     </div>
+    <FreshnessNote part="line" {freshness} />
     <ImdbAttribution info={discover.imdb} />
   {/if}
 </StatusGate>

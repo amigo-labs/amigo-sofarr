@@ -204,7 +204,9 @@ test.describe('episode rows (AC-06)', () => {
       expect(chip.missing).toBeLessThanOrEqual(1);
     }
     expect(chips.some((c) => c.text === 'fehlt')).toBe(true);
-    const first = rows.first();
+    // An episode without a file: with one, the toggles and two chips may wrap the line in
+    // this column (ui-polish AC-06 measures the line with the toggles).
+    const first = page.locator('[data-episode="S01E02"]');
     const line = first.locator('.line');
     const parts = await Promise.all(
       ['.code', '.episode-title', '.air', '.label', 'button'].map((s) =>

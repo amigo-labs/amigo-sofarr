@@ -81,7 +81,7 @@ describe('compact tile rating (ui-consistency AC-03)', () => {
       full: 'IMDb –',
     });
     expect(ratingCompact({ state: 'pending', rating: null, votes: null })).toEqual({
-      text: '…',
+      text: '',
       full: 'IMDb-Bewertung folgt',
     });
     expect(ratingCompact({ state: 'off', rating: null, votes: null })).toBeNull();
