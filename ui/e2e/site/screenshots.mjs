@@ -74,7 +74,7 @@ const SHOTS = [
   { name: 'series', path: '/serien', open: SERIES[0].title },
   { name: 'calendar', path: '/kalender?ansicht=monat', text: SERIES[1].title },
   { name: 'person', path: '/entdecken/personen/30001', heading: 'Lena Marquardt' },
-  { name: 'overview', path: '/', heading: 'Übersicht', text: 'Nächste 7 Tage' },
+  { name: 'overview', path: '/', heading: 'Übersicht', text: 'Zuletzt hinzugefügt' },
 ];
 
 /** The images in the viewport that have not arrived yet (runs in the page). */

@@ -90,7 +90,7 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 | AC-06 | `ui/e2e/cinema-home.spec.ts` „failures (AC-06)“ | built |        |
 | AC-07 | `ui/e2e/cinema-home.spec.ts` „loading time (AC-07)“ (measured 1166 ms, annotation „Messung“) | built |        |
 | AC-08 | `ui/e2e/cinema-home.spec.ts` „accessibility in the dark palette (AC-08)“ at 1440 and 360 px | built |        |
-| AC-09 |      | open   |        |
+| AC-09 | `docs/site/screenshots/overview.png` regenerated (`bun run screenshots`); awaits the owner's `manual:` entry | open   |        |
 | AC-10 |      | open   |        |
 
 ## Decisions
@@ -104,4 +104,5 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 - 2026-11-22: A row whose first load has not answered yet counts as not empty, so the quiet line does not flash before the rows arrive; on equal added times movies come before series.
 - 2026-11-22: The older tests of the quiet line (`ui-polish` AC-08, AC-13; `ui-overview-polish` AC-06) serve empty rows (`emptyRows` in `library-helpers.ts`), because AC-04 shows the line only while the rows are empty too.
 - 2026-11-22: Poster tile links are never underlined: the placeholder's initial counted as an underlined title link (`look` AC-12).
+- 2026-11-22: The screenshot script waits for „Zuletzt hinzugefügt“ on the overview, so the picture shows the rows; only `overview.png` is committed, the other pictures changed by rendering noise alone.
 - 2026-11-22: The unit tests of `home.ts` were green at once (written after the module); the red run of AC-01 .. AC-08 is the e2e run before the page had rows (11 of 12 failed; „no rows and no boxes: the quiet line“ passed, the behavior of today).
