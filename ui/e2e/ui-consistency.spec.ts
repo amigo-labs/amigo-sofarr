@@ -161,19 +161,19 @@ test.describe('episode disclosures (AC-11)', () => {
 test.describe('discover tiles (AC-03, AC-04)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('a tile shows the compact rating with the full text as tooltip and name', async ({
-    page,
-  }) => {
+  test('a tile shows the compact rating, its link names the full text', async ({ page }) => {
     await page.goto(`${DISCOVER}/entdecken`);
     await settle(page);
     const trending = page.getByTestId('shelf').first();
+    // The full text is part of the tile link's name (ui-cinema-tiles AC-05).
     const star = cards(trending, 'movie/502').getByTestId('rating');
     await expect(star).toHaveText('★ 7,8');
-    await expect(star).toHaveAccessibleName('IMDb 7,8 (12.345 Stimmen)');
-    await expect(star).toHaveAttribute('title', 'IMDb 7,8 (12.345 Stimmen)');
-    const unrated = cards(page, 'movie/505').first().getByTestId('rating');
-    await expect(unrated).toHaveText('–');
-    await expect(unrated).toHaveAccessibleName('IMDb –');
+    await expect(cards(trending, 'movie/502').getByRole('link')).toHaveAccessibleName(
+      'Sternenfahrt, 2024, IMDb 7,8 (12.345 Stimmen)',
+    );
+    const unrated = cards(page, 'movie/505').first();
+    await expect(unrated.getByTestId('rating')).toHaveText('–');
+    await expect(unrated.getByRole('link')).toHaveAccessibleName(/, IMDb –$/);
     // One line, also at 360 px.
     for (const width of [1440, 360]) {
       await page.setViewportSize({ width, height: 900 });

@@ -101,7 +101,8 @@ async function photograph(browser) {
   for (const shot of SHOTS) {
     await page.goto(`${BASE}${shot.path}`, { waitUntil: 'networkidle' });
     if (shot.button) await page.getByRole('button', { name: shot.button }).click();
-    if (shot.open) await page.getByRole('link', { name: shot.open, exact: true }).first().click();
+    // By the tooltip: a poster tile's link is named with year and rating too (ui-cinema-tiles).
+    if (shot.open) await page.getByTitle(shot.open, { exact: true }).first().click();
     const heading = shot.open ?? shot.heading;
     if (heading) await page.getByRole('heading', { name: heading, level: 1 }).waitFor();
     if (shot.text) await page.getByText(shot.text).first().waitFor();

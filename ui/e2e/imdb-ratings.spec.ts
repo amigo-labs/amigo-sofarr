@@ -35,7 +35,13 @@ test.describe('ratings in the lists (AC-04, AC-08)', () => {
 
     await page.getByRole('button', { name: 'Poster' }).click();
     await expect(page.getByTestId('library-items')).toHaveClass(/grid/);
-    await expectRating(rating('Gutfilm'), 'IMDb 7,5 (12.000 Stimmen)', '★ 7,5');
+    // A poster tile: the compact rating in its overlay, the full one in its link's name
+    // (ui-cinema-tiles AC-05).
+    const gut = items(page).filter({ hasText: 'Gutfilm' });
+    await expect(gut.getByTestId('rating')).toHaveText('★ 7,5');
+    await expect(gut.getByRole('link')).toHaveAccessibleName(
+      /^Gutfilm, \d{4}, IMDb 7,5 \(12\.000 Stimmen\)$/,
+    );
   });
 
   test('every series shows rating and votes, "–" without', async ({ page }) => {

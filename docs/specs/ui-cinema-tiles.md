@@ -107,18 +107,25 @@ The notes are suggestions for the build; the ACs are binding.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
+| AC-01 | `at rest on a hover device (AC-01)` › `a library tile is only its poster, with its controls and its mark`, `a discover tile is only its poster and its mark` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
+| AC-02 | `state mark (AC-02)` › `a movie: accent with a file, danger while missing, none otherwise`, `a series: danger while episodes are missing, accent when complete`, `a discover tile: in the library, excluded, or none` (`ui/e2e/cinema-tiles.spec.ts`); `a movie's state mark …`, `a series' state mark …` (`ui/src/lib/library/rows.test.ts`); `marks the library state on the poster` (`ui/src/lib/discover/texts.test.ts`) | built |  |
+| AC-03 | `open tile on a hover device (AC-03)` › `a library tile grows and shows title, year, addition, rating and chips`, `a long title is cut after two lines with an ellipsis`, `a discover tile grows and shows title, year, rating and the add button`, `one tile at a time: the one under the pointer before the focused one`, `with reduced motion the tile does not grow and the overlay shows at once` (`ui/e2e/cinema-tiles.spec.ts`); `poster tiles (AC-04, AC-05)` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-04 | `contrast over an all-white / all-black poster (AC-04)` › `1440 px, an open tile` › `library tile`, `discover tile movie/502`, `discover tile movie/501`; `360 px, a touch device` › `library tiles`, `discover tiles` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
+| AC-05 | `name and keyboard (AC-05)` › `a library tile is named with title, year and rating with votes`, `a discover tile is named with title, year and rating; nothing while off`, `Tab into a discover tile opens it; its button shows its focus`, `Tab into a library tile opens it; checkbox and toggle show their focus` (`ui/e2e/cinema-tiles.spec.ts`); `poster tile name (ui-cinema-tiles AC-05)` (`ui/src/lib/components/tile.test.ts`) | built |  |
+| AC-06 | `touch device (AC-06)` › `library and discover tiles show their overlay at rest, without growing` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
+| AC-07 | `selection mode (AC-07)` › `checkboxes show, the selected tile is outlined, the overlay leaves the controls free` (`ui/e2e/cinema-tiles.spec.ts`); `selection checkbox on a hover device (AC-05, AC-06)` (`ui/e2e/library-items.spec.ts`) | built |  |
+| AC-08 | `even tiles (AC-08)` › `a grid row is as high as its posters; an open tile moves no neighbour`, `a shelf's tiles end at one edge` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
+| AC-09 | `accessibility in the dark palette (AC-09)` › `<page> at 1440 / 360 px, at rest and with a tile open` for the movie and series lists in poster view, the discover start page, search, a shelf page and a person page (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
+| AC-10 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22; `movies.png`, `discover.png` and `person.png` show the tiles at rest with their state marks. The owner's check (`manual:`) is open | built |  |
 | AC-11 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-22: At rest a tile is only its poster with a state mark; its information shows in an overlay on hover or focus (owner), because a grid of posters reads as a library only without text under every picture.
+- 2026-11-22 (build): Both kinds of tile are one component, `ui/src/lib/components/PosterTile.svelte` (poster, overlay and corner controls as snippets), with the pure helpers `tileName` and `Mark` in `ui/src/lib/components/tile.ts`; the library rows carry their `mark`, the discover texts have `libraryMark`. The movie and series list keep their rows in list view unchanged.
+- 2026-11-22 (build): The open tile is pure CSS: `:hover`, else `:focus-within` while no tile of the same list is hovered (`:has`), only under `@media (hover: hover)`; the frame scales by 7 % and gets `z-index: 1` over neighbours that are each their own stacking context. The overlay hides with `opacity` (not `visibility`), so its button stays in the Tab order and Tab into a tile opens it.
+- 2026-11-22 (build): The overlay's title and rating are `aria-hidden`, because the link's name already carries them; year, addition, chips and the button stay readable. Older tests that read the rating's own name now read the link's name (`discover-pages`, `discover-person`, `imdb-ratings`, `ui-consistency`, `ui-polish`); the tests of `ui-polish` AC-04/AC-05 now check the overlay's two title lines and the even rows; tiles are found by their tooltip instead of an exact link name (`library-items`, the website screenshots). None removed.
+- 2026-11-22 (build): The overlay is a gradient from transparent to the page ground over 1.5 rem and the full ground behind its text; the state mark sits in the overlay's lowest line, below the text, with a ring of the page ground so it reads on any poster at rest. The overlay leaves the top 2.5 rem of the poster free for checkbox and toggle (AC-07).
+- 2026-11-22 (build): Red runs: before the build 17 of 18 tests of `cinema-tiles.spec.ts` (AC-01 to AC-08) failed; `a shelf's tiles end at one edge` (AC-08) was green at once, the shelves were already even. The contrast (AC-04) and axe (AC-09) tests were written after the overlay and were green at once, except the touch test of the discover tiles: „Hinzufügen“ wrapped in a 128 px tile and reached the button's border (3.3:1); the button now stays on one line with a smaller padding. To prove the contrast test can fail, the overlay's ground was set to 60 % for one run: five of ten tests failed (2.3:1 and 4.4:1), then restored.
+- 2026-11-22 (build): Shorter tiles exposed a gap of the shelf page: its sentinel stayed in reach after the first page and the observer never reported it again, so the page stopped at 20 titles. The sentinel is now observed afresh after every load; `"Mehr" opens the whole shelf` (`discover-pages.spec.ts`) no longer expects exactly 20 tiles first, because a window that still shows the end loads the next page at once.
+- 2026-11-22 (build): A pending rating keeps an empty line in the overlay (`.pending`, which the screenshots' wait for ratings looks for). After the add dialog added a title from a tile, the focus moves to the tile's link (edge case, not covered by its own test).
