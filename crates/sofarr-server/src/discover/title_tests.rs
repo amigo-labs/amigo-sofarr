@@ -56,6 +56,9 @@ async fn previews_show_the_title_and_say_whether_it_is_in_the_library() {
     let (status, known) = http.get("/api/discover/titles/movie/101").await;
     assert_eq!(status, StatusCode::OK, "{known}");
     assert_eq!(known["library"], json!({"status": "in_library", "id": 1}));
+    // A title in the library keeps the preview's own image address (spec
+    // ui-cinema-backdrops AC-04).
+    assert_eq!(known["backdrop"], "/api/images/tmdb/w1280/b101.jpg");
 
     let (status, show) = http.get("/api/discover/titles/series/1399").await;
     assert_eq!(status, StatusCode::OK, "{show}");
