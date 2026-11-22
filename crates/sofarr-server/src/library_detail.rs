@@ -149,6 +149,10 @@ pub struct MovieDetail {
     pub runtime_minutes: u32,
     pub overview: Option<String>,
     pub has_poster: bool,
+    /// Whether the title has a backdrop (spec ui-cinema-backdrops AC-03).
+    pub has_backdrop: bool,
+    /// sofarr's address of the backdrop; it changes with the stored image.
+    pub backdrop: Option<String>,
     pub monitored: bool,
     pub release_dates: ReleaseDates,
     pub stage: ReleaseStage,
@@ -218,6 +222,10 @@ pub struct SeriesDetail {
     pub overview: Option<String>,
     pub series_type: String,
     pub has_poster: bool,
+    /// Whether the title has a backdrop (spec ui-cinema-backdrops AC-03).
+    pub has_backdrop: bool,
+    /// sofarr's address of the backdrop; it changes with the stored image.
+    pub backdrop: Option<String>,
     pub monitored: bool,
     pub quality_profile: Choice,
     pub tags: Vec<Choice>,
@@ -244,6 +252,11 @@ pub struct EpisodeDetail {
     pub episode: EpisodeAnswer,
     pub file: Option<FileDetail>,
     pub cutoff_reason: Option<String>,
+}
+
+/// The stored backdrop path of a title, if it has one.
+fn backdrop_of(presentation: Option<&sofarr_db::Presentation>) -> Option<&str> {
+    presentation.and_then(|p| p.backdrop_path.as_deref())
 }
 
 fn not_found(what: &str) -> ApiError {
@@ -393,6 +406,9 @@ pub async fn movie_detail(app: &App, movie: Movie) -> Result<MovieDetail, ApiErr
         has_poster: presentation
             .as_ref()
             .is_some_and(|p| p.poster_path.is_some()),
+        has_backdrop: backdrop_of(presentation.as_ref()).is_some(),
+        backdrop: backdrop_of(presentation.as_ref())
+            .and_then(|path| crate::images::backdrop_url("movie", movie.id, path)),
         monitored: movie.monitored,
         release_dates: ReleaseDates {
             in_cinemas: a.in_cinemas.clone(),
@@ -519,6 +535,9 @@ pub async fn series_detail(app: &App, show: Series) -> Result<SeriesDetail, ApiE
         has_poster: presentation
             .as_ref()
             .is_some_and(|p| p.poster_path.is_some()),
+        has_backdrop: backdrop_of(presentation.as_ref()).is_some(),
+        backdrop: backdrop_of(presentation.as_ref())
+            .and_then(|path| crate::images::backdrop_url("series", show.id, path)),
         monitored: show.data.monitored,
         quality_profile: Choice {
             id: show.data.quality_profile_id,

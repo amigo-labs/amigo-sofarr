@@ -17,7 +17,10 @@ use axum::{
 use sha2::{Digest, Sha256};
 use sofarr_db::MediaRef;
 
-use crate::{api::ApiError, app::SharedApp};
+use crate::{
+    api::ApiError,
+    app::{App, SharedApp},
+};
 
 pub const TMDB_IMAGES: &str = "https://image.tmdb.org/t/p";
 pub const TVDB_IMAGES: &str = "https://artworks.thetvdb.com";
@@ -194,8 +197,41 @@ fn image(bytes: Vec<u8>, path: &str) -> Response {
     response
 }
 
-/// `GET /api/images/{kind}/{id}/{size}`: `kind` `movie` or `series`, `size` `list` or
-/// `detail`. 404 when the item has no poster or an uncached one cannot be loaded.
+/// The size TMDB serves backdrops in (the one discover's previews use).
+const BACKDROP_SIZE: &str = "w1280";
+
+/// sofarr's address of a library title's backdrop (spec ui-cinema-backdrops AC-04). The
+/// query names the stored image, so a browser never shows an outdated one from its cache.
+pub fn backdrop_url(kind: &str, id: i64, path: &str) -> Option<String> {
+    let path = tmdb_path(path)?;
+    let version = &hex(&Sha256::digest(path.as_bytes()))[..12];
+    Some(format!("/api/images/{kind}/{id}/backdrop?v={version}"))
+}
+
+/// The backdrop of a library movie or series, 1280 px wide, from the cache or else from
+/// TMDB. A failed load is answered 404 and not cached: the next request tries again.
+async fn backdrop(app: &App, kind: &str, media: MediaRef) -> Result<Response, ApiError> {
+    let Some(path) = app.db.backdrop_path(media).await? else {
+        return Ok(not_found());
+    };
+    let images = &app.images;
+    let file = cache_file(images, kind, "backdrop", &path);
+    if let Ok(bytes) = tokio::fs::read(&file).await {
+        return Ok(image(bytes, &path));
+    }
+    let url = format!("{}/{BACKDROP_SIZE}{path}", images.tmdb);
+    match fetch(&app.http, &url).await {
+        Some(bytes) => {
+            store(&file, &bytes).await;
+            Ok(image(bytes, &path))
+        }
+        None => Ok(not_found()),
+    }
+}
+
+/// `GET /api/images/{kind}/{id}/{size}`: `kind` `movie` or `series`, `size` `list`,
+/// `detail` or `backdrop`. 404 when the item has no such image or an uncached one cannot
+/// be loaded.
 pub async fn poster(
     State(app): State<SharedApp>,
     Path((kind, id, size)): Path<(String, String, String)>,
@@ -208,6 +244,9 @@ pub async fn poster(
         "series" => MediaRef::Series(id),
         _ => return Ok(not_found()),
     };
+    if size == "backdrop" {
+        return backdrop(&app, &kind, media).await;
+    }
     if !matches!(size.as_str(), "list" | "detail") {
         return Ok(not_found());
     }

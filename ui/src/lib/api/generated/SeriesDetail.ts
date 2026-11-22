@@ -6,4 +6,12 @@ import type { FolderState } from "./FolderState";
 import type { GrabEntry } from "./GrabEntry";
 import type { SeasonAnswer } from "./SeasonAnswer";
 
-export type SeriesDetail = { id: number, tvdb_id: number, imdb_id: string | null, imdb_rating: number | null, imdb_votes: number | null, title: string, title_de: string | null, alternative_titles: Array<string>, year: number | null, overview: string | null, series_type: string, has_poster: boolean, monitored: boolean, quality_profile: Choice, tags: Array<Choice>, folder: FolderState, episodes: number, monitored_episodes: number, files: number, missing: number, cutoff_unmet: number, complete: boolean, size: number, seasons: Array<SeasonAnswer>, grabs: Array<GrabEntry>, blocklist: Array<BlockedRelease>, file_actions: FileActions, added_at: string, };
+export type SeriesDetail = { id: number, tvdb_id: number, imdb_id: string | null, imdb_rating: number | null, imdb_votes: number | null, title: string, title_de: string | null, alternative_titles: Array<string>, year: number | null, overview: string | null, series_type: string, has_poster: boolean, 
+/**
+ * Whether the title has a backdrop (spec ui-cinema-backdrops AC-03).
+ */
+has_backdrop: boolean, 
+/**
+ * sofarr's address of the backdrop; it changes with the stored image.
+ */
+backdrop: string | null, monitored: boolean, quality_profile: Choice, tags: Array<Choice>, folder: FolderState, episodes: number, monitored_episodes: number, files: number, missing: number, cutoff_unmet: number, complete: boolean, size: number, seasons: Array<SeasonAnswer>, grabs: Array<GrabEntry>, blocklist: Array<BlockedRelease>, file_actions: FileActions, added_at: string, };
