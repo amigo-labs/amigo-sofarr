@@ -45,7 +45,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 - A backdrop for series without a TMDB id — because TVDB's wide images need another provider path; such series keep the fallback of AC-06.
 - Backdrops in lists, rows or a hero banner — because they are `ui-cinema-hero` and `ui-cinema-home`.
-- The light palette — because D34 designs the dark palette only. Until `ui-cinema-shell` removes it, the light palette shows the same layout, its scrim in the light page ground; its contrast is covered by an axe scan (AC-10), not by AC-07 or the owner's eye.
+- The light palette — because D34 designs the dark palette only. Until `ui-cinema-shell` removes it, the light palette shows the same layout, its scrim in the light page ground; its contrast over a backdrop is neither measured (AC-07 and AC-10 are for the dark palette) nor checked by eye.
 - Logos, trailers or moving images in the head — because they need new provider data and are not part of the owner's request.
 - A choice between several backdrops of a title — because the provider's first choice is good enough for one user.
 
@@ -58,7 +58,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
   - The preview page keeps the image address its answer carries today (`TitlePreview.backdrop`), also for a title that is in the library.
 - [ ] AC-05 (state): While a title page's title has a backdrop and the image has loaded, the head shows it sharp (not blurred) across the head's full width behind the head's content.
   - The image fills the head without distortion (cropped, never stretched) and is anchored to the head's top.
-  - A scrim lies over the whole image: at most 45 % of the page ground at the head's top right, at least 80 % under the head's text column, and the full page ground at the head's lower edge, so the head ends in the page without an edge.
+  - A scrim lies over the whole image: at least 80 % of the page ground under the head's text column, and the full page ground at the head's lower edge, so the head ends in the page without an edge. At window widths from 1440 px it is at most 45 % at the head's top right, so the image shows there; in narrower windows the head's content reaches the right edge and the scrim stays strong under it.
   - The poster, the text and the facts panel of the head stay as they are (`ui-detail-head` AC-02, AC-03).
   - The head is at least 420 px high at window widths from 1024 px, so the image has room; below 1024 px the head is as high as its content and the image fills that.
   - The image is decorative: hidden from assistive technology, without alternative text.
@@ -74,7 +74,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 - **Storage:** a `backdrop_path` column next to `poster_path` on `movies` and `series` (new migration; it only adds columns). `crates/sofarr-server/src/metadata.rs` already reads `poster_path` from TMDB's movie details, which also carry `backdrop_path`.
 - **Series:** the TVDB refresh (`series.rs`) stays the source of the series' data (D28); the backdrop is one extra TMDB request by the series' TMDB id (D26) inside the refresh, whose failure is logged and does not fail the refresh.
-- **Serving:** `images.rs` serves `/api/library/{kind}/{id}/poster` from the cache; the backdrop gets the sibling address and the size `w1280`, which discover already uses for previews.
+- **Serving:** `images.rs` serves the poster at `/api/images/{kind}/{id}/{size}` from the cache; the backdrop is the size `backdrop` of the same route, fetched from TMDB as `w1280`, which discover already uses for previews. The detail answers carry the address (`backdrop`) next to `has_backdrop`.
 - **UI:** `DetailHead.svelte` (library pages) and the head of `PreviewPage.svelte` share the look; `posterAddress` in `ui/src/lib/library/` gets a sibling for the backdrop.
 - **Tests:** server tests with the fake TMDB (`tmdb_fake.rs`) for AC-01 to AC-04 and AC-09; Playwright in a new `ui/e2e/cinema-backdrops.spec.ts` against the discover server (a library with TMDB data), with the image request answered by a white and a black picture for AC-07; `ui_types_match_the_server` for the new field.
 - **Screenshots:** the demo instance (`ui/e2e/site/`) renders its artwork; it needs wide pictures for the demo titles.
@@ -104,8 +104,6 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 ## Open questions
 
-- AC-05 says the scrim is „at most 45 % of the page ground at the head's top right“ without a window width. That holds from about 1440 px; in narrower windows the head's content fills the width and the scrim must stay strong for AC-07. Proposed revision: „at window widths from 1440 px“. The sentence under „Out of scope“ that the light palette's contrast is covered by an axe scan of AC-10 is also wrong (AC-10 scans the dark palette only): add light scans, or correct the sentence?
-
 ## Evidence
 
 | AC    | Test | Status | Commit |
@@ -114,7 +112,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 | AC-02 |      | open   |        |
 | AC-03 |      | open   |        |
 | AC-04 |      | open   |        |
-| AC-05 | `movie page / series page / preview page: sharp backdrop (AC-05)` › `fills the head sharp, cropped, anchored to the top, under a scrim`, `below 1024 px the head is as high as its content` (`ui/e2e/cinema-backdrops.spec.ts`); `preview head (AC-04)` › `the backdrop sharp under a scrim in the page ground; compact facts` (`ui/e2e/discover-polish.spec.ts`) | built |  |
+| AC-05 | `movie page / series page / preview page: sharp backdrop (AC-05)` › `fills the head sharp, cropped, anchored to the top, under a scrim`, `the scrim is strong under the text and light at the top right` (1440 px), `below 1024 px the head is as high as its content` (`ui/e2e/cinema-backdrops.spec.ts`); `preview head (AC-04)` › `the backdrop sharp under a scrim in the page ground; compact facts` (`ui/e2e/discover-polish.spec.ts`) | built |  |
 | AC-06 | `fallbacks (AC-06)` › `a library title without a backdrop shows its poster, blurred`, `a backdrop that fails to load falls back to the blurred poster`, `without backdrop and poster the head has the plain ground`, `a preview whose backdrop fails to load has the plain ground` (`ui/e2e/cinema-backdrops.spec.ts`); `backdrop (AC-01)` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
 | AC-07 | `movie page / series page / preview page: contrast over any image (AC-07)` › `at least 4.5:1 over an all-white / all-black backdrop at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
@@ -136,5 +134,6 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
   - AC-02: the test asserted „no backdrop without a TMDB id“ only on a series that never had one. It now stores a backdrop first and expects the refresh to remove it.
   - AC-05: the scrim's strengths were not measured. New test `the scrim is strong under the text and light at the top right` on all three pages at 1440 px: over an all-white image it reads the scrim's share of the page ground from pixels (at most 45 % at the head's top right, at least 80 % under the title).
   - The verifier also found that AC-05 names no window width for „at most 45 % at the head's top right“: below about 1350 px the head's content reaches the right edge and the scrim is strong there too, which AC-07 needs. Whether the AC names the width is the owner's to decide (a stopping point); see Open questions.
+- 2026-11-22 (revision, owner): AC-05 names the window width for the light part of the scrim („from 1440 px … at most 45 % at the head's top right“), because in narrower windows the head's content reaches the right edge and AC-07 needs the strong scrim there. The sentence on the light palette under „Out of scope“ no longer claims an axe scan that does not exist; the light palette goes with `ui-cinema-shell` (D34). The technical note on serving names the address as built. The look does not change.
 - 2026-11-22 (build): Older e2e tests adjusted, none removed: the preview's backdrop is sharp (`discover-polish.spec.ts`), the blurred poster is the fallback and its veil is the component's (`library-detail-head.spec.ts`).
 - 2026-11-22: The scrim, not the choice of image, guarantees the contrast (AC-07), because sofarr cannot know how bright a provider's image is.
