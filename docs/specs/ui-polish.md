@@ -140,7 +140,7 @@ This spec changes the look only. What each page shows and does stays as its spec
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |  | open |  |
+| AC-01 | manual: the owner checked the head backdrop of the series page „Hafenlichter“ and of a movie page from screenshots of this branch's demo instance in both palettes at 1440 px and 360 px („Ja passt“), 2026-11-22 | built |  |
 | AC-02 | `discover tiles: pending rating (AC-02)` › `a pending rating shows no text, keeps its line and its name` (`ui/e2e/ui-polish.spec.ts`); `ratingCompact` in `ui/src/lib/discover/texts.test.ts` | built |  |
 | AC-03 | `library cards and rows: year and addition (AC-03)` › `„ · “ between year and addition, no dot with only one of them (liste / poster)` (`ui/e2e/ui-polish.spec.ts`) | built |  |
 | AC-04 | `poster tiles (AC-04, AC-05)` › `library cards: two title lines, year lines level, feet end level`, `discover tiles: two title lines, year lines level, chips and buttons end level` (`ui/e2e/ui-polish.spec.ts`) | built |  |
@@ -154,7 +154,7 @@ This spec changes the look only. What each page shows and does stays as its spec
 | AC-12 | `month grid: weeks without entries (AC-12)` › `an empty week is at most 72 px high; a week with entries grows` (`ui/e2e/ui-polish.spec.ts`) | built |  |
 | AC-13 | `accessibility (AC-13), dark / light, 1440 px / 360 px` › `overview with all boxes hidden and with only some`, `a poster grid with long titles and a dropdown`, `a discover shelf with a pending rating`, `a series page with an opened episode`, `the month calendar` (`ui/e2e/ui-polish.spec.ts`) | built |  |
 | AC-14 | `website screenshots: the wait for ratings (AC-14)` › `ends with an error while a rating stays pending`, `returns once no rating is pending` (`ui/e2e/ui-polish.spec.ts`); `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22 | built |  |
-| AC-15 |  | open |  |
+| AC-15 | manual: the owner checked overview, movie list in poster view, movie page, series page, discover page and month calendar from screenshots of this branch's demo instance in both palettes at 1440 px and 360 px („Ja passt“), 2026-11-22 | built |  |
 
 ## Decisions
 
