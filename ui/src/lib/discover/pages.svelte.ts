@@ -32,9 +32,18 @@ export function newCards(known: readonly TitleCard[], cards: readonly TitleCard[
   });
 }
 
-/** The freshness to show: a stale page wins over fresh ones. */
-export const fresher = (shown: Freshness | null, page: Freshness): Freshness =>
-  shown === null || (page.stale && !shown.stale) ? page : shown;
+/**
+ * The freshness to show for several loaded pages: a stale page wins over fresh ones (its
+ * notice shows), and the fetch time is the oldest of all pages (spec ui-polish AC-10).
+ */
+export function fresher(shown: Freshness | null, page: Freshness): Freshness {
+  if (shown === null) return page;
+  const base = page.stale && !shown.stale ? page : shown;
+  const other = base === page ? shown : page;
+  return Date.parse(other.fetched_at) < Date.parse(base.fetched_at)
+    ? { ...base, fetched_at: other.fetched_at }
+    : base;
+}
 
 export function createTitlePages(): TitlePages {
   const state = $state<{

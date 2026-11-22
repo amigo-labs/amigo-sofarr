@@ -526,7 +526,7 @@ li.box-row:not(.day-group) a.ui-link {
 
 /* The facts of a detail page's head: a compact panel, the term small above its value
    (spec ui-detail-head AC-03). Rows of four, of five from 1200 px, of two on narrow windows;
-   a fifth fact spans its row instead of standing alone (spec ui-polish AC-07). */
+   where one fact would be left over, the rule below uses rows of three (spec ui-polish AC-07). */
 .facts-compact {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--base-size-12) var(--base-size-16);
