@@ -119,7 +119,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 | AC-09 |      | open   |        |
 | AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-11 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22 from the demo instance, whose refresh stores the demo titles' backdrops; `movie.png` and `series.png` show them behind the head | built |  |
-| AC-12 |      | open   |        |
+| AC-12 | manual: the owner checked the movie page („Nordlicht über Tromsø“), the series page („Hafenlichter“) and the preview page („Rote Dünen“) with their backdrops from screenshots of this branch's demo instance, dark palette, 1440 px („Sichtprüfung ok“), 2026-11-22 | built |  |
 
 ## Decisions
 
