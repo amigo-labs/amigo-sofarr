@@ -7,8 +7,11 @@ use axum::{
     extract::{Query, State, rejection::QueryRejection},
     http::StatusCode,
 };
+use std::collections::HashMap;
+
 use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
+use sofarr_db::Presentation;
 
 use crate::{
     api::ApiError,
@@ -71,6 +74,8 @@ pub struct CalendarEntry {
     pub state: EntryState,
     /// The movie, or the episode and its series, are monitored.
     pub monitored: bool,
+    /// Whether the movie or series has a poster (`/api/images/{kind}/{id}/list`).
+    pub has_poster: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -111,6 +116,10 @@ fn state(has_file: bool, date: Date, today: Date, missing: bool) -> EntryState {
     }
 }
 
+fn has_poster(posters: &HashMap<i64, Presentation>, id: i64) -> bool {
+    posters.get(&id).is_some_and(|p| p.poster_path.is_some())
+}
+
 fn parse(raw: Option<&str>) -> Option<Date> {
     raw.and_then(sofarr_core::availability::parse_date)
 }
@@ -120,6 +129,7 @@ pub async fn entries(app: &App, from: Date, to: Date) -> anyhow::Result<Vec<Cale
     let mut out = Vec::new();
     let inside = |d: Date| d >= from && d <= to;
     let judge = movie_judge(app).await;
+    let posters = app.db.movie_presentation().await?;
     for m in app.db.movies().await?.iter().filter(|m| m.monitored) {
         let a = &m.availability;
         let missing = judge.movie(m).missing;
@@ -145,12 +155,14 @@ pub async fn entries(app: &App, from: Date, to: Date) -> anyhow::Result<Vec<Cale
                 year: m.year,
                 state: state(m.file.is_some(), date, judge.today, missing),
                 monitored: true,
+                has_poster: has_poster(&posters, m.id),
             });
         }
     }
     let judge = series_judge(app).await;
     let today = judge.today_text();
     let shows = app.db.all_series().await?;
+    let posters = app.db.series_presentation().await?;
     let episodes = app.db.episodes(None).await?;
     for show in shows.iter().filter(|s| s.data.monitored) {
         for e in episodes.iter().filter(|e| e.series_id == show.id) {
@@ -172,6 +184,7 @@ pub async fn entries(app: &App, from: Date, to: Date) -> anyhow::Result<Vec<Cale
                 year: show.data.year,
                 state: state(e.file.is_some(), date, judge.today, s.missing),
                 monitored: s.monitored,
+                has_poster: has_poster(&posters, show.id),
             });
         }
     }

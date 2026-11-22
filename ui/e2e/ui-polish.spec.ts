@@ -170,6 +170,7 @@ const entry = (date: string, title: string, state: CalendarEntry['state']): Cale
   year: 2026,
   state,
   monitored: true,
+  has_poster: false,
 });
 
 const BOXES = [

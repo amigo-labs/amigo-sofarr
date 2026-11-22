@@ -240,7 +240,7 @@ async fn overview_shows_activity_problems_and_the_next_days() {
             "date": day(3), "kind": "movie", "release": "digital", "movie_id": first,
             "series_id": null, "episode_id": null, "season": null, "episode": null,
             "title": "Erster Film", "episode_title": null, "year": 2001,
-            "state": "upcoming", "monitored": true
+            "state": "upcoming", "monitored": true, "has_poster": false
         }])
     );
     assert_eq!(
@@ -355,6 +355,64 @@ async fn calendar_shows_all_episodes_of_monitored_series() {
     let upcoming = overview["upcoming"].as_array().expect("upcoming");
     assert_eq!(upcoming.len(), 1, "{overview}");
     assert_eq!(upcoming[0]["episode"], 3);
+}
+
+#[tokio::test]
+async fn calendar_entries_say_whether_their_title_has_a_poster() {
+    // ui-cinema-home AC-02: a tile of „Demnächst“ shows the poster or the placeholder.
+    let app = app(Library::Movies, "").await;
+    let first = movie_id(&app, 101).await;
+    let third = movie_id(&app, 103).await;
+    set_dates(&app, first, &day(1), "", "").await;
+    set_dates(&app, third, &day(2), "", "").await;
+    sqlx::query("UPDATE movies SET poster_path = '/erster.jpg' WHERE id = ?")
+        .bind(first)
+        .execute(app.db.pool())
+        .await
+        .expect("poster");
+    let http = Http::start(app).await;
+    let (status, overview) = http.get("/api/overview").await;
+    assert_eq!(status, StatusCode::OK, "{overview}");
+    let posters: Vec<(&str, &Value)> = overview["upcoming"]
+        .as_array()
+        .expect("upcoming")
+        .iter()
+        .map(|e| (e["title"].as_str().unwrap_or_default(), &e["has_poster"]))
+        .collect();
+    assert_eq!(
+        posters,
+        [
+            ("Erster Film", &json!(true)),
+            ("Dritter Film", &json!(false))
+        ],
+        "{overview}"
+    );
+    let (_, cal) = http
+        .get(&format!("/api/calendar?from={}&to={}", day(0), day(7)))
+        .await;
+    assert_eq!(cal["entries"][0]["has_poster"], true, "{cal}");
+
+    let app = crate::testkit::app(Library::Series, "").await;
+    let show = app.db.all_series().await.expect("db")[0].id;
+    let eps = app.db.episodes(Some(show)).await.expect("eps");
+    sqlx::query("UPDATE episodes SET air_date = ? WHERE id = ?")
+        .bind(day(3))
+        .bind(eps[2].id)
+        .execute(app.db.pool())
+        .await
+        .expect("air date");
+    sqlx::query("UPDATE series SET poster_path = '/insel.jpg' WHERE id = ?")
+        .bind(show)
+        .execute(app.db.pool())
+        .await
+        .expect("poster");
+    let http = Http::start(app).await;
+    let (_, overview) = http.get("/api/overview").await;
+    assert_eq!(
+        overview["upcoming"][0]["title"], "Kleine Insel",
+        "{overview}"
+    );
+    assert_eq!(overview["upcoming"][0]["has_poster"], true, "{overview}");
 }
 
 #[tokio::test]
