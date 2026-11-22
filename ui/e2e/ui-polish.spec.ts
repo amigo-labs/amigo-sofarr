@@ -271,6 +271,11 @@ test.describe('poster tiles (AC-04, AC-05)', () => {
     const metas = await row('.main .meta');
     const labels = await row('.main .labels');
     labels.forEach((l, i) => expect(l.y - (metas[i]?.bottom ?? 0)).toBeLessThanOrEqual(8));
+    // A card without a year keeps its year line: every line is one line high, so the chips
+    // of the whole row start at the same height.
+    for (const m of metas) expect(m.height).toBeGreaterThan(10);
+    expect(level(metas.map((m) => m.height))).toBe(true);
+    expect(level(labels.map((l) => l.y))).toBe(true);
     // The row really holds the mix: a tile with two chips next to tiles with one.
     const chipCounts = await all.evaluateAll((els) =>
       els.map((el) => el.querySelectorAll('.main .labels .label').length),
