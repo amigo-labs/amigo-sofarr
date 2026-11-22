@@ -140,21 +140,21 @@ This spec changes the look only. What each page shows and does stays as its spec
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
-| AC-12 |      | open   |        |
-| AC-13 |      | open   |        |
-| AC-14 |      | open   |        |
-| AC-15 |      | open   |        |
+| AC-01 |  | open |  |
+| AC-02 | `discover tiles: pending rating (AC-02)` › `a pending rating shows no text, keeps its line and its name` (`ui/e2e/ui-polish.spec.ts`); `ratingCompact` in `ui/src/lib/discover/texts.test.ts` | built |  |
+| AC-03 | `library cards and rows: year and addition (AC-03)` › `„ · “ between year and addition, no dot with only one of them (liste / poster)` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-04 | `poster tiles (AC-04, AC-05)` › `library cards: two title lines, year lines level, feet end level`, `discover tiles: two title lines, year lines level, chips and buttons end level` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-05 | the same two tests of `poster tiles (AC-04, AC-05)` (tile bottoms, rating lines, chips and add buttons at one edge; one and two chips) (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-06 | `episode rows (AC-06)` › `from 768 px the toggles sit in the main line, before the buttons`, `below 768 px the toggles keep their own line` (`ui/e2e/ui-polish.spec.ts`); `episode disclosures (AC-11)` (`ui/e2e/ui-consistency.spec.ts`) | built |  |
+| AC-07 | `head facts (AC-07)` › `a series shows its five facts in one row from 1200 px`, `no fact stands alone below a fuller row at 360 / 600 / 800 / 1000 / 1199 / 1440 px` (series and movie page) (`ui/e2e/ui-polish.spec.ts`); `the facts are a compact surface panel with up to five per row` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
+| AC-08 | `overview: empty boxes (AC-08)` › `all boxes empty: no box, plain figures and the quiet line`, `a queue box with the no-client line shows; the quiet line does not`, `a queue box with an unreachable client shows its warning`, `only problems: that box takes the full width and its figure links to it`, `a box hides and shows again with the refreshes` (`ui/e2e/ui-polish.spec.ts`); `empty states (AC-06, revised by ui-polish AC-08)` (`ui/e2e/overview-polish.spec.ts`) | built |  |
+| AC-09 | `overview: upcoming entries (AC-09)` › `no chip for entries that are not out yet; other states keep theirs` (`ui/e2e/ui-polish.spec.ts`); the agenda's chips in `ui/e2e/calendar.spec.ts` (unchanged) | built |  |
+| AC-10 | `freshness line (AC-10)` › `discover / filtered list / search / preview / person: once, at the end of the page`, `shelf page: once, at the end of the page`, `library movie: the cast’s line stands at the end, not in the cast box`, `a stale answer keeps its warning on top and the line at the end` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-11 | `dropdowns (AC-11)` › `a select has the field look and a chevron of its own, dark / light`, `focused by keyboard a select shows the focus ring; disabled it is dimmed` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-12 | `month grid: weeks without entries (AC-12)` › `an empty week is at most 72 px high; a week with entries grows` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-13 | `accessibility (AC-13), dark / light, 1440 px / 360 px` › `overview with all boxes hidden and with only some`, `a poster grid with long titles and a dropdown`, `a discover shelf with a pending rating`, `a series page with an opened episode`, `the month calendar` (`ui/e2e/ui-polish.spec.ts`) | built |  |
+| AC-14 | `website screenshots: the wait for ratings (AC-14)` › `ends with an error while a rating stays pending`, `returns once no rating is pending` (`ui/e2e/ui-polish.spec.ts`); `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22 | built |  |
+| AC-15 |  | open |  |
 
 ## Decisions
 
@@ -164,3 +164,13 @@ This spec changes the look only. What each page shows and does stays as its spec
 - 2026-11-22: The cast strip keeps its size; only its „Stand“ line moves to the page's end (owner), because the strip looks empty only with the demo's three members.
 - 2026-11-22: A pending rating shows no visible text instead of „…“, because „…“ reads as cut-off text and „–“ would claim there is no rating; the reserved line keeps the tile from jumping.
 - 2026-11-22: No new entry in `sofarr.md` §9: the spec stays within D30 and adds no dependency, API field or config key.
+- 2026-11-22 (build): Red run of `bunx playwright test e2e/ui-polish.spec.ts` against the unchanged UI: 30 of 52 failed (pending „…“, „2024· …“, uneven tiles, toggles below the line, 4 + 1 facts, visible empty boxes, the chip, the „Stand“ lines, the browser's select arrow, 112 px empty weeks). Green at once: the toggles' own line below 768 px, the facts at 360 px and 600 px, the unreachable client's warning, the freshness line on the preview and person pages (already at the end) and most axe scans; they stay as guards.
+- 2026-11-22 (build): AC-01 is built (the backdrop's blur grows with the window, 56 px to 120 px, and the image is scaled so the blur's edge lies outside the head) and waits for the owner's eye; so does AC-15.
+- 2026-11-22 (build): The episode toggles are rendered before the episode's buttons from one component, so from 768 px the Tab order is the visual order (toggles, monitor, search). Below 768 px the toggles show below the line but keep that place in the Tab order, because one DOM order has to serve both layouts.
+- 2026-11-22 (build): An episode with a file and two chips („Cutoff nicht erreicht“) does not fit one line in the two-thirds column at 1440 px: its toggles and buttons wrap onto a second line (the edge case of the narrow column). The title's flexible width starts at 6 rem instead of 10 rem, so a row with one chip fits.
+- 2026-11-22 (build): Facts: rows of four, five from 1200 px, two below 768 px; where exactly one fact would be left over (5 or 9 of four, 6 or 11 of five), the panel uses rows of three.
+- 2026-11-22 (build): The chevron of a select is a background image and cannot read a custom property, so `ui/src/app.css` draws it once per palette in the value of `--am-text-secondary`; the generated theme files stay untouched. The rule's selector outweighs the theme's `.am-input`, which sets the whole background.
+- 2026-11-22 (build): „Alles ruhig …“ takes the check icon and the muted empty-line look of `ui-overview-polish`. An unreachable client without downloads keeps „Nichts in der Warteschlange.“ below its warning, as today.
+- 2026-11-22 (build): The freshness line of a library page shows only when the cast shows (an empty cast or a failed load: no line). On the discover start page the line is the filtered list's while filters are set, otherwise the shelves'; no page shows two TMDB answers at once today.
+- 2026-11-22 (build): The wait of the screenshot run is `ratingsSettled` in `ui/e2e/site/settled.mjs`, so the e2e tests can run it against a page whose ratings stay pending; it now guards every picture, not only the discover page's.
+- 2026-11-22 (build): Older e2e tests adjusted to the revised behaviour, none removed: the overview's figures and empty states (`overview-polish.spec.ts`, `pages-redesign.spec.ts`, `library-pages.spec.ts`), the facts' columns (`library-detail-head.spec.ts`), the one-line check of an episode row, now on an episode without a file (`library-detail-boxes.spec.ts`), and the pending placeholder's unit test.
