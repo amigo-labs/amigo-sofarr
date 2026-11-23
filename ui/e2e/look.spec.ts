@@ -75,13 +75,27 @@ for (const palette of PALETTES) {
         '<button class="am-btn am-btn--danger">A</button>',
       ],
       ['link as a button', '<a class="btn" href="/">A</a>', '<button class="am-btn">A</button>'],
-      ['box', '<div class="box"><p>A</p></div>', '<div class="am-panel"><p>A</p></div>'],
     ] as const) {
       test(`a ${name} looks like its shared counterpart (AC-10)`, async ({ page }) => {
         const look = await lookOf(page, ours, theirs, ':scope > *');
         expect(look.ours).toEqual(look.theirs);
       });
     }
+
+    // Revised by spec ui-cinema-shell AC-04: a box is the shared panel without its frame.
+    test('a box looks like its shared counterpart without the frame (AC-10)', async ({ page }) => {
+      const look = await lookOf(
+        page,
+        '<div class="box"><p>A</p></div>',
+        '<div class="am-panel"><p>A</p></div>',
+        ':scope > *',
+      );
+      for (const name of ['border-top-left-radius', 'background-color', 'color'] as const) {
+        expect(look.ours[name], name).toBe(look.theirs[name]);
+      }
+      expect(look.theirs['border-top-width']).toBe('1px');
+      expect(look.ours['border-top-width']).toBe('0px');
+    });
 
     for (const control of [
       '<input type="text" value="A">',

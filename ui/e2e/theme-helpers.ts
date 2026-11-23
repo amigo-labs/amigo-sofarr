@@ -1,13 +1,21 @@
 // Helpers of the theme tests (spec amigo-theme): the tokens of the generated theme files
 // and the palette a test wants.
 
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { tokensCss } from './theme-files.mjs';
 
-export const PALETTES = ['dark', 'light'] as const;
-export type Palette = (typeof PALETTES)[number];
+/**
+ * The palettes the UI shows: only the dark one since spec ui-cinema-shell (AC-02). The
+ * tests that once ran in both palettes run in this list; the light tokens stay readable
+ * (`token('light', …)`) because the theme files keep them (D29).
+ */
+export const PALETTES = ['dark'] as const;
+export type Palette = 'dark' | 'light';
 
-/** The key the UI remembers the theme choice under (`src/lib/theme/theme.ts`). */
+/**
+ * The key an older sofarr remembered the theme choice under (`src/lib/theme/theme.ts`); the
+ * UI ignores it now, tests store values there to prove it.
+ */
 export const THEME_KEY = 'sofarr-theme';
 
 function declarations(block: string): Record<string, string> {
@@ -70,14 +78,4 @@ export async function styleOf(page: Page, selector: string, property: string): P
     .locator(selector)
     .first()
     .evaluate((el, name) => getComputedStyle(el).getPropertyValue(name), property);
-}
-
-/** The button of a theme choice in the switch (`Dunkel`, `Hell`, `System`). */
-export function themeButton(page: Page, label: string): Locator {
-  return page.getByRole('group', { name: 'Farbschema' }).getByRole('button', { name: label });
-}
-
-/** Picks a theme choice in the switch. */
-export async function pickTheme(page: Page, label: string): Promise<void> {
-  await themeButton(page, label).click();
 }

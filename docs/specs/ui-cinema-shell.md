@@ -86,17 +86,25 @@ This spec revises `amigo-theme` AC-05 to AC-08 (choosing, remembering and applyi
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 |      | open   |        |
-| AC-02 |      | open   |        |
-| AC-03 |      | open   |        |
-| AC-04 |      | open   |        |
-| AC-05 |      | open   |        |
-| AC-06 |      | open   |        |
-| AC-07 |      | open   |        |
-| AC-08 |      | open   |        |
-| AC-09 |      | open   |        |
+| AC-01 | `ui/e2e/cinema-shell.spec.ts`: „no theme switch (AC-01)“ (3 tests); `ui/e2e/shell.spec.ts`: „theme switch (AC-09)“, „the login page has a top bar …“, „the drawer slides in …“; `ui/src/lib/theme/theme.test.ts`: „offers no theme switch“ | built |  |
+| AC-02 | `ui/e2e/cinema-shell.spec.ts`: „always the dark palette (AC-02)“ (6 tests); `ui/e2e/layout.spec.ts`: „theme (AC-10)“ (10 tests); `ui/src/lib/theme/theme.test.ts`: „the palette“ | built |  |
+| AC-03 | `ui/e2e/cinema-shell.spec.ts`: „a quieter shell (AC-03)“ (3 tests); `ui/e2e/shell.spec.ts`: „every entry has an icon; the current one is the accent text without a ground (AC-02, dark)“ | built |  |
+| AC-04 | `ui/e2e/cinema-shell.spec.ts`: „flat boxes (AC-04)“; `ui/e2e/look.spec.ts`: „a box looks like its shared counterpart without the frame (AC-10)“; `ui/e2e/library-detail-boxes.spec.ts`: „box headers (AC-02)“; `ui/e2e/theme.spec.ts`: „grounds, text and hairlines are the tokens (AC-02)“ | built |  |
+| AC-05 | `ui/e2e/cinema-shell.spec.ts`: „the month as tiles (AC-05)“; `ui/e2e/calendar.spec.ts`, `ui/e2e/ui-polish.spec.ts` (row heights) still green | built |  |
+| AC-06 | `ui/e2e/cinema-shell.spec.ts`: „posters in the week (AC-06)“ | built |  |
+| AC-07 | `ui/e2e/cinema-shell.spec.ts`: „accessibility in the dark palette (AC-07)“ (week with posters, month and login page at 1440 and 360 px; keyboard through sidebar, top bar and drawer); `a11y.spec.ts`, `library-a11y.spec.ts`, `discover-a11y.spec.ts`, `extras-a11y.spec.ts` in the dark palette (`PALETTES` in `ui/e2e/theme-helpers.ts`) | built |  |
+| AC-08 | `ui/e2e/assets.spec.ts`: „transfer budget (AC-16)“; the budget tests of `library-a11y.spec.ts` and `discover-a11y.spec.ts` | built |  |
+| AC-09 | `docs/site/screenshots/calendar.png` and `overview.png` regenerated (`cd ui && bun run screenshots`); owner's check pending | open |  |
 | AC-10 |      | open   |        |
 
 ## Decisions
 
 - 2026-11-22: The theme switch goes and the UI is always dark; the light values stay in the generated theme files (owner), so the palette could come back without a change to amigo-labs/website.
+- 2026-11-23: This spec revises `amigo-theme` AC-05 .. AC-09 and AC-13, `ui-shell-redesign` AC-02, AC-09, AC-13 and AC-15, `web-ui-shell` AC-10 and AC-11, `ui-detail-boxes` AC-02 and `ui-calendar` AC-01 (see Context). Their tests were changed, not skipped: `PALETTES` in `ui/e2e/theme-helpers.ts` is only `dark`, so every test that ran in both palettes runs in the dark one; the switch tests in `layout.spec.ts`, `shell.spec.ts` and `theme.test.ts` now prove that no switch shows and that a stored „Hell“/„System“ and a light system preference are ignored (and the stored value kept); `theme.spec.ts` expects the sidebar on `bg`, a frameless box and the raised look on the calendar's segmented control instead of the switch; `look.spec.ts` compares a box with `am-panel` without its frame; `library-detail-boxes.spec.ts` expects no line below a box header.
+- 2026-11-23: `app.html` keeps `data-theme="dark"` on `<html>` and no longer reads the stored choice; `<meta name="color-scheme">` is `dark` only, so native controls and scrollbars are dark under a light system preference too. `theme.ts` shrinks to `THEME_KEY` (documented as ignored), `PALETTE` and `applyPalette`, which `AppNav` calls on mount; `ThemeSwitch.svelte` is deleted. The light rules in `app.css` (the select chevron) stay with the light tokens (D29).
+- 2026-11-23: Navigation entries change only their text colour on hover and focus, no ground (the shell has no filled entry, AC-10); the accent bar is the current entry's `::before`, 3 px wide with a 4 px inset top and bottom and rounded right corners.
+- 2026-11-23: The narrow top bar also stands on the page ground without its bottom line, so the shell is one surface at every width; the sidebar footer's line above „Abmelden“ and the separators of the collapsed groups stay.
+- 2026-11-23: A box header keeps its padding; header and first row are apart by that spacing alone. The week columns and the narrow agenda's day cards lose their frame too and mark today with the same 2 px accent ring as the month; the month keeps today's filled number.
+- 2026-11-23: The week's posters show at every width (also in the narrow agenda), through `CalendarEntryLine`'s new `poster` option, which wraps the existing `Poster` (size `list`) in a 40 px column; the month cells stay without posters. An entry with neither movie nor series id shows the placeholder.
+- 2026-11-23: Tests green at once: in `cinema-shell.spec.ts` a stored „dark“, nothing stored and blocked storage were dark before this spec (the default of `amigo-theme` AC-04); all other tests of the spec were red first. The rewritten `theme.test.ts` was written with the change.
+- 2026-11-23: The screenshot run also changed `discover.png`, `movie.png`, `movies.png`, `person.png` and `series.png` by the new sidebar (not rendering noise); they are committed with `calendar.png` and `overview.png` so the website shows one shell.

@@ -3,23 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="dark" />
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
     <title>sofarr</title>
     <script>
-      // Applies the remembered theme choice before the first paint (see lib/theme/theme.ts):
-      // the document is dark unless `light` or `system` is stored.
-      try {
-        var choice = localStorage.getItem('sofarr-theme');
-        if (choice === 'light') {
-          document.documentElement.setAttribute('data-theme', 'light');
-        } else if (choice === 'system') {
-          document.documentElement.removeAttribute('data-theme');
-        }
-      } catch (e) {
-        // Blocked storage: the page stays dark.
-      }
-      // The same for the sidebar's collapsed state (see lib/sidebar.ts).
+      // The palette is always dark (`data-theme` above, lib/theme/theme.ts); only the sidebar's
+      // collapsed state is applied before the first paint (see lib/sidebar.ts).
       try {
         if (localStorage.getItem('sofarr-sidebar') === 'collapsed') {
           document.documentElement.setAttribute('data-sidebar', 'collapsed');
