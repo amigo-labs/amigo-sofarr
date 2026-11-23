@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-22
 size: M
 design: [sofarr.md §3, sofarr.md §9 D30, sofarr.md §9 D34]
@@ -8,6 +8,14 @@ oracle: none
 ---
 
 # Cinema look 2: poster tiles
+
+## Summary
+
+> Completed: 2026-11-23
+
+- Poster tiles of the movie and series lists and of every discover page are one component (`PosterTile.svelte`): at rest only the poster with its controls and a state mark (vorhanden, fehlt, N fehlen, komplett, In der Bibliothek, Ausgeschlossen) in the lower left corner.
+- On hover or keyboard focus (hover devices only) the tile grows by 7 %, lies above its neighbours and shows title (two lines), year and addition, rating, chips or „Hinzufügen“ in an overlay; with reduced motion it does not grow; touch devices show the overlay at rest.
+- The tile's link is named with title, year and rating with votes; the overlay's texts keep 4.5:1 over any poster; selection mode, even rows and axe scans of all tile pages hold in the dark palette.
 
 ## Context
 
@@ -47,26 +55,26 @@ This spec builds on `ui-cinema-backdrops` (same scrim idea for text over images)
 
 ## Acceptance criteria
 
-- [ ] AC-01 (state): While a poster tile is not open on a hover device, sofarr shows only its poster: no title, year, addition, chip, rating or button is visible on or below it, and the tile is exactly as high as its poster. Only the controls of `ui-list-items` (the monitor toggle in the corner, the selection checkbox on hover, focus or in selection mode) and the state mark of AC-02 show on the poster.
-- [ ] AC-02 (always): A poster tile shows a state mark in the lower left corner of its poster, with the state's German text as tooltip and accessible name:
+- [x] AC-01 (state): While a poster tile is not open on a hover device, sofarr shows only its poster: no title, year, addition, chip, rating or button is visible on or below it, and the tile is exactly as high as its poster. Only the controls of `ui-list-items` (the monitor toggle in the corner, the selection checkbox on hover, focus or in selection mode) and the state mark of AC-02 show on the poster.
+- [x] AC-02 (always): A poster tile shows a state mark in the lower left corner of its poster, with the state's German text as tooltip and accessible name:
   - a movie of the library: accent while it has a file („vorhanden“), danger while the list API counts it as missing („fehlt“: monitored, available, no file), none otherwise (e.g. not yet available, or unmonitored without a file);
   - a series of the library: danger while the list API counts missing episodes („N fehlen“ / „1 fehlt“), accent while the list API counts it as complete („komplett“), none otherwise;
   - a discover tile: accent while the title is in the library („In der Bibliothek“), danger while it is excluded („Ausgeschlossen“), none otherwise.
-- [ ] AC-03 (event): When a poster tile becomes open on a hover device, then within 200 ms it grows to between 105 % and 110 % of its size, lies above its neighbours (it covers them, they never cover it), and its overlay shows over the lower part of the poster, at most over the whole poster, never outside the tile:
+- [x] AC-03 (event): When a poster tile becomes open on a hover device, then within 200 ms it grows to between 105 % and 110 % of its size, lies above its neighbours (it covers them, they never cover it), and its overlay shows over the lower part of the poster, at most over the whole poster, never outside the tile:
   - the title in up to two lines, cut with an ellipsis;
   - the year and, for a library title, its addition (`ui-polish` AC-03);
   - the rating („★ 7,8“, or „–“), while ratings are on;
   - the status chips of today (library) or the „Hinzufügen“ button (discover, where it shows today).
 
   When the tile is no longer open, it returns to its size and the overlay hides. Where the system asks for reduced motion, the tile does not grow and the overlay shows at once.
-- [ ] AC-04 (always): Every text of an overlay meets a contrast of at least 4.5:1 against the poster under it, whatever the poster: measured over an all-white and an all-black poster at 1440 px (an open tile) and at 360 px on a touch device (AC-06).
-- [ ] AC-05 (always): A poster tile's link is named with the full title, its year and its rating with the votes („Nordlicht über Tromsø, 2023, IMDb 7,6 (48.210 Stimmen)“; without a rating „IMDb –“, nothing while ratings are off), at rest and open; its tooltip is the full title. The controls in the overlay are reachable by keyboard: Tab into a tile opens it, and every control in it then has a visible focus. The „Hinzufügen“ button's accessible name stays as today.
-- [ ] AC-06 (state): While the device is not a hover device, every poster tile shows its overlay at rest, without growing.
-- [ ] AC-07 (state): While the movie or series list is in selection mode, the behaviour of `ui-list-items` AC-05 and AC-06 stays: every tile shows its checkbox, a selected tile keeps its accent outline, and an open tile's overlay never covers the checkbox or the monitor toggle.
-- [ ] AC-08 (always): Within a row of a poster grid all tiles at rest are equally high (their posters' height), and a shelf's tiles end at one edge; an open tile does not move its neighbours.
-- [ ] AC-09 (always): The movie and series lists in poster view and the discover start page, search, a shelf page and a person page meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), with a tile open and with none.
-- [ ] AC-10 (always, manual: images): The website screenshots `movies.png`, `discover.png` and `person.png` under `docs/site/screenshots/` are regenerated and show the tiles at rest; the owner checked the three files.
-- [ ] AC-11 (state, manual: visual design): While the dark palette is active, the movie list in poster view and the discover start page look like a streaming service's library at 1440 px: posters carry the page, an open tile reads clearly, nothing jumps.
+- [x] AC-04 (always): Every text of an overlay meets a contrast of at least 4.5:1 against the poster under it, whatever the poster: measured over an all-white and an all-black poster at 1440 px (an open tile) and at 360 px on a touch device (AC-06).
+- [x] AC-05 (always): A poster tile's link is named with the full title, its year and its rating with the votes („Nordlicht über Tromsø, 2023, IMDb 7,6 (48.210 Stimmen)“; without a rating „IMDb –“, nothing while ratings are off), at rest and open; its tooltip is the full title. The controls in the overlay are reachable by keyboard: Tab into a tile opens it, and every control in it then has a visible focus. The „Hinzufügen“ button's accessible name stays as today.
+- [x] AC-06 (state): While the device is not a hover device, every poster tile shows its overlay at rest, without growing.
+- [x] AC-07 (state): While the movie or series list is in selection mode, the behaviour of `ui-list-items` AC-05 and AC-06 stays: every tile shows its checkbox, a selected tile keeps its accent outline, and an open tile's overlay never covers the checkbox or the monitor toggle.
+- [x] AC-08 (always): Within a row of a poster grid all tiles at rest are equally high (their posters' height), and a shelf's tiles end at one edge; an open tile does not move its neighbours.
+- [x] AC-09 (always): The movie and series lists in poster view and the discover start page, search, a shelf page and a person page meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), with a tile open and with none.
+- [x] AC-10 (always, manual: images): The website screenshots `movies.png`, `discover.png` and `person.png` under `docs/site/screenshots/` are regenerated and show the tiles at rest; the owner checked the three files.
+- [x] AC-11 (state, manual: visual design): While the dark palette is active, the movie list in poster view and the discover start page look like a streaming service's library at 1440 px: posters carry the page, an open tile reads clearly, nothing jumps.
 
 ## Technical notes
 
@@ -107,17 +115,17 @@ The notes are suggestions for the build; the ACs are binding.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `at rest on a hover device (AC-01)` › `a library tile is only its poster, with its controls and its mark`, `a discover tile is only its poster and its mark` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
-| AC-02 | `state mark (AC-02)` › `a movie: accent with a file, danger while missing, none otherwise`, `a series: danger while episodes are missing, accent when complete`, `a discover tile: in the library, excluded, or none` (`ui/e2e/cinema-tiles.spec.ts`); `a movie's state mark …`, `a series' state mark …` (`ui/src/lib/library/rows.test.ts`); `marks the library state on the poster` (`ui/src/lib/discover/texts.test.ts`) | built |  |
-| AC-03 | `open tile on a hover device (AC-03)` › `a library tile grows and shows title, year, addition, rating and chips`, `a long title is cut after two lines with an ellipsis`, `a discover tile grows and shows title, year, rating and the add button`, `one tile at a time: the one under the pointer before the focused one`, `with reduced motion the tile does not grow and the overlay shows at once` (`ui/e2e/cinema-tiles.spec.ts`); `poster tiles (AC-04, AC-05)` (`ui/e2e/ui-polish.spec.ts`) | built |  |
-| AC-04 | `contrast over an all-white / all-black poster (AC-04)` › `1440 px, an open tile` › `library tile`, `discover tile movie/502`, `discover tile movie/501`; `360 px, a touch device` › `library tiles`, `discover tiles` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
-| AC-05 | `name and keyboard (AC-05)` › `a library tile is named with title, year and rating with votes`, `a discover tile is named with title, year and rating; nothing while off`, `Tab into a discover tile opens it; its button shows its focus`, `Tab into a library tile opens it; checkbox and toggle show their focus` (`ui/e2e/cinema-tiles.spec.ts`); `poster tile name (ui-cinema-tiles AC-05)` (`ui/src/lib/components/tile.test.ts`) | built |  |
-| AC-06 | `touch device (AC-06)` › `library and discover tiles show their overlay at rest, without growing` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
-| AC-07 | `selection mode (AC-07)` › `checkboxes show, the selected tile is outlined, the overlay leaves the controls free` (`ui/e2e/cinema-tiles.spec.ts`); `selection checkbox on a hover device (AC-05, AC-06)` (`ui/e2e/library-items.spec.ts`) | built |  |
-| AC-08 | `even tiles (AC-08)` › `a grid row is as high as its posters; an open tile moves no neighbour`, `a shelf's tiles end at one edge` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
-| AC-09 | `accessibility in the dark palette (AC-09)` › `<page> at 1440 / 360 px, at rest and with a tile open` for the movie and series lists in poster view, the discover start page, search, a shelf page and a person page (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
-| AC-10 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22; `movies.png`, `discover.png` and `person.png` show the tiles at rest with their state marks. The owner's check (`manual:`) is open | built |  |
-| AC-11 |      | open   |        |
+| AC-01 | `at rest on a hover device (AC-01)` › `a library tile is only its poster, with its controls and its mark`, `a discover tile is only its poster and its mark` (`ui/e2e/cinema-tiles.spec.ts`) | verified | 9e9e5c0 |
+| AC-02 | `state mark (AC-02)` › `a movie: accent with a file, danger while missing, none otherwise`, `a series: danger while episodes are missing, accent when complete`, `a discover tile: in the library, excluded, or none` (`ui/e2e/cinema-tiles.spec.ts`); `a movie's state mark …`, `a series' state mark …` (`ui/src/lib/library/rows.test.ts`); `marks the library state on the poster` (`ui/src/lib/discover/texts.test.ts`) | verified | 9e9e5c0 |
+| AC-03 | `open tile on a hover device (AC-03)` › `a library tile grows and shows title, year, addition, rating and chips`, `a long title is cut after two lines with an ellipsis`, `a discover tile grows and shows title, year, rating and the add button`, `one tile at a time: the one under the pointer before the focused one`, `with reduced motion the tile does not grow and the overlay shows at once` (`ui/e2e/cinema-tiles.spec.ts`); `poster tiles (AC-04, AC-05)`, `library cards and rows: year and addition (AC-03)` › `… (poster)` (the addition in the overlay) (`ui/e2e/ui-polish.spec.ts`) | verified | 9e9e5c0 |
+| AC-04 | `contrast over an all-white / all-black poster (AC-04)` › `1440 px, an open tile` › `library tile`, `discover tile movie/502`, `discover tile movie/501`; `360 px, a touch device` › `library tiles`, `discover tiles` (`ui/e2e/cinema-tiles.spec.ts`) | verified | 9e9e5c0 |
+| AC-05 | `name and keyboard (AC-05)` › `a library tile is named with title, year and rating with votes`, `a discover tile is named with title, year and rating; nothing while off`, `Tab into a discover tile opens it; its button shows its focus`, `Tab into a library tile opens it; checkbox and toggle show their focus` (`ui/e2e/cinema-tiles.spec.ts`); `poster tile name (ui-cinema-tiles AC-05)` (`ui/src/lib/components/tile.test.ts`) | verified | 9e9e5c0 |
+| AC-06 | `touch device (AC-06)` › `library and discover tiles show their overlay at rest, without growing` (`ui/e2e/cinema-tiles.spec.ts`) | verified | 9e9e5c0 |
+| AC-07 | `selection mode (AC-07)` › `checkboxes show, the selected tile is outlined, the overlay leaves the controls free` (`ui/e2e/cinema-tiles.spec.ts`); `selection checkbox on a hover device (AC-05, AC-06)` (`ui/e2e/library-items.spec.ts`) | verified | 9e9e5c0 |
+| AC-08 | `even tiles (AC-08)` › `a grid row is as high as its posters; an open tile moves no neighbour`, `a shelf's tiles end at one edge` (`ui/e2e/cinema-tiles.spec.ts`) | verified | 9e9e5c0 |
+| AC-09 | `accessibility in the dark palette (AC-09)` › `<page> at 1440 / 360 px, at rest and with a tile open` for the movie and series lists in poster view, the discover start page, search, a shelf page and a person page (`ui/e2e/cinema-tiles.spec.ts`) | verified | 9e9e5c0 |
+| AC-10 | manual: the owner checked `movies.png`, `discover.png` and `person.png` and the tiles at rest and open among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 688c489 |
+| AC-11 | manual: the owner checked the movie list in poster view (at rest and with a tile open) and the discover start page from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 1aa5399 |
 
 ## Decisions
 

@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-22
 size: M
 design: [sofarr.md §3, sofarr.md §9 D19, sofarr.md §9 D24, sofarr.md §9 D34]
@@ -8,6 +8,14 @@ oracle: none
 ---
 
 # Cinema look 3: hero banner on discover
+
+## Summary
+
+> Completed: 2026-11-23
+
+- The shelves answer carries `hero`: the first title of „Heute beliebt“ (at most 10 candidates, not in the library, not excluded) whose preview has a backdrop, chosen anew per answer from the cached shelf; missing previews are fetched at once, failed ones skipped.
+- The discover start page shows the hero above the first shelf while no filter is set: backdrop under the scrim of `HeadBackdrop` (a 16:9 band below 768 px), title, kind, year, rating, overview cut after three lines, „Hinzufügen“ and „Details“.
+- Adding from the hero shows „In der Bibliothek“ and „Zur Bibliothek“; the freshness line names the preview's fetch time; contrast over any image and axe scans hold.
 
 ## Context
 
@@ -41,21 +49,21 @@ This spec builds on `ui-cinema-backdrops` (`HeadBackdrop`, its scrim and contras
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When the discover start page shows its shelves (no filter set), then above the first shelf a hero shows the featured title: the first candidate, in the order of „Heute beliebt“, whose preview has a backdrop. sofarr chooses it anew for every shelves answer, from the cached shelf (also a stale one) and the library at that moment, and looks at no more than the first 10 candidates.
-- [ ] AC-02 (always): The hero shows:
+- [x] AC-01 (event): When the discover start page shows its shelves (no filter set), then above the first shelf a hero shows the featured title: the first candidate, in the order of „Heute beliebt“, whose preview has a backdrop. sofarr chooses it anew for every shelves answer, from the cached shelf (also a stale one) and the library at that moment, and looks at no more than the first 10 candidates.
+- [x] AC-02 (always): The hero shows:
   - the featured title's backdrop, sharp, across the content's full width; from 768 px the text lies on it under the scrim of `ui-cinema-backdrops` AC-05, and the hero is at least 420 px high from 1024 px; below 768 px the backdrop is a 16:9 band above the text, which stands on the page ground;
   - the title as a level-2 heading, the kind and the year („Film · 2024“, „Serie · 2023“; the kind alone without a year) and the rating of the tiles („★ 7,8“, „–“ without one), while ratings are on;
   - the overview, cut after three lines; no overview line when the title has none;
   - the button „Hinzufügen“, which opens the add dialog of today for the title, and the link „Details“ to the title's preview page.
-- [ ] AC-03 (always): Every text of the hero meets a contrast of at least 4.5:1 over any backdrop: measured over an all-white and an all-black backdrop at 1440 px and 1024 px (below 768 px the text does not lie on the image).
-- [ ] AC-04 (state): While no candidate among the first 10 has a backdrop, or „Heute beliebt“ could not be loaded, or a filter is set, the page shows no hero and the shelves stand as today.
-- [ ] AC-05 (event): When the featured title is added from the hero, then the hero shows „In der Bibliothek“ instead of „Hinzufügen“ and a link „Zur Bibliothek“ to the title's library page; the next shelves answer no longer counts the title as a candidate and chooses again by AC-01.
-- [ ] AC-06 (always): The shelves answer carries the featured title (`hero`: kind, TMDB id, title, year, overview, sofarr's backdrop address, rating, library state), or `null` when there is none. All fields of today stay. Its backdrop is served through sofarr's image cache (D24); the browser asks no other host.
-- [ ] AC-07 (error): If the preview of a candidate cannot be loaded (TMDB unreachable or answering an error, and no cached preview), then sofarr skips that candidate and looks at the next one. sofarr asks TMDB for the missing previews of the first 10 candidates at once, not one after another, so a shelves answer waits at most one TMDB timeout of today for them; with all previews cached it asks TMDB nothing for the hero.
-- [ ] AC-08 (always): The page's freshness line (`ui-polish` AC-10) names the oldest fetch time of the shelves and of the featured title's preview.
-- [ ] AC-09 (always): The discover start page with a hero meets WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), and the hero's button and link are reachable by keyboard with a visible focus.
-- [ ] AC-10 (always, manual: images): The website screenshot `discover.png` is regenerated and shows the hero; the owner checked the file.
-- [ ] AC-11 (state, manual: visual design, judged by the owner): While the dark palette is active, the discover start page with its hero looks like the start page of a streaming service at 1440 px: the image is recognisable, the text is easy to read, nothing overlaps.
+- [x] AC-03 (always): Every text of the hero meets a contrast of at least 4.5:1 over any backdrop: measured over an all-white and an all-black backdrop at 1440 px and 1024 px (below 768 px the text does not lie on the image).
+- [x] AC-04 (state): While no candidate among the first 10 has a backdrop, or „Heute beliebt“ could not be loaded, or a filter is set, the page shows no hero and the shelves stand as today.
+- [x] AC-05 (event): When the featured title is added from the hero, then the hero shows „In der Bibliothek“ instead of „Hinzufügen“ and a link „Zur Bibliothek“ to the title's library page; the next shelves answer no longer counts the title as a candidate and chooses again by AC-01.
+- [x] AC-06 (always): The shelves answer carries the featured title (`hero`: kind, TMDB id, title, year, overview, sofarr's backdrop address, rating, library state), or `null` when there is none. All fields of today stay. Its backdrop is served through sofarr's image cache (D24); the browser asks no other host.
+- [x] AC-07 (error): If the preview of a candidate cannot be loaded (TMDB unreachable or answering an error, and no cached preview), then sofarr skips that candidate and looks at the next one. sofarr asks TMDB for the missing previews of the first 10 candidates at once, not one after another, so a shelves answer waits at most one TMDB timeout of today for them; with all previews cached it asks TMDB nothing for the hero.
+- [x] AC-08 (always): The page's freshness line (`ui-polish` AC-10) names the oldest fetch time of the shelves and of the featured title's preview.
+- [x] AC-09 (always): The discover start page with a hero meets WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), and the hero's button and link are reachable by keyboard with a visible focus.
+- [x] AC-10 (always, manual: images): The website screenshot `discover.png` is regenerated and shows the hero; the owner checked the file.
+- [x] AC-11 (state, manual: visual design, judged by the owner): While the dark palette is active, the discover start page with its hero looks like the start page of a streaming service at 1440 px: the image is recognisable, the text is easy to read, nothing overlaps.
 
 ## Technical notes
 
@@ -92,17 +100,17 @@ This spec builds on `ui-cinema-backdrops` (`HeadBackdrop`, its scrim and contras
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `the_hero_is_the_first_candidate_with_a_backdrop`, `ten_candidates_at_most_asked_for_at_once` (`crates/sofarr-server/src/discover/hero_tests.rs`); `the hero (AC-01, AC-02)` › `the featured title above the first shelf, on its backdrop` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-02 | `the hero (AC-01, AC-02)` › `the featured title above the first shelf, on its backdrop`, `at 1024 px the hero is at least 420 px high`, `a long overview is cut after three lines`, `a series without year, rating and overview shows what is there`, `a series with a year`, `without ratings the hero shows no rating`, `„Hinzufügen“ opens the add dialog of today`, `below 768 px the backdrop is a 16:9 band above the text` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-03 | `contrast over any image (AC-03)` › `at least 4.5:1 over an all-white/all-black backdrop at 1440/1024 px` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-04 | `no_hero_without_trending_or_without_candidates`, `ten_candidates_at_most_asked_for_at_once` (`crates/sofarr-server/src/discover/hero_tests.rs`); `no hero (AC-04)` › `without a featured title the shelves stand as today`, `a filter shows the result list without a hero` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-05 | `an_added_hero_gives_way_to_the_next_candidate` (`crates/sofarr-server/src/discover/hero_tests.rs`); `adding from the hero (AC-05)` › `the hero shows the library state and links to the library page` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-06 | `the_hero_is_the_first_candidate_with_a_backdrop`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
-| AC-07 | `ten_candidates_at_most_asked_for_at_once`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`) | built |  |
-| AC-08 | `the_hero_is_the_first_candidate_with_a_backdrop` (`crates/sofarr-server/src/discover/hero_tests.rs`) | built |  |
-| AC-09 | `accessibility (AC-09)` › `no violation and a visible focus at 1440 px`, `… at 360 px` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
+| AC-01 | `the_hero_is_the_first_candidate_with_a_backdrop`, `ten_candidates_at_most_asked_for_at_once` (`crates/sofarr-server/src/discover/hero_tests.rs`); `the hero (AC-01, AC-02)` › `the featured title above the first shelf, on its backdrop` (`ui/e2e/cinema-hero.spec.ts`) | verified | e8a6967 |
+| AC-02 | `the hero (AC-01, AC-02)` › `the featured title above the first shelf, on its backdrop`, `at 1024 px the hero is at least 420 px high`, `a long overview is cut after three lines`, `a series without year, rating and overview shows what is there`, `a series with a year`, `without ratings the hero shows no rating`, `„Hinzufügen“ opens the add dialog of today`, `below 768 px the backdrop is a 16:9 band above the text` (`ui/e2e/cinema-hero.spec.ts`) | verified | 78caac6 |
+| AC-03 | `contrast over any image (AC-03)` › `at least 4.5:1 over an all-white/all-black backdrop at 1440/1024 px` (`ui/e2e/cinema-hero.spec.ts`) | verified | 78caac6 |
+| AC-04 | `no_hero_without_trending_or_without_candidates`, `ten_candidates_at_most_asked_for_at_once` (`crates/sofarr-server/src/discover/hero_tests.rs`); `no hero (AC-04)` › `without a featured title the shelves stand as today`, `a filter shows the result list without a hero` (`ui/e2e/cinema-hero.spec.ts`) | verified | e8a6967 |
+| AC-05 | `an_added_hero_gives_way_to_the_next_candidate` (`crates/sofarr-server/src/discover/hero_tests.rs`); `adding from the hero (AC-05)` › `the hero shows the library state and links to the library page` (`ui/e2e/cinema-hero.spec.ts`) | verified | e8a6967 |
+| AC-06 | `the_hero_is_the_first_candidate_with_a_backdrop`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | verified | e8a6967 |
+| AC-07 | `ten_candidates_at_most_asked_for_at_once`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`) | verified | e8a6967 |
+| AC-08 | `the_hero_is_the_first_candidate_with_a_backdrop` (`crates/sofarr-server/src/discover/hero_tests.rs`) | verified | e8a6967 |
+| AC-09 | `accessibility (AC-09)` › `no violation and a visible focus at 1440 px`, `… at 360 px` (`ui/e2e/cinema-hero.spec.ts`) | verified | 78caac6 |
+| AC-10 | manual: the owner checked `discover.png` with the hero among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | dd35ff6 |
+| AC-11 | manual: the owner checked the discover start page with its hero from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 1aa5399 |
 
 ## Decisions
 

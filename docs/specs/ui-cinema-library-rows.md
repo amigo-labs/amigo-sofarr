@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-22
 size: M
 design: [sofarr.md §3, sofarr.md §9 D30, sofarr.md §9 D34]
@@ -8,6 +8,15 @@ oracle: none
 ---
 
 # Cinema look 5: rows on the movie and series lists
+
+## Summary
+
+> Completed: 2026-11-23
+
+- The movie and series lists show four rows above the toolbar while they are plain: „Zuletzt hinzugefügt“, „Fehlt noch“, „Unter Cutoff“ and, while ratings are on, „Am besten bewertet“; the full list follows under „Alle Filme“ / „Alle Serien“.
+- A search or a filter hides the rows; „Alle anzeigen“ sets the row's sort or filter in the toolbar and the address and moves to the full list.
+- Row tiles carry the monitor toggle without a checkbox; a monitoring change shows on every tile of the title; a failed row hides and loads again with the next opening or plain list.
+- Rows and the first page show within 2 s on 2,501 movies; axe scans and keyboard focus are clean at 1440 and 360 px.
 
 ## Context
 
@@ -38,25 +47,25 @@ This spec builds on `ui-cinema-tiles` and on the row of `ui-cinema-home`. It rev
 
 ## Acceptance criteria
 
-- [ ] AC-01 (state): While the movie list is plain, sofarr shows above its toolbar these rows in this order, each with at most 20 movies:
+- [x] AC-01 (state): While the movie list is plain, sofarr shows above its toolbar these rows in this order, each with at most 20 movies:
   1. „Zuletzt hinzugefügt“: newest added first.
   2. „Fehlt noch“: the movies of the toolbar's filter „Fehlt“ (monitored, available, without a file), newest added first.
   3. „Unter Cutoff“: the movies of the toolbar's filter „Cutoff nicht erreicht“, newest added first.
   4. „Am besten bewertet“: the movies of the toolbar's sort by rating (best first, votes as tie-breaker, `imdb-ratings` AC-06), without the movies that have no rating; only while ratings are on.
-- [ ] AC-02 (state): While the series list is plain, sofarr shows the same four rows for series: „Fehlt noch“ holds series with missing episodes, „Unter Cutoff“ series with episodes below the cutoff.
-- [ ] AC-03 (always): Below the rows the full list stands under the heading „Alle Filme“ or „Alle Serien“, with the toolbar and everything it does today.
-- [ ] AC-04 (state): While the list is not plain (a search text or a filter is set), sofarr shows no rows, so the results stand at the top; when the search and the filters are cleared, the rows show again.
-- [ ] AC-05 (event): When the user activates „Alle anzeigen“ of a row, then the full list shows that row's titles, set in the toolbar and the address (as a reload keeps it):
+- [x] AC-02 (state): While the series list is plain, sofarr shows the same four rows for series: „Fehlt noch“ holds series with missing episodes, „Unter Cutoff“ series with episodes below the cutoff.
+- [x] AC-03 (always): Below the rows the full list stands under the heading „Alle Filme“ or „Alle Serien“, with the toolbar and everything it does today.
+- [x] AC-04 (state): While the list is not plain (a search text or a filter is set), sofarr shows no rows, so the results stand at the top; when the search and the filters are cleared, the rows show again.
+- [x] AC-05 (event): When the user activates „Alle anzeigen“ of a row, then the full list shows that row's titles, set in the toolbar and the address (as a reload keeps it):
   - „Zuletzt hinzugefügt“: sort „Hinzugefügt“, newest first; the rows stay, and the page scrolls to the full list.
   - „Am besten bewertet“: sort „Bewertung“, best first; the rows stay, and the page scrolls to the full list.
   - „Fehlt noch“ and „Unter Cutoff“: their filter and the sort „Hinzugefügt“, newest first; the list is no longer plain, so the rows hide (AC-04) and the page starts with the full list.
-- [ ] AC-06 (state): While a row has no title, it does not show; while none has, the page starts with the full list as today.
-- [ ] AC-07 (always): A tile in a row is a poster tile of `ui-cinema-tiles` with its monitor toggle; it has no selection checkbox. A change of monitoring in a row or in the full list shows on every tile of that title on the page without a reload; a title that no longer matches its row stays in it until the rows load again (AC-12).
-- [ ] AC-08 (always): With the e2e library of 2,501 movies, the movie list shows its rows and the first page of the full list within 2 s after the page starts loading, and the time measurement of `web-ui-library` AC-04 still holds.
-- [ ] AC-09 (always): Both lists with their rows meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans); each row is a list named by its heading, reachable by keyboard with a visible focus.
-- [ ] AC-10 (always, manual: images): The website screenshot `movies.png` is regenerated and shows the rows above the full list; the owner checked the file.
-- [ ] AC-11 (state, manual: visual design, judged by the owner): While the dark palette is active, the movie and series lists look like a streaming service's library at 1440 px and 360 px: the rows carry the top of the page, the full list is easy to find below them, nothing overlaps.
-- [ ] AC-12 (event): When the list page opens, or the list becomes plain again, then its rows load; if a row's data cannot be loaded, then that row does not show, the rest of the page shows as today, and the row loads again with the next of these events.
+- [x] AC-06 (state): While a row has no title, it does not show; while none has, the page starts with the full list as today.
+- [x] AC-07 (always): A tile in a row is a poster tile of `ui-cinema-tiles` with its monitor toggle; it has no selection checkbox. A change of monitoring in a row or in the full list shows on every tile of that title on the page without a reload; a title that no longer matches its row stays in it until the rows load again (AC-12).
+- [x] AC-08 (always): With the e2e library of 2,501 movies, the movie list shows its rows and the first page of the full list within 2 s after the page starts loading, and the time measurement of `web-ui-library` AC-04 still holds.
+- [x] AC-09 (always): Both lists with their rows meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans); each row is a list named by its heading, reachable by keyboard with a visible focus.
+- [x] AC-10 (always, manual: images): The website screenshot `movies.png` is regenerated and shows the rows above the full list; the owner checked the file.
+- [x] AC-11 (state, manual: visual design, judged by the owner): While the dark palette is active, the movie and series lists look like a streaming service's library at 1440 px and 360 px: the rows carry the top of the page, the full list is easy to find below them, nothing overlaps.
+- [x] AC-12 (event): When the list page opens, or the list becomes plain again, then its rows load; if a row's data cannot be loaded, then that row does not show, the rest of the page shows as today, and the row loads again with the next of these events.
 
 ## Technical notes
 
@@ -93,18 +102,18 @@ The notes are suggestions for the build; the ACs are binding.
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `ui/e2e/cinema-library-rows.spec.ts`: „rows of the movie list (AC-01)“ (3 tests); `ui/src/lib/library/list-rows.test.ts`: „the rows“ | built |  |
-| AC-02 | `ui/e2e/cinema-library-rows.spec.ts`: „rows of the series list (AC-02)“ (2 tests) | built |  |
-| AC-03 | `ui/e2e/cinema-library-rows.spec.ts`: „the full list (AC-03)“ (movies, series) | built |  |
-| AC-04 | `ui/e2e/cinema-library-rows.spec.ts`: „searching and filtering (AC-04)“ (3 tests); `list-rows.test.ts`: „plain lists“ | built |  |
-| AC-05 | `ui/e2e/cinema-library-rows.spec.ts`: „„Alle anzeigen“ (AC-05)“ (3 tests); `list-rows.test.ts`: „„Alle anzeigen““ | built |  |
-| AC-06 | `ui/e2e/cinema-library-rows.spec.ts`: „empty rows (AC-06)“ (2 tests) | built |  |
-| AC-07 | `ui/e2e/cinema-library-rows.spec.ts`: „tiles and monitoring (AC-07)“ (2 tests) | built |  |
-| AC-08 | `ui/e2e/cinema-library-rows.spec.ts`: „loading time (AC-08)“; `ui/e2e/library-perf.spec.ts` (project `perf`) | built |  |
-| AC-09 | `ui/e2e/cinema-library-rows.spec.ts`: „accessibility in the dark palette (AC-09)“ (`/filme`, `/serien` at 1440 and 360 px) | built |  |
-| AC-10 | `docs/site/screenshots/movies.png` regenerated (`cd ui && bun run screenshots`); owner's check pending | open |  |
-| AC-11 |      | open   |        |
-| AC-12 | `ui/e2e/cinema-library-rows.spec.ts`: „failures and reloads (AC-12)“ | built |  |
+| AC-01 | `ui/e2e/cinema-library-rows.spec.ts`: „rows of the movie list (AC-01)“ (3 tests); `ui/src/lib/library/list-rows.test.ts`: „the rows“ | verified | a50c41d |
+| AC-02 | `ui/e2e/cinema-library-rows.spec.ts`: „rows of the series list (AC-02)“ (2 tests) | verified | a50c41d |
+| AC-03 | `ui/e2e/cinema-library-rows.spec.ts`: „the full list (AC-03)“ (movies, series) | verified | a50c41d |
+| AC-04 | `ui/e2e/cinema-library-rows.spec.ts`: „searching and filtering (AC-04)“ (3 tests); `list-rows.test.ts`: „plain lists“ | verified | a50c41d |
+| AC-05 | `ui/e2e/cinema-library-rows.spec.ts`: „„Alle anzeigen“ (AC-05)“ (3 tests); `list-rows.test.ts`: „„Alle anzeigen““ | verified | a50c41d |
+| AC-06 | `ui/e2e/cinema-library-rows.spec.ts`: „empty rows (AC-06)“ (2 tests) | verified | a50c41d |
+| AC-07 | `ui/e2e/cinema-library-rows.spec.ts`: „tiles and monitoring (AC-07)“ (2 tests) | verified | a50c41d |
+| AC-08 | `ui/e2e/cinema-library-rows.spec.ts`: „loading time (AC-08)“; `ui/e2e/library-perf.spec.ts` (project `perf`) | verified | a50c41d |
+| AC-09 | `ui/e2e/cinema-library-rows.spec.ts`: „accessibility in the dark palette (AC-09)“ (`/filme`, `/serien` at 1440 and 360 px) | verified | a50c41d |
+| AC-10 | manual: the owner checked `movies.png` with the rows above the full list among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 7cab545 |
+| AC-11 | manual: the owner checked the movie and series lists from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 1aa5399 |
+| AC-12 | `ui/e2e/cinema-library-rows.spec.ts`: „failures and reloads (AC-12)“ | verified | a50c41d |
 
 ## Decisions
 
