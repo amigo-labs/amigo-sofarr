@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-22
 size: M
 design: [sofarr.md §3, sofarr.md §9 D30, sofarr.md §9 D34]
@@ -8,6 +8,15 @@ oracle: none
 ---
 
 # Cinema look 4: rows on the overview
+
+## Summary
+
+> Completed: 2026-11-23
+
+- The overview shows the rows „Demnächst“, „Zuletzt hinzugefügt“ and „Fehlt noch“ (at most 20 tiles each) between the key figures and the boxes, built on `TileRow.svelte` with the discover shelf arrows.
+- Tiles of „Demnächst“ carry their day and the episode code in the overlay and the link's name; calendar entries tell `has_poster`.
+- „Alle anzeigen“ leads to the calendar, the movie list by added date and „Fehlend“; empty and failed rows hide, the quiet line counts the rows, and a refresh keeps scroll position and focus (`keepRowFocus`).
+- The rows show within 2 s on the e2e library of 2,501 movies; axe scans and keyboard focus are clean at 1440 and 360 px.
 
 ## Context
 
@@ -37,19 +46,19 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 
 ## Acceptance criteria
 
-- [ ] AC-01 (always): The overview shows, below its key figures and above its boxes, these rows in this order, each with at most 20 tiles of library titles:
+- [x] AC-01 (always): The overview shows, below its key figures and above its boxes, these rows in this order, each with at most 20 tiles of library titles:
   1. „Demnächst“: the titles of the entries of the box „Die nächsten 7 Tage“ (the same entries, so the same rule for monitoring), each title once, soonest first; a series once for all its episodes.
   2. „Zuletzt hinzugefügt“: movies and series together, newest added first.
   3. „Fehlt noch“: monitored movies that are missing and series with missing episodes, newest added first.
-- [ ] AC-02 (always): A tile of „Demnächst“ shows the day of its first date as the overview's day headings name it („Heute“, „Morgen“, „Donnerstag, 26.11.“) and, for a series, the episode code of its first episode that day: in its overlay as one line below the year („Morgen · S03E05“), and at the end of its link's name („…, Morgen, S03E05“). A title without a poster shows the placeholder of the library's posters.
-- [ ] AC-03 (event): When the user activates „Alle anzeigen“ of a row, then sofarr opens: „Demnächst“ → the calendar (week view); „Zuletzt hinzugefügt“ → the movie list sorted by added date, newest first; „Fehlt noch“ → the page „Fehlend“.
-- [ ] AC-04 (state): While a row has no title, it does not show. While all three rows and all four boxes have nothing to show (a row hidden by AC-06 does not count as empty), the overview shows the line of `ui-polish` AC-08 („Alles ruhig – …“).
-- [ ] AC-05 (event): When the overview refreshes (every 15 s, `web-ui-shell`), then its rows show the new state; a row keeps its sideways scroll position in pixels, and a focused tile keeps the focus. If the focused tile leaves its row, the focus moves to the row's „Alle anzeigen“ link; if the row goes, to the page's heading.
-- [ ] AC-06 (error): If the data of „Zuletzt hinzugefügt“ or „Fehlt noch“ cannot be loaded (any of the requests the row needs), then that row does not show and the rest of the overview shows as today; the next refresh tries again. „Demnächst“ shares the overview's own answer and its failure handling of today (`web-ui-shell` AC-13).
-- [ ] AC-07 (always): With the e2e library of 2,501 movies and 23 series, the overview shows its rows within 2 s after the page starts loading (Playwright, measured duration in the test output).
-- [ ] AC-08 (always): The overview with its rows meets WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans); each row is a list named by its heading, and its arrows and tiles are reachable by keyboard with a visible focus.
-- [ ] AC-09 (always, manual: images): The website screenshot `overview.png` is regenerated and shows the rows; the owner checked the file.
-- [ ] AC-10 (state, manual: visual design, judged by the owner): While the dark palette is active, the overview looks like the home page of a streaming service at 1440 px and 360 px: the posters carry the page, the key figures and boxes still tell at a glance what needs attention, nothing overlaps.
+- [x] AC-02 (always): A tile of „Demnächst“ shows the day of its first date as the overview's day headings name it („Heute“, „Morgen“, „Donnerstag, 26.11.“) and, for a series, the episode code of its first episode that day: in its overlay as one line below the year („Morgen · S03E05“), and at the end of its link's name („…, Morgen, S03E05“). A title without a poster shows the placeholder of the library's posters.
+- [x] AC-03 (event): When the user activates „Alle anzeigen“ of a row, then sofarr opens: „Demnächst“ → the calendar (week view); „Zuletzt hinzugefügt“ → the movie list sorted by added date, newest first; „Fehlt noch“ → the page „Fehlend“.
+- [x] AC-04 (state): While a row has no title, it does not show. While all three rows and all four boxes have nothing to show (a row hidden by AC-06 does not count as empty), the overview shows the line of `ui-polish` AC-08 („Alles ruhig – …“).
+- [x] AC-05 (event): When the overview refreshes (every 15 s, `web-ui-shell`), then its rows show the new state; a row keeps its sideways scroll position in pixels, and a focused tile keeps the focus. If the focused tile leaves its row, the focus moves to the row's „Alle anzeigen“ link; if the row goes, to the page's heading.
+- [x] AC-06 (error): If the data of „Zuletzt hinzugefügt“ or „Fehlt noch“ cannot be loaded (any of the requests the row needs), then that row does not show and the rest of the overview shows as today; the next refresh tries again. „Demnächst“ shares the overview's own answer and its failure handling of today (`web-ui-shell` AC-13).
+- [x] AC-07 (always): With the e2e library of 2,501 movies and 23 series, the overview shows its rows within 2 s after the page starts loading (Playwright, measured duration in the test output).
+- [x] AC-08 (always): The overview with its rows meets WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans); each row is a list named by its heading, and its arrows and tiles are reachable by keyboard with a visible focus.
+- [x] AC-09 (always, manual: images): The website screenshot `overview.png` is regenerated and shows the rows; the owner checked the file.
+- [x] AC-10 (state, manual: visual design, judged by the owner): While the dark palette is active, the overview looks like the home page of a streaming service at 1440 px and 360 px: the posters carry the page, the key figures and boxes still tell at a glance what needs attention, nothing overlaps.
 
 ## Technical notes
 
@@ -82,16 +91,16 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `ui/e2e/cinema-home.spec.ts` „rows (AC-01)“ (both tests); `ui/src/lib/library/home.test.ts` | built |        |
-| AC-02 | `ui/e2e/cinema-home.spec.ts` „tiles of „Demnächst“ (AC-02)“; `crates/sofarr-server/src/overview_tests.rs` `calendar_entries_say_whether_their_title_has_a_poster`; `ui/src/lib/library/home.test.ts` | built |        |
-| AC-03 | `ui/e2e/cinema-home.spec.ts` „„Alle anzeigen“ (AC-03)“ | built |        |
-| AC-04 | `ui/e2e/cinema-home.spec.ts` „empty rows (AC-04)“ (three tests); `ui/e2e/ui-polish.spec.ts` „overview: empty boxes (AC-08)“, `ui/e2e/overview-polish.spec.ts` „empty states“ with empty rows | built |        |
-| AC-05 | `ui/e2e/cinema-home.spec.ts` „refresh (AC-05)“ | built |        |
-| AC-06 | `ui/e2e/cinema-home.spec.ts` „failures (AC-06)“ | built |        |
-| AC-07 | `ui/e2e/cinema-home.spec.ts` „loading time (AC-07)“ (measured 1166 ms, annotation „Messung“) | built |        |
-| AC-08 | `ui/e2e/cinema-home.spec.ts` „accessibility in the dark palette (AC-08)“ at 1440 and 360 px | built |        |
-| AC-09 | `docs/site/screenshots/overview.png` regenerated (`bun run screenshots`); awaits the owner's `manual:` entry | open   |        |
-| AC-10 |      | open   |        |
+| AC-01 | `ui/e2e/cinema-home.spec.ts` „rows (AC-01)“ (both tests); `ui/src/lib/library/home.test.ts` | verified | 142eb1e |
+| AC-02 | `ui/e2e/cinema-home.spec.ts` „tiles of „Demnächst“ (AC-02)“; `crates/sofarr-server/src/overview_tests.rs` `calendar_entries_say_whether_their_title_has_a_poster`; `ui/src/lib/library/home.test.ts` | verified | 6db2119 |
+| AC-03 | `ui/e2e/cinema-home.spec.ts` „„Alle anzeigen“ (AC-03)“ | verified | 142eb1e |
+| AC-04 | `ui/e2e/cinema-home.spec.ts` „empty rows (AC-04)“ (three tests); `ui/e2e/ui-polish.spec.ts` „overview: empty boxes (AC-08)“, `ui/e2e/overview-polish.spec.ts` „empty states“ with empty rows | verified | 142eb1e |
+| AC-05 | `ui/e2e/cinema-home.spec.ts` „refresh (AC-05)“ | verified | 142eb1e |
+| AC-06 | `ui/e2e/cinema-home.spec.ts` „failures (AC-06)“ | verified | 142eb1e |
+| AC-07 | `ui/e2e/cinema-home.spec.ts` „loading time (AC-07)“ (asserts under 2 s from the navigation start; the whole test took 707 ms in this run; annotation „Messung“) | verified | 142eb1e |
+| AC-08 | `ui/e2e/cinema-home.spec.ts` „accessibility in the dark palette (AC-08)“ at 1440 and 360 px | verified | 142eb1e |
+| AC-09 | manual: the owner checked `overview.png` with its rows among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | a01855a |
+| AC-10 | manual: the owner checked the overview from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 1aa5399 |
 
 ## Decisions
 
