@@ -102,8 +102,8 @@ The notes are suggestions for the build; the ACs are binding.
 | AC-07 | `ui/e2e/cinema-library-rows.spec.ts`: „tiles and monitoring (AC-07)“ (2 tests) | built |  |
 | AC-08 | `ui/e2e/cinema-library-rows.spec.ts`: „loading time (AC-08)“; `ui/e2e/library-perf.spec.ts` (project `perf`) | built |  |
 | AC-09 | `ui/e2e/cinema-library-rows.spec.ts`: „accessibility in the dark palette (AC-09)“ (`/filme`, `/serien` at 1440 and 360 px) | built |  |
-| AC-10 | `docs/site/screenshots/movies.png` regenerated (`cd ui && bun run screenshots`); owner's check pending | open |  |
-| AC-11 |      | open   |        |
+| AC-10 | manual: the owner checked `movies.png` with the rows above the full list among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
+| AC-11 | manual: the owner checked the movie and series lists from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
 | AC-12 | `ui/e2e/cinema-library-rows.spec.ts`: „failures and reloads (AC-12)“ | built |  |
 
 ## Decisions

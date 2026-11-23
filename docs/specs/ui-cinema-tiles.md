@@ -116,8 +116,8 @@ The notes are suggestions for the build; the ACs are binding.
 | AC-07 | `selection mode (AC-07)` › `checkboxes show, the selected tile is outlined, the overlay leaves the controls free` (`ui/e2e/cinema-tiles.spec.ts`); `selection checkbox on a hover device (AC-05, AC-06)` (`ui/e2e/library-items.spec.ts`) | built |  |
 | AC-08 | `even tiles (AC-08)` › `a grid row is as high as its posters; an open tile moves no neighbour`, `a shelf's tiles end at one edge` (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
 | AC-09 | `accessibility in the dark palette (AC-09)` › `<page> at 1440 / 360 px, at rest and with a tile open` for the movie and series lists in poster view, the discover start page, search, a shelf page and a person page (`ui/e2e/cinema-tiles.spec.ts`) | built |  |
-| AC-10 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22; `movies.png`, `discover.png` and `person.png` show the tiles at rest with their state marks. The owner's check (`manual:`) is open | built |  |
-| AC-11 |      | open   |        |
+| AC-10 | manual: the owner checked `movies.png`, `discover.png` and `person.png` and the tiles at rest and open among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
+| AC-11 | manual: the owner checked the movie list in poster view (at rest and with a tile open) and the discover start page from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
 
 ## Decisions
 

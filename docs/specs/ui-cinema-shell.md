@@ -94,7 +94,7 @@ This spec revises `amigo-theme` AC-05 to AC-08 (choosing, remembering and applyi
 | AC-06 | `ui/e2e/cinema-shell.spec.ts`: „posters in the week (AC-06)“ | built |  |
 | AC-07 | `ui/e2e/cinema-shell.spec.ts`: „accessibility in the dark palette (AC-07)“ (week with posters, month and login page at 1440 and 360 px; keyboard through sidebar, top bar and drawer); `a11y.spec.ts`, `library-a11y.spec.ts`, `discover-a11y.spec.ts`, `extras-a11y.spec.ts` in the dark palette (`PALETTES` in `ui/e2e/theme-helpers.ts`) | built |  |
 | AC-08 | `ui/e2e/assets.spec.ts`: „transfer budget (AC-16)“; the budget tests of `library-a11y.spec.ts` and `discover-a11y.spec.ts` | built |  |
-| AC-09 | `docs/site/screenshots/calendar.png` and `overview.png` regenerated (`cd ui && bun run screenshots`); owner's check pending | open |  |
+| AC-09 | manual: the owner checked `calendar.png` and `overview.png` among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
 | AC-10 |      | open   |        |
 
 ## Decisions

@@ -90,8 +90,8 @@ This spec builds on `ui-cinema-tiles` (the tiles in the rows).
 | AC-06 | `ui/e2e/cinema-home.spec.ts` „failures (AC-06)“ | built |        |
 | AC-07 | `ui/e2e/cinema-home.spec.ts` „loading time (AC-07)“ (measured 1166 ms, annotation „Messung“) | built |        |
 | AC-08 | `ui/e2e/cinema-home.spec.ts` „accessibility in the dark palette (AC-08)“ at 1440 and 360 px | built |        |
-| AC-09 | `docs/site/screenshots/overview.png` regenerated (`bun run screenshots`); awaits the owner's `manual:` entry | open   |        |
-| AC-10 |      | open   |        |
+| AC-09 | manual: the owner checked `overview.png` with its rows among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
+| AC-10 | manual: the owner checked the overview from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
 
 ## Decisions
 

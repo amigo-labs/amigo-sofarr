@@ -101,8 +101,8 @@ This spec builds on `ui-cinema-backdrops` (`HeadBackdrop`, its scrim and contras
 | AC-07 | `ten_candidates_at_most_asked_for_at_once`, `a_preview_that_cannot_be_loaded_is_skipped` (`crates/sofarr-server/src/discover/hero_tests.rs`) | built |  |
 | AC-08 | `the_hero_is_the_first_candidate_with_a_backdrop` (`crates/sofarr-server/src/discover/hero_tests.rs`) | built |  |
 | AC-09 | `accessibility (AC-09)` › `no violation and a visible focus at 1440 px`, `… at 360 px` (`ui/e2e/cinema-hero.spec.ts`) | built |  |
-| AC-10 |      | open   |        |
-| AC-11 |      | open   |        |
+| AC-10 | manual: the owner checked `discover.png` with the hero among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
+| AC-11 | manual: the owner checked the discover start page with its hero from the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
 
 ## Decisions
 

@@ -67,7 +67,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 - [ ] AC-08 (always): The backdrop does not delay the head: while the image request is held back, the head's text is visible, and when the image then arrives the head has the same height and its text the same position as before.
 - [ ] AC-09 (state): While sofarr runs in shadow mode, AC-01 to AC-08 hold unchanged (metadata and images are read-only towards the media folders).
 - [ ] AC-10 (always): The three title pages with a backdrop meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), and every control of the head is reachable by keyboard with a visible focus.
-- [ ] AC-11 (always): The website screenshots `movie.png` and `series.png` under `docs/site/screenshots/` are regenerated and show the demo titles with their backdrops.
+- [ ] AC-11 (always, manual: images): The website screenshots `movie.png` and `series.png` under `docs/site/screenshots/` are regenerated and show the demo titles with their backdrops.
 - [ ] AC-12 (state, manual: visual design, judged by the owner): While the dark palette is active, a movie page, a series page and a preview page with a backdrop look like a title's page of a streaming service at 1440 px: the image is recognisable, the text is easy to read, nothing overlaps.
 
 ## Technical notes
@@ -104,8 +104,6 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 ## Open questions
 
-- AC-11 („the website screenshots `movie.png` and `series.png` are regenerated and show the demo titles with their backdrops“) is of the form `(always)` but can only be judged by looking at the two pictures. Proposed revision: `(always, manual: images)`, with the owner's look at the two files as its evidence.
-
 ## Evidence
 
 | AC    | Test | Status | Commit |
@@ -120,7 +118,7 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 | AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
 | AC-09 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`; the refresh tests run in shadow mode, the test app's default (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
 | AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
-| AC-11 | `bun run screenshots` regenerated `docs/site/screenshots/` on 2026-11-22 from the demo instance, whose refresh stores the demo titles' backdrops; `movie.png` and `series.png` show them behind the head | built |  |
+| AC-11 | manual: the owner checked `docs/site/screenshots/movie.png` and `series.png` with their backdrops among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
 | AC-12 | manual: the owner checked the movie page („Nordlicht über Tromsø“), the series page („Hafenlichter“) and the preview page („Rote Dünen“) with their backdrops from screenshots of this branch's demo instance, dark palette, 1440 px („Sichtprüfung ok“), 2026-11-22 | built |  |
 
 ## Decisions
@@ -143,4 +141,5 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
   - AC-11 has no test and cannot have a meaningful one (it is about pictures); whether it becomes a manual criterion is the owner's to decide; see Open questions.
   - The Evidence rows of AC-01 to AC-04 and AC-09 were still `open`: the commit that should have carried them was refused by a red gate and repeated without them. They are filled in now.
 - 2026-11-22 (build): Older e2e tests adjusted, none removed: the preview's backdrop is sharp (`discover-polish.spec.ts`), the blurred poster is the fallback and its veil is the component's (`library-detail-head.spec.ts`).
+- 2026-11-23 (revision, owner): AC-11 is a manual image check (`manual: images`), because only a look at the two pictures can tell whether they show the backdrops; the owner checked them.
 - 2026-11-22: The scrim, not the choice of image, guarantees the contrast (AC-07), because sofarr cannot know how bright a provider's image is.
