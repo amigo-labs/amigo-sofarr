@@ -15,7 +15,7 @@ The movie and series lists (`/filme`, `/serien`) are one grid or list with a too
 
 The owner decided on 2026-11-22: the lists show rows on top, below them the full grid or list with search and filters as today.
 
-This spec builds on `ui-cinema-tiles` and on the row of `ui-cinema-home`.
+This spec builds on `ui-cinema-tiles` and on the row of `ui-cinema-home`. It revises `ui-list-toolbar` AC-01 („the first item of the list starts at most 200 px below the top of `main`“): that holds while no row stands above the list.
 
 ## Terms
 

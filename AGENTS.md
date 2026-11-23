@@ -235,6 +235,10 @@ Project knowledge belongs in the repository, not on one machine:
 - e2e-Tests, die den Tastaturfokus über Shift+Tab/Tab prüfen, warten auf Detailseiten erst auf
   `networkidle`: Die Boxen laden ihre Knöpfe nacheinander, und ein Knopf, der zwischen zwei
   Tastendrücken erscheint, nimmt den Fokus (lokal selten, in der CI regelmäßig rot).
+- Die e2e-Tests rechnen „heute“ an drei Stellen: im Seed (`e2e/seed.mjs`, beim Start), im
+  Testprozess und im Browser (`Europe/Berlin`). Ein Lauf zwischen 23:00 und 24:00 UTC oder über
+  Mitternacht scheitert deshalb an Kalender- und Fehlt-Tests, ohne dass Code schuld ist; ein
+  Neulauf am selben Tag ist grün.
 - Cloud-Container laufen oft als root, und root ignoriert Dateirechte: Ein Test, der einen
   Fehlschlag über `chmod` erzwingt, ist dort grün statt rot. Fehlschläge beim Löschen von
   Sicherungen erzwingen die Tests deshalb über `backup_files::remove_file`
