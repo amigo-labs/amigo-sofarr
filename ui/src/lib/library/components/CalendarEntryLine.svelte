@@ -3,14 +3,23 @@
   import { mediaHref } from '../actions';
   import { ENTRY_STATE, RELEASE_TEXT, episodeCode } from '../format';
   import Label from './Label.svelte';
+  import Poster from './Poster.svelte';
 
   // One release date: a movie's cinema, digital or disc date, or an episode's air date (AC-07).
   // `dot` shows the state as a coloured dot named by its text, `cut` keeps title and detail on
   // one line each (spec ui-calendar AC-04).
   // `quietUpcoming` leaves out the chip of an entry that is not out yet, where the list itself
   // says so (spec ui-polish AC-09).
-  type Props = { entry: CalendarEntry; dot?: boolean; cut?: boolean; quietUpcoming?: boolean };
-  let { entry, dot = false, cut = false, quietUpcoming = false }: Props = $props();
+  // `poster` puts the title's poster, 40 px wide, before the text, or the library's
+  // placeholder (spec ui-cinema-shell AC-06).
+  type Props = {
+    entry: CalendarEntry;
+    dot?: boolean;
+    cut?: boolean;
+    quietUpcoming?: boolean;
+    poster?: boolean;
+  };
+  let { entry, dot = false, cut = false, quietUpcoming = false, poster = false }: Props = $props();
 
   const href = $derived(
     entry.movie_id !== null
@@ -29,29 +38,70 @@
           .filter((part) => part !== null && part !== '')
           .join(' · '),
   );
+  const image = $derived(
+    entry.movie_id !== null
+      ? { kind: 'movie' as const, id: entry.movie_id }
+      : entry.series_id !== null
+        ? { kind: 'series' as const, id: entry.series_id }
+        : null,
+  );
 </script>
 
-<span
-  class="entry"
-  class:stacked={dot}
-  class:cut
-  data-state={entry.state}
-  data-testid="calendar-entry"
->
-  {#if dot}
-    <span class="dot dot-{state.tone}" role="img" aria-label={state.text} title={state.text}></span>
-  {/if}
-  {#if href !== null}<a class="ui-link title" {href} title={cut ? entry.title : undefined}
-      >{entry.title}</a
-    >{:else}<span class="title" title={cut ? entry.title : undefined}>{entry.title}</span>{/if}
-  <span class="detail" title={cut ? what : undefined}>{what}</span>
-  {#if !dot && !(quietUpcoming && entry.state === 'upcoming')}<Label
-      text={state.text}
-      tone={state.tone}
-    />{/if}
-</span>
+{#snippet line()}
+  <span
+    class="entry"
+    class:stacked={dot}
+    class:cut
+    data-state={entry.state}
+    data-testid="calendar-entry"
+  >
+    {#if dot}
+      <span class="dot dot-{state.tone}" role="img" aria-label={state.text} title={state.text}
+      ></span>
+    {/if}
+    {#if href !== null}<a class="ui-link title" {href} title={cut ? entry.title : undefined}
+        >{entry.title}</a
+      >{:else}<span class="title" title={cut ? entry.title : undefined}>{entry.title}</span>{/if}
+    <span class="detail" title={cut ? what : undefined}>{what}</span>
+    {#if !dot && !(quietUpcoming && entry.state === 'upcoming')}<Label
+        text={state.text}
+        tone={state.tone}
+      />{/if}
+  </span>
+{/snippet}
+
+{#if poster}
+  <div class="with-poster">
+    <div class="thumb">
+      <Poster
+        kind={image?.kind ?? 'movie'}
+        id={image?.id ?? 0}
+        title={entry.title}
+        hasPoster={entry.has_poster && image !== null}
+        size="list"
+      />
+    </div>
+    {@render line()}
+  </div>
+{:else}
+  {@render line()}
+{/if}
 
 <style>
+  .with-poster {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: var(--base-size-8);
+    align-items: start;
+    min-width: 0;
+  }
+
+  /* The placeholder's initial, sized for the small poster. */
+  .thumb {
+    width: 40px;
+    font-size: 0.75rem;
+  }
+
   .entry {
     display: inline-flex;
     flex-wrap: wrap;

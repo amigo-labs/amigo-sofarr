@@ -12,7 +12,7 @@ import type { Page as ListPage } from '../src/lib/api/generated/Page';
 import type { StatesAnswer } from '../src/lib/api/generated/StatesAnswer';
 import { DISCOVER, settle } from './discover-helpers';
 import { RATINGS, waitForRatings } from './extras-helpers';
-import { LIBRARY, items, movieId, seriesId } from './library-helpers';
+import { emptyRows, LIBRARY, items, movieId, seriesId } from './library-helpers';
 import { ratingsSettled } from './site/settled.mjs';
 import { PALETTES, storeTheme } from './theme-helpers';
 
@@ -66,6 +66,10 @@ async function moviesWith(
   base = LIBRARY,
 ): Promise<void> {
   await page.route(`${base}/api/library/movies?*`, async (route) => {
+    // The rows above the list (spec ui-cinema-library-rows, 20 titles each) stay as they are.
+    if (new URL(route.request().url()).searchParams.get('page_size') === '20') {
+      return route.fallback();
+    }
     const answer = await route.fetch();
     const list = (await answer.json()) as ListPage<MovieListItem>;
     change(list.items);
@@ -170,6 +174,7 @@ const entry = (date: string, title: string, state: CalendarEntry['state']): Cale
   year: 2026,
   state,
   monitored: true,
+  has_poster: false,
 });
 
 const BOXES = [
@@ -191,8 +196,12 @@ test.describe('discover tiles: pending rating (AC-02)', () => {
     await expect(pending).toBeVisible();
     await expect(settled).toBeVisible();
     expect((await pending.innerText()).trim()).toBe('');
-    await expect(pending).toHaveAttribute('aria-label', 'IMDb-Bewertung folgt');
-    await expect(pending).toHaveAttribute('title', 'IMDb-Bewertung folgt');
+    // Its name is part of the tile link's (ui-cinema-tiles AC-05).
+    const tile = shelf
+      .getByTestId('title-card')
+      .filter({ has: page.locator('[data-testid="rating"].pending') })
+      .first();
+    await expect(tile.getByRole('link')).toHaveAccessibleName(/, IMDb-Bewertung folgt$/);
     const a = await box(pending);
     const b = await box(settled);
     expect(a.height).toBeGreaterThan(10);
@@ -236,10 +245,12 @@ test.describe('library cards and rows: year and addition (AC-03)', () => {
   }
 });
 
+// Revised by ui-cinema-tiles: at rest a tile is only its poster; title, year, chips, rating
+// and button show in the overlay of the open tile (ui-cinema-tiles AC-01, AC-03, AC-08).
 test.describe('poster tiles (AC-04, AC-05)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('library cards: two title lines, year lines level, feet end level', async ({
+  test('library cards: tiles of a row end level; the overlay cuts a long title at two lines', async ({
     page,
     request,
   }) => {
@@ -250,46 +261,29 @@ test.describe('poster tiles (AC-04, AC-05)', () => {
     const all = items(page);
     await expect(all.first()).toBeVisible();
     const first = rowsOf(await boxes(all))[0] ?? [];
-    const n = first.length;
-    expect(n).toBeGreaterThanOrEqual(3);
-    const row = (selector: string) => boxes(all.locator(selector)).then((list) => list.slice(0, n));
-
-    // Every title reserves exactly two lines; the long one is cut there.
-    const titles = await row('a.title');
-    const lineHeight = await all
-      .locator('a.title')
-      .first()
-      .evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
-    for (const t of titles) expect(Math.abs(t.height - 2 * lineHeight)).toBeLessThanOrEqual(1);
-    const long = page.getByRole('link', { name: LONG_TITLE, exact: true });
-    await expect(long).toHaveAttribute('title', LONG_TITLE);
-    expect(await long.evaluate((el) => el.scrollHeight > el.clientHeight + 1)).toBe(true);
-
-    // The year line keeps its place, also without a year.
-    expect(level((await row('.main .meta')).map((b) => b.y))).toBe(true);
-    // Chips start directly below the year line.
-    const metas = await row('.main .meta');
-    const labels = await row('.main .labels');
-    labels.forEach((l, i) => expect(l.y - (metas[i]?.bottom ?? 0)).toBeLessThanOrEqual(8));
-    // A card without a year keeps its year line: every line is one line high, so the chips
-    // of the whole row start at the same height.
-    for (const m of metas) expect(m.height).toBeGreaterThan(10);
-    expect(level(metas.map((m) => m.height))).toBe(true);
-    expect(level(labels.map((l) => l.y))).toBe(true);
-    // The row really holds the mix: a tile with two chips next to tiles with one.
+    expect(first.length).toBeGreaterThanOrEqual(3);
+    // A row with one chip and two chips: the tiles end at one edge, as high as their posters.
     const chipCounts = await all.evaluateAll((els) =>
       els.map((el) => el.querySelectorAll('.main .labels .label').length),
     );
-    expect(chipCounts.slice(0, n)).toContain(2);
-    expect(chipCounts.slice(0, n)).toContain(1);
-    // Tiles and their ratings end at one edge, with one chip or two.
+    expect(chipCounts.slice(0, first.length)).toContain(2);
+    expect(chipCounts.slice(0, first.length)).toContain(1);
     expect(level(first.map((b) => b.bottom))).toBe(true);
-    const ratings = await row('[data-testid="rating"]');
-    expect(level(ratings.map((b) => b.bottom))).toBe(true);
-    expect(Math.abs((ratings[0]?.bottom ?? 0) - (first[0]?.bottom ?? 99))).toBeLessThanOrEqual(1);
+    const posters = (await boxes(all.locator('.poster-wrap'))).slice(0, first.length);
+    expect(level(posters.map((b) => b.bottom))).toBe(true);
+
+    // The long title: full in the tooltip, cut after two lines in the open tile's overlay.
+    const long = all.filter({ has: page.locator(`a[title="${LONG_TITLE}"]`) });
+    await long.hover();
+    const title = long.locator('.main .title');
+    const lines = await title.evaluate(
+      (el) => el.clientHeight / parseFloat(getComputedStyle(el).lineHeight),
+    );
+    expect(Math.abs(lines - 2)).toBeLessThanOrEqual(0.05);
+    expect(await title.evaluate((el) => el.scrollHeight > el.clientHeight + 1)).toBe(true);
   });
 
-  test('discover tiles: two title lines, year lines level, chips and buttons end level', async ({
+  test('discover tiles: a shelf ends level; the overlay cuts a long title at two lines', async ({
     page,
   }) => {
     await page.route('**/api/discover/shelves', async (route) => {
@@ -304,27 +298,18 @@ test.describe('poster tiles (AC-04, AC-05)', () => {
     const shelf = page.getByTestId('shelf').first();
     const tiles = shelf.getByTestId('title-card');
     await expect(tiles.nth(1)).toBeVisible();
-    const titles = await boxes(tiles.locator('.title'));
-    const lineHeight = await tiles
-      .locator('.title')
-      .first()
-      .evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
-    for (const t of titles) expect(Math.abs(t.height - 2 * lineHeight)).toBeLessThanOrEqual(1);
+    const tileBoxes = await boxes(tiles);
+    expect(level(tileBoxes.map((b) => b.bottom))).toBe(true);
     const long = tiles.nth(1);
     await expect(long.locator('a')).toHaveAttribute('title', LONG_TITLE);
     await expect(long.getByRole('link', { name: LONG_TITLE })).toBeVisible();
-
-    expect(level((await boxes(tiles.locator('.meta:not(.note)'))).map((b) => b.y))).toBe(true);
-    const tileBoxes = await boxes(tiles);
-    expect(level(tileBoxes.map((b) => b.bottom))).toBe(true);
-    expect(level((await boxes(tiles.locator('[data-testid="rating"]'))).map((b) => b.bottom))).toBe(
-      true,
+    await long.hover();
+    const title = long.locator('.title');
+    const lines = await title.evaluate(
+      (el) => el.clientHeight / parseFloat(getComputedStyle(el).lineHeight),
     );
-    // The chip or the add button is the last element of each foot.
-    const feet = await boxes(tiles.locator('[data-testid="library-state"], button.add'));
-    expect(feet.length).toBe(tileBoxes.length);
-    expect(level(feet.map((b) => b.bottom))).toBe(true);
-    expect(Math.abs((feet[0]?.bottom ?? 0) - (tileBoxes[0]?.bottom ?? 99))).toBeLessThanOrEqual(1);
+    expect(Math.abs(lines - 2)).toBeLessThanOrEqual(0.05);
+    expect(await title.evaluate((el) => el.scrollHeight > el.clientHeight + 1)).toBe(true);
   });
 });
 
@@ -418,6 +403,7 @@ const figure = (page: Page, label: string) =>
 test.describe('overview: empty boxes (AC-08)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
   test('all boxes empty: no box, plain figures and the quiet line', async ({ page }) => {
+    await emptyRows(page);
     await overviewWith(page, EMPTY_OVERVIEW);
     await page.goto(`${LIBRARY}/`);
     await expect(page.getByText(ALL_QUIET)).toBeVisible();
@@ -480,6 +466,7 @@ test.describe('overview: empty boxes (AC-08)', () => {
       await page.request.get(`${LIBRARY}/api/overview`)
     ).json()) as OverviewAnswer;
     let withProblem = true;
+    await emptyRows(page);
     await page.route('**/api/overview', (route) =>
       route.fulfill({
         json: { ...EMPTY_OVERVIEW(real), problems: withProblem ? [PROBLEM] : [] },
@@ -734,6 +721,7 @@ for (const palette of PALETTES) {
       });
 
       test('overview with all boxes hidden and with only some', async ({ page }) => {
+        await emptyRows(page);
         await overviewWith(page, EMPTY_OVERVIEW);
         await page.goto(`${LIBRARY}/`);
         await expect(page.getByText(ALL_QUIET)).toBeVisible();
@@ -749,7 +737,7 @@ for (const palette of PALETTES) {
         await posterView(page);
         await moviesWith(page, mixTiles);
         await page.goto(`${LIBRARY}/filme`);
-        await expect(page.getByRole('link', { name: LONG_TITLE, exact: true })).toBeVisible();
+        await expect(page.locator(`a[title="${LONG_TITLE}"]`)).toBeVisible();
         await axe(page);
       });
 

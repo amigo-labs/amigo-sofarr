@@ -7,6 +7,7 @@ pub mod api;
 mod background;
 pub mod cache;
 pub mod cards;
+pub mod hero;
 pub mod people;
 pub mod shelves;
 pub mod titles;
@@ -68,6 +69,8 @@ pub fn failure(failure: Failure, not_found: &str) -> ApiError {
     }
 }
 
+#[cfg(test)]
+mod hero_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

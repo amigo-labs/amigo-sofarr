@@ -35,14 +35,13 @@ test.describe('person page (AC-05)', () => {
     await page.getByLabel('Sortierung').selectOption({ label: 'IMDb-Bewertung' });
     await expect(page).toHaveURL(/sortierung=bewertung/);
     // The best rated fillers (8,9) lead once every rating is known; "–" comes last.
-    await expect(cast.getByTestId('rating').first()).toHaveAccessibleName(
-      'IMDb 8,9 (1.000 Stimmen)',
-      {
-        timeout: 15_000,
-      },
-    );
+    // The rating is part of the tile link's name (ui-cinema-tiles AC-05).
+    const links = cast.getByTestId('title-card').locator(':scope > .frame > a');
+    await expect(links.first()).toHaveAccessibleName(/, IMDb 8,9 \(1\.000 Stimmen\)$/, {
+      timeout: 15_000,
+    });
     await cast.getByRole('button', { name: /Weitere anzeigen/ }).click();
-    await expect(cast.getByTestId('rating').last()).toHaveAccessibleName('IMDb –');
+    await expect(links.last()).toHaveAccessibleName(/, IMDb –$/);
 
     await page.getByLabel('Sortierung').selectOption({ label: 'Jahr, neueste zuerst' });
     await expect(cast.getByTestId('title-card').first()).toContainText('· 2024');

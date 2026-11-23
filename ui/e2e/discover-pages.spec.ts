@@ -49,15 +49,20 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
       '/entdecken/filme/502',
     );
     await expect(star.getByRole('button', { name: 'Hinzufügen „Sternenfahrt“' })).toBeVisible();
-    await expect(star.getByTestId('rating')).toHaveAccessibleName('IMDb 7,8 (12.345 Stimmen)');
+    // The rating is part of the tile link's name (ui-cinema-tiles AC-05).
+    await expect(star.getByRole('link')).toHaveAccessibleName(
+      'Sternenfahrt, 2024, IMDb 7,8 (12.345 Stimmen)',
+    );
     const unrated = cards(page, 'movie/505').first();
-    await expect(unrated.getByTestId('rating')).toHaveAccessibleName('IMDb –');
+    await expect(unrated.getByRole('link')).toHaveAccessibleName(/, IMDb –$/);
 
     // A title whose IMDb id is still loading shows the placeholder until it is known.
-    const slow = cards(trending, 'movie/504').getByTestId('rating');
-    await expect(slow).toHaveAccessibleName('IMDb-Bewertung folgt');
+    const slow = cards(shelves.nth(1), 'movie/504').getByRole('link');
+    await expect(slow).toHaveAccessibleName(/, IMDb-Bewertung folgt$/);
     await release(page.request, 'movie', 504);
-    await expect(slow).toHaveAccessibleName('IMDb 5,0 (1.000 Stimmen)', { timeout: 15_000 });
+    await expect(slow).toHaveAccessibleName(/, IMDb 5,0 \(1\.000 Stimmen\)$/, {
+      timeout: 15_000,
+    });
 
     await expect(page.getByTestId('fetched').first()).toContainText('Stand: ');
     await expect(page.getByRole('link', { name: /Information courtesy of IMDb/ })).toHaveAttribute(
@@ -74,7 +79,8 @@ test.describe('discover page (AC-01, AC-13, AC-17)', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Beliebte Filme' })).toBeVisible();
     await expectAttribution(page);
     const tiles = page.getByTestId('title-card');
-    await expect(tiles).toHaveCount(20);
+    // The first page of 20; a window that still shows the end loads the next one at once.
+    await expect.poll(() => tiles.count()).toBeGreaterThanOrEqual(20);
     await expect
       .poll(async () => {
         await tiles.last().scrollIntoViewIfNeeded();
@@ -153,16 +159,17 @@ test.describe('filters (AC-02)', () => {
 
     // Still loading its rating, the title stays with the placeholder; at 5.0 it goes.
     const slow = cards(results, 'movie/507');
-    await expect(slow.getByTestId('rating')).toHaveAccessibleName('IMDb-Bewertung folgt');
+    await expect(slow.getByRole('link')).toHaveAccessibleName(/, IMDb-Bewertung folgt$/);
     await release(page.request, 'movie', 507);
     await expect(slow).toHaveCount(0, { timeout: 15_000 });
     await expect
       .poll(() => results.getByTestId('title-card').count(), { timeout: 15_000 })
       .toBeGreaterThanOrEqual(20);
     const names = await results
-      .getByTestId('rating')
+      .getByTestId('title-card')
+      .locator(':scope > .frame > a')
       .evaluateAll((all) => all.map((el) => el.getAttribute('aria-label') ?? ''));
-    for (const name of names) expect(name).toMatch(/^IMDb (7|8|9),\d|^IMDb-Bewertung folgt/);
+    for (const name of names) expect(name).toMatch(/, IMDb( (7|8|9),\d|-Bewertung folgt)/);
 
     await openDiscoverFilters(page);
     await page.getByRole('button', { name: 'Filter zurücksetzen' }).click();

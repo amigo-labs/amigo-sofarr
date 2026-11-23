@@ -4,8 +4,11 @@
   // whatever the image; without one (or when it fails to load) the poster, blurred beyond
   // recognition (spec ui-polish AC-01); without that, nothing. Decorative, and absolutely
   // placed: the head never waits for the image and never changes its size with it (AC-08).
-  type Props = { image: string | null; fallback?: string | null };
-  let { image, fallback = null }: Props = $props();
+  //
+  // As a band (the discover hero, spec ui-cinema-hero AC-02), below 768 px the image is a
+  // 16:9 band above the content, which then stands on the page ground: no scrim.
+  type Props = { image: string | null; fallback?: string | null; band?: boolean };
+  let { image, fallback = null, band = false }: Props = $props();
 
   let failed = $state<string | null>(null);
   let fallbackFailed = $state(false);
@@ -13,7 +16,7 @@
 </script>
 
 {#if sharp}
-  <div class="backdrop" aria-hidden="true" data-testid="head-backdrop" data-kind="sharp">
+  <div class="backdrop" class:band aria-hidden="true" data-testid="head-backdrop" data-kind="sharp">
     <img src={image} alt="" decoding="async" onerror={() => (failed = image)} />
     <div class="scrim"></div>
   </div>
@@ -54,6 +57,19 @@
         color-mix(in srgb, var(--am-bg) 15%, transparent) calc(14rem + 42rem + 4.5rem + 16rem),
         color-mix(in srgb, var(--am-bg) 15%, transparent) 100%
       );
+  }
+
+  @media (max-width: 767.98px) {
+    .band {
+      position: relative;
+      inset: auto;
+      z-index: auto;
+      aspect-ratio: 16 / 9;
+    }
+
+    .band .scrim {
+      display: none;
+    }
   }
 
   /* Blurred far beyond any shape of the poster, so only its colours remain as an even wash

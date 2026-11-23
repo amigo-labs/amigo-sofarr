@@ -1,13 +1,15 @@
 <script lang="ts">
   import prevIcon from '@primer/octicons/build/svg/chevron-left-16.svg?raw';
   import nextIcon from '@primer/octicons/build/svg/chevron-right-16.svg?raw';
-  import { onMount } from 'svelte';
-  import Icon from '../../components/Icon.svelte';
+  import { onMount, tick } from 'svelte';
+  import Icon from './Icon.svelte';
 
   // Back and forward buttons for one shelf's row of titles (spec ui-discover-polish AC-03):
-  // each scrolls by about the visible width; disabled at the row's ends.
-  type Props = { name: string };
-  let { name }: Props = $props();
+  // each scrolls by about the visible width; disabled at the row's ends. The rows of the
+  // overview use them too (spec ui-cinema-home); `count`, the number of tiles, measures the
+  // ends again when a refresh changes the row.
+  type Props = { name: string; count?: number };
+  let { name, count = 0 }: Props = $props();
 
   let host: HTMLElement | undefined = $state();
   let strip: HTMLElement | null = null;
@@ -31,6 +33,11 @@
       current.removeEventListener('scroll', measure);
       window.removeEventListener('resize', measure);
     };
+  });
+
+  $effect(() => {
+    void count;
+    void tick().then(measure);
   });
 
   function go(direction: number): void {

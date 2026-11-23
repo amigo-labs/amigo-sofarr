@@ -74,7 +74,7 @@ const SHOTS = [
   { name: 'series', path: '/serien', open: SERIES[0].title },
   { name: 'calendar', path: '/kalender?ansicht=monat', text: SERIES[1].title },
   { name: 'person', path: '/entdecken/personen/30001', heading: 'Lena Marquardt' },
-  { name: 'overview', path: '/', heading: 'Übersicht', text: 'Nächste 7 Tage' },
+  { name: 'overview', path: '/', heading: 'Übersicht', text: 'Zuletzt hinzugefügt' },
 ];
 
 /** The images in the viewport that have not arrived yet (runs in the page). */
@@ -100,8 +100,19 @@ async function photograph(browser) {
   mkdirSync(out, { recursive: true });
   for (const shot of SHOTS) {
     await page.goto(`${BASE}${shot.path}`, { waitUntil: 'networkidle' });
-    if (shot.button) await page.getByRole('button', { name: shot.button }).click();
-    if (shot.open) await page.getByRole('link', { name: shot.open, exact: true }).first().click();
+    if (shot.button) {
+      await page.getByRole('button', { name: shot.button }).click();
+      // The picture shows the last rows above the full list (ui-cinema-library-rows AC-10):
+      // the heading „Alle Filme“ a little above the middle of the window.
+      await page.evaluate(() => {
+        const heading = document.querySelector('#all-title');
+        if (heading === null) return;
+        const top = heading.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo(0, Math.max(0, top - window.innerHeight * 0.45));
+      });
+    }
+    // By the tooltip: a poster tile's link is named with year and rating too (ui-cinema-tiles).
+    if (shot.open) await page.getByTitle(shot.open, { exact: true }).first().click();
     const heading = shot.open ?? shot.heading;
     if (heading) await page.getByRole('heading', { name: heading, level: 1 }).waitFor();
     if (shot.text) await page.getByText(shot.text).first().waitFor();

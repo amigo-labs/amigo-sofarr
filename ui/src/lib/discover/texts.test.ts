@@ -7,6 +7,7 @@ import {
   fetchedText,
   jobText,
   libraryLabel,
+  libraryMark,
   ratingCompact,
   ratingLine,
   runtimeText,
@@ -38,6 +39,12 @@ describe('discover texts (discover AC-01, AC-13, AC-16)', () => {
     expect(libraryLabel('in_library')?.text).toBe('In der Bibliothek');
     expect(libraryLabel('excluded')?.text).toBe('Ausgeschlossen');
     expect(libraryLabel('none')).toBeNull();
+  });
+
+  it('marks the library state on the poster (ui-cinema-tiles AC-02)', () => {
+    expect(libraryMark('in_library')).toEqual({ text: 'In der Bibliothek', tone: 'accent' });
+    expect(libraryMark('excluded')).toEqual({ text: 'Ausgeschlossen', tone: 'danger' });
+    expect(libraryMark('none')).toBeNull();
   });
 
   it('shows ratings with a placeholder while loading and "–" without one', () => {

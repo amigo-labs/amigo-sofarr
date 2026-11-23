@@ -107,6 +107,27 @@ describe('list rows (AC-02, AC-06)', () => {
     expect(seriesRow(series).rating).toBe('–');
   });
 
+  it("a movie's state mark: accent with a file, danger while missing (ui-cinema-tiles AC-02)", () => {
+    expect(movieRow({ ...movie, quality: 'Bluray-1080p', missing: false }).mark).toEqual({
+      text: 'vorhanden',
+      tone: 'accent',
+    });
+    expect(movieRow(movie).mark).toEqual({ text: 'fehlt', tone: 'danger' });
+    // Not yet available, or unmonitored without a file: no mark.
+    expect(movieRow({ ...movie, missing: false }).mark).toBeNull();
+    expect(movieRow({ ...movie, missing: false, monitored: false }).mark).toBeNull();
+  });
+
+  it("a series' state mark: danger while episodes are missing, accent when complete", () => {
+    expect(seriesRow(series).mark).toEqual({ text: '1 fehlt', tone: 'danger' });
+    expect(seriesRow({ ...series, missing: 4 }).mark).toEqual({ text: '4 fehlen', tone: 'danger' });
+    expect(seriesRow({ ...series, missing: 0, complete: true }).mark).toEqual({
+      text: 'komplett',
+      tone: 'accent',
+    });
+    expect(seriesRow({ ...series, missing: 0, complete: false }).mark).toBeNull();
+  });
+
   it('the placeholder shows the first letter or digit (AC-21)', () => {
     expect(initial('Das Boot')).toBe('D');
     expect(initial(' „über“ alles')).toBe('Ü');

@@ -13,8 +13,9 @@ async function showAs(page: Page, view: 'liste' | 'poster'): Promise<void> {
   );
 }
 
+// The tooltip is the full title in rows and poster tiles (ui-cinema-tiles AC-05).
 const item = (page: Page, title: string) =>
-  items(page).filter({ has: page.getByRole('link', { name: title, exact: true }) });
+  items(page).filter({ has: page.locator(`a[title="${title}"]`) });
 const checkbox = (page: Page, title: string) => page.getByLabel(`„${title}“ auswählen`);
 const toggle = (page: Page, title: string) =>
   page.getByRole('button', { name: `Überwachen „${title}“` });

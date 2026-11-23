@@ -10,10 +10,9 @@ import {
 } from './helpers';
 import { e2ePassword } from './env.mjs';
 import { SERVERS } from './servers';
-import { THEME_KEY, pickTheme, storeTheme, themeButton, token } from './theme-helpers';
+import { THEME_KEY, storeTheme, token } from './theme-helpers';
 
 const DARK_BG = token('dark', 'bg');
-const LIGHT_BG = token('light', 'bg');
 
 const background = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);
@@ -123,7 +122,10 @@ test.describe('wide screens', () => {
   });
 });
 
-// web-ui-shell AC-10 as revised by spec amigo-theme (its AC-04 .. AC-08).
+// web-ui-shell AC-10 as revised by spec amigo-theme (its AC-04 .. AC-08) and then by spec
+// ui-cinema-shell (AC-01, AC-02): no switch, always dark; a stored choice stays and is ignored.
+const stored = (page: Page) => page.evaluate((key) => localStorage.getItem(key), THEME_KEY);
+
 test.describe('theme (AC-10)', () => {
   test('is dark while nothing is stored, whatever the system prefers (AC-04)', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
@@ -131,68 +133,47 @@ test.describe('theme (AC-10)', () => {
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect(themeButton(page, 'Dunkel')).toHaveAttribute('aria-pressed', 'true');
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await background(page)).toBe(DARK_BG);
-    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBeNull();
+    expect(await stored(page)).toBeNull();
   });
 
-  test('the switch offers Dunkel, Hell and System; a pick applies at once and is remembered (AC-05)', async ({
+  test('there is no switch; a stored Hell stays in the browser and the page stays dark (AC-05)', async ({
     page,
   }) => {
+    await storeTheme(page, 'light');
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    await expect(page.getByRole('group', { name: 'Farbschema' }).getByRole('button')).toHaveText([
-      'Dunkel',
-      'Hell',
-      'System',
-    ]);
-    await pickTheme(page, 'Hell');
-    expect(await background(page)).toBe(LIGHT_BG);
-    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('light');
+    await expect(page.getByRole('group', { name: 'Farbschema' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Hell', exact: true })).toHaveCount(0);
+    expect(await background(page)).toBe(DARK_BG);
+    expect(await stored(page)).toBe('light');
     await page.reload();
     await expectSystemPage(page);
-    expect(await background(page)).toBe(LIGHT_BG);
-    await expect(themeButton(page, 'Hell')).toHaveAttribute('aria-pressed', 'true');
-    // The system changing does not move a fixed choice.
-    await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await background(page)).toBe(LIGHT_BG);
-    await pickTheme(page, 'Dunkel');
     expect(await background(page)).toBe(DARK_BG);
-    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('dark');
-    await page.emulateMedia({ colorScheme: 'light' });
-    expect(await background(page)).toBe(DARK_BG);
+    expect(await stored(page)).toBe('light');
   });
 
-  test('System follows the system setting, also when it changes (AC-06)', async ({ page }) => {
+  test('a stored System does not follow the system setting (AC-06)', async ({ page }) => {
+    await storeTheme(page, 'system');
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    await pickTheme(page, 'System');
-    expect(await background(page)).toBe(LIGHT_BG);
+    expect(await background(page)).toBe(DARK_BG);
     await page.emulateMedia({ colorScheme: 'dark' });
     expect(await background(page)).toBe(DARK_BG);
-    await page.reload();
-    await expectSystemPage(page);
-    await expect(themeButton(page, 'System')).toHaveAttribute('aria-pressed', 'true');
-    expect(await background(page)).toBe(DARK_BG);
     await page.emulateMedia({ colorScheme: 'light' });
-    expect(await background(page)).toBe(LIGHT_BG);
+    expect(await background(page)).toBe(DARK_BG);
+    expect(await stored(page)).toBe('system');
   });
 
   // What the document carries at the moment its body first has content: `data-theme`.
-  for (const [stored, expected] of [
-    ['light', 'light'],
-    ['dark', 'dark'],
-    ['system', null],
-    ['auto', 'dark'],
-    ['', 'dark'],
-  ] as const) {
-    test(`a stored "${stored}" is on the document before the app renders (AC-07)`, async ({
+  for (const value of ['light', 'dark', 'system', 'auto', '']) {
+    test(`a stored "${value}" leaves the document dark before the app renders (AC-07)`, async ({
       page,
     }) => {
       await page.emulateMedia({ colorScheme: 'light' });
-      await storeTheme(page, stored);
+      await storeTheme(page, value);
       await page.addInitScript(() => {
         const seen = { done: false, theme: null as string | null };
         Object.assign(window, { firstContent: seen });
@@ -210,14 +191,13 @@ test.describe('theme (AC-10)', () => {
           (window as unknown as { firstContent: { done: boolean; theme: string | null } })
             .firstContent,
       );
-      expect(seen).toEqual({ done: true, theme: expected });
-      expect(await background(page)).toBe(expected === 'dark' ? DARK_BG : LIGHT_BG);
+      expect(seen).toEqual({ done: true, theme: 'dark' });
+      expect(await background(page)).toBe(DARK_BG);
+      expect(await stored(page)).toBe(value);
     });
   }
 
-  test('blocked storage: dark at the start, a pick applies but is not remembered (AC-08)', async ({
-    page,
-  }) => {
+  test('blocked storage: dark on every page, nothing fails (AC-08)', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.addInitScript(() => {
@@ -231,21 +211,19 @@ test.describe('theme (AC-10)', () => {
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
-    await pickTheme(page, 'Hell');
-    expect(await background(page)).toBe(LIGHT_BG);
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })
       .getByRole('link', { name: 'Übersicht', exact: true })
       .click();
     await expectOverview(page);
-    expect(await background(page)).toBe(LIGHT_BG);
+    expect(await background(page)).toBe(DARK_BG);
     await page.reload();
     await expectOverview(page);
     expect(await background(page)).toBe(DARK_BG);
     expect(errors).toEqual([]);
   });
 
-  test('storage that refuses writes: a pick applies until the reload (AC-08)', async ({ page }) => {
+  test('storage that refuses writes: dark, nothing fails (AC-08)', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.addInitScript(() => {
@@ -253,10 +231,10 @@ test.describe('theme (AC-10)', () => {
         throw new DOMException('Der Speicher ist voll', 'QuotaExceededError');
       };
     });
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    await pickTheme(page, 'Hell');
-    expect(await background(page)).toBe(LIGHT_BG);
+    expect(await background(page)).toBe(DARK_BG);
     await page.reload();
     await expectSystemPage(page);
     expect(await background(page)).toBe(DARK_BG);
@@ -288,7 +266,8 @@ test.describe('keyboard (AC-11)', () => {
     await page.reload();
     await expectSystemPage(page);
     const reached: string[] = [];
-    // Skip link, brand, ten navigation entries, the theme switch, logout and collapse.
+    // Skip link, brand, eleven navigation entries, logout and collapse (no theme switch since
+    // spec ui-cinema-shell AC-01).
     for (let i = 0; i < 24; i += 1) {
       await page.keyboard.press('Tab');
       const focus = await page.evaluate(() => {
@@ -307,7 +286,8 @@ test.describe('keyboard (AC-11)', () => {
     expect(reached).toEqual(
       expect.arrayContaining(['Zum Inhalt springen', 'sofarr', 'System', 'Abmelden']),
     );
-    expect(reached.some((name) => name.includes('Hell'))).toBe(true);
+    expect(reached).toContain('Seitenleiste einklappen');
+    expect(reached.some((name) => ['Dunkel', 'Hell'].includes(name))).toBe(false);
   });
 
   test('the login form works with the keyboard alone', async ({ page }) => {

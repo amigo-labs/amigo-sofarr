@@ -49,6 +49,11 @@ because later specs build on earlier ones.
 | 31 | [krake-download-client](krake-download-client.md) | M | – | Krake (formerly amigo-downloader) as download client through its NZBGet-compatible API (D32) | done |
 | 32 | [ui-polish](ui-polish.md) | M | ui-overview-polish | UI redesign 11: even poster tiles with two title lines, empty overview boxes hidden, episode toggles in the row, series facts in one row, „Stand“ at the page's end, calm backdrop, themed dropdowns, compact empty calendar weeks (D30); revises ui-consistency AC-03 and AC-11, ui-detail-head AC-03, ui-overview-pages AC-02 and AC-04, ui-overview-polish AC-06 | done |
 | 33 | [ui-cinema-backdrops](ui-cinema-backdrops.md) | M | ui-polish | Cinema look 1: backdrops for library movies and series from TMDB, served from the image cache, sharp behind the head of the movie, series and preview pages (D34); revises ui-detail-head AC-01, ui-polish AC-01, ui-discover-polish AC-04 | `/spec-build ui-cinema-backdrops` |
+| 34 | [ui-cinema-tiles](ui-cinema-tiles.md) | M | ui-cinema-backdrops | Cinema look 2: poster tiles show only the poster with a state mark; on hover or focus they grow and show title, year, rating, chips and actions in an overlay (D34); revises ui-polish AC-04/AC-05, ui-list-items AC-02/AC-03, ui-consistency AC-03/AC-04, imdb-ratings AC-04 for tiles | `/spec-build ui-cinema-tiles` |
+| 35 | [ui-cinema-hero](ui-cinema-hero.md) | M | ui-cinema-tiles | Cinema look 3: hero banner on discover with the first title of „Heute beliebt“ that has a backdrop and is not in the library; the shelves answer carries it (D34) | `/spec-build ui-cinema-hero` |
+| 36 | [ui-cinema-home](ui-cinema-home.md) | M | ui-cinema-tiles | Cinema look 4: rows „Demnächst“, „Zuletzt hinzugefügt“, „Fehlt noch“ on the overview (D34) | `/spec-build ui-cinema-home` |
+| 37 | [ui-cinema-library-rows](ui-cinema-library-rows.md) | M | ui-cinema-home | Cinema look 5: rows above the full movie and series lists while no search or filter is set (D34) | `/spec-build ui-cinema-library-rows` |
+| 38 | [ui-cinema-shell](ui-cinema-shell.md) | M | ui-cinema-library-rows | Cinema look 6: theme switch removed and always dark, quieter sidebar, borderless boxes, flat month grid, posters in the week view (D34); revises amigo-theme, ui-shell-redesign, web-ui-shell, ui-detail-boxes AC-02, ui-calendar AC-01 | `/spec-build ui-cinema-shell` |
 
 Large specs (L) are split while being written when they need more than a few sessions
 (as `web-ui` became `web-ui-shell` and `web-ui-library`, and `imdb-ratings` left `discover`).
@@ -120,14 +125,7 @@ the oracles stays in [`../parity.md`](../parity.md).
 
 Gaps not yet written as specs. Not commitments.
 
-The rest of the cinema look (D34), in this order; each is written as a spec when the one before it is built, because it builds on that one's components:
-
-| Spec | Size | Content |
-| ---- | ---- | ------- |
-| ui-cinema-tiles | M | Poster tiles show only the poster at rest; on hover or focus they grow and show title, rating, state and actions; on touch devices the texts stay below the poster as today |
-| ui-cinema-hero | M | Hero banner on Entdecken: one featured title with its backdrop, overview, „Hinzufügen“ and „Details“ |
-| ui-cinema-home | L | Start page and library as rows to browse („Demnächst“, „Zuletzt hinzugefügt“, „Fehlt noch“, „Unter Cutoff“, „Am besten bewertet“); rows by genre need genres in the library (a migration) and are a spec of their own |
-| ui-cinema-shell | M | Calendar and administration pages flatter and darker within the shared theme, a quieter navigation; the light palette and the theme switch are removed |
+Rows by genre on the overview and the lists: the library stores no genres; that needs a migration and a spec of its own (noted in `ui-cinema-home` and `ui-cinema-library-rows`).
 
 Closed on 2026-11-19: the parser gaps (`parser-season-in-title`), the
 release-oracle gaps (`release-oracle-history`; raw disc releases a deliberate deviation in

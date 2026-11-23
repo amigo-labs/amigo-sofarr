@@ -5,6 +5,7 @@
 import type { MediaKind } from '../api/generated/MediaKind';
 import type { MovieListItem } from '../api/generated/MovieListItem';
 import type { SeriesListItem } from '../api/generated/SeriesListItem';
+import type { Mark } from '../components/tile';
 import type { Tone } from '../system/format';
 import { ratingCompactText, ratingWithVotesText } from '../imdb/imdb';
 import { bytesText, missingText } from './format';
@@ -26,8 +27,24 @@ export type Row = {
   readonly monitored: boolean;
   readonly hasPoster: boolean;
   readonly labels: readonly RowLabel[];
+  /** The state mark of the poster tile (spec ui-cinema-tiles AC-02). */
+  readonly mark: Mark | null;
   readonly href: string;
 };
+
+/** A movie's mark: „vorhanden“ with a file, „fehlt“ while the API counts it as missing. */
+function movieMark(item: MovieListItem): Mark | null {
+  if (item.quality !== null) return { text: 'vorhanden', tone: 'accent' };
+  if (item.missing) return { text: 'fehlt', tone: 'danger' };
+  return null;
+}
+
+/** A series' mark: its missing episodes, else „komplett“. */
+function seriesMark(item: SeriesListItem): Mark | null {
+  if (item.missing > 0) return { text: missingText(item.missing), tone: 'danger' };
+  if (item.complete) return { text: 'komplett', tone: 'accent' };
+  return null;
+}
 
 const other = (title: string, ...candidates: (string | null)[]): string | null =>
   candidates.find((c) => c !== null && c.trim() !== '' && c !== title) ?? null;
@@ -51,6 +68,7 @@ export function movieRow(item: MovieListItem): Row {
     monitored: item.monitored,
     hasPoster: item.has_poster,
     labels,
+    mark: movieMark(item),
     href: `/filme/${item.id}`,
   };
 }
@@ -79,6 +97,7 @@ export function seriesRow(item: SeriesListItem): Row {
     monitored: item.monitored,
     hasPoster: item.has_poster,
     labels,
+    mark: seriesMark(item),
     href: `/serien/${item.id}`,
   };
 }

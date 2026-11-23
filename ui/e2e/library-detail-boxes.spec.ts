@@ -68,7 +68,8 @@ test.describe('two columns (AC-01)', () => {
 });
 
 test.describe('box headers (AC-02)', () => {
-  test('16 px semibold heading on the box ground, a hairline below', async ({ page }) => {
+  // Revised by spec ui-cinema-shell AC-04: no line below the header any more.
+  test('16 px semibold heading on the box ground, no line below', async ({ page }) => {
     await openMovie(page);
     for (const name of [...MAIN, ...SIDE]) {
       const look = await box(page, name)
@@ -95,7 +96,7 @@ test.describe('box headers (AC-02)', () => {
         size: '16px',
         weight: '600',
         ground: 'rgba(0, 0, 0, 0)',
-        line: '1px',
+        line: '0px',
       });
     }
     expect(await box(page, 'Datei').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(

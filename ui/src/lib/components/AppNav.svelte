@@ -8,13 +8,14 @@
   import expandIcon from '@primer/octicons/build/svg/sidebar-collapse-16.svg?raw';
   import { isCurrent, navGroups } from '../nav';
   import { applyCollapsed, readCollapsed, storeCollapsed } from '../sidebar';
+  import { applyPalette } from '../theme/theme';
   import Icon from './Icon.svelte';
-  import ThemeSwitch from './ThemeSwitch.svelte';
 
   // The navigation (specs web-ui-shell AC-08, AC-09, ui-shell-redesign AC-01 .. AC-08): a
   // sidebar on wide windows, collapsible to icons; on narrow ones a top bar whose menu button
   // opens the same navigation as a drawer (a modal dialog, so focus stays inside). Without a
-  // navigation (login) only a top bar with the brand and the theme switch shows.
+  // navigation (login) only a top bar with the brand shows. There is no theme switch: the UI
+  // is always dark (spec ui-cinema-shell AC-01).
   type Props = {
     pathname: string;
     showNav: boolean;
@@ -34,6 +35,7 @@
   let tip: { label: string; top: number } | null = $state(null);
 
   onMount(() => {
+    applyPalette(document.documentElement);
     collapsed = readCollapsed(storage);
     applyCollapsed(document.documentElement, collapsed);
     const wide = window.matchMedia(WIDE);
@@ -170,7 +172,6 @@
     <div class="sidebar-top">{@render brand()}</div>
     <div class="sidebar-entries">{@render entries(true)}</div>
     <div class="sidebar-footer">
-      <ThemeSwitch compact={collapsed} />
       {@render logout()}
       <button
         type="button"
@@ -208,7 +209,6 @@
       <div class="sidebar-top">{@render brand()}</div>
       <div class="sidebar-entries">{@render entries(false)}</div>
       <div class="sidebar-footer">
-        <ThemeSwitch />
         {@render logout()}
       </div>
     </div>
@@ -216,7 +216,6 @@
 {:else}
   <header class="topbar">
     {@render brand()}
-    <div class="topbar-tools"><ThemeSwitch /></div>
   </header>
 {/if}
 
@@ -235,8 +234,7 @@
       width: 240px;
       height: 100vh;
       height: 100dvh;
-      border-right: var(--borderWidth-thin) solid var(--borderColor-default);
-      background: var(--bgColor-surface);
+      background: var(--bgColor-default);
     }
 
     .topbar.narrow-only {
@@ -311,6 +309,7 @@
 
   nav a,
   .nav-action {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--base-size-12);
@@ -328,15 +327,29 @@
     cursor: pointer;
   }
 
+  /* The shell stands on the page ground: entries change their text colour, never their
+     ground; the current page is the accent text with a bar at the entry's left edge (spec
+     ui-cinema-shell AC-03). */
   nav a:hover,
-  .nav-action:hover:not(:disabled) {
-    background: var(--button-default-bgColor-hover);
+  nav a:focus-visible,
+  .nav-action:hover:not(:disabled),
+  .nav-action:focus-visible {
     color: var(--fgColor-default);
   }
 
   nav a[aria-current='page'] {
-    background: var(--bgColor-accent-muted);
     color: var(--fgColor-accent);
+  }
+
+  nav a[aria-current='page']::before {
+    position: absolute;
+    top: var(--base-size-4);
+    bottom: var(--base-size-4);
+    left: 0;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--fgColor-accent);
+    content: '';
   }
 
   .nav-action:disabled {
@@ -404,12 +417,7 @@
     align-items: center;
     gap: var(--base-size-8);
     padding: var(--base-size-8) var(--base-size-16);
-    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
-    background: var(--bgColor-surface);
-  }
-
-  .topbar-tools {
-    margin-left: auto;
+    background: var(--bgColor-default);
   }
 
   .icon-button {
@@ -435,8 +443,7 @@
     margin: 0;
     padding: 0;
     border: 0;
-    border-right: var(--borderWidth-thin) solid var(--borderColor-default);
-    background: var(--bgColor-surface);
+    background: var(--bgColor-default);
     color: var(--fgColor-default);
   }
 

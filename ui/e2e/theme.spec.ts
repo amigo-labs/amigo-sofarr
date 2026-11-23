@@ -1,6 +1,8 @@
 // Spec amigo-theme AC-02, AC-03, AC-10 .. AC-12: the UI is drawn in the shared theme's
 // tokens, in Inter, with the theme's control sizes and corners, and without Primer's styles.
-// The palette choice itself (AC-04 .. AC-08) is tested in layout.spec.ts.
+// Since spec ui-cinema-shell the UI is always dark (its AC-02, tested in cinema-shell.spec.ts
+// and layout.spec.ts), so these run in the dark palette; the sidebar stands on the page
+// ground (its AC-03) and boxes have no frame (its AC-04).
 
 import { expect, test } from '@playwright/test';
 import { SAMPLE_SYSTEM, expectSystemPage, json, logIn } from './helpers';
@@ -21,12 +23,17 @@ for (const palette of PALETTES) {
       await expectSystemPage(page);
       expect(await styleOf(page, 'body', 'background-color')).toBe(token(palette, 'bg'));
       expect(await styleOf(page, 'body', 'color')).toBe(token(palette, 'text'));
-      expect(await styleOf(page, '.sidebar', 'background-color')).toBe(token(palette, 'surface'));
+      expect(await styleOf(page, '.sidebar', 'background-color')).toBe(token(palette, 'bg'));
       expect(await styleOf(page, 'main .box', 'background-color')).toBe(token(palette, 'surface'));
-      expect(await styleOf(page, 'main .box', 'border-top-color')).toBe(token(palette, 'border'));
+      expect(await styleOf(page, 'main .box', 'border-top-width')).toBe('0px');
+      expect(await styleOf(page, 'main .box-row + .box-row', 'border-top-color')).toBe(
+        token(palette, 'border'),
+      );
       expect(await styleOf(page, 'main .muted', 'color')).toBe(token(palette, 'text-secondary'));
-      // The theme switch is a raised control.
-      const group = page.getByRole('group', { name: 'Farbschema' });
+      // A segmented control is a raised control.
+      await page.goto(`${LIBRARY}/kalender`);
+      const group = page.getByRole('group', { name: 'Zeitraum' });
+      await expect(group).toBeVisible();
       expect(await group.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
         token(palette, 'surface-raised'),
       );

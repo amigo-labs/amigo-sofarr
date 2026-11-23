@@ -19,4 +19,8 @@ title: string, episode_title: string | null, year: number | null, state: EntrySt
 /**
  * The movie, or the episode and its series, are monitored.
  */
-monitored: boolean, };
+monitored: boolean, 
+/**
+ * Whether the movie or series has a poster (`/api/images/{kind}/{id}/list`).
+ */
+has_poster: boolean, };

@@ -1,10 +1,11 @@
 // Spec ui-shell-redesign AC-01 .. AC-09: the sidebar on wide windows, collapsible and
-// remembered, the top bar and drawer on narrow ones, and the theme switch's buttons.
+// remembered, the top bar and drawer on narrow ones. Spec ui-cinema-shell revised AC-02 (the
+// current entry: accent text and bar, no filled ground) and AC-09 (no theme switch).
 
 import { expect, test, type Page } from '@playwright/test';
 import { expectNoHorizontalScroll, expectOverview, expectSystemPage, logIn } from './helpers';
 import { SERVERS } from './servers';
-import { PALETTES, storeTheme, token } from './theme-helpers';
+import { PALETTES, THEME_KEY, storeTheme, token } from './theme-helpers';
 
 const ENTRIES = [
   'Übersicht',
@@ -33,9 +34,7 @@ const box = async (page: Page, selector: string) => {
 test.describe('wide window (AC-01 .. AC-05)', () => {
   test.use({ viewport: WIDE });
 
-  test('the sidebar sits at the left with groups, entries, theme switch and logout (AC-01)', async ({
-    page,
-  }) => {
+  test('the sidebar sits at the left with groups, entries and logout (AC-01)', async ({ page }) => {
     await page.goto(`${SERVERS.auth}/system`);
     await logIn(page);
     await expectSystemPage(page);
@@ -53,14 +52,13 @@ test.describe('wide window (AC-01 .. AC-05)', () => {
     const first = sidebar.locator('.group').first();
     await expect(first.locator('.group-heading')).toHaveCount(0);
     await expect(first.getByRole('link')).toHaveText(['Übersicht', 'Entdecken']);
-    // Brand on top; theme switch and logout below the entries.
+    // Brand on top; logout below the entries; no theme switch (ui-cinema-shell AC-01).
     const brand = await box(page, '.sidebar .brand');
     const last = await nav(page).getByRole('link', { name: 'System' }).boundingBox();
-    const theme = await page.getByRole('group', { name: 'Farbschema' }).boundingBox();
     const logout = await page.getByRole('button', { name: 'Abmelden' }).boundingBox();
     expect(brand.y).toBeLessThan(last?.y ?? 0);
-    expect(theme?.y ?? 0).toBeGreaterThan(last?.y ?? 0);
     expect(logout?.y ?? 0).toBeGreaterThan(last?.y ?? 0);
+    await expect(page.getByRole('group', { name: 'Farbschema' })).toHaveCount(0);
   });
 
   test('the sidebar also shows on the page-not-found page (AC-01)', async ({ page }) => {
@@ -70,7 +68,7 @@ test.describe('wide window (AC-01 .. AC-05)', () => {
   });
 
   for (const palette of PALETTES) {
-    test(`every entry has an icon; the current one is the accent (AC-02, ${palette})`, async ({
+    test(`every entry has an icon; the current one is the accent text without a ground (AC-02, ${palette})`, async ({
       page,
     }) => {
       await storeTheme(page, palette);
@@ -90,7 +88,7 @@ test.describe('wide window (AC-01 .. AC-05)', () => {
         })),
       ).toEqual({
         color: token(palette, 'accent-ink'),
-        background: token(palette, 'accent-subtle'),
+        background: 'rgba(0, 0, 0, 0)',
       });
     });
   }
@@ -226,7 +224,7 @@ test.describe('narrow window (AC-06 .. AC-08)', () => {
     await expectNoHorizontalScroll(page);
   });
 
-  test('the login page has a top bar with brand and theme switch, no menu (AC-06)', async ({
+  test('the login page has a top bar with the brand, no menu and no theme switch (AC-06)', async ({
     page,
   }) => {
     for (const size of [NARROW, WIDE]) {
@@ -234,7 +232,7 @@ test.describe('narrow window (AC-06 .. AC-08)', () => {
       await page.goto(`${SERVERS.auth}/anmelden`);
       await expect(page.getByRole('heading', { name: 'Bei sofarr anmelden' })).toBeVisible();
       await expect(page.locator('.topbar .brand')).toBeVisible();
-      await expect(page.getByRole('group', { name: 'Farbschema' })).toBeVisible();
+      await expect(page.getByRole('group', { name: 'Farbschema' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Menü öffnen' })).toHaveCount(0);
       await expect(page.locator('.sidebar')).toHaveCount(0);
       await expectNoHorizontalScroll(page);
@@ -255,7 +253,7 @@ test.describe('narrow window (AC-06 .. AC-08)', () => {
       'true',
     );
     await expect(nav(page).getByRole('link')).toHaveText(ENTRIES);
-    await expect(drawer.getByRole('group', { name: 'Farbschema' })).toBeVisible();
+    await expect(drawer.getByRole('group', { name: 'Farbschema' })).toHaveCount(0);
     await expect(drawer.getByRole('button', { name: 'Abmelden' })).toBeVisible();
     await drawer.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const placed = await box(page, '.drawer');
@@ -338,31 +336,23 @@ test.describe('breakpoint', () => {
   });
 });
 
+// Revised by spec ui-cinema-shell AC-01, AC-02: the switch is gone, a stored choice ignored.
 test.describe('theme switch (AC-09)', () => {
-  test('three buttons named Farbschema, the pressed one marked, a pick applies and is remembered', async ({
-    page,
-  }) => {
+  test('no switch, expanded or collapsed; a stored Hell is ignored and kept', async ({ page }) => {
     await page.setViewportSize(WIDE);
+    await storeTheme(page, 'light');
     await page.goto(`${SERVERS.open}/system`);
     await expectSystemPage(page);
-    const group = page.getByRole('group', { name: 'Farbschema' });
-    await expect(group.getByRole('button')).toHaveText(['Dunkel', 'Hell', 'System']);
-    await expect(group.getByRole('button', { name: 'Dunkel' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    await expect(page.getByRole('group', { name: 'Farbschema' })).toHaveCount(0);
+    for (const name of ['Dunkel', 'Hell']) {
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+    }
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
+      token('dark', 'bg'),
     );
-    await group.getByRole('button', { name: 'Hell' }).click();
-    await expect(group.getByRole('button', { name: 'Hell' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await expect(group.getByRole('button', { name: 'Dunkel' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
-    expect(await page.evaluate(() => localStorage.getItem('sofarr-theme'))).toBe('light');
-    // Collapsed, the three choices stay reachable by name.
+    expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBe('light');
     await page.getByRole('button', { name: 'Seitenleiste einklappen' }).click();
-    await expect(group.getByRole('button', { name: 'System' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Seitenleiste ausklappen' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Farbschema' })).toHaveCount(0);
   });
 });

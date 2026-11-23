@@ -4,8 +4,19 @@
   import PageHeader from '#lib/components/PageHeader.svelte';
   import Loading from '#lib/components/Loading.svelte';
   import PageError from '#lib/components/PageError.svelte';
+  import type { ApiResult } from '#lib/api/http.ts';
   import type { OverviewAnswer } from '#lib/api/generated/OverviewAnswer.ts';
-  import { getOverview } from '#lib/api/library.ts';
+  import { getOverview, listMovies, listSeries } from '#lib/api/library.ts';
+  import { keepRowFocus } from '#lib/components/row-focus.ts';
+  import TileRow from '#lib/components/TileRow.svelte';
+  import RowTile from '#lib/library/components/RowTile.svelte';
+  import {
+    ROW_LINKS,
+    newestTiles,
+    rowQuery,
+    upcomingTiles,
+    type HomeTile,
+  } from '#lib/library/home.ts';
   import alertIcon from '@primer/octicons/build/svg/alert-16.svg?raw';
   import calendarIcon from '@primer/octicons/build/svg/calendar-16.svg?raw';
   import checkIcon from '@primer/octicons/build/svg/check-16.svg?raw';
@@ -21,10 +32,36 @@
   // The overview (spec web-ui-library AC-01): queue, activity, problems, upcoming dates;
   // refreshes every 15 seconds (spec web-ui-shell). Key figures on top and two columns from
   // 1200 px (spec ui-overview-pages AC-02 .. AC-04). Empty boxes are hidden (spec ui-polish
-  // AC-08).
+  // AC-08). Between the key figures and the boxes the rows of poster tiles „Demnächst“,
+  // „Zuletzt hinzugefügt“ and „Fehlt noch“ (spec ui-cinema-home).
   const overview = createResource(getOverview);
 
-  onMount(() => overview.start());
+  /** One row from the movie and series lists: both requests or none (AC-06). */
+  async function loadRow(missing: boolean): Promise<ApiResult<HomeTile[]>> {
+    const query = rowQuery(missing);
+    const [movies, series] = await Promise.all([listMovies(query), listSeries(query)]);
+    if (!movies.ok) return movies;
+    if (!series.ok) return series;
+    return { ok: true, data: newestTiles(movies.data.items, series.data.items) };
+  }
+
+  const added = createResource(() => loadRow(false));
+  const missing = createResource(() => loadRow(true));
+
+  onMount(() => {
+    const stops = [overview.start(), added.start(), missing.start()];
+    return () => stops.forEach((stop) => stop());
+  });
+
+  // The rows; one that cannot be loaded does not show until a refresh succeeds (AC-06).
+  const rowTiles = (resource: typeof added): HomeTile[] | null =>
+    resource.failure === null ? resource.data : null;
+
+  let rows: HTMLElement | undefined = $state();
+  $effect(() => {
+    if (rows === undefined) return;
+    return keepRowFocus(rows, () => document.querySelector<HTMLElement>('main h1'));
+  });
 
   // Recomputed with every refresh, so „Heute“ moves on after midnight (AC-05).
   const today = $derived.by(() => {
@@ -99,6 +136,10 @@
   {@const shown = shownBoxes(data)}
   {@const left = shown.queue || shown.upcoming}
   {@const right = shown.problems || shown.activity}
+  {@const soon = upcomingTiles(data.upcoming, today)}
+  {@const newest = rowTiles(added)}
+  {@const wanted = rowTiles(missing)}
+  {@const rowsEmpty = soon.length === 0 && newest?.length === 0 && wanted?.length === 0}
   <ul class="figures" aria-label="Kennzahlen">
     <li>
       {@render figure(
@@ -131,7 +172,29 @@
       )}
     </li>
   </ul>
-  {#if !left && !right}
+  <div class="rows" bind:this={rows}>
+    {#if soon.length > 0}
+      <TileRow id="row-upcoming" title="Demnächst" href={ROW_LINKS.upcoming} count={soon.length}>
+        {#each soon as tile (tile.key)}<RowTile {tile} />{/each}
+      </TileRow>
+    {/if}
+    {#if newest !== null && newest.length > 0}
+      <TileRow
+        id="row-added"
+        title="Zuletzt hinzugefügt"
+        href={ROW_LINKS.added}
+        count={newest.length}
+      >
+        {#each newest as tile (tile.key)}<RowTile {tile} />{/each}
+      </TileRow>
+    {/if}
+    {#if wanted !== null && wanted.length > 0}
+      <TileRow id="row-missing" title="Fehlt noch" href={ROW_LINKS.missing} count={wanted.length}>
+        {#each wanted as tile (tile.key)}<RowTile {tile} />{/each}
+      </TileRow>
+    {/if}
+  </div>
+  {#if !left && !right && rowsEmpty}
     <EmptyLine icon={checkIcon} text="Alles ruhig – keine Downloads, Probleme oder Termine." />
   {/if}
   <div class="columns" class:single={!left || !right}>
@@ -185,6 +248,11 @@
 {/if}
 
 <style>
+  /* The rows are items of the page's column; the wrapper only watches the focus (AC-05). */
+  .rows {
+    display: contents;
+  }
+
   .figures {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

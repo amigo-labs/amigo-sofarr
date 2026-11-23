@@ -39,6 +39,9 @@
   $effect(() => {
     // Svelte sets a bound element to null once it leaves the page.
     if (!(sentinel instanceof HTMLElement)) return;
+    // Observed afresh after every load: a sentinel still in reach after a page arrived (a
+    // tall window, short tiles) reports itself again and the next page follows.
+    if (list.loading) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) void list.next();

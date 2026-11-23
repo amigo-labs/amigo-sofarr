@@ -27,6 +27,8 @@
   // The calendar (spec web-ui-library AC-07): a week or a month of release and air dates,
   // starting at the current week; span and date are part of the page address. The month is a
   // grid of weeks, the week seven columns, both an agenda on narrow windows (spec ui-calendar).
+  // Days are tiles on the surface ground without frames, today ringed in the accent; the
+  // week's entries show their posters (spec ui-cinema-shell AC-05, AC-06).
   const span: Span = $derived(page.url.searchParams.get('ansicht') === 'monat' ? 'monat' : 'woche');
   const day = $derived.by(() => {
     const value = page.url.searchParams.get('datum');
@@ -176,7 +178,7 @@
           {:else}
             <ul class="entries">
               {#each d.entries as entry, i (i)}
-                <li><CalendarEntryLine {entry} dot /></li>
+                <li><CalendarEntryLine {entry} dot poster /></li>
               {/each}
             </ul>
           {/if}
@@ -233,23 +235,21 @@
     min-width: 0;
   }
 
-  /* Month grid. */
+  /* Month grid: surface tiles in 2 px gaps of the page ground. */
   .month {
     overflow: hidden;
-    border: var(--borderWidth-thin) solid var(--borderColor-default);
     border-radius: var(--borderRadius-large);
-    background: var(--bgColor-surface);
   }
 
   .weekdays,
   .month .days {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
   }
 
   .weekdays span {
     padding: var(--base-size-8) var(--base-size-12);
-    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
     color: var(--fgColor-caption);
     font-size: 12px;
     font-weight: var(--base-text-weight-semibold);
@@ -266,12 +266,7 @@
        ui-polish AC-12). */
     min-height: 3.5rem;
     padding: var(--base-size-8);
-    border-right: var(--borderWidth-thin) solid var(--borderColor-default);
-    border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
-  }
-
-  .cell:nth-child(7n) {
-    border-right: 0;
+    background: var(--bgColor-surface);
   }
 
   /* Outside days: their numbers in the muted text colour, which keeps AA contrast. */
@@ -286,6 +281,11 @@
 
   .cell .full {
     display: none;
+  }
+
+  .cell.today,
+  .column.today {
+    box-shadow: inset 0 0 0 2px var(--fgColor-accent);
   }
 
   .cell.today .number {
@@ -312,13 +312,8 @@
     gap: var(--base-size-8);
     min-width: 0;
     padding: var(--base-size-12);
-    border: var(--borderWidth-thin) solid var(--borderColor-default);
     border-radius: var(--borderRadius-large);
     background: var(--bgColor-surface);
-  }
-
-  .column.today {
-    border-color: var(--borderColor-accent-emphasis);
   }
 
   .column.today h3 {
@@ -333,8 +328,8 @@
   /* Agenda on narrow windows. */
   @media (max-width: 767.98px) {
     .month {
-      border: 0;
-      background: none;
+      overflow: visible;
+      border-radius: 0;
     }
 
     .weekdays {
@@ -355,13 +350,7 @@
     .cell {
       min-height: 0;
       padding: var(--base-size-12);
-      border: var(--borderWidth-thin) solid var(--borderColor-default);
       border-radius: var(--borderRadius-large);
-      background: var(--bgColor-surface);
-    }
-
-    .cell.today {
-      border-color: var(--borderColor-accent-emphasis);
     }
 
     .cell .number {

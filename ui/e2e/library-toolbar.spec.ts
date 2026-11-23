@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectAttribution } from './helpers';
 import { RATINGS, waitForRatings } from './extras-helpers';
-import { LIBRARY, apiTotal, expectTotal, items, openFilters } from './library-helpers';
+import { LIBRARY, apiTotal, expectTotal, items, noListRows, openFilters } from './library-helpers';
 
 const toolbar = (page: Page) => page.getByRole('toolbar', { name: 'Liste' });
 const filterButton = (page: Page) => page.getByRole('button', { name: /^Filter( \(\d+\))?$/ });
@@ -15,6 +15,8 @@ test.describe('header and toolbar (AC-01)', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
+    // The list starts high while no row stands above it (spec ui-cinema-library-rows AC-06).
+    await noListRows(page);
     await page.goto(`${LIBRARY}/filme`);
     await expect(items(page).first()).toBeVisible();
     const heading = await page.getByRole('heading', { level: 1, name: 'Filme' }).boundingBox();

@@ -6,7 +6,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { OverviewAnswer } from '../src/lib/api/generated/OverviewAnswer';
 import type { QueueItem } from '../src/lib/api/generated/QueueItem';
-import { LIBRARY } from './library-helpers';
+import { emptyRows, LIBRARY } from './library-helpers';
 import { octiconPath as octicon } from './octicons.mjs';
 import { PALETTES, storeTheme } from './theme-helpers';
 
@@ -216,6 +216,8 @@ test.describe('empty states (AC-06, revised by ui-polish AC-08)', () => {
   test('empty boxes are hidden; one muted line after a decorative icon says so', async ({
     page,
   }) => {
+    // No rows either (ui-cinema-home AC-04).
+    await emptyRows(page);
     await overviewWith(page, (a) => ({
       ...a,
       queue: { items: [], notice: null, as_of: '2026-11-17T08:05:00Z', client_configured: true },

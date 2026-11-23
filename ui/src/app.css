@@ -376,9 +376,9 @@ code,
   color: var(--fgColor-caption);
 }
 
-/* Cards with a header row. */
+/* Cards with a header row: flat on the surface ground, without a frame; header and rows are
+   told apart by spacing, rows by their hairlines (spec ui-cinema-shell AC-04). */
 .box {
-  border: var(--borderWidth-thin) solid var(--borderColor-default);
   border-radius: var(--borderRadius-large);
   background: var(--bgColor-surface);
 }
@@ -386,7 +386,6 @@ code,
 .box-header {
   margin: 0;
   padding: var(--base-size-12) var(--base-size-16);
-  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
   border-radius: var(--borderRadius-large) var(--borderRadius-large) 0 0;
   font-size: var(--text-title-size-small);
   font-weight: var(--base-text-weight-semibold);
