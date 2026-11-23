@@ -1,5 +1,5 @@
 ---
-status: todo
+status: implemented
 created: 2026-11-22
 size: M
 design: [sofarr.md §3, sofarr.md §9 D24, sofarr.md §9 D34]
@@ -8,6 +8,15 @@ oracle: none
 ---
 
 # Cinema look 1: real backdrops on the title pages
+
+## Summary
+
+> Completed: 2026-11-23
+
+- Movies and series with a TMDB id store TMDB's backdrop at the metadata refresh (`backdrop_path`, new migration); a refresh without usable TMDB details keeps it, a series without a TMDB id has none.
+- The library API tells `has_backdrop` and the address `backdrop` (it names the stored image); sofarr serves the backdrop at 1280 px from its image cache under the poster's login, 404 uncached when there is none.
+- `HeadBackdrop.svelte` shows the backdrop sharp behind the head of the movie, series and preview pages under a scrim of the page ground (at least 80 % under the text, at most 45 % at the top right from 1440 px), without delaying or moving the head; the blurred poster or the plain ground is the fallback.
+- The head's texts keep 4.5:1 over an all-white and an all-black backdrop at 1440 and 360 px, measured from pixels; axe scans and keyboard focus are clean; the website screenshots show the demo titles' backdrops.
 
 ## Context
 
@@ -51,24 +60,24 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 ## Acceptance criteria
 
-- [ ] AC-01 (event): When sofarr refreshes the metadata of a library movie, then it stores the backdrop TMDB names for the movie; a movie for which TMDB's answer names none has none afterwards. A refresh that gets no movie details from TMDB (unreachable, an error status, an unreadable answer) keeps the stored one, as it keeps the other metadata today.
-- [ ] AC-02 (event): When sofarr refreshes a library series that has a TMDB id, then it stores the backdrop TMDB names for the series; a series without a TMDB id, or for which TMDB names none, has none. If TMDB gives no usable answer for the series (unreachable, an error status, an unreadable answer), then the refresh of the series still succeeds as today and the stored backdrop stays.
-- [ ] AC-03 (always): The library API tells for every movie and series, in the lists and on the detail answers, whether it has a backdrop (`has_backdrop`). All fields of today stay, so existing clients keep working.
-- [ ] AC-04 (event): When a client asks sofarr for the backdrop of a library movie or series, then sofarr answers with the image at a width of 1280 px from its image cache, fetching it from TMDB only when the cache has none; the browser never asks TMDB itself (D24). A title without a backdrop, an unknown title and an image TMDB does not deliver are answered 404; such an answer is not cached, so a later request tries again. The answer for a title changes when its stored backdrop changes (the address the UI uses names the stored image, so a browser never shows an outdated one). The request needs the same login as the poster's.
+- [x] AC-01 (event): When sofarr refreshes the metadata of a library movie, then it stores the backdrop TMDB names for the movie; a movie for which TMDB's answer names none has none afterwards. A refresh that gets no movie details from TMDB (unreachable, an error status, an unreadable answer) keeps the stored one, as it keeps the other metadata today.
+- [x] AC-02 (event): When sofarr refreshes a library series that has a TMDB id, then it stores the backdrop TMDB names for the series; a series without a TMDB id, or for which TMDB names none, has none. If TMDB gives no usable answer for the series (unreachable, an error status, an unreadable answer), then the refresh of the series still succeeds as today and the stored backdrop stays.
+- [x] AC-03 (always): The library API tells for every movie and series, in the lists and on the detail answers, whether it has a backdrop (`has_backdrop`). All fields of today stay, so existing clients keep working.
+- [x] AC-04 (event): When a client asks sofarr for the backdrop of a library movie or series, then sofarr answers with the image at a width of 1280 px from its image cache, fetching it from TMDB only when the cache has none; the browser never asks TMDB itself (D24). A title without a backdrop, an unknown title and an image TMDB does not deliver are answered 404; such an answer is not cached, so a later request tries again. The answer for a title changes when its stored backdrop changes (the address the UI uses names the stored image, so a browser never shows an outdated one). The request needs the same login as the poster's.
   - The preview page keeps the image address its answer carries today (`TitlePreview.backdrop`), also for a title that is in the library.
-- [ ] AC-05 (state): While a title page's title has a backdrop and the image has loaded, the head shows it sharp (not blurred) across the head's full width behind the head's content.
+- [x] AC-05 (state): While a title page's title has a backdrop and the image has loaded, the head shows it sharp (not blurred) across the head's full width behind the head's content.
   - The image fills the head without distortion (cropped, never stretched) and is anchored to the head's top.
   - A scrim lies over the whole image: at least 80 % of the page ground under the head's text column, and the full page ground at the head's lower edge, so the head ends in the page without an edge. At window widths from 1440 px it is at most 45 % at the head's top right, so the image shows there; in narrower windows the head's content reaches the right edge and the scrim stays strong under it.
   - The poster, the text and the facts panel of the head stay as they are (`ui-detail-head` AC-02, AC-03).
   - The head is at least 420 px high at window widths from 1024 px, so the image has room; below 1024 px the head is as high as its content and the image fills that.
   - The image is decorative: hidden from assistive technology, without alternative text.
-- [ ] AC-06 (state): While a movie or series page's title has no backdrop, or the backdrop fails to load, the head shows the blurred poster of today (`ui-polish` AC-01); without a poster too, the plain page ground. A preview page without a backdrop shows the plain page ground, as today.
-- [ ] AC-07 (always): Over a backdrop, every text of the head that does not stand on a panel of its own (title, year, other titles, rating, overview) meets a contrast of at least 4.5:1, whatever the image. Measured in the dark palette at 1440 px and 360 px with an all-white and an all-black backdrop: the text colour against the colour that results from the scrim's weakest point under that text over the image.
-- [ ] AC-08 (always): The backdrop does not delay the head: while the image request is held back, the head's text is visible, and when the image then arrives the head has the same height and its text the same position as before.
-- [ ] AC-09 (state): While sofarr runs in shadow mode, AC-01 to AC-08 hold unchanged (metadata and images are read-only towards the media folders).
-- [ ] AC-10 (always): The three title pages with a backdrop meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), and every control of the head is reachable by keyboard with a visible focus.
-- [ ] AC-11 (always, manual: images): The website screenshots `movie.png` and `series.png` under `docs/site/screenshots/` are regenerated and show the demo titles with their backdrops.
-- [ ] AC-12 (state, manual: visual design, judged by the owner): While the dark palette is active, a movie page, a series page and a preview page with a backdrop look like a title's page of a streaming service at 1440 px: the image is recognisable, the text is easy to read, nothing overlaps.
+- [x] AC-06 (state): While a movie or series page's title has no backdrop, or the backdrop fails to load, the head shows the blurred poster of today (`ui-polish` AC-01); without a poster too, the plain page ground. A preview page without a backdrop shows the plain page ground, as today.
+- [x] AC-07 (always): Over a backdrop, every text of the head that does not stand on a panel of its own (title, year, other titles, rating, overview) meets a contrast of at least 4.5:1, whatever the image. Measured in the dark palette at 1440 px and 360 px with an all-white and an all-black backdrop: the text colour against the colour that results from the scrim's weakest point under that text over the image.
+- [x] AC-08 (always): The backdrop does not delay the head: while the image request is held back, the head's text is visible, and when the image then arrives the head has the same height and its text the same position as before.
+- [x] AC-09 (state): While sofarr runs in shadow mode, AC-01 to AC-08 hold unchanged (metadata and images are read-only towards the media folders).
+- [x] AC-10 (always): The three title pages with a backdrop meet WCAG 2.1 AA in the dark palette at 1440 px and 360 px (axe scans), and every control of the head is reachable by keyboard with a visible focus.
+- [x] AC-11 (always, manual: images): The website screenshots `movie.png` and `series.png` under `docs/site/screenshots/` are regenerated and show the demo titles with their backdrops.
+- [x] AC-12 (state, manual: visual design, judged by the owner): While the dark palette is active, a movie page, a series page and a preview page with a backdrop look like a title's page of a streaming service at 1440 px: the image is recognisable, the text is easy to read, nothing overlaps.
 
 ## Technical notes
 
@@ -108,18 +117,18 @@ Decided in D34: the look stays within the shared amigo theme (D29: its colours, 
 
 | AC    | Test | Status | Commit |
 | ----- | ---- | ------ | ------ |
-| AC-01 | `the_movie_refresh_stores_drops_and_keeps_the_backdrop` (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
-| AC-02 | `the_series_refresh_takes_the_backdrop_by_tmdb_id` (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
-| AC-03 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`, `a_series_tells_its_backdrop_and_the_address_follows_the_image` (`crates/sofarr-server/src/backdrop_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | built |  |
-| AC-04 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode` (1280 px, cache, 404 not cached, title without a backdrop, unknown title), `a_series_tells_its_backdrop_and_the_address_follows_the_image` (`crates/sofarr-server/src/backdrop_tests.rs`); `images_need_a_credential_backdrops_like_posters` (`crates/sofarr-server/src/auth_tests.rs`); `previews_show_the_title_and_say_whether_it_is_in_the_library` (the preview address of a library title, `crates/sofarr-server/src/discover/title_tests.rs`) | built |  |
-| AC-05 | `movie page / series page / preview page: sharp backdrop (AC-05)` › `fills the head sharp, cropped, anchored to the top, under a scrim`, `the scrim is strong under the text and light at the top right` (1440 px), `below 1024 px the head is as high as its content` (`ui/e2e/cinema-backdrops.spec.ts`); `preview head (AC-04)` › `the backdrop sharp under a scrim in the page ground; compact facts` (`ui/e2e/discover-polish.spec.ts`) | built |  |
-| AC-06 | `fallbacks (AC-06)` › `a library title without a backdrop shows its poster, blurred`, `a backdrop that fails to load falls back to the blurred poster`, `without backdrop and poster the head has the plain ground`, `a preview whose backdrop fails to load has the plain ground` (`ui/e2e/cinema-backdrops.spec.ts`); `backdrop (AC-01)` (`ui/e2e/library-detail-head.spec.ts`) | built |  |
-| AC-07 | `movie page / series page / preview page: contrast over any image (AC-07)` › `at least 4.5:1 over an all-white / all-black backdrop at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
-| AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
-| AC-09 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`; the refresh tests run in shadow mode, the test app's default (`crates/sofarr-server/src/backdrop_tests.rs`) | built |  |
-| AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | built |  |
-| AC-11 | manual: the owner checked `docs/site/screenshots/movie.png` and `series.png` with their backdrops among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | built |  |
-| AC-12 | manual: the owner checked the movie page („Nordlicht über Tromsø“), the series page („Hafenlichter“) and the preview page („Rote Dünen“) with their backdrops from screenshots of this branch's demo instance, dark palette, 1440 px („Sichtprüfung ok“), 2026-11-22 | built |  |
+| AC-01 | `the_movie_refresh_stores_drops_and_keeps_the_backdrop` (`crates/sofarr-server/src/backdrop_tests.rs`) | verified | 7453148 |
+| AC-02 | `the_series_refresh_takes_the_backdrop_by_tmdb_id` (`crates/sofarr-server/src/backdrop_tests.rs`) | verified | 7453148 |
+| AC-03 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`, `a_series_tells_its_backdrop_and_the_address_follows_the_image` (`crates/sofarr-server/src/backdrop_tests.rs`); `ui_types_match_the_server` (`crates/sofarr-server/src/ui_types.rs`) | verified | d6a676a |
+| AC-04 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode` (1280 px, cache, 404 not cached, title without a backdrop, unknown title), `a_series_tells_its_backdrop_and_the_address_follows_the_image` (`crates/sofarr-server/src/backdrop_tests.rs`); `images_need_a_credential_backdrops_like_posters` (`crates/sofarr-server/src/auth_tests.rs`); `previews_show_the_title_and_say_whether_it_is_in_the_library` (the preview address of a library title, `crates/sofarr-server/src/discover/title_tests.rs`) | verified | d6a676a |
+| AC-05 | `movie page / series page / preview page: sharp backdrop (AC-05)` › `fills the head sharp, cropped, anchored to the top, under a scrim`, `the scrim is strong under the text and light at the top right` (1440 px), `below 1024 px the head is as high as its content` (`ui/e2e/cinema-backdrops.spec.ts`); `preview head (AC-04)` › `the backdrop sharp under a scrim in the page ground; compact facts` (`ui/e2e/discover-polish.spec.ts`) | verified | e2cdb8d |
+| AC-06 | `fallbacks (AC-06)` › `a library title without a backdrop shows its poster, blurred`, `a backdrop that fails to load falls back to the blurred poster`, `without backdrop and poster the head has the plain ground`, `a preview whose backdrop fails to load has the plain ground` (`ui/e2e/cinema-backdrops.spec.ts`); `backdrop (AC-01)` (`ui/e2e/library-detail-head.spec.ts`) | verified | e2cdb8d |
+| AC-07 | `movie page / series page / preview page: contrast over any image (AC-07)` › `at least 4.5:1 over an all-white / all-black backdrop at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | verified | e2cdb8d |
+| AC-08 | `movie page / series page / preview page: the head does not wait or move (AC-08)` › `text first; same height and text position when the image arrives` (`ui/e2e/cinema-backdrops.spec.ts`) | verified | e2cdb8d |
+| AC-09 | `the_api_tells_and_serves_the_backdrop_in_shadow_mode`, `the_api_tells_and_serves_the_backdrop_in_live_mode`; the refresh tests run in shadow mode, the test app's default (`crates/sofarr-server/src/backdrop_tests.rs`) | verified | d6a676a |
+| AC-10 | `movie page / series page / preview page: accessibility (AC-10)` › `no violation and a visible focus at 1440 px / 360 px` (`ui/e2e/cinema-backdrops.spec.ts`) | verified | e2cdb8d |
+| AC-11 | manual: the owner checked `docs/site/screenshots/movie.png` and `series.png` with their backdrops among the screenshots of the demo instance from this branch, dark palette, 1440 px and 360 px („Sichtprüfung schaut gut aus“), 2026-11-23 | verified | 9e3ff4c |
+| AC-12 | manual: the owner checked the movie page („Nordlicht über Tromsø“), the series page („Hafenlichter“) and the preview page („Rote Dünen“) with their backdrops from screenshots of this branch's demo instance, dark palette, 1440 px („Sichtprüfung ok“), 2026-11-22 | verified | 129a54f |
 
 ## Decisions
 
