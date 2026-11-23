@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.4.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.3.0...v1.4.0) (2026-11-23)
+
+
+### Features
+
+* **db:** backdrop path of movies and series (AC-01, AC-02) ([7453148](https://github.com/amigo-labs/amigo-sofarr/commit/745314803b60e91dc4ad15d5ef30ed0175ea1447))
+* **metadata:** the backdrop TMDB names for a movie or series (AC-01, AC-02) ([f9dac94](https://github.com/amigo-labs/amigo-sofarr/commit/f9dac94265acaee2bc2310b375b5142003e1fb3a))
+* **server:** calendar entries say whether their title has a poster (AC-02) ([6db2119](https://github.com/amigo-labs/amigo-sofarr/commit/6db211957f04cc5c2391f2bc47ba3244494558c3))
+* **server:** featured title for the discover hero (AC-01, AC-04 .. AC-08) ([e8a6967](https://github.com/amigo-labs/amigo-sofarr/commit/e8a6967eb409ee1fedd6324c0b9b497e5e35cbb7))
+* **server:** store, tell and serve backdrops of library titles (AC-01 .. AC-04, AC-09) ([d6a676a](https://github.com/amigo-labs/amigo-sofarr/commit/d6a676a7c0826581504d17e5bdf7c490c242a63b))
+* **ui:** always dark, a quieter shell, flat boxes, calendar tiles and week posters (AC-01 .. AC-08) ([94b5d9c](https://github.com/amigo-labs/amigo-sofarr/commit/94b5d9c51147f04b9caa911c3abca870bb5ff8b5))
+* **ui:** hero banner on the discover start page (AC-02 .. AC-05, AC-09) ([78caac6](https://github.com/amigo-labs/amigo-sofarr/commit/78caac6ccb97c7c7d86db8dbffbf64763294ab4d))
+* **ui:** polish tiles, episode rows, overview and controls (AC-01 .. AC-14) ([6e1cf01](https://github.com/amigo-labs/amigo-sofarr/commit/6e1cf01464e82fbb20ac52597d59396893e11c62))
+* **ui:** poster tiles with a state mark and an overlay on hover or focus (AC-01 .. AC-09) ([9e9e5c0](https://github.com/amigo-labs/amigo-sofarr/commit/9e9e5c083f52d96fe68ab058e54f3b6ea59c3480))
+* **ui:** rows of poster tiles above the movie and series lists (AC-01 .. AC-09, AC-12) ([a50c41d](https://github.com/amigo-labs/amigo-sofarr/commit/a50c41dd729a9fefe73ec1f73cd7a3bf7e82b82c))
+* **ui:** rows of poster tiles on the overview (AC-01 .. AC-08) ([142eb1e](https://github.com/amigo-labs/amigo-sofarr/commit/142eb1ea0d0dcf5886c84690a322146e78865deb))
+* **ui:** the sharp backdrop behind the head of the title pages (AC-05 .. AC-08, AC-10) ([e2cdb8d](https://github.com/amigo-labs/amigo-sofarr/commit/e2cdb8da1214af5372b66306a18206f522837478))
+* **ui:** UI redesign 11 – polish (spec ui-polish) ([842b38d](https://github.com/amigo-labs/amigo-sofarr/commit/842b38d900dad070c6c189f4ff8cec99fbab419c))
+
+
+### Bug Fixes
+
+* **ui:** a shelf page loads on while its end stays in view (AC-08) ([e98603b](https://github.com/amigo-labs/amigo-sofarr/commit/e98603b01cfd670279e790047f8ad16cb3250830))
+* **ui:** the freshness line shows the oldest fetch time of all loaded pages (AC-10) ([f2469be](https://github.com/amigo-labs/amigo-sofarr/commit/f2469be677380571513733495c6fac0af724732a))
+* **ui:** the hero's text keeps its padding on the backdrop (AC-02) ([f7b2d08](https://github.com/amigo-labs/amigo-sofarr/commit/f7b2d084b111065754666baf06716519f2d6b89a))
+* **ui:** the hero's title uses the theme's title line height (AC-02) ([6544718](https://github.com/amigo-labs/amigo-sofarr/commit/6544718a171328969e7840c638dc7010f0c6e310))
+
 ## [1.3.0](https://github.com/amigo-labs/amigo-sofarr/compare/v1.2.0...v1.3.0) (2026-11-19)
 
 
